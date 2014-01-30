@@ -51,6 +51,9 @@
 /* Maximum number of stream IDs assigned to a single device */
 #define MAX_MASTER_STREAMIDS		MAX_PHANDLE_ARGS
 
+/* Maximum stream ID */
+#define ARM_SMMU_MAX_STREAMID		(SZ_64K - 1)
+
 /* Maximum number of context banks per SMMU */
 #define ARM_SMMU_MAX_CBS		128
 
@@ -519,7 +522,8 @@ static int insert_smmu_master(struct arm_smmu_device *smmu,
 
 static int register_smmu_master(struct arm_smmu_device *smmu,
 				struct device *dev,
-				struct of_phandle_args *masterspec)
+				struct of_phandle_args *masterspec,
+				unsigned long *smmu_sids)
 {
 	int i;
 	struct arm_smmu_master *master;
@@ -556,6 +560,12 @@ static int register_smmu_master(struct arm_smmu_device *smmu,
 				masterspec->np->name, smmu->num_mapping_groups);
 			return -ERANGE;
 		}
+
+		if (test_and_set_bit(streamid, smmu_sids)) {
+			dev_err(dev, "duplicate stream ID (%d)\n", streamid);
+			return -EEXIST;
+		}
+
 		master->cfg.streamids[i] = streamid;
 	}
 	return insert_smmu_master(smmu, master);
@@ -1977,6 +1987,7 @@ static int arm_smmu_device_dt_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct rb_node *node;
 	struct of_phandle_args masterspec;
+	unsigned long *smmu_sids;
 	int num_irqs, i, err;
 
 	smmu = devm_kzalloc(dev, sizeof(*smmu), GFP_KERNEL);
@@ -2035,20 +2046,30 @@ static int arm_smmu_device_dt_probe(struct platform_device *pdev)
 	if (err)
 		return err;
 
+	smmu_sids = kzalloc(BITS_TO_LONGS(ARM_SMMU_MAX_STREAMID) *
+			sizeof(long), GFP_KERNEL);
+	if (!smmu_sids) {
+		dev_err(dev,
+			"failed to allocate bitmap for stream ID tracking\n");
+		return -ENOMEM;
+	}
+
 	i = 0;
 	smmu->masters = RB_ROOT;
 	while (!of_parse_phandle_with_args(dev->of_node, "mmu-masters",
 					   "#stream-id-cells", i,
 					   &masterspec)) {
-		err = register_smmu_master(smmu, dev, &masterspec);
+		err = register_smmu_master(smmu, dev, &masterspec, smmu_sids);
 		if (err) {
 			dev_err(dev, "failed to add master %s\n",
 				masterspec.np->name);
+			kfree(smmu_sids);
 			goto out_put_masters;
 		}
 
 		i++;
 	}
+	kfree(smmu_sids);
 	dev_notice(dev, "registered %d master devices\n", i);
 
 	parse_driver_options(smmu);
