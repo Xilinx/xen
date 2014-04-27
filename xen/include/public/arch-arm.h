@@ -335,6 +335,15 @@ typedef uint64_t xen_callback_t;
 #define PSR_MODE_SYS 0x1f
 
 /* 64 bit modes */
+#undef PSR_MODE_BIT
+#undef PSR_MODE_EL3h
+#undef PSR_MODE_EL3t
+#undef PSR_MODE_EL2h
+#undef PSR_MODE_EL2t
+#undef PSR_MODE_EL1h
+#undef PSR_MODE_EL1t
+#undef PSR_MODE_EL0t
+
 #define PSR_MODE_BIT  0x10 /* Set iff AArch32 */
 #define PSR_MODE_EL3h 0x0d
 #define PSR_MODE_EL3t 0x0c
