@@ -1,0 +1,7 @@
+Device passthrough
+===================
+
+Any device that will be passthrough to a guest should have a property
+"xen,passthrough" in their device tree node.
+
+The device won't be exposed to DOM0 and therefore no driver will be loaded.
