@@ -12,6 +12,7 @@
 #include <xen/event.h>
 #include <xsm/xsm.h>
 #include <xen/guest_access.h>
+#include <xen/err.h>
 
 #include <public/xsm/flask_op.h>
 
@@ -76,29 +77,6 @@ static int domain_has_security(struct domain *d, u32 perms)
                         perms, NULL);
 }
 
-static int flask_copyin_string(XEN_GUEST_HANDLE(char) u_buf, char **buf,
-                               size_t size, size_t max_size)
-{
-    char *tmp;
-
-    if ( size > max_size )
-        return -ENOENT;
-
-    tmp = xmalloc_array(char, size + 1);
-    if ( !tmp )
-        return -ENOMEM;
-
-    if ( copy_from_guest(tmp, u_buf, size) )
-    {
-        xfree(tmp);
-        return -EFAULT;
-    }
-    tmp[size] = 0;
-
-    *buf = tmp;
-    return 0;
-}
-
 #endif /* COMPAT */
 
 static int flask_security_user(struct xen_flask_userlist *arg)
@@ -112,9 +90,9 @@ static int flask_security_user(struct xen_flask_userlist *arg)
     if ( rv )
         return rv;
 
-    rv = flask_copyin_string(arg->u.user, &user, arg->size, PAGE_SIZE);
-    if ( rv )
-        return rv;
+    user = safe_copy_string_from_guest(arg->u.user, arg->size, PAGE_SIZE);
+    if ( IS_ERR(user) )
+        return PTR_ERR(user);
 
     rv = security_get_user_sids(arg->start_sid, user, &sids, &nsids);
     if ( rv < 0 )
@@ -227,9 +205,9 @@ static int flask_security_context(struct xen_flask_sid_context *arg)
     if ( rv )
         return rv;
 
-    rv = flask_copyin_string(arg->context, &buf, arg->size, PAGE_SIZE);
-    if ( rv )
-        return rv;
+    buf = safe_copy_string_from_guest(arg->context, arg->size, PAGE_SIZE);
+    if ( IS_ERR(buf) )
+        return PTR_ERR(buf);
 
     rv = security_context_to_sid(buf, arg->size, &arg->sid);
     if ( rv < 0 )
@@ -319,14 +297,13 @@ static int flask_security_setavc_threshold(struct xen_flask_setavc_threshold *ar
 static int flask_security_resolve_bool(struct xen_flask_boolean *arg)
 {
     char *name;
-    int rv;
 
     if ( arg->bool_id != -1 )
         return 0;
 
-    rv = flask_copyin_string(arg->name, &name, arg->size, bool_maxstr);
-    if ( rv )
-        return rv;
+    name = safe_copy_string_from_guest(arg->name, arg->size, bool_maxstr);
+    if ( IS_ERR(name) )
+        return PTR_ERR(name);
 
     arg->bool_id = security_find_bool(name);
     arg->size = 0;
