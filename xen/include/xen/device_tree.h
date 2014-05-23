@@ -22,6 +22,9 @@
 
 #define DEVICE_TREE_MAX_DEPTH 16
 
+/* This limit is used by the hypercalls to restrict the size of the path */
+#define DEVICE_TREE_MAX_PATHLEN 1024
+
 /*
  * Struct used for matching a device
  */
@@ -455,6 +458,20 @@ struct dt_device_node *dt_find_node_by_alias(const char *alias);
  * Returns a node pointer.
  */
 struct dt_device_node *dt_find_node_by_path(const char *path);
+
+
+/**
+ * dt_find_node_by_gpath - Same as dt_find_node_by_path but retrieve the
+ * path from the guest
+ *
+ * @u_path: Xen Guest handle to the buffer containing the path
+ * @u_plen: Length of the buffer
+ * @node: TODO
+ *
+ * Return 0 if succeed otherwise -errno
+ */
+int dt_find_node_by_gpath(XEN_GUEST_HANDLE(char) u_path, uint32_t u_plen,
+                          struct dt_device_node **node);
 
 /**
  * dt_get_parent - Get a node's parent if any
