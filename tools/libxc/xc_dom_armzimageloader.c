@@ -87,7 +87,7 @@ static int xc_dom_parse_zimage32_kernel(struct xc_dom_image *dom)
     zimage = (uint32_t *)dom->kernel_blob;
 
     /* Do not load kernel at the very first RAM address */
-    v_start = rambase + 0x8000;
+    v_start = rambase + 0x200000;
 
     if ( dom->kernel_size > UINT64_MAX - v_start )
     {
