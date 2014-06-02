@@ -1430,6 +1430,16 @@ static void domcreate_attach_pci(libxl__egc *egc, libxl__multidev *multidev,
         }
     }
 
+    for (i = 0; i < d_config->num_dtdevs; i++) {
+
+        ret = libxl__device_dt_add(gc, domid, &d_config->dtdevs[i]);
+        if (ret < 0) {
+            LIBXL__LOG(ctx, LIBXL__LOG_ERROR,
+                       "libxl__device_dt_add failed: %d\n", ret);
+            goto error_out;
+        }
+    }
+
     domcreate_console_available(egc, dcs);
 
     domcreate_complete(egc, dcs, 0);
