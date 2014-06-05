@@ -2055,6 +2055,16 @@ int xc_deassign_device(xc_interface *xch,
                      uint32_t domid,
                      uint32_t machine_bdf);
 
+int xc_assign_dt_device(xc_interface *xch,
+                        uint32_t domid,
+                        char *path);
+int xc_test_assign_dt_device(xc_interface *xch,
+                             uint32_t domid,
+                             char *path);
+int xc_deassign_dt_device(xc_interface *xch,
+                          uint32_t domid,
+                          char *path);
+
 int xc_domain_memory_mapping(xc_interface *xch,
                              uint32_t domid,
                              unsigned long first_gfn,

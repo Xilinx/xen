@@ -1,9 +1,6 @@
 /*
  * Code to passthrough a device tree node to a guest
  *
- * TODO: This contains only the necessary code to protected device passed to
- * dom0. It will need some updates when device passthrough will is added.
- *
  * Julien Grall <julien.grall@linaro.org>
  * Copyright (c) 2014 Linaro Limited.
  *
@@ -20,6 +17,7 @@
 
 #include <xen/lib.h>
 #include <xen/sched.h>
+#include <xen/guest_access.h>
 #include <xen/iommu.h>
 #include <xen/device_tree.h>
 
@@ -85,6 +83,20 @@ fail:
     return rc;
 }
 
+static bool_t iommu_dt_device_is_assigned(const struct dt_device_node *dev)
+{
+    bool_t assigned = 0;
+
+    if ( !dt_device_is_protected(dev) )
+        return 1;
+
+    spin_lock(&dtdevs_lock);
+    assigned = !list_empty(&dev->domain_list);
+    spin_unlock(&dtdevs_lock);
+
+    return assigned;
+}
+
 int iommu_dt_domain_init(struct domain *d)
 {
     struct hvm_iommu *hd = domain_hvm_iommu(d);
@@ -110,4 +122,83 @@ int iommu_release_dt_devices(struct domain *d)
     }
 
     return 0;
+}
+
+int iommu_do_dt_domctl(struct xen_domctl *domctl, struct domain *d,
+                       XEN_GUEST_HANDLE_PARAM(xen_domctl_t) u_domctl)
+{
+    int ret;
+    struct dt_device_node *dev;
+
+    /* TODO: How to deal with XSM? */
+    /* TODO: Do we need to check is_dying? Mostly to protect against
+     * hypercall trying to passthrough a device while we are
+     * dying.
+     */
+
+    switch ( domctl->cmd )
+    {
+    case XEN_DOMCTL_assign_device:
+        ret = -ENOSYS;
+        if ( domctl->u.assign_device.dev != XEN_DOMCTL_DEV_DT )
+            break;
+
+        ret = dt_find_node_by_gpath(domctl->u.assign_device.u.dt.path,
+                                    domctl->u.assign_device.u.dt.size,
+                                    &dev);
+        if ( ret )
+            break;
+
+        ret = iommu_assign_dt_device(d, dev);
+
+        if ( ret )
+            printk(XENLOG_G_ERR "XEN_DOMCTL_assign_dt_device: assign \"%s\""
+                   " to dom%u failed (%d)\n",
+                   dt_node_full_name(dev), d->domain_id, ret);
+        break;
+
+    case XEN_DOMCTL_deassign_device:
+        ret = -ENOSYS;
+        if ( domctl->u.assign_device.dev != XEN_DOMCTL_DEV_DT )
+            break;
+
+        ret = dt_find_node_by_gpath(domctl->u.assign_device.u.dt.path,
+                                    domctl->u.assign_device.u.dt.size,
+                                    &dev);
+        if ( ret )
+            break;
+
+        ret = iommu_deassign_dt_device(d, dev);
+
+        if ( ret )
+            printk(XENLOG_G_ERR "XEN_DOMCTL_assign_dt_device: assign \"%s\""
+                   " to dom%u failed (%d)\n",
+                   dt_node_full_name(dev), d->domain_id, ret);
+        break;
+
+    case XEN_DOMCTL_test_assign_device:
+        ret = -ENOSYS;
+        if ( domctl->u.assign_device.dev != XEN_DOMCTL_DEV_DT )
+            break;
+
+        ret = dt_find_node_by_gpath(domctl->u.assign_device.u.dt.path,
+                                    domctl->u.assign_device.u.dt.size,
+                                    &dev);
+        if ( ret )
+            break;
+
+        if ( iommu_dt_device_is_assigned(dev) )
+        {
+            printk(XENLOG_G_ERR "%s already assigned, or not protected\n",
+                   dt_node_full_name(dev));
+            ret = -EINVAL;
+        }
+        break;
+
+    default:
+        ret = -ENOSYS;
+        break;
+    }
+
+    return ret;
 }
