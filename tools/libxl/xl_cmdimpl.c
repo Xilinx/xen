@@ -986,7 +986,7 @@ static void parse_config_data(const char *config_source,
     long l;
     XLU_Config *config;
     XLU_ConfigList *cpus, *vbds, *nics, *pcis, *cvfbs, *cpuids, *vtpms;
-    XLU_ConfigList *channels, *ioports, *irqs, *iomem, *viridian;
+    XLU_ConfigList *channels, *ioports, *irqs, *iomem, *viridian, *dtdevs;
     int num_ioports, num_irqs, num_iomem, num_cpus, num_viridian;
     int pci_power_mgmt = 0;
     int pci_msitranslate = 0;
@@ -1744,6 +1744,25 @@ skip_vfb:
         }
         if (d_config->num_pcidevs && c_info->type == LIBXL_DOMAIN_TYPE_PV)
             libxl_defbool_set(&b_info->u.pv.e820_host, true);
+    }
+
+    if (!xlu_cfg_get_list (config, "dtdev", &dtdevs, 0, 0)) {
+        d_config->num_dtdevs = 0;
+        d_config->dtdevs = NULL;
+        for (i = 0; (buf = xlu_cfg_get_listitem(dtdevs, i)) != NULL; i++) {
+            libxl_device_dtdev *dtdev;
+
+            d_config->dtdevs = (libxl_device_dtdev *) xrealloc(d_config->dtdevs, sizeof (libxl_device_dtdev) * (d_config->num_dtdevs + 1));
+            dtdev = d_config->dtdevs + d_config->num_dtdevs;
+            libxl_device_dtdev_init(dtdev);
+
+            dtdev->path = strdup(buf);
+            if (dtdev->path == NULL) {
+                fprintf(stderr, "unable to duplicate string for dtdevs\n");
+                exit(-1);
+            }
+            d_config->num_dtdevs++;
+        }
     }
 
     switch (xlu_cfg_get_list(config, "cpuid", &cpuids, 0, 1)) {
