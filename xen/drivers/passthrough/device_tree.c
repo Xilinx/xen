@@ -41,6 +41,10 @@ int iommu_assign_dt_device(struct domain *d, struct dt_device_node *dev)
     if ( !list_empty(&dev->domain_list) )
         goto fail;
 
+    rc = iommu_construct(d);
+    if ( rc )
+        goto fail;
+
     rc = hd->platform_ops->assign_device(d, 0, dt_to_dev(dev));
 
     if ( rc )

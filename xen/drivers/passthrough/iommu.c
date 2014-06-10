@@ -187,6 +187,25 @@ void iommu_teardown(struct domain *d)
     tasklet_schedule(&iommu_pt_cleanup_tasklet);
 }
 
+int iommu_construct(struct domain *d)
+{
+    int rc = 0;
+
+    if ( need_iommu(d) > 0 )
+        return 0;
+
+    if ( !iommu_use_hap_pt(d) )
+    {
+        rc = arch_iommu_populate_page_table(d);
+        if ( rc )
+            return rc;
+    }
+
+    d->need_iommu = 1;
+
+    return rc;
+}
+
 void iommu_domain_destroy(struct domain *d)
 {
     struct hvm_iommu *hd = domain_hvm_iommu(d);
