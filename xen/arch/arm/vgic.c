@@ -68,16 +68,16 @@ static void vgic_init_pending_irq(struct pending_irq *p, unsigned int virq)
     p->irq = virq;
 }
 
-int domain_vgic_init(struct domain *d)
+int domain_vgic_init(struct domain *d, unsigned int nr_spis)
 {
     int i;
 
     d->arch.vgic.ctlr = 0;
 
-    if ( is_hardware_domain(d) )
-        d->arch.vgic.nr_spis = gic_number_lines() - 32;
-    else
-        d->arch.vgic.nr_spis = 0; /* We don't need SPIs for the guest */
+    /* The number of SPIs has to be aligned to 32 see
+     * GICD_TYPER.ITLinesNumber definition
+     */
+    d->arch.vgic.nr_spis = ROUNDUP(nr_spis, 32);
 
     switch ( gic_hw_version() )
     {

@@ -121,6 +121,8 @@ struct arch_domain
     unsigned int evtchn_irq;
 }  __cacheline_aligned;
 
+#define domain_is_configured(d) ((d)->arch.is_configured)
+
 struct arch_vcpu
 {
     struct {

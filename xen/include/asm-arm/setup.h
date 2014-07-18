@@ -54,6 +54,7 @@ void copy_from_paddr(void *dst, paddr_t paddr, unsigned long len);
 void arch_get_xen_caps(xen_capabilities_info_t *info);
 
 int construct_dom0(struct domain *d);
+int configure_dom0(struct domain *d);
 
 void discard_initial_modules(void);
 
