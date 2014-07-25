@@ -1,0 +1,23 @@
+Xen on Xilinx Ronaldo
+=====================
+
+Build XEN:
+make dist-xen XEN_TARGET_ARCH=arm64 CROSS_COMPILE=aarch64-buildroot-linux-gnu-
+
+
+Setup the boot-wrapper:
+git clone git://xenbits.xen.org/people/ianc/boot-wrapper-aarch64.git
+Create symlink to linux Image
+Create fdt.dtb (example at xsjpsgv106:/home/edgari/files/xen.dtb)
+
+make PHYS_OFFSET=0x00000000 XEN_OFFSET=0x4000000 CROSS_COMPILE=aarch64-buildroot-linux-gnu-
+
+Run on QEMU:
+qemu-system-aarch64 -M arm-generic-fdt \
+	-hw-dtb 3-1/SINGLE_ARCH/ronaldo-arm.dtb \
+	-dtb dts/3-1/LINUX_HAX/ronaldo-arm.dtb \
+	-serial mon:stdio -display none \
+	-net nic -net user,hostfwd=tcp::2255-:22 \
+	-device loader,addr=0xfe500104,data=0x8000000e,data-len=4\
+	-kernel boot-wrapper-ronaldo/xen-system.axf
+
