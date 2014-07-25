@@ -1,0 +1,116 @@
+XEN on Zynq UltraScale MPSoC
+============================
+
+This README describes how to get Linux to boot as dom0 on top of XEN on
+Zynq UltraScale MPSoC, both on QEMU and REMUS.
+
+This HOWTO will not describe howto build the XEN tools for Zynq UltraScale
+MPSoC.
+
+Before starting, you need to build ARM Trusted Firmware, U-boot and
+Linux.
+
+From U-boot, you will need the u-boot.elf and the mkimage utility.
+
+Linux needs to be built with the following options enabled:
+CONFIG_XEN
+CONFIG_HVC_DRIVER
+CONFIG_HVC_XEN
+
+Linux needs to be built with a builtin RAMDISK. You will need the
+arch/arm64/boot/Image file from the Linux build.
+
+The DTB file for XEN, should be the same as for plain Linux, with a few
+entries added to the chosen node.
+The xen,dom0-bootargs corresponds to the Linux Kernel command line.
+Here is an example:
+        chosen {
+                #address-cells = <0x1>;
+                #size-cells = <0x1>;
+
+                bootargs = "console=ttyPS0,115200 earlyprintk=cdns,uart,0xFF000000 rdinit=/sbin/init";
+                xen,xen-bootargs = "console=dtuart dtuart=serial0 dom0_mem=256M bootscrub=0 timer_slop=0";
+                xen,dom0-bootargs = "rdinit=/bin/sh console=hvc0 earlycon=xen earlyprintk=xen";
+                dom0 {
+                        compatible = "xen,linux-zimage", "xen,multiboot-module";
+                        reg = <0x00080000 0x3100000>;
+                };
+        };
+
+To convert the xen.dtb to .dts and back to dtb, do the following:
+dtc -I dtb -O dts -o xen.dts xen.dtb
+dtc -I dts -O dtb -o xen.dtb xen.dts
+
+Configuring and building XEN
+----------------------------
+
+Configure XEN (use the tuples for your favourite aarch64 toolchain):
+cd xen/
+
+Build XEN with early printk:
+make dist-xen XEN_TARGET_ARCH=arm64 CONFIG_EARLY_PRINTK=zynqmp CROSS_COMPILE=aarch64-linux-gnu-
+
+Create a u-boot image with XEN:
+mkimage -A arm64 -T kernel -a 0x5000000 -e 0x5000000 -C none -d xen/xen xen.ub
+
+Prepare a directory ./tftpboot/ with the following files:
+1. Image, a Linux kernel image with a builtin ramdisk.
+2. xen.dtb, A XEN enabled dtb.
+3. xen.ub, XEN packaged into an u-boot image.
+4. bl31.elf, ARM Trusted Firmware runtime for Zynq UltraScale MPSoC.
+5. u-boot.elf, U-boot for Zynq UltraScale MPSoC.
+
+----------------------------------------
+Running on QEMU or REMUS
+
+1. Run on QEMU
+qemu-system-aarch64 -M arm-generic-fdt -hw-dtb /home/edgari/dts/LATEST/SINGLE_ARCH/ronaldo-arm.dtb -dtb /home/edgari/dts/LATEST/LINUX_HAX/ronaldo-arm.dtb -serial mon:stdio -display none -net nic -net user, -device loader,file=./u-boot.elf -device loader,file=./bl31.elf,cpu=0 -tftp ./tftpboot/ -device loader,addr=0xfd1a0104,data=0x8000000e,data-len=4
+
+Press a key to enter the U-boot prompt. Goto step 3.
+
+2 Run on REMUS:
+2.1 petalinux-boot --jtag --u-boot
+or
+2.2 xsdb
+connect
+targets -set -nocase -filter {name =~ "APU"}
+mwr 0xffff0000 0x14000000
+mwr 0xFD1A0104 0xe
+targets -set -nocase -filter {name =~ "*a53*#0"}
+dow $env(EPELFS)/fsbl/ron_a53_fsbl.elf; con
+stop
+dow /home/edgari/tftpboot/u-boot.elf
+dow /home/edgari/tftpboot/bl31.elf
+con
+
+Press a key to enter the U-boot prompt. Goto step 3.
+
+3. From U-boot:
+On the u-boot prompt, run the following:
+tftpb 4000000 xen.dtb
+tftpb 0x80000 Image
+tftpb 6000000 xen.ub
+bootm 6000000 - 4000000
+
+The following contains information on howto run XEN with the XEN bootwrapper,
+without ATF and u-boot.
+
+XEN Bootwrapper
+===============
+Boot-wrapper:
+Setup the boot-wrapper:
+git clone git://xenbits.xen.org/people/ianc/boot-wrapper-aarch64.git
+Create symlink to linux Image
+Create fdt.dtb (example at xsjpsgv106:/home/edgari/files/xen.dtb)
+
+make PHYS_OFFSET=0x00000000 XEN_OFFSET=0x4000000 CROSS_COMPILE=aarch64-buildroot-linux-gnu-
+
+Run on QEMU:
+qemu-system-aarch64 -M arm-generic-fdt \
+	-hw-dtb 3-1/SINGLE_ARCH/ronaldo-arm.dtb \
+	-dtb dts/3-1/LINUX_HAX/ronaldo-arm.dtb \
+	-serial mon:stdio -display none \
+	-net nic -net user,hostfwd=tcp::2255-:22 \
+	-device loader,addr=0xfe500104,data=0x8000000e,data-len=4\
+	-kernel boot-wrapper-ronaldo/xen-system.axf
+
