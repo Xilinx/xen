@@ -1,8 +1,14 @@
 Xen on Xilinx Ronaldo
 =====================
 
+Configure XEN (use the tuples for your favourite aarch64 toolchain):
+./configure --host=aarch64-buildroot-linux-gnu
+
 Build XEN:
 make dist-xen XEN_TARGET_ARCH=arm64 CROSS_COMPILE=aarch64-buildroot-linux-gnu-
+
+or with early printk:
+make dist-xen XEN_TARGET_ARCH=arm64 CONFIG_EARLY_PRINTK=ronaldo CROSS_COMPILE=aarch64-buildroot-linux-gnu-
 
 
 Setup the boot-wrapper:
