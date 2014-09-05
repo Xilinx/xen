@@ -19,6 +19,7 @@
 
 /* FIXME: Dummy.  */
 #define R_UART_CR    (0x00)
+#define R_UART_MR    (0x04)
 #define R_UART_IER   (0x08)
 #define R_UART_IDR   (0x0C)
 #define R_UART_IMR   (0x10)

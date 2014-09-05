@@ -62,7 +62,9 @@ static void __init cuart_init_preirq(struct serial_port *port)
 {
     struct cuart *uart = port->uart;
 
-    cuart_write(uart, R_UART_IDR, ~0);
+    cuart_write(uart, R_UART_MR, 0x20);
+    cuart_write(uart, R_UART_CR, 0x17);
+    mb();
 }
 
 static void __init cuart_init_postirq(struct serial_port *port)
@@ -83,6 +85,8 @@ static void __init cuart_init_postirq(struct serial_port *port)
     cuart_write(uart, R_UART_CISR, ~0);
 
     /* Unmask interrupts */
+    cuart_write(uart, R_UART_IDR, ~0);
+    mb();
     cuart_write(uart, R_UART_IER, UART_SR_INTR_RTRIG);
 }
 
