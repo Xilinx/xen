@@ -1,11 +1,14 @@
-XEN on Ronaldo QEMU and REMUS
-=============================
-This will describe how to get Linux to boot as dom0 on top of XEN on
-Ronaldo QEMU and REMUS. This HOWTO will not describe howto build
-the XEN tools for Ronaldo.
+XEN on Zynq UltraScale MPSoC
+============================
+
+This README describes how to get Linux to boot as dom0 on top of XEN on
+Zynq UltraScale MPSoC, both on QEMU and REMUS.
+
+This HOWTO will not describe howto build the XEN tools for Zynq UltraScale
+MPSoC.
 
 Before starting, you need to build ARM Trusted Firmware, U-boot and
-Linux for Ronaldo.
+Linux.
 
 From U-boot, you will need the u-boot.elf and the mkimage utility.
 
@@ -13,6 +16,9 @@ Linux needs to be built with the following options enabled:
 CONFIG_XEN
 CONFIG_HVC_DRIVER
 CONFIG_HVC_XEN
+
+Linux needs to be built with a builtin RAMDISK. You will need the
+arch/arm64/boot/Image file from the Linux build.
 
 The DTB file for XEN, should be the same as for plain Linux, with a few
 entries added to the chosen node.
@@ -35,11 +41,8 @@ To convert the xen.dtb to .dts and back to dtb, do the following:
 dtc -I dtb -O dts -o xen.dts xen.dtb
 dtc -I dts -O dtb -o xen.dtb xen.dts
 
-The following instructions will refer to the xen.dtb and asume a Linux Image
-with a builtin ramdisk.
-
-Configuring and building XEN for Ronaldo
-----------------------------------------
+Configuring and building XEN
+----------------------------
 
 Configure XEN (use the tuples for your favourite aarch64 toolchain):
 cd xen/
@@ -53,9 +56,9 @@ mkimage -A arm64 -T kernel -a 0x5000000 -e 0x5000000 -C none -d xen/xen xen.ub
 Prepare a directory ./tftpboot/ with the following files:
 1. Image, a Linux kernel image with a builtin ramdisk.
 2. xen.dtb, A XEN enabled dtb.
-3. xen.ub, XEN for Ronaldo packaged into an u-boot image.
-4. bl31.elf, ARM Trusted Firmware runtime for Ronaldo.
-5. u-boot.elf, U-boot for Ronaldo.
+3. xen.ub, XEN packaged into an u-boot image.
+4. bl31.elf, ARM Trusted Firmware runtime for Zynq UltraScale MPSoC.
+5. u-boot.elf, U-boot for Zynq UltraScale MPSoC.
 
 ----------------------------------------
 Running on QEMU or REMUS
