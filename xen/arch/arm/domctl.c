@@ -32,40 +32,6 @@ long arch_do_domctl(struct xen_domctl *domctl, struct domain *d,
 
         return p2m_cache_flush(d, s, e);
     }
-    case XEN_DOMCTL_arm_configure_domain:
-    {
-        uint8_t gic_version;
-
-        /*
-         * Currently the vGIC is emulating the same version of the
-         * hardware GIC. Only the value XEN_DOMCTL_CONFIG_GIC_DEFAULT
-         * is allowed. The DOMCTL will return the actual version of the
-         * GIC.
-         */
-        if ( domctl->u.configuredomain.gic_version != XEN_DOMCTL_CONFIG_GIC_DEFAULT )
-            return -EOPNOTSUPP;
-
-        switch ( gic_hw_version() )
-        {
-        case GIC_V3:
-            gic_version = XEN_DOMCTL_CONFIG_GIC_V3;
-            break;
-        case GIC_V2:
-            gic_version = XEN_DOMCTL_CONFIG_GIC_V2;
-            break;
-        default:
-            BUG();
-        }
-
-        domctl->u.configuredomain.gic_version = gic_version;
-
-        /* TODO: Make the copy generic for all ARCH domctl */
-        if ( __copy_to_guest(u_domctl, domctl, 1) )
-            return -EFAULT;
-
-        return 0;
-    }
-
     default:
         return subarch_do_domctl(domctl, d, u_domctl);
     }

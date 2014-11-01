@@ -258,6 +258,10 @@ struct arch_shared_info {
 };
 typedef struct arch_shared_info arch_shared_info_t;
 
+struct xen_arch_domainconfig {
+    char dummy;
+};
+
 #endif /* !__ASSEMBLY__ */
 
 /*
