@@ -4,7 +4,7 @@
 #include <xen/init.h>
 #include <xen/device_tree.h>
 
-enum device_type
+enum device_match
 {
     DEVICE_SERIAL,
     DEVICE_IOMMU,
@@ -17,7 +17,7 @@ struct device_desc {
     /* Device name */
     const char *name;
     /* Device type */
-    enum device_type type;
+    enum device_match type;
     /* Array of device tree 'compatible' strings */
     const char *const *compatible;
     /* Device initialization */
@@ -32,7 +32,7 @@ struct device_desc {
  *
  *  Return 0 on success.
  */
-int __init device_init(struct dt_device_node *dev, enum device_type type,
+int __init device_init(struct dt_device_node *dev, enum device_match type,
                        const void *data);
 
 /**
@@ -41,7 +41,7 @@ int __init device_init(struct dt_device_node *dev, enum device_type type,
  *
  * Return the device type on success or DEVICE_ANY on failure
  */
-enum device_type device_get_type(const struct dt_device_node *dev);
+enum device_match device_get_type(const struct dt_device_node *dev);
 
 #define DT_DEVICE_START(_name, _namestr, _type)                     \
 static const struct device_desc __dev_desc_##_name __used           \
