@@ -399,6 +399,7 @@ libxl_domain_build_info = Struct("domain_build_info",[
     ("kernel",           string),
     ("cmdline",          string),
     ("ramdisk",          string),
+    ("device_tree",      string),
     ("u", KeyedUnion(None, libxl_domain_type, "type",
                 [("hvm", Struct(None, [("firmware",         string),
                                        ("bios",             libxl_bios_type),

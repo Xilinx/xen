@@ -540,6 +540,238 @@ out:
     }
 }
 
+static bool check_overrun(uint64_t a, uint64_t b, uint32_t max)
+{
+    return ((a + b) > UINT_MAX || (a + b) > max);
+}
+
+/* Only FDT v17 is supported */
+#define FDT_REQUIRED_VERSION    0x11
+
+static int check_partial_fdt(libxl__gc *gc, void *fdt, size_t size)
+{
+    int r;
+
+    if (size < FDT_V17_SIZE) {
+        LOG(ERROR, "Partial FDT is too small");
+        return ERROR_FAIL;
+    }
+
+    if (fdt_magic(fdt) != FDT_MAGIC) {
+        LOG(ERROR, "Partial FDT is not a valid Flat Device Tree");
+        return ERROR_FAIL;
+    }
+
+    if (fdt_version(fdt) != FDT_REQUIRED_VERSION) {
+        LOG(ERROR, "Partial FDT version not supported. Required 0x%x got 0x%x",
+            FDT_REQUIRED_VERSION, fdt_version(fdt));
+        return ERROR_FAIL;
+    }
+
+    r = fdt_check_header(fdt);
+    if (r) {
+        LOG(ERROR, "Failed to check the partial FDT (%d)", r);
+        return ERROR_FAIL;
+    }
+
+    /* Check if the *size and off* fields doesn't overrun the totalsize
+     * of the partial FDT.
+     */
+    if (fdt_totalsize(fdt) > size) {
+        LOG(ERROR, "Partial FDT totalsize is too big");
+        return ERROR_FAIL;
+    }
+
+    size = fdt_totalsize(fdt);
+    if (fdt_off_dt_struct(fdt) > size ||
+        fdt_off_dt_strings(fdt) > size ||
+        check_overrun(fdt_off_dt_struct(fdt), fdt_size_dt_struct(fdt), size) ||
+        check_overrun(fdt_off_dt_strings(fdt), fdt_size_dt_strings(fdt), size)) {
+        LOG(ERROR, "Failed to validate the header of the partial FDT");
+        return ERROR_FAIL;
+    }
+
+    return 0;
+}
+
+/*
+ * Check if a string stored the strings block section is correctly
+ * nul-terminated.
+ * off_dt_strings and size_dt_strings fields have been validity-check
+ * earlier, so it's safe to use them here.
+ */
+static bool check_string(void *fdt, int nameoffset)
+{
+    const char *str = fdt_string(fdt, nameoffset);
+
+    for (; nameoffset < fdt_size_dt_strings(fdt); nameoffset++, str++) {
+        if (*str == '\0')
+            return true;
+    }
+
+    return false;
+}
+
+static int copy_properties(libxl__gc *gc, void *fdt, void *pfdt,
+                           int nodeoff)
+{
+    int propoff, nameoff, r;
+    const struct fdt_property *prop;
+
+    for (propoff = fdt_first_property_offset(pfdt, nodeoff);
+         propoff >= 0;
+         propoff = fdt_next_property_offset(pfdt, propoff)) {
+
+        if (!(prop = fdt_get_property_by_offset(pfdt, propoff, NULL))) {
+            return -FDT_ERR_INTERNAL;
+        }
+
+        /*
+         * Libfdt doesn't perform any check on the validity of a string
+         * stored in the strings block section. As the property name is
+         * stored there, check it.
+         */
+        nameoff = fdt32_to_cpu(prop->nameoff);
+        if (!check_string(pfdt, nameoff)) {
+            LOG(ERROR, "The strings block section of the partial FDT is malformed");
+            return -FDT_ERR_BADSTRUCTURE;
+        }
+
+        r = fdt_property(fdt, fdt_string(pfdt, nameoff),
+                         prop->data, fdt32_to_cpu(prop->len));
+        if (r) return r;
+    }
+
+    /* FDT_ERR_NOTFOUND => There is no more properties for this node */
+    return (propoff != -FDT_ERR_NOTFOUND)? propoff : 0;
+}
+
+/*
+ * Based on fdt_first_subnode and fdt_next_subnode.
+ * We can't use the one helpers provided by libfdt because:
+ *      - It has been introduced in 2013 => Doesn't work on wheezy
+ *      - The prototypes exist but the functions are not exported. Don't
+ *      ask why...
+ *      - There is no version in the header (might be better to use
+ *      configure for this purpose?)
+ */
+static int _fdt_first_subnode(const void *fdt, int offset)
+{
+    int depth = 0;
+
+    offset = fdt_next_node(fdt, offset, &depth);
+    if (offset < 0 || depth != 1)
+        return -FDT_ERR_NOTFOUND;
+
+    return offset;
+}
+
+static int _fdt_next_subnode(const void *fdt, int offset)
+{
+    int depth = 1;
+
+    /*
+     * With respect to the parent, the depth of the next subnode will be
+     * the same as the last.
+     */
+    do {
+        offset = fdt_next_node(fdt, offset, &depth);
+        if (offset < 0 || depth < 1)
+            return -FDT_ERR_NOTFOUND;
+    } while (depth > 1);
+
+    return offset;
+}
+
+/* Limit the maxixum depth of a node because of the recursion */
+#define MAX_DEPTH   8
+
+/* Copy a node from the partial device tree to the guest device tree */
+static int copy_node(libxl__gc *gc, void *fdt, void *pfdt,
+                     int nodeoff, int depth)
+{
+    int r;
+
+    if (depth >= MAX_DEPTH) {
+        LOG(ERROR, "Partial FDT contains a too depth node");
+        return -FDT_ERR_INTERNAL;
+    }
+
+    r = fdt_begin_node(fdt, fdt_get_name(pfdt, nodeoff, NULL));
+    if (r) return r;
+
+    r = copy_properties(gc, fdt, pfdt, nodeoff);
+    if (r) return r;
+
+    for (nodeoff = _fdt_first_subnode(pfdt, nodeoff);
+         nodeoff >= 0;
+         nodeoff = _fdt_next_subnode(pfdt, nodeoff)) {
+        r = copy_node(gc, fdt, pfdt, nodeoff, depth + 1);
+        if (r) return r;
+    }
+
+    if (nodeoff != -FDT_ERR_NOTFOUND)
+        return nodeoff;
+
+    r = fdt_end_node(fdt);
+    if (r) return r;
+
+    return 0;
+}
+
+static int copy_node_by_path(libxl__gc *gc, const char *path,
+                             void *fdt, void *pfdt)
+{
+    int nodeoff, r;
+    const char *name = strrchr(path, '/');
+
+    if (!name)
+        return -FDT_ERR_INTERNAL;
+
+    name++;
+
+    /* The FDT function to look at node doesn't take into account the
+     * unit (i.e anything after @) when search by name. Check if the
+     * name exactly match.
+     */
+    nodeoff = fdt_path_offset(pfdt, path);
+    if (nodeoff < 0)
+        return nodeoff;
+
+    if (strcmp(fdt_get_name(pfdt, nodeoff, NULL), name))
+        return -FDT_ERR_NOTFOUND;
+
+    r = copy_node(gc, fdt, pfdt, nodeoff, 0);
+    if (r) return r;
+
+    return 0;
+}
+
+/*
+ * The partial device tree is not copied entirely. Only the relevant bits are
+ * copied to the guest device tree:
+ *  - /passthrough node
+ *  - /aliases node
+ */
+static int copy_partial_fdt(libxl__gc *gc, void *fdt, void *pfdt)
+{
+    int r;
+
+    r = copy_node_by_path(gc, "/passthrough", fdt, pfdt);
+    if (r < 0) {
+        LOG(ERROR, "Can't copy the node \"/passthrough\" from the partial FDT");
+        return r;
+    }
+
+    r = copy_node_by_path(gc, "/aliases", fdt, pfdt);
+    if (r < 0 && r != -FDT_ERR_NOTFOUND) {
+        LOG(ERROR, "Can't copy the node \"/aliases\" from the partial FDT");
+        return r;
+    }
+
+    return 0;
+}
+
 #define FDT_MAX_SIZE (1<<20)
 
 int libxl__arch_domain_init_hw_description(libxl__gc *gc,
@@ -548,8 +780,10 @@ int libxl__arch_domain_init_hw_description(libxl__gc *gc,
                                            struct xc_dom_image *dom)
 {
     void *fdt = NULL;
+    void *pfdt = NULL;
     int rc, res;
     size_t fdt_size = 0;
+    int pfdt_size = 0;
 
     const libxl_version_info *vers;
     const struct arch_info *ainfo;
@@ -568,6 +802,22 @@ int libxl__arch_domain_init_hw_description(libxl__gc *gc,
     LOG(DEBUG, "constructing DTB for Xen version %d.%d guest",
         vers->xen_version_major, vers->xen_version_minor);
     LOG(DEBUG, " - vGIC version: %s\n", gicv_to_string(xc_config->gic_version));
+
+    if (info->device_tree) {
+        LOG(DEBUG, " - Partial device tree provided: %s", info->device_tree);
+
+        rc = libxl_read_file_contents(CTX, info->device_tree,
+                                      &pfdt, &pfdt_size);
+        if (rc) {
+            LOGEV(ERROR, rc, "failed to read the partial device file %s",
+                  info->device_tree);
+            return ERROR_FAIL;
+        }
+        libxl__ptr_add(gc, pfdt);
+
+        if (check_partial_fdt(gc, pfdt, pfdt_size))
+            return ERROR_FAIL;
+    }
 
 /*
  * Call "call" handling FDT_ERR_*. Will either:
@@ -634,6 +884,9 @@ next_resize:
 
         FDT( make_timer_node(gc, fdt, ainfo) );
         FDT( make_hypervisor_node(gc, fdt, vers) );
+
+        if (pfdt)
+            FDT( copy_partial_fdt(gc, fdt, pfdt) );
 
         FDT( fdt_end_node(fdt) );
 
