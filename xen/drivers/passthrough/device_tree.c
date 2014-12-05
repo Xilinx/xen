@@ -97,7 +97,7 @@ int iommu_dt_domain_init(struct domain *d)
     return 0;
 }
 
-void iommu_dt_domain_destroy(struct domain *d)
+int iommu_release_dt_devices(struct domain *d)
 {
     struct hvm_iommu *hd = domain_hvm_iommu(d);
     struct dt_device_node *dev, *_dev;
@@ -109,5 +109,8 @@ void iommu_dt_domain_destroy(struct domain *d)
         if ( rc )
             dprintk(XENLOG_ERR, "Failed to deassign %s in domain %u\n",
                     dt_node_full_name(dev), d->domain_id);
+        return rc;
     }
+
+    return 0;
 }
