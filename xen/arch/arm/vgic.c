@@ -285,6 +285,10 @@ void vgic_enable_irqs(struct vcpu *v, uint32_t r, int n)
         if ( !list_empty(&p->inflight) && !test_bit(GIC_IRQ_GUEST_VISIBLE, &p->status) )
             gic_raise_guest_irq(v_target, irq, p->priority);
         spin_unlock_irqrestore(&v_target->arch.vgic.lock, flags);
+
+        if ( !test_bit(irq, d->arch.vgic.allocated_irqs) )
+            gdprintk(XENLOG_DEBUG, "vIRQ %u is not allocated\n", irq);
+
         if ( p->desc != NULL )
         {
             irq_set_affinity(p->desc, cpumask_of(v_target->processor));
