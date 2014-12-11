@@ -627,6 +627,16 @@ static int make_hypervisor_node(struct domain *d,
         return res;
 
     /*
+     * The allocation of the event channel IRQ has been deferred until
+     * now. At this time, all PPIs use by DOM0 has been registered
+     */
+    res = vgic_allocate_virq(d, 0);
+    if ( res < 0 )
+        return -FDT_ERR_XEN(ENOSPC);
+
+    d->arch.evtchn_irq = res;
+
+    /*
      * interrupts is evtchn upcall:
      *  - Active-low level-sensitive
      *  - All cpus
