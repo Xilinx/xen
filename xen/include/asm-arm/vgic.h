@@ -199,6 +199,19 @@ extern int vgic_to_sgi(struct vcpu *v, register_t sgir,
                        enum gic_sgi_mode irqmode, int virq,
                        unsigned long vcpu_mask);
 extern void vgic_migrate_irq(struct vcpu *old, struct vcpu *new, unsigned int irq);
+
+/* Reserve a specific guest vIRQ */
+extern bool_t vgic_reserve_virq(struct domain *d, unsigned int virq);
+
+/*
+ * Allocate a guest VIRQ
+ *  - spi == 0 => allocate a PPI. It will be the same on every vCPU
+ *  - spi == 1 => allocate an SGI
+ */
+extern int vgic_allocate_virq(struct domain *d, bool_t spi);
+
+extern void vgic_free_virq(struct domain *d, unsigned int virq);
+
 #endif /* __ASM_ARM_VGIC_H__ */
 
 /*
