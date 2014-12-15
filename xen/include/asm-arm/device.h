@@ -44,8 +44,8 @@ struct device_desc {
     const char *name;
     /* Device type */
     enum device_match type;
-    /* Array of device tree 'compatible' strings */
-    const char *const *compatible;
+    /* List of devices supported by this driver */
+    const struct dt_device_match *dt_match;
     /* Device initialization */
     int (*init)(struct dt_device_node *dev, const void *data);
 };

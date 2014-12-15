@@ -23,23 +23,6 @@
 
 extern const struct device_desc _sdevice[], _edevice[];
 
-static bool_t __init device_is_compatible(const struct device_desc *desc,
-                                          const struct dt_device_node *dev)
-{
-    const char *const *compat;
-
-    if ( !desc->compatible )
-        return 0;
-
-    for ( compat = desc->compatible; *compat; compat++ )
-    {
-        if ( dt_device_is_compatible(dev, *compat) )
-            return 1;
-    }
-
-    return 0;
-}
-
 int __init device_init(struct dt_device_node *dev, enum device_match type,
                        const void *data)
 {
@@ -55,7 +38,7 @@ int __init device_init(struct dt_device_node *dev, enum device_match type,
         if ( desc->type != type )
             continue;
 
-        if ( device_is_compatible(desc, dev) )
+        if ( dt_match_node(desc->dt_match, dev) )
         {
             ASSERT(desc->init != NULL);
 
@@ -75,7 +58,7 @@ enum device_match device_get_type(const struct dt_device_node *dev)
 
     for ( desc = _sdevice; desc != _edevice; desc++ )
     {
-        if ( device_is_compatible(desc, dev) )
+        if ( dt_match_node(desc->dt_match, dev) )
             return desc->type;
     }
 
