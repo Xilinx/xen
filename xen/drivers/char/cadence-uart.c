@@ -207,7 +207,8 @@ static int __init cuart_uart_init(struct dt_device_node *dev,
 
 static const char * const cuart_dt_compat[] __initconst =
 {
-    "xlnx,xuartps",
+    "xlnx,xuartps", /* DEPRECATED */
+    "cdns,uart-r1p8",
     NULL
 };
 
