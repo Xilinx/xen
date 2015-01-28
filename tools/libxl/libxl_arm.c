@@ -54,7 +54,7 @@ int libxl__arch_domain_prepare_config(libxl__gc *gc,
     }
 
     LOG(DEBUG, "Configure the domain");
-
+    nr_spis = 192;
     xc_config->nr_spis = nr_spis;
     LOG(DEBUG, " - Allocate %u SPIs", nr_spis);
 
