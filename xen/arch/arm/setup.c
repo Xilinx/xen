@@ -816,6 +816,7 @@ void __init start_xen(unsigned long boot_phys_offset,
     /* The vGIC for DOM0 is exactly emulated the hardware GIC */
     config.gic_version = XEN_DOMCTL_CONFIG_GIC_DEFAULT;
     config.nr_spis = gic_number_lines() - 32;
+    printk("nr_spis=%d\n", config.nr_spis);
 
     dom0 = domain_create(0, 0, 0, &config);
     if ( IS_ERR(dom0) || (alloc_dom0_vcpu0(dom0) == NULL) )

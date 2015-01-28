@@ -272,9 +272,13 @@ struct dt_device_node *dt_find_node_by_path(const char *path)
 {
     struct dt_device_node *np;
 
-    dt_for_each_device_node(dt_host, np)
+    dt_for_each_device_node(dt_host, np) {
+        if (np->full_name) {
+            printk("look for %s %s\n", path, np->full_name);
+        }
         if ( np->full_name && (dt_node_cmp(np->full_name, path) == 0) )
             break;
+    }
 
     return np;
 }

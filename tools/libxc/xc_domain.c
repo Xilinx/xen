@@ -1718,6 +1718,7 @@ int xc_assign_dt_device(
     DECLARE_DOMCTL;
     DECLARE_HYPERCALL_BOUNCE(path, size, XC_HYPERCALL_BUFFER_BOUNCE_IN);
 
+    printf("%s:%d\n", __FILE__, __LINE__);
     if ( xc_hypercall_bounce_pre(xch, path) )
         return -1;
 
@@ -1729,6 +1730,7 @@ int xc_assign_dt_device(
     set_xen_guest_handle(domctl.u.assign_device.u.dt.path, path);
 
     rc = do_domctl(xch, &domctl);
+    printf("%s:%d rc=%d\n", __FILE__, __LINE__, rc);
 
     xc_hypercall_bounce_post(xch, path);
 

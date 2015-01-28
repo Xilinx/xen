@@ -1093,6 +1093,7 @@ static void arm_smmu_init_context_bank(struct arm_smmu_domain *smmu_domain)
 	if (stage1)
 		reg |= ARM_SMMU_CB_ASID(cfg) << TTBRn_HI_ASID_SHIFT;
 	writel_relaxed(reg, cb_base + ARM_SMMU_CB_TTBR0_HI);
+	printk("p2maddr=%lx regs %llx.%x\n", p2maddr, (p2maddr & ((1ULL << 32) - 1)), reg);
 
 	/*
 	 * TTBCR
@@ -2708,12 +2709,14 @@ static int arm_smmu_assign_dev(struct domain *d, u8 devfn,
 
 	xen_domain = domain_hvm_iommu(d)->arch.priv;
 
+	printk("%s:%d\n", __func__, __LINE__);
 	if (!dev->archdata.iommu) {
 		dev->archdata.iommu = xzalloc(struct arm_smmu_xen_device);
 		if (!dev->archdata.iommu)
 			return -ENOMEM;
 	}
 
+	printk("%s:%d\n", __func__, __LINE__);
 	if (!dev_iommu_group(dev)) {
 		ret = arm_smmu_add_device(dev);
 		if (ret)
@@ -2725,6 +2728,7 @@ static int arm_smmu_assign_dev(struct domain *d, u8 devfn,
 	 * under the same SMMU as another device assigned to this domain.
 	 * Would it useful for PCI
 	 */
+	printk("%s:%d\n", __func__, __LINE__);
 	domain = xzalloc(struct iommu_domain);
 	if (!domain)
 		return -ENOMEM;
@@ -2735,6 +2739,7 @@ static int arm_smmu_assign_dev(struct domain *d, u8 devfn,
 
 	domain->priv->cfg.domain = d;
 
+	printk("%s:%d\n", __func__, __LINE__);
 	ret = arm_smmu_attach_dev(domain, dev);
 	if (ret)
 		goto err_attach_dev;
@@ -2744,6 +2749,7 @@ static int arm_smmu_assign_dev(struct domain *d, u8 devfn,
 	list_add(&domain->list, &xen_domain->contexts);
 	spin_unlock(&xen_domain->lock);
 
+	printk("%s:%d\n", __func__, __LINE__);
 	return 0;
 
 err_attach_dev:

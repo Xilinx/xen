@@ -136,21 +136,25 @@ int iommu_do_dt_domctl(struct xen_domctl *domctl, struct domain *d,
      * dying.
      */
 
+    printk("%s: %d\n", __func__, domctl->cmd);
     switch ( domctl->cmd )
     {
     case XEN_DOMCTL_assign_device:
         ret = -ENOSYS;
+        printk("%s:%d\n", __func__, __LINE__);
         if ( domctl->u.assign_device.dev != XEN_DOMCTL_DEV_DT )
             break;
 
         ret = dt_find_node_by_gpath(domctl->u.assign_device.u.dt.path,
                                     domctl->u.assign_device.u.dt.size,
                                     &dev);
+        printk("%s:%d\n", __func__, __LINE__);
         if ( ret )
             break;
 
         ret = iommu_assign_dt_device(d, dev);
 
+        printk("%s:%d\n", __func__, __LINE__);
         if ( ret )
             printk(XENLOG_G_ERR "XEN_DOMCTL_assign_dt_device: assign \"%s\""
                    " to dom%u failed (%d)\n",
@@ -159,12 +163,14 @@ int iommu_do_dt_domctl(struct xen_domctl *domctl, struct domain *d,
 
     case XEN_DOMCTL_deassign_device:
         ret = -ENOSYS;
+        printk("%s:%d\n", __func__, __LINE__);
         if ( domctl->u.assign_device.dev != XEN_DOMCTL_DEV_DT )
             break;
 
         ret = dt_find_node_by_gpath(domctl->u.assign_device.u.dt.path,
                                     domctl->u.assign_device.u.dt.size,
                                     &dev);
+        printk("%s:%d\n", __func__, __LINE__);
         if ( ret )
             break;
 
@@ -178,9 +184,11 @@ int iommu_do_dt_domctl(struct xen_domctl *domctl, struct domain *d,
 
     case XEN_DOMCTL_test_assign_device:
         ret = -ENOSYS;
+        printk("%s:%d\n", __func__, __LINE__);
         if ( domctl->u.assign_device.dev != XEN_DOMCTL_DEV_DT )
             break;
 
+        printk("%s:%d\n", __func__, __LINE__);
         ret = dt_find_node_by_gpath(domctl->u.assign_device.u.dt.path,
                                     domctl->u.assign_device.u.dt.size,
                                     &dev);

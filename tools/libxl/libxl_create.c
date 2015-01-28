@@ -540,6 +540,7 @@ int libxl__domain_make(libxl__gc *gc, libxl_domain_config *d_config,
         goto out;
     }
 
+    printf("%s:%d\n", __func__, __LINE__);
     ret = xc_domain_create_config(ctx->xch, info->ssidref,
                                   handle, flags, domid,
                                   xc_config);
@@ -549,6 +550,7 @@ int libxl__domain_make(libxl__gc *gc, libxl_domain_config *d_config,
         goto out;
     }
 
+    printf("%s:%d\n", __func__, __LINE__);
     ret = xc_cpupool_movedomain(ctx->xch, info->poolid, *domid);
     if (ret < 0) {
         LIBXL__LOG_ERRNO(ctx, LIBXL__LOG_ERROR, "domain move fail");
@@ -556,6 +558,7 @@ int libxl__domain_make(libxl__gc *gc, libxl_domain_config *d_config,
         goto out;
     }
 
+    printf("%s:%d\n", __func__, __LINE__);
     dom_path = libxl__xs_get_dompath(gc, *domid);
     if (!dom_path) {
         rc = ERROR_FAIL;

@@ -78,6 +78,7 @@ int domain_vgic_init(struct domain *d, unsigned int nr_spis)
      * GICD_TYPER.ITLinesNumber definition
      */
     d->arch.vgic.nr_spis = ROUNDUP(nr_spis, 32);
+    printk("%s: nr_spis=%d\n", __func__, nr_spis);
 
     switch ( gic_hw_version() )
     {

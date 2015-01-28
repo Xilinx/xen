@@ -534,6 +534,7 @@ long do_domctl(XEN_GUEST_HANDLE_PARAM(xen_domctl_t) u_domctl)
         unsigned int domcr_flags;
 
         ret = -EINVAL;
+	printk("%s:%d ret=%ld EINVAL=%d\n", __func__, __LINE__, ret, -EINVAL);
         if ( (op->u.createdomain.flags &
              ~(XEN_DOMCTL_CDF_hvm_guest
                | XEN_DOMCTL_CDF_pvh_guest
@@ -542,10 +543,12 @@ long do_domctl(XEN_GUEST_HANDLE_PARAM(xen_domctl_t) u_domctl)
                | XEN_DOMCTL_CDF_oos_off)) )
             break;
 
+	printk("%s:%d ret=%ld\n", __func__, __LINE__, ret);
         dom = op->domain;
         if ( (dom > 0) && (dom < DOMID_FIRST_RESERVED) )
         {
             ret = -EINVAL;
+	printk("%s:%d ret=%ld\n", __func__, __LINE__, ret);
             if ( !is_free_domid(dom) )
                 break;
         }
@@ -559,6 +562,7 @@ long do_domctl(XEN_GUEST_HANDLE_PARAM(xen_domctl_t) u_domctl)
                     break;
             }
 
+	printk("%s:%d ret=%ld\n", __func__, __LINE__, ret);
             ret = -ENOMEM;
             if ( dom == rover )
                 break;
@@ -566,10 +570,12 @@ long do_domctl(XEN_GUEST_HANDLE_PARAM(xen_domctl_t) u_domctl)
             rover = dom;
         }
 
+	printk("%s:%d ret=%ld\n", __func__, __LINE__, ret);
         if ( (op->u.createdomain.flags & XEN_DOMCTL_CDF_hvm_guest)
              && (op->u.createdomain.flags & XEN_DOMCTL_CDF_pvh_guest) )
             return -EINVAL;
 
+	printk("%s:%d ret=%ld\n", __func__, __LINE__, ret);
         domcr_flags = 0;
         if ( op->u.createdomain.flags & XEN_DOMCTL_CDF_hvm_guest )
             domcr_flags |= DOMCRF_hvm;
@@ -593,6 +599,7 @@ long do_domctl(XEN_GUEST_HANDLE_PARAM(xen_domctl_t) u_domctl)
 
         ret = 0;
 
+	printk("%s:%d ret=%ld\n", __func__, __LINE__, ret);
         memcpy(d->handle, op->u.createdomain.handle,
                sizeof(xen_domain_handle_t));
 
