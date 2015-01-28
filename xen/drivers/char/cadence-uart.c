@@ -205,15 +205,15 @@ static int __init cuart_uart_init(struct dt_device_node *dev,
     return 0;
 }
 
-static const char * const cuart_dt_compat[] __initconst =
+static const struct dt_device_match cuart_dt_match[] __initconst =
 {
-    "xlnx,xuartps", /* DEPRECATED */
-    "cdns,uart-r1p8",
-    NULL
+    DT_MATCH_COMPATIBLE("xlnx,xuartps"), /* DEPRECATED */
+    DT_MATCH_COMPATIBLE("cdns,uart-r1p8"),
+    { /* sentinel */ },
 };
 
 DT_DEVICE_START(cuart, "Cadence UART", DEVICE_SERIAL)
-        .compatible = cuart_dt_compat,
+        .dt_match = cuart_dt_match,
         .init = cuart_uart_init,
 DT_DEVICE_END
 
