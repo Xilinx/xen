@@ -2378,6 +2378,11 @@ static int arm_smmu_device_cfg_probe(struct arm_smmu_device *smmu)
 	/* The stage-2 output mask is also applied for bypass */
 	size = arm_smmu_id_size_to_bits((id >> ID2_OAS_SHIFT) & ID2_OAS_MASK);
 	smmu->s2_output_size = min_t(unsigned long, PHYS_MASK_SHIFT, size);
+#if 1
+	/* FIXME  */
+	smmu->s2_input_size = 40;
+	smmu->s2_output_size = 40;
+#endif
 
 	if (smmu->version == ARM_SMMU_V1) {
 		smmu->s1_input_size = 32;
