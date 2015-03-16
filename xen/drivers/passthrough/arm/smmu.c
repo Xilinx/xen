@@ -578,6 +578,7 @@ struct arm_smmu_domain {
 };
 
 /* Xen: Dummy iommu_domain */
+/* This does not refer to a Xen domain. This is an IOMMU classification from Linux */
 struct iommu_domain
 {
 	struct arm_smmu_domain		*priv;
@@ -2710,7 +2711,9 @@ static int arm_smmu_assign_dev(struct domain *d, u8 devfn,
 {
 	struct iommu_domain *domain;
 	struct arm_smmu_xen_domain *xen_domain;
+	struct arm_smmu_device *smmu;
 	int ret;
+	int existing_ctxt_fnd = 0;
 
 	xen_domain = domain_hvm_iommu(d)->arch.priv;
 
@@ -2728,31 +2731,67 @@ static int arm_smmu_assign_dev(struct domain *d, u8 devfn,
 			return ret;
 	}
 
-	/*
-	 * TODO: Share the context bank (i.e iommu_domain) when the device is
-	 * under the same SMMU as another device assigned to this domain.
-	 * Would it useful for PCI
+	printk("%s:%d\n", __func__, __LINE__);
+	/* 
+	 * Check to see if a context bank (iommu_domain) already exists for this xen domain
+	 * under the same SMMU 
 	 */
-	printk("%s:%d\n", __func__, __LINE__);
-	domain = xzalloc(struct iommu_domain);
-	if (!domain)
-		return -ENOMEM;
+	if (!list_empty(&xen_domain->contexts)) {
+		smmu = find_smmu_for_device(dev);
+		if (!smmu) {
+			dev_err(dev, "cannot find SMMU\n");
+			return -ENXIO;
+		}
 
-	ret = arm_smmu_domain_init(domain);
-	if (ret)
-		goto err_dom_init;
+		/* Loop through the &xen_domain->contexts to locate a context assigned to this SMMU */
+		spin_lock(&xen_domain->lock);
+		list_for_each_entry(domain, &xen_domain->contexts, list) {
+			if(domain->priv->smmu == smmu)
+			{
+				/* We have found a context already associated with the same xen domain and SMMU */
+				ret = arm_smmu_attach_dev(domain, dev);
+				if (ret) {
+					/* 
+					 * TODO: If arm_smmu_attach_dev fails, should we perform arm_smmu_domain_destroy,
+					 * eventhough another smmu_master is configured correctly? If Not, what error 
+					 * code should we use
+					 */
+					dev_err(dev, "cannot attach device to already existing iommu_domain\n");
+					return -ENXIO;
+				}
 
-	domain->priv->cfg.domain = d;
+				existing_ctxt_fnd = 1;
+				break;
+			}
+			
+		}
+		spin_unlock(&xen_domain->lock);
+	}
+	
+	if(!existing_ctxt_fnd){
+		printk("%s:%d\n", __func__, __LINE__);
 
-	printk("%s:%d\n", __func__, __LINE__);
-	ret = arm_smmu_attach_dev(domain, dev);
-	if (ret)
-		goto err_attach_dev;
+		domain = xzalloc(struct iommu_domain);
+		if (!domain)
+			return -ENOMEM;
 
-	spin_lock(&xen_domain->lock);
-	/* Chain the new context to the domain */
-	list_add(&domain->list, &xen_domain->contexts);
-	spin_unlock(&xen_domain->lock);
+		ret = arm_smmu_domain_init(domain);
+		if (ret)
+			goto err_dom_init;
+
+		domain->priv->cfg.domain = d;
+
+		printk("%s:%d\n", __func__, __LINE__);
+		ret = arm_smmu_attach_dev(domain, dev);
+		if (ret)
+			goto err_attach_dev;
+
+		spin_lock(&xen_domain->lock);
+		/* Chain the new context to the domain */
+		list_add(&domain->list, &xen_domain->contexts);
+		spin_unlock(&xen_domain->lock);
+		
+	}
 
 	printk("%s:%d\n", __func__, __LINE__);
 	return 0;
