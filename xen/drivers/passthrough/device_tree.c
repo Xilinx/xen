@@ -115,10 +115,11 @@ int iommu_release_dt_devices(struct domain *d)
     list_for_each_entry_safe(dev, _dev, &hd->dt_devices, domain_list)
     {
         rc = iommu_deassign_dt_device(d, dev);
-        if ( rc )
+        if ( rc ) {
             dprintk(XENLOG_ERR, "Failed to deassign %s in domain %u\n",
                     dt_node_full_name(dev), d->domain_id);
-        return rc;
+            return rc;
+        }
     }
 
     return 0;
