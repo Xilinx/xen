@@ -583,6 +583,7 @@ struct iommu_domain
 {
 	struct arm_smmu_domain		*priv;
 
+	atomic_t ref;
 	/* Used to link domain contexts for a same domain */
 	struct list_head		list;
 };
@@ -658,6 +659,26 @@ static struct iommu_group *iommu_group_get(struct device *dev)
 		atomic_inc(&group->ref);
 
 	return group;
+}
+
+static int iommu_domain_add_device(struct iommu_domain *domain,
+				  struct device *dev)
+{
+	dev_iommu_domain(dev) = domain;
+
+	atomic_inc(&domain->ref);
+
+	return 0;
+}
+
+static int iommu_domain_remove_device(struct iommu_domain *domain,
+				  struct device *dev)
+{
+	dev_iommu_domain(dev) = NULL;
+
+	atomic_dec(&domain->ref);
+
+	return 0;
 }
 
 #define iommu_group_get_iommudata(group) (group)->cfg
@@ -1693,7 +1714,7 @@ static int arm_smmu_attach_dev(struct iommu_domain *domain, struct device *dev)
 	ret = arm_smmu_domain_add_master(smmu_domain, cfg);
 
 	if (!ret)
-		dev_iommu_domain(dev) = domain;
+		ret = iommu_domain_add_device(domain, dev);
 	return ret;
 }
 
@@ -1706,7 +1727,7 @@ static void arm_smmu_detach_dev(struct iommu_domain *domain, struct device *dev)
 	if (!cfg)
 		return;
 
-	dev_iommu_domain(dev) = NULL;
+	iommu_domain_remove_device(domain, dev);
 	arm_smmu_domain_remove_master(smmu_domain, cfg);
 }
 
@@ -2818,12 +2839,16 @@ static int arm_smmu_deassign_dev(struct domain *d, struct device *dev)
 
 	arm_smmu_detach_dev(domain, dev);
 
-	spin_lock(&xen_domain->lock);
-	list_del(&domain->list);
-	spin_unlock(&xen_domain->lock);
+	if (domain->ref.counter == 0)
+	{
 
-	arm_smmu_domain_destroy(domain);
-	xfree(domain);
+		spin_lock(&xen_domain->lock);
+		list_del(&domain->list);
+		spin_unlock(&xen_domain->lock);
+
+		arm_smmu_domain_destroy(domain);
+		xfree(domain);
+	}
 
 	return 0;
 }
