@@ -495,10 +495,37 @@ static int vgic_v2_distr_mmio_write(struct vcpu *v, mmio_info_t *info,
 
     case VRANGE32(GICD_ICACTIVER, GICD_ICACTIVERN):
         if ( dabt.size != DABT_WORD ) goto bad_width;
-        printk(XENLOG_G_ERR
-               "%pv: vGICD: unhandled word write %#"PRIregister" to ICACTIVER%d\n",
-               v, r, gicd_reg - GICD_ICACTIVER);
-        return 0;
+        /* FIXME: We do not implement ICACTIVE for guests.
+         * We trap if the guest tries to use ICACTIVE but only
+         * if the guest tries to clear interrupts that could
+         * be active. No-op ICACTIVE usages are write ignored.
+         */
+        {
+            unsigned int i;
+            for (i = 0; i < 32; i++) {
+                if (r & (1ULL << i)) {
+                    struct vcpu *v_target;
+                    struct pending_irq *p;
+                    unsigned int n = gicd_reg - GICD_ICACTIVER;
+                    unsigned int irq = i + (n * 8);
+
+                    v_target = vgic_get_target_vcpu(v, irq);
+                    p = irq_to_pending(v_target, irq);
+
+                    /* Check if the interrupt to be cleared is guest visible
+                     * at all. If not, we can ignore the request as the irq
+                     * can't be active.
+                     */
+                    if (test_bit(GIC_IRQ_GUEST_VISIBLE, &p->status)) {
+                        printk(XENLOG_G_ERR
+                               "%pv: vGICD: unhandled word write %#"PRIregister" to ICACTIVER%d\n",
+                                v, r, gicd_reg - GICD_ICACTIVER);
+                        return 1;
+                    }
+                }
+            }
+        }
+        goto write_ignore_32;
 
     case VRANGE32(GICD_IPRIORITYR, GICD_IPRIORITYRN):
     {
