@@ -43,7 +43,7 @@ ALL_OBJS-y               += $(BASEDIR)/arch/$(TARGET_ARCH)/built_in.o
 ALL_OBJS-$(x86)          += $(BASEDIR)/crypto/built_in.o
 
 CFLAGS += -nostdinc -fno-builtin -fno-common
-CFLAGS += -Werror -Wredundant-decls -Wno-pointer-arith
+CFLAGS += -Wredundant-decls -Wno-pointer-arith
 CFLAGS += -pipe -g -D__XEN__ -include $(BASEDIR)/include/xen/config.h
 CFLAGS += '-D__OBJECT_FILE__="$@"'
 
