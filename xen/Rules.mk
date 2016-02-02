@@ -53,7 +53,7 @@ CFLAGS += -O2 -fomit-frame-pointer
 endif
 
 CFLAGS += -nostdinc -fno-builtin -fno-common
-CFLAGS += -Werror -Wredundant-decls -Wno-pointer-arith
+CFLAGS += -Wredundant-decls -Wno-pointer-arith
 CFLAGS += -pipe -g -D__XEN__ -include $(BASEDIR)/include/xen/config.h
 CFLAGS += '-D__OBJECT_FILE__="$@"'
 
