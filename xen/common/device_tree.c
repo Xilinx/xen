@@ -1176,6 +1176,15 @@ int dt_for_each_irq_map(const struct dt_device_node *dev,
         for ( i = 0; i < pintsize; i++ )
             dt_raw_irq.specifier[i] = dt_read_number(imap + i, 1);
 
+        if (dt_raw_irq.controller != dt_interrupt_controller) {
+            /* If this is not the main interrupt controller, we assume
+             * it's part of a bus-bridge and ignore remapping IRQs for it.
+             * Xen only supports one interrupt controller at the moment.  */
+            imap += pintsize;
+            imaplen -= pintsize;
+            continue;
+        }
+
         ret = dt_irq_translate(&dt_raw_irq, &dt_irq);
         if ( ret )
         {
