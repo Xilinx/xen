@@ -26,13 +26,6 @@ static const char * const zynqmp_dt_compat[] __initconst =
     NULL
 };
 
-static const struct dt_device_match zynqmp_blacklist_dev[] __initconst =
-{
-    /* Power management is not yet supported.  */
-    DT_MATCH_COMPATIBLE("xlnx,zynqmp-pm"),
-    { /* sentinel */ },
-};
-
 bool zynqmp_hvc(struct cpu_user_regs *regs)
 {
     register_t ret[4] = { 0 };
@@ -52,7 +45,6 @@ bool zynqmp_hvc(struct cpu_user_regs *regs)
 PLATFORM_START(xgene_storm, "Xilinx ZynqMP")
     .compatible = zynqmp_dt_compat,
     .hvc = zynqmp_hvc,
-    .blacklist_dev = zynqmp_blacklist_dev,
 PLATFORM_END
 
 /*
