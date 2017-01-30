@@ -127,6 +127,14 @@ void platform_poweroff(void)
         platform->poweroff();
 }
 
+bool platform_hvc(struct cpu_user_regs *regs)
+{
+    if ( platform && platform->hvc )
+        return platform->hvc(regs);
+
+    return false;
+}
+
 bool_t platform_has_quirk(uint32_t quirk)
 {
     uint32_t quirks = 0;
