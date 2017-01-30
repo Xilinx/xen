@@ -1334,8 +1334,6 @@ static void do_trap_psci(struct cpu_user_regs *regs)
 {
     register_t fid = PSCI_ARG(regs,0);
 
-    /* preloading in case psci_mode_check fails */
-    PSCI_RESULT_REG(regs) = PSCI_INVALID_PARAMETERS;
     switch( fid )
     {
     case PSCI_cpu_off:
@@ -1368,6 +1366,7 @@ static void do_trap_psci(struct cpu_user_regs *regs)
     case PSCI_0_2_FN_MIGRATE_INFO_UP_CPU:
     case PSCI_0_2_FN64_MIGRATE_INFO_UP_CPU:
         perfc_incr(vpsci_migrate_info_up_cpu);
+        PSCI_RESULT_REG(regs) = PSCI_INVALID_PARAMETERS;
         if ( psci_mode_check(current->domain, fid) )
             PSCI_RESULT_REG(regs) = do_psci_0_2_migrate_info_up_cpu();
         break;
@@ -1384,6 +1383,7 @@ static void do_trap_psci(struct cpu_user_regs *regs)
     case PSCI_0_2_FN_CPU_ON:
     case PSCI_0_2_FN64_CPU_ON:
         perfc_incr(vpsci_cpu_on);
+        PSCI_RESULT_REG(regs) = PSCI_INVALID_PARAMETERS;
         if ( psci_mode_check(current->domain, fid) )
         {
             register_t vcpuid = PSCI_ARG(regs,1);
@@ -1396,6 +1396,7 @@ static void do_trap_psci(struct cpu_user_regs *regs)
     case PSCI_0_2_FN_CPU_SUSPEND:
     case PSCI_0_2_FN64_CPU_SUSPEND:
         perfc_incr(vpsci_cpu_suspend);
+        PSCI_RESULT_REG(regs) = PSCI_INVALID_PARAMETERS;
         if ( psci_mode_check(current->domain, fid) )
         {
             uint32_t pstate = PSCI_ARG32(regs,1);
@@ -1408,6 +1409,7 @@ static void do_trap_psci(struct cpu_user_regs *regs)
     case PSCI_0_2_FN_AFFINITY_INFO:
     case PSCI_0_2_FN64_AFFINITY_INFO:
         perfc_incr(vpsci_cpu_affinity_info);
+        PSCI_RESULT_REG(regs) = PSCI_INVALID_PARAMETERS;
         if ( psci_mode_check(current->domain, fid) )
         {
             register_t taff = PSCI_ARG(regs,1);
@@ -1419,6 +1421,7 @@ static void do_trap_psci(struct cpu_user_regs *regs)
     case PSCI_0_2_FN_MIGRATE:
     case PSCI_0_2_FN64_MIGRATE:
         perfc_incr(vpsci_cpu_migrate);
+        PSCI_RESULT_REG(regs) = PSCI_INVALID_PARAMETERS;
         if ( psci_mode_check(current->domain, fid) )
         {
             uint32_t tcpu = PSCI_ARG32(regs,1);
