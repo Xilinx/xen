@@ -43,6 +43,7 @@
 #include <asm/cpufeature.h>
 #include <asm/flushtlb.h>
 #include <asm/monitor.h>
+#include <asm/platform.h>
 
 #include "decode.h"
 #include "vtimer.h"
@@ -1442,6 +1443,8 @@ static void do_trap_psci(struct cpu_user_regs *regs)
         }
         break;
     default:
+        if ( platform_hvc(regs) )
+            return;
         domain_crash_synchronous();
         return;
     }
