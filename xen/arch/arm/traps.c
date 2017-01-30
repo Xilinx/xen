@@ -2604,6 +2604,11 @@ static void do_trap_smc(struct cpu_user_regs *regs, const union hsr hsr)
     if ( current->domain->arch.monitor.privileged_call_enabled )
         rc = monitor_smc();
 
+    if ( platform_hvc(regs) ) {
+        advance_pc(regs, hsr);
+        rc = 1;
+    }
+
     if ( rc != 1 )
         inject_undef_exception(regs, hsr);
 }
