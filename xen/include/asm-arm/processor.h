@@ -690,6 +690,46 @@ void vcpu_regs_user_to_hyp(struct vcpu *vcpu,
 int call_smc(register_t function_id, register_t arg0, register_t arg1,
              register_t arg2);
 
+/*
+ * Helper to issue a 64-bit SMC according to the SMC Calling Convention.
+ *
+ * @fid:      Function Identifier
+ * @a0 - a5:  6 arguments
+ * @ret:      Pointer to 4 register_t carrying return values
+ */
+static inline register_t call_smcc64(register_t fid,
+                                     register_t a0,
+                                     register_t a1,
+                                     register_t a2,
+                                     register_t a3,
+                                     register_t a4,
+                                     register_t a5,
+                                     register_t *ret)
+{
+    register register_t x0 asm("x0") = fid;
+    register register_t x1 asm("x1") = a0;
+    register register_t x2 asm("x2") = a1;
+    register register_t x3 asm("x3") = a2;
+    register register_t x4 asm("x4") = a3;
+    register register_t x5 asm("x5") = a4;
+    register register_t x6 asm("x6") = a5;
+
+    asm volatile ("smc #0\n"
+                  : "+r" (x0), "+r" (x1), "+r" (x2), "+r" (x3),
+                    "+r" (x4), "+r" (x5), "+r" (x6)
+                  :
+                  : "x7", "x8", "x9", "x10", "x11", "x12",
+                    "x13", "x14", "x15", "x16", "x17" );
+
+    if (ret) {
+        ret[0] = x0;
+        ret[1] = x1;
+        ret[2] = x2;
+        ret[3] = x3;
+    }
+    return x0;
+}
+
 void do_trap_guest_error(struct cpu_user_regs *regs);
 
 #endif /* __ASSEMBLY__ */
