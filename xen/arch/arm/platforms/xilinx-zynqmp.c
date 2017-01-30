@@ -18,6 +18,7 @@
  */
 
 #include <asm/platform.h>
+#include <asm/platforms/xilinx-zynqmp-eemi.h>
 
 static const char * const zynqmp_dt_compat[] __initconst =
 {
@@ -32,8 +33,25 @@ static const struct dt_device_match zynqmp_blacklist_dev[] __initconst =
     { /* sentinel */ },
 };
 
+bool zynqmp_hvc(struct cpu_user_regs *regs)
+{
+    register_t ret[4] = { 0 };
+
+    if ( !zynqmp_eemi_mediate(regs->x0, regs->x1, regs->x2, regs->x3,
+                              regs->x4, regs->x5, regs->x6, ret) )
+        return false;
+
+    /* Transfer return values into guest registers.  */
+    regs->x0 = ret[0];
+    regs->x1 = ret[1];
+    regs->x2 = ret[2];
+    regs->x3 = ret[3];
+    return true;
+}
+
 PLATFORM_START(xgene_storm, "Xilinx ZynqMP")
     .compatible = zynqmp_dt_compat,
+    .hvc = zynqmp_hvc,
     .blacklist_dev = zynqmp_blacklist_dev,
 PLATFORM_END
 
