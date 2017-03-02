@@ -325,7 +325,9 @@ static inline int clean_dcache_va_range(const void *p, unsigned long size)
 {
     const void *end;
     dsb(sy);           /* So the CPU issues all writes to the range */
-    for ( end = p + size; p < end; p += cacheline_bytes )
+
+    end = (void *)ROUNDUP((uintptr_t)p + size, cacheline_bytes);
+    for ( ; p < end; p += cacheline_bytes )
         asm volatile (__clean_dcache_one(0) : : "r" (p));
     dsb(sy);           /* So we know the flushes happen before continuing */
     /* ARM callers assume that dcache_* functions cannot fail. */
