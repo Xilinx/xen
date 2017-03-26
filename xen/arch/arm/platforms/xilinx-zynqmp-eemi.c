@@ -129,8 +129,8 @@ static const struct pm_access pm_node_access[] = {
     [NODE_GPU_PP_0] = { MM_GPU },
     [NODE_GPU_PP_1] = { MM_GPU },
 
-    [NODE_USB_0] = { MM_USB3_0 },
-    [NODE_USB_1] = { MM_USB3_1 },
+    [NODE_USB_0] = { MM_USB3_0_XHCI },
+    [NODE_USB_1] = { MM_USB3_1_XHCI },
     [NODE_TTC_0] = { MM_TTC0 },
     [NODE_TTC_1] = { MM_TTC1 },
     [NODE_TTC_2] = { MM_TTC2 },
@@ -254,13 +254,13 @@ static const struct pm_access pm_reset_access[] = {
     [PM_RESET_IDX(PM_RESET_OCM)] = { .hwdom_access = true },
     [PM_RESET_IDX(PM_RESET_RPU_PGE)] = { MM_RPU },
 
-    [PM_RESET_IDX(PM_RESET_USB0_CORERESET)] = { MM_USB3_0 },
-    [PM_RESET_IDX(PM_RESET_USB0_HIBERRESET)] = { MM_USB3_0 },
-    [PM_RESET_IDX(PM_RESET_USB0_APB)] = { MM_USB3_0 },
+    [PM_RESET_IDX(PM_RESET_USB0_CORERESET)] = { MM_USB3_0_XHCI },
+    [PM_RESET_IDX(PM_RESET_USB0_HIBERRESET)] = { MM_USB3_0_XHCI },
+    [PM_RESET_IDX(PM_RESET_USB0_APB)] = { MM_USB3_0_XHCI },
 
-    [PM_RESET_IDX(PM_RESET_USB1_CORERESET)] = { MM_USB3_1 },
-    [PM_RESET_IDX(PM_RESET_USB1_HIBERRESET)] = { MM_USB3_1 },
-    [PM_RESET_IDX(PM_RESET_USB1_APB)] = { MM_USB3_1 },
+    [PM_RESET_IDX(PM_RESET_USB1_CORERESET)] = { MM_USB3_1_XHCI },
+    [PM_RESET_IDX(PM_RESET_USB1_HIBERRESET)] = { MM_USB3_1_XHCI },
+    [PM_RESET_IDX(PM_RESET_USB1_APB)] = { MM_USB3_1_XHCI },
 
     [PM_RESET_IDX(PM_RESET_IPI)] = { .hwdom_access = true },
     [PM_RESET_IDX(PM_RESET_APM_LPD)] = { .hwdom_access = true },
