@@ -333,6 +333,7 @@ static const struct {
         .hwdom_access = true
     },
     { .start = MM_CRF_APB + R_CRF_DP_VIDEO_REF_CTRL, .node = NODE_DP },
+    { .start = MM_CRF_APB + R_CRF_DP_AUDIO_REF_CTRL, .node = NODE_DP },
     { .start = MM_CRF_APB + R_CRF_DP_STC_REF_CTRL, .node = NODE_DP },
     { .start = MM_CRF_APB + R_CRF_GPU_REF_CTRL, .node = NODE_GPU },
     { .start = MM_CRF_APB + R_CRF_SATA_REF_CTRL, .node = NODE_SATA },

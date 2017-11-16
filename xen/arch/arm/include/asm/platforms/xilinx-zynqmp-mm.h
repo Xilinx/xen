@@ -176,6 +176,7 @@
 #define R_CRF_APLL_CTRL           0x20
 #define R_CRF_ACPU_CTRL           0x60
 #define R_CRF_DP_VIDEO_REF_CTRL   0x70
+#define R_CRF_DP_AUDIO_REF_CTRL   0x74
 #define R_CRF_DP_STC_REF_CTRL     0x7c
 #define R_CRF_GPU_REF_CTRL        0x84
 #define R_CRF_SATA_REF_CTRL       0xa0
