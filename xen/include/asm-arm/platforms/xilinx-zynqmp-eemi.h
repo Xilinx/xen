@@ -13,6 +13,7 @@ bool zynqmp_eemi_mediate(register_t fid,
 #define SVC_MASK             0x3F000000
 #define SVC_SIP              0x02000000    /* SoC Implementation Specific.  */
 #define PM_SIP_SVC           0xC2000000
+#define PM_GET_TRUSTZONE_VERSION	0xa03
 
 /* SMC function IDs for SiP Service queries */
 #define ZYNQMP_SIP_SVC_CALL_COUNT       0xff00
@@ -24,8 +25,8 @@ bool zynqmp_eemi_mediate(register_t fid,
  * Version number is a 32bit value, like:
  * (PM_VERSION_MAJOR << 16) | PM_VERSION_MINOR
  */
-#define PM_VERSION_MAJOR	0
-#define PM_VERSION_MINOR	2
+#define PM_VERSION_MAJOR	1
+#define PM_VERSION_MINOR	0
 
 #define PM_VERSION	((PM_VERSION_MAJOR << 16) | PM_VERSION_MINOR)
 
@@ -69,6 +70,31 @@ enum pm_api_id {
 	PM_FPGA_LOAD,
 	PM_FPGA_GET_STATUS,
 	PM_GET_CHIPID,
+	/* ID 25 is been used by U-boot to process secure boot images */
+	/* Secure library generic API functions */
+	PM_SECURE_SHA = 26,
+	PM_SECURE_RSA,
+	/* Pin control API functions */
+	PM_PINCTRL_REQUEST,
+	PM_PINCTRL_RELEASE,
+	PM_PINCTRL_GET_FUNCTION,
+	PM_PINCTRL_SET_FUNCTION,
+	PM_PINCTRL_CONFIG_PARAM_GET,
+	PM_PINCTRL_CONFIG_PARAM_SET,
+	/* PM IOCTL API */
+	PM_IOCTL,
+	/* API to query information from firmware */
+	PM_QUERY_DATA,
+	/* Clock control API functions */
+	PM_CLOCK_ENABLE,
+	PM_CLOCK_DISABLE,
+	PM_CLOCK_GETSTATE,
+	PM_CLOCK_SETDIVIDER,
+	PM_CLOCK_GETDIVIDER,
+	PM_CLOCK_SETRATE,
+	PM_CLOCK_GETRATE,
+	PM_CLOCK_SETPARENT,
+	PM_CLOCK_GETPARENT,
 	PM_API_MAX
 };
 
@@ -82,7 +108,7 @@ enum pm_node_id {
 	NODE_RPU,
 	NODE_RPU_0,
 	NODE_RPU_1,
-	NODE_PL,
+	NODE_PLD,
 	NODE_FPD,
 	NODE_OCM_BANK_0,
 	NODE_OCM_BANK_1,
@@ -135,6 +161,14 @@ enum pm_node_id {
 	NODE_PCIE,
 	NODE_PCAP,
 	NODE_RTC,
+	NODE_LPD,
+	NODE_VCU,
+	NODE_IPI_RPU_1,
+	NODE_IPI_PL_0,
+	NODE_IPI_PL_1,
+	NODE_IPI_PL_2,
+	NODE_IPI_PL_3,
+	NODE_PL,
 	NODE_MAX
 };
 
