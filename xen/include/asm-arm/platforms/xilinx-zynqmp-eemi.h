@@ -26,7 +26,6 @@
                                          ARM_SMCCC_CONV_64,   \
                                          ARM_SMCCC_OWNER_SIP, \
                                          fid)
-
 enum pm_api_id {
     /* Miscellaneous API functions: */
     PM_GET_API_VERSION = 1, /* Do not change or move */
@@ -129,7 +128,7 @@ enum pm_node_id {
 	NODE_RPU,
 	NODE_RPU_0,
 	NODE_RPU_1,
-	NODE_PL,
+	NODE_PLD,
 	NODE_FPD,
 	NODE_OCM_BANK_0,
 	NODE_OCM_BANK_1,
@@ -182,6 +181,14 @@ enum pm_node_id {
 	NODE_PCIE,
 	NODE_PCAP,
 	NODE_RTC,
+	NODE_LPD,
+	NODE_VCU,
+	NODE_IPI_RPU_1,
+	NODE_IPI_PL_0,
+	NODE_IPI_PL_1,
+	NODE_IPI_PL_2,
+	NODE_IPI_PL_3,
+	NODE_PL,
 	NODE_MAX
 };
 
