@@ -739,6 +739,7 @@ bool zynqmp_eemi_mediate(register_t fid,
     case ZYNQMP_SIP_SVC_CALL_COUNT:
     case ZYNQMP_SIP_SVC_UID:
     case ZYNQMP_SIP_SVC_VERSION:
+    case PM_GET_TRUSTZONE_VERSION:
     case PM_GET_API_VERSION:
     case PM_GET_CHIPID:
         goto forward_to_fw;
@@ -763,6 +764,25 @@ bool zynqmp_eemi_mediate(register_t fid,
     case PM_SET_CONFIGURATION:
     case PM_FPGA_LOAD:
     case PM_FPGA_GET_STATUS:
+    case PM_SECURE_SHA:
+    case PM_SECURE_RSA:
+    case PM_PINCTRL_SET_FUNCTION:
+    case PM_PINCTRL_REQUEST:
+    case PM_PINCTRL_RELEASE:
+    case PM_PINCTRL_GET_FUNCTION:
+    case PM_PINCTRL_CONFIG_PARAM_GET:
+    case PM_PINCTRL_CONFIG_PARAM_SET:
+    case PM_IOCTL:
+    case PM_QUERY_DATA:
+    case PM_CLOCK_ENABLE:
+    case PM_CLOCK_DISABLE:
+    case PM_CLOCK_GETSTATE:
+    case PM_CLOCK_GETDIVIDER:
+    case PM_CLOCK_SETDIVIDER:
+    case PM_CLOCK_SETRATE:
+    case PM_CLOCK_GETRATE:
+    case PM_CLOCK_SETPARENT:
+    case PM_CLOCK_GETPARENT:
         if ( !is_hardware_domain(current->domain) ) {
             printk("eemi: fn=%d No access", pm_fn);
             ret[0] = PM_RET_ERROR_ACCESS;
