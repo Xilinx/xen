@@ -175,7 +175,7 @@ static void __init processor_id(void)
     check_local_cpu_errata();
 }
 
-void dt_unreserved_regions(paddr_t s, paddr_t e,
+void __init dt_unreserved_regions(paddr_t s, paddr_t e,
                                   void (*cb)(paddr_t, paddr_t), int first)
 {
     int i, nr = fdt_num_mem_rsv(device_tree_flattened);
@@ -201,9 +201,9 @@ void dt_unreserved_regions(paddr_t s, paddr_t e,
     cb(s, e);
 }
 
-struct bootmodule *add_boot_module(bootmodule_kind kind,
-                                   paddr_t start, paddr_t size,
-                                   const char *cmdline)
+struct bootmodule __init *add_boot_module(bootmodule_kind kind,
+                                          paddr_t start, paddr_t size,
+                                          const char *cmdline)
 {
     struct bootmodules *mods = &bootinfo.modules;
     struct bootmodule *mod;
@@ -434,7 +434,7 @@ static paddr_t __init get_xen_paddr(void)
     return paddr;
 }
 
-static void init_pdx(void)
+static void __init init_pdx(void)
 {
     paddr_t bank_start, bank_size, bank_end;
 
