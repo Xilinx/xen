@@ -19,6 +19,12 @@ Release Notes
 
 # Feature Support
 
+## Kconfig
+
+EXPERT and DEBUG Kconfig options are not security supported. Other
+Kconfig options are supported, if the related features are marked as
+supported in this document.
+
 ## Host Architecture
 
 ### x86-64
