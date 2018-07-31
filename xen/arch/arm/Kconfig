@@ -18,7 +18,6 @@ config ARM
 	select HAS_ALTERNATIVE
 	select HAS_ARM_HDLCD
 	select HAS_DEVICE_TREE
-	select HAS_MEM_ACCESS
 	select HAS_PASSTHROUGH
 	select HAS_PDX
 	select VIDEO
