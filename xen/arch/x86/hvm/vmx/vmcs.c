@@ -38,6 +38,7 @@
 #include <asm/flushtlb.h>
 #include <asm/monitor.h>
 #include <asm/shadow.h>
+#include <asm/spec_ctrl.h>
 #include <asm/tboot.h>
 #include <asm/apic.h>
 
@@ -996,6 +997,7 @@ static int construct_vmcs(struct vcpu *v)
     struct domain *d = v->domain;
     u32 vmexit_ctl = vmx_vmexit_control;
     u32 vmentry_ctl = vmx_vmentry_control;
+    int rc = 0;
 
     vmx_vmcs_enter(v);
 
@@ -1083,8 +1085,8 @@ static int construct_vmcs(struct vcpu *v)
 
         if ( msr_bitmap == NULL )
         {
-            vmx_vmcs_exit(v);
-            return -ENOMEM;
+            rc = -ENOMEM;
+            goto out;
         }
 
         memset(msr_bitmap, ~0, PAGE_SIZE);
@@ -1268,141 +1270,197 @@ static int construct_vmcs(struct vcpu *v)
     if ( cpu_has_vmx_tsc_scaling )
         __vmwrite(TSC_MULTIPLIER, d->arch.hvm_domain.tsc_scaling_ratio);
 
-    vmx_vmcs_exit(v);
-
     /* will update HOST & GUEST_CR3 as reqd */
     paging_update_paging_modes(v);
 
     vmx_vlapic_msr_changed(v);
 
-    return 0;
+    if ( opt_l1d_flush && paging_mode_hap(d) )
+        rc = vmx_add_msr(v, MSR_FLUSH_CMD, FLUSH_CMD_L1D,
+                         VMX_MSR_GUEST_LOADONLY);
+
+ out:
+    vmx_vmcs_exit(v);
+
+    return rc;
 }
 
-static int vmx_msr_entry_key_cmp(const void *key, const void *elt)
+/*
+ * Search an MSR list looking for an MSR entry, or the slot in which it should
+ * live (to keep the data sorted) if an entry is not found.
+ *
+ * The return pointer is guaranteed to be bounded by start and end.  However,
+ * it may point at end, and may be invalid for the caller to dereference.
+ */
+static struct vmx_msr_entry *locate_msr_entry(
+    struct vmx_msr_entry *start, struct vmx_msr_entry *end, uint32_t msr)
 {
-    const u32 *msr = key;
-    const struct vmx_msr_entry *entry = elt;
+    while ( start < end )
+    {
+        struct vmx_msr_entry *mid = start + (end - start) / 2;
 
-    if ( *msr > entry->index )
-        return 1;
-    if ( *msr < entry->index )
-        return -1;
+        if ( msr < mid->index )
+            end = mid;
+        else if ( msr > mid->index )
+            start = mid + 1;
+        else
+            return mid;
+    }
 
-    return 0;
+    return start;
 }
 
-struct vmx_msr_entry *vmx_find_msr(u32 msr, int type)
+struct vmx_msr_entry *vmx_find_msr(const struct vcpu *v, uint32_t msr,
+                                   enum vmx_msr_list_type type)
 {
-    struct vcpu *curr = current;
-    unsigned int msr_count;
-    struct vmx_msr_entry *msr_area;
+    const struct arch_vmx_struct *vmx = &v->arch.hvm_vmx;
+    struct vmx_msr_entry *start = NULL, *ent, *end;
+    unsigned int substart = 0, subend = vmx->msr_save_count;
+    unsigned int total = vmx->msr_load_count;
 
-    if ( type == VMX_GUEST_MSR )
+    ASSERT(v == current || !vcpu_runnable(v));
+
+    switch ( type )
     {
-        msr_count = curr->arch.hvm_vmx.msr_count;
-        msr_area = curr->arch.hvm_vmx.msr_area;
-    }
-    else
-    {
-        ASSERT(type == VMX_HOST_MSR);
-        msr_count = curr->arch.hvm_vmx.host_msr_count;
-        msr_area = curr->arch.hvm_vmx.host_msr_area;
+    case VMX_MSR_HOST:
+        start    = vmx->host_msr_area;
+        subend   = vmx->host_msr_count;
+        total    = subend;
+        break;
+
+    case VMX_MSR_GUEST:
+        start    = vmx->msr_area;
+        break;
+
+    case VMX_MSR_GUEST_LOADONLY:
+        start    = vmx->msr_area;
+        substart = subend;
+        subend   = total;
+        break;
+
+    default:
+        ASSERT_UNREACHABLE();
     }
 
-    if ( msr_area == NULL )
+    if ( !start )
         return NULL;
 
-    return bsearch(&msr, msr_area, msr_count, sizeof(struct vmx_msr_entry),
-                   vmx_msr_entry_key_cmp);
+    end = start + total;
+    ent = locate_msr_entry(start + substart, start + subend, msr);
+
+    return ((ent < end) && (ent->index == msr)) ? ent : NULL;
 }
 
-int vmx_read_guest_msr(u32 msr, u64 *val)
+int vmx_add_msr(struct vcpu *v, uint32_t msr, uint64_t val,
+                enum vmx_msr_list_type type)
 {
-    struct vmx_msr_entry *ent;
+    struct arch_vmx_struct *vmx = &v->arch.hvm_vmx;
+    struct vmx_msr_entry **ptr, *start = NULL, *ent, *end;
+    unsigned int substart, subend, total;
+    int rc;
 
-    if ( (ent = vmx_find_msr(msr, VMX_GUEST_MSR)) != NULL )
+    ASSERT(v == current || !vcpu_runnable(v));
+
+    switch ( type )
     {
-        *val = ent->data;
-        return 0;
+    case VMX_MSR_HOST:
+        ptr      = &vmx->host_msr_area;
+        substart = 0;
+        subend   = vmx->host_msr_count;
+        total    = subend;
+        break;
+
+    case VMX_MSR_GUEST:
+        ptr      = &vmx->msr_area;
+        substart = 0;
+        subend   = vmx->msr_save_count;
+        total    = vmx->msr_load_count;
+        break;
+
+    case VMX_MSR_GUEST_LOADONLY:
+        ptr      = &vmx->msr_area;
+        substart = vmx->msr_save_count;
+        subend   = vmx->msr_load_count;
+        total    = subend;
+        break;
+
+    default:
+        ASSERT_UNREACHABLE();
+        return -EINVAL;
     }
 
-    return -ESRCH;
-}
+    vmx_vmcs_enter(v);
 
-int vmx_write_guest_msr(u32 msr, u64 val)
-{
-    struct vmx_msr_entry *ent;
-
-    if ( (ent = vmx_find_msr(msr, VMX_GUEST_MSR)) != NULL )
+    /* Allocate memory on first use. */
+    if ( unlikely(!*ptr) )
     {
-        ent->data = val;
-        return 0;
-    }
+        paddr_t addr;
 
-    return -ESRCH;
-}
-
-int vmx_add_msr(u32 msr, int type)
-{
-    struct vcpu *curr = current;
-    unsigned int idx, *msr_count;
-    struct vmx_msr_entry **msr_area, *msr_area_elem;
-
-    if ( type == VMX_GUEST_MSR )
-    {
-        msr_count = &curr->arch.hvm_vmx.msr_count;
-        msr_area = &curr->arch.hvm_vmx.msr_area;
-    }
-    else
-    {
-        ASSERT(type == VMX_HOST_MSR);
-        msr_count = &curr->arch.hvm_vmx.host_msr_count;
-        msr_area = &curr->arch.hvm_vmx.host_msr_area;
-    }
-
-    if ( *msr_area == NULL )
-    {
-        if ( (*msr_area = alloc_xenheap_page()) == NULL )
-            return -ENOMEM;
-
-        if ( type == VMX_GUEST_MSR )
+        if ( (*ptr = alloc_xenheap_page()) == NULL )
         {
-            __vmwrite(VM_EXIT_MSR_STORE_ADDR, virt_to_maddr(*msr_area));
-            __vmwrite(VM_ENTRY_MSR_LOAD_ADDR, virt_to_maddr(*msr_area));
+            rc = -ENOMEM;
+            goto out;
         }
-        else
-            __vmwrite(VM_EXIT_MSR_LOAD_ADDR, virt_to_maddr(*msr_area));
+
+        addr = virt_to_maddr(*ptr);
+
+        switch ( type )
+        {
+        case VMX_MSR_HOST:
+            __vmwrite(VM_EXIT_MSR_LOAD_ADDR, addr);
+            break;
+
+        case VMX_MSR_GUEST:
+        case VMX_MSR_GUEST_LOADONLY:
+            __vmwrite(VM_EXIT_MSR_STORE_ADDR, addr);
+            __vmwrite(VM_ENTRY_MSR_LOAD_ADDR, addr);
+            break;
+        }
     }
 
-    for ( idx = 0; idx < *msr_count && (*msr_area)[idx].index <= msr; idx++ )
-        if ( (*msr_area)[idx].index == msr )
-            return 0;
+    start = *ptr;
+    end   = start + total;
+    ent   = locate_msr_entry(start + substart, start + subend, msr);
 
-    if ( *msr_count == (PAGE_SIZE / sizeof(struct vmx_msr_entry)) )
-        return -ENOSPC;
+    if ( (ent < end) && (ent->index == msr) )
+        goto found;
 
-    memmove(*msr_area + idx + 1, *msr_area + idx,
-            sizeof(*msr_area_elem) * (*msr_count - idx));
-
-    msr_area_elem = *msr_area + idx;
-    msr_area_elem->index = msr;
-    msr_area_elem->mbz = 0;
-
-    ++*msr_count;
-
-    if ( type == VMX_GUEST_MSR )
+    /* If there isn't an existing entry for msr, insert room for one. */
+    if ( total == (PAGE_SIZE / sizeof(*ent)) )
     {
-        msr_area_elem->data = 0;
-        __vmwrite(VM_EXIT_MSR_STORE_COUNT, *msr_count);
-        __vmwrite(VM_ENTRY_MSR_LOAD_COUNT, *msr_count);
-    }
-    else
-    {
-        rdmsrl(msr, msr_area_elem->data);
-        __vmwrite(VM_EXIT_MSR_LOAD_COUNT, *msr_count);
+        rc = -ENOSPC;
+        goto out;
     }
 
-    return 0;
+    memmove(ent + 1, ent, sizeof(*ent) * (end - ent));
+
+    ent->index = msr;
+    ent->mbz = 0;
+
+    switch ( type )
+    {
+    case VMX_MSR_HOST:
+        __vmwrite(VM_EXIT_MSR_LOAD_COUNT, ++vmx->host_msr_count);
+        break;
+
+    case VMX_MSR_GUEST:
+        __vmwrite(VM_EXIT_MSR_STORE_COUNT, ++vmx->msr_save_count);
+
+        /* Fallthrough */
+    case VMX_MSR_GUEST_LOADONLY:
+        __vmwrite(VM_ENTRY_MSR_LOAD_COUNT, ++vmx->msr_load_count);
+        break;
+    }
+
+    /* Set the msr's value. */
+ found:
+    ent->data = val;
+    rc = 0;
+
+ out:
+    vmx_vmcs_exit(v);
+
+    return rc;
 }
 
 void vmx_set_eoi_exit_bitmap(struct vcpu *v, u8 vector)

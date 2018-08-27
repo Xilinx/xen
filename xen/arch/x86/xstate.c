@@ -670,12 +670,17 @@ static bool valid_xcr0(u64 xcr0)
     return !(xcr0 & X86_XCR0_BNDREGS) == !(xcr0 & X86_XCR0_BNDCSR);
 }
 
-int validate_xstate(u64 xcr0, u64 xcr0_accum, const struct xsave_hdr *hdr)
+int validate_xstate(const struct domain *d, uint64_t xcr0, uint64_t xcr0_accum,
+                    const struct xsave_hdr *hdr)
 {
+    const struct cpuid_policy *cp = d->arch.cpuid;
+    uint64_t xcr0_max =
+        ((uint64_t)cp->xstate.xcr0_high << 32) | cp->xstate.xcr0_low;
     unsigned int i;
 
     if ( (hdr->xstate_bv & ~xcr0_accum) ||
          (xcr0 & ~xcr0_accum) ||
+         (xcr0_accum & ~xcr0_max) ||
          !valid_xcr0(xcr0) ||
          !valid_xcr0(xcr0_accum) )
         return -EINVAL;
@@ -694,20 +699,40 @@ int validate_xstate(u64 xcr0, u64 xcr0_accum, const struct xsave_hdr *hdr)
 int handle_xsetbv(u32 index, u64 new_bv)
 {
     struct vcpu *curr = current;
+    const struct cpuid_policy *cp = curr->domain->arch.cpuid;
+    uint64_t xcr0_max =
+        ((uint64_t)cp->xstate.xcr0_high << 32) | cp->xstate.xcr0_low;
     u64 mask;
 
     if ( index != XCR_XFEATURE_ENABLED_MASK )
         return -EOPNOTSUPP;
 
-    if ( (new_bv & ~xfeature_mask) || !valid_xcr0(new_bv) )
+    /*
+     * The CPUID logic shouldn't be able to hand out an XCR0 exceeding Xen's
+     * maximum features, but keep the check for robustness.
+     */
+    if ( unlikely(xcr0_max & ~xfeature_mask) )
+    {
+        gprintk(XENLOG_ERR,
+                "xcr0_max %016" PRIx64 " exceeds hardware max %016" PRIx64 "\n",
+                xcr0_max, xfeature_mask);
+        domain_crash(curr->domain);
+
+        return -EINVAL;
+    }
+
+    if ( (new_bv & ~xcr0_max) || !valid_xcr0(new_bv) )
         return -EINVAL;
 
-    /* XCR0.PKRU is disabled on PV mode. */
-    if ( is_pv_vcpu(curr) && (new_bv & X86_XCR0_PKRU) )
-        return -EOPNOTSUPP;
+    /* By this point, new_bv really should be accepted by hardware. */
+    if ( unlikely(!set_xcr0(new_bv)) )
+    {
+        gprintk(XENLOG_ERR, "new_bv %016" PRIx64 " rejected by hardware\n",
+                new_bv);
+        domain_crash(curr->domain);
 
-    if ( !set_xcr0(new_bv) )
         return -EFAULT;
+    }
 
     mask = new_bv & ~curr->arch.xcr0_accum;
     curr->arch.xcr0 = new_bv;

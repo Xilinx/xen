@@ -19,10 +19,13 @@
 #include <xen/errno.h>
 #include <xen/init.h>
 #include <xen/lib.h>
+#include <xen/warning.h>
 
 #include <asm/microcode.h>
 #include <asm/msr.h>
 #include <asm/processor.h>
+#include <asm/pv/shim.h>
+#include <asm/setup.h>
 #include <asm/spec_ctrl.h>
 #include <asm/spec_ctrl_asm.h>
 
@@ -45,10 +48,15 @@ static int8_t __initdata opt_ibrs = -1;
 bool __read_mostly opt_ibpb = true;
 bool __read_mostly opt_ssbd = false;
 int8_t __read_mostly opt_eager_fpu = -1;
+int8_t __read_mostly opt_l1d_flush = -1;
 
 bool __initdata bsp_delay_spec_ctrl;
 uint8_t __read_mostly default_xen_spec_ctrl;
 uint8_t __read_mostly default_spec_ctrl_flags;
+
+paddr_t __read_mostly l1tf_addr_mask, __read_mostly l1tf_safe_maddr;
+static bool __initdata cpu_has_bug_l1tf;
+static unsigned int __initdata l1d_maxphysaddr;
 
 static int __init parse_bti(const char *s)
 {
@@ -124,6 +132,17 @@ static int __init parse_spec_ctrl(const char *s)
             opt_msr_sc_pv = false;
             opt_msr_sc_hvm = false;
 
+            opt_eager_fpu = 0;
+
+            if ( opt_xpti < 0 )
+                opt_xpti = 0;
+
+            if ( opt_smt < 0 )
+                opt_smt = 1;
+
+            if ( opt_pv_l1tf < 0 )
+                opt_pv_l1tf = 0;
+
         disable_common:
             opt_rsb_pv = false;
             opt_rsb_hvm = false;
@@ -131,7 +150,8 @@ static int __init parse_spec_ctrl(const char *s)
             opt_thunk = THUNK_JMP;
             opt_ibrs = 0;
             opt_ibpb = false;
-            opt_eager_fpu = 0;
+            opt_ssbd = false;
+            opt_l1d_flush = 0;
         }
         else if ( val > 0 )
             rc = -EINVAL;
@@ -187,6 +207,8 @@ static int __init parse_spec_ctrl(const char *s)
             opt_ssbd = val;
         else if ( (val = parse_boolean("eager-fpu", s, ss)) >= 0 )
             opt_eager_fpu = val;
+        else if ( (val = parse_boolean("l1d-flush", s, ss)) >= 0 )
+            opt_l1d_flush = val;
         else
             rc = -EINVAL;
 
@@ -196,6 +218,55 @@ static int __init parse_spec_ctrl(const char *s)
     return rc;
 }
 custom_param("spec-ctrl", parse_spec_ctrl);
+
+int8_t __read_mostly opt_pv_l1tf = -1;
+
+static __init int parse_pv_l1tf(const char *s)
+{
+    const char *ss;
+    int val, rc = 0;
+
+    /* Inhibit the defaults as an explicit choice has been given. */
+    if ( opt_pv_l1tf == -1 )
+        opt_pv_l1tf = 0;
+
+    /* Interpret 'pv-l1tf' alone in its positive boolean form. */
+    if ( *s == '\0' )
+        opt_pv_l1tf = OPT_PV_L1TF_DOM0 | OPT_PV_L1TF_DOMU;
+
+    do {
+        ss = strchr(s, ',');
+        if ( !ss )
+            ss = strchr(s, '\0');
+
+        switch ( parse_bool(s, ss) )
+        {
+        case 0:
+            opt_pv_l1tf = 0;
+            break;
+
+        case 1:
+            opt_pv_l1tf = OPT_PV_L1TF_DOM0 | OPT_PV_L1TF_DOMU;
+            break;
+
+        default:
+            if ( (val = parse_boolean("dom0", s, ss)) >= 0 )
+                opt_pv_l1tf = ((opt_pv_l1tf & ~OPT_PV_L1TF_DOM0) |
+                               (val ? OPT_PV_L1TF_DOM0 : 0));
+            else if ( (val = parse_boolean("domu", s, ss)) >= 0 )
+                opt_pv_l1tf = ((opt_pv_l1tf & ~OPT_PV_L1TF_DOMU) |
+                               (val ? OPT_PV_L1TF_DOMU : 0));
+            else
+                rc = -EINVAL;
+            break;
+        }
+
+        s = ss + 1;
+    } while ( *ss );
+
+    return rc;
+}
+custom_param("pv-l1tf", parse_pv_l1tf);
 
 static void __init print_details(enum ind_thunk thunk, uint64_t caps)
 {
@@ -210,22 +281,31 @@ static void __init print_details(enum ind_thunk thunk, uint64_t caps)
     printk("Speculative mitigation facilities:\n");
 
     /* Hardware features which pertain to speculative mitigations. */
-    printk("  Hardware features:%s%s%s%s%s%s%s%s\n",
+    printk("  Hardware features:%s%s%s%s%s%s%s%s%s%s\n",
            (_7d0 & cpufeat_mask(X86_FEATURE_IBRSB)) ? " IBRS/IBPB" : "",
            (_7d0 & cpufeat_mask(X86_FEATURE_STIBP)) ? " STIBP"     : "",
+           (_7d0 & cpufeat_mask(X86_FEATURE_L1D_FLUSH)) ? " L1D_FLUSH" : "",
            (_7d0 & cpufeat_mask(X86_FEATURE_SSBD))  ? " SSBD"      : "",
            (e8b  & cpufeat_mask(X86_FEATURE_IBPB))  ? " IBPB"      : "",
            (caps & ARCH_CAPABILITIES_IBRS_ALL)      ? " IBRS_ALL"  : "",
            (caps & ARCH_CAPABILITIES_RDCL_NO)       ? " RDCL_NO"   : "",
            (caps & ARCH_CAPS_RSBA)                  ? " RSBA"      : "",
+           (caps & ARCH_CAPS_SKIP_L1DFL)            ? " SKIP_L1DFL": "",
            (caps & ARCH_CAPS_SSB_NO)                ? " SSB_NO"    : "");
 
-    /* Compiled-in support which pertains to BTI mitigations. */
-    if ( IS_ENABLED(CONFIG_INDIRECT_THUNK) )
-        printk("  Compiled-in support: INDIRECT_THUNK\n");
+    /* Compiled-in support which pertains to mitigations. */
+    if ( IS_ENABLED(CONFIG_INDIRECT_THUNK) || IS_ENABLED(CONFIG_SHADOW_PAGING) )
+        printk("  Compiled-in support:"
+#ifdef CONFIG_INDIRECT_THUNK
+               " INDIRECT_THUNK"
+#endif
+#ifdef CONFIG_SHADOW_PAGING
+               " SHADOW_PAGING"
+#endif
+               "\n");
 
     /* Settings for Xen's protection, irrespective of guests. */
-    printk("  Xen settings: BTI-Thunk %s, SPEC_CTRL: %s%s, Other:%s\n",
+    printk("  Xen settings: BTI-Thunk %s, SPEC_CTRL: %s%s, Other:%s%s\n",
            thunk == THUNK_NONE      ? "N/A" :
            thunk == THUNK_RETPOLINE ? "RETPOLINE" :
            thunk == THUNK_LFENCE    ? "LFENCE" :
@@ -234,7 +314,15 @@ static void __init print_details(enum ind_thunk thunk, uint64_t caps)
            (default_xen_spec_ctrl & SPEC_CTRL_IBRS)  ? "IBRS+" :  "IBRS-",
            !boot_cpu_has(X86_FEATURE_SSBD)           ? "" :
            (default_xen_spec_ctrl & SPEC_CTRL_SSBD)  ? " SSBD+" : " SSBD-",
-           opt_ibpb                                  ? " IBPB"  : "");
+           opt_ibpb                                  ? " IBPB"  : "",
+           opt_l1d_flush                             ? " L1D_FLUSH" : "");
+
+    /* L1TF diagnostics, printed if vulnerable or PV shadowing is in use. */
+    if ( cpu_has_bug_l1tf || opt_pv_l1tf )
+        printk("  L1TF: believed%s vulnerable, maxphysaddr L1D %u, CPUID %u"
+               ", Safe address %"PRIx64"\n",
+               cpu_has_bug_l1tf ? "" : " not",
+               l1d_maxphysaddr, paddr_bits, l1tf_safe_maddr);
 
     /*
      * Alternatives blocks for protecting against and/or virtualising
@@ -257,6 +345,10 @@ static void __init print_details(enum ind_thunk thunk, uint64_t caps)
     printk("  XPTI (64-bit PV only): Dom0 %s, DomU %s\n",
            opt_xpti & OPT_XPTI_DOM0 ? "enabled" : "disabled",
            opt_xpti & OPT_XPTI_DOMU ? "enabled" : "disabled");
+
+    printk("  PV L1TF shadowing: Dom0 %s, DomU %s\n",
+           opt_pv_l1tf & OPT_PV_L1TF_DOM0  ? "enabled"  : "disabled",
+           opt_pv_l1tf & OPT_PV_L1TF_DOMU  ? "enabled"  : "disabled");
 }
 
 /* Calculate whether Retpoline is known-safe on this CPU. */
@@ -418,20 +510,159 @@ static bool __init should_use_eager_fpu(void)
     }
 }
 
-#define OPT_XPTI_DEFAULT  0xff
-uint8_t __read_mostly opt_xpti = OPT_XPTI_DEFAULT;
-
-static __init void xpti_init_default(bool force)
+/* Calculate whether this CPU is vulnerable to L1TF. */
+static __init void l1tf_calculations(uint64_t caps)
 {
-    uint64_t caps = 0;
+    bool hit_default = false;
 
-    if ( !force && (opt_xpti != OPT_XPTI_DEFAULT) )
-        return;
+    l1d_maxphysaddr = paddr_bits;
 
+    /* L1TF is only known to affect Intel Family 6 processors at this time. */
+    if ( boot_cpu_data.x86_vendor == X86_VENDOR_INTEL &&
+         boot_cpu_data.x86 == 6 )
+    {
+        switch ( boot_cpu_data.x86_model )
+        {
+            /*
+             * Core processors since at least Penryn are vulnerable.
+             */
+        case 0x17: /* Penryn */
+        case 0x1d: /* Dunnington */
+            cpu_has_bug_l1tf = true;
+            break;
+
+        case 0x1f: /* Auburndale / Havendale */
+        case 0x1e: /* Nehalem */
+        case 0x1a: /* Nehalem EP */
+        case 0x2e: /* Nehalem EX */
+        case 0x25: /* Westmere */
+        case 0x2c: /* Westmere EP */
+        case 0x2f: /* Westmere EX */
+            cpu_has_bug_l1tf = true;
+            l1d_maxphysaddr = 44;
+            break;
+
+        case 0x2a: /* SandyBridge */
+        case 0x2d: /* SandyBridge EP/EX */
+        case 0x3a: /* IvyBridge */
+        case 0x3e: /* IvyBridge EP/EX */
+        case 0x3c: /* Haswell */
+        case 0x3f: /* Haswell EX/EP */
+        case 0x45: /* Haswell D */
+        case 0x46: /* Haswell H */
+        case 0x3d: /* Broadwell */
+        case 0x47: /* Broadwell H */
+        case 0x4f: /* Broadwell EP/EX */
+        case 0x56: /* Broadwell D */
+        case 0x4e: /* Skylake M */
+        case 0x55: /* Skylake X */
+        case 0x5e: /* Skylake D */
+        case 0x66: /* Cannonlake */
+        case 0x67: /* Cannonlake? */
+        case 0x8e: /* Kabylake M */
+        case 0x9e: /* Kabylake D */
+            cpu_has_bug_l1tf = true;
+            l1d_maxphysaddr = 46;
+            break;
+
+            /*
+             * Atom processors are not vulnerable.
+             */
+        case 0x1c: /* Pineview */
+        case 0x26: /* Lincroft */
+        case 0x27: /* Penwell */
+        case 0x35: /* Cloverview */
+        case 0x36: /* Cedarview */
+        case 0x37: /* Baytrail / Valleyview (Silvermont) */
+        case 0x4d: /* Avaton / Rangely (Silvermont) */
+        case 0x4c: /* Cherrytrail / Brasswell */
+        case 0x4a: /* Merrifield */
+        case 0x5a: /* Moorefield */
+        case 0x5c: /* Goldmont */
+        case 0x5f: /* Denverton */
+        case 0x7a: /* Gemini Lake */
+            break;
+
+            /*
+             * Knights processors are not vulnerable.
+             */
+        case 0x57: /* Knights Landing */
+        case 0x85: /* Knights Mill */
+            break;
+
+        default:
+            /* Defer printk() until we've accounted for RDCL_NO. */
+            hit_default = true;
+            cpu_has_bug_l1tf = true;
+            break;
+        }
+    }
+
+    /* Any processor advertising RDCL_NO should be not vulnerable to L1TF. */
+    if ( caps & ARCH_CAPABILITIES_RDCL_NO )
+        cpu_has_bug_l1tf = false;
+
+    if ( cpu_has_bug_l1tf && hit_default )
+        printk("Unrecognised CPU model %#x - assuming vulnerable to L1TF\n",
+               boot_cpu_data.x86_model);
+
+    /*
+     * L1TF safe address heuristics.  These apply to the real hardware we are
+     * running on, and are best-effort-only if Xen is virtualised.
+     *
+     * The address mask which the L1D cache uses, which might be wider than
+     * the CPUID-reported maxphysaddr.
+     */
+    l1tf_addr_mask = ((1ul << l1d_maxphysaddr) - 1) & PAGE_MASK;
+
+    /*
+     * To be safe, l1tf_safe_maddr must be above the highest cacheable entity
+     * in system physical address space.  However, to preserve space for
+     * paged-out metadata, it should be as low as possible above the highest
+     * cacheable address, so as to require fewer high-order bits being set.
+     *
+     * These heuristics are based on some guesswork to improve the likelihood
+     * of safety in the common case, including Linux's L1TF mitigation of
+     * inverting all address bits in a non-present PTE.
+     *
+     * - If L1D is wider than CPUID (Nehalem and later mobile/desktop/low end
+     *   server), setting any address bit beyond CPUID maxphysaddr guarantees
+     *   to make the PTE safe.  This case doesn't require all the high-order
+     *   bits being set, and doesn't require any other source of information
+     *   for safety.
+     *
+     * - If L1D is the same as CPUID (Pre-Nehalem, or high end server), we
+     *   must sacrifice high order bits from the real address space for
+     *   safety.  Therefore, make a blind guess that there is nothing
+     *   cacheable in the top quarter of physical address space.
+     *
+     *   It is exceedingly unlikely for machines to be populated with this
+     *   much RAM (likely 512G on pre-Nehalem, 16T on Nehalem/Westmere, 64T on
+     *   Sandybridge and later) due to the sheer volume of DIMMs this would
+     *   actually take.
+     *
+     *   However, it is possible to find machines this large, so the "top
+     *   quarter" guess is supplemented to push the limit higher if references
+     *   to cacheable mappings (E820/SRAT/EFI/etc) are found above the top
+     *   quarter boundary.
+     *
+     *   Finally, this top quarter guess gives us a good chance of being safe
+     *   when running virtualised (and the CPUID maxphysaddr hasn't been
+     *   levelled for heterogeneous migration safety), where the safety
+     *   consideration is still in terms of host details, but all E820/etc
+     *   information is in terms of guest physical layout.
+     */
+    l1tf_safe_maddr = max(l1tf_safe_maddr, ((l1d_maxphysaddr > paddr_bits)
+                                            ? (1ul << paddr_bits)
+                                            : (3ul << (paddr_bits - 2))));
+}
+
+int8_t __read_mostly opt_xpti = -1;
+
+static __init void xpti_init_default(uint64_t caps)
+{
     if ( boot_cpu_data.x86_vendor == X86_VENDOR_AMD )
         caps = ARCH_CAPABILITIES_RDCL_NO;
-    else if ( boot_cpu_has(X86_FEATURE_ARCH_CAPS) )
-        rdmsrl(MSR_ARCH_CAPABILITIES, caps);
 
     if ( caps & ARCH_CAPABILITIES_RDCL_NO )
         opt_xpti = 0;
@@ -444,7 +675,13 @@ static __init int parse_xpti(const char *s)
     const char *ss;
     int val, rc = 0;
 
-    xpti_init_default(false);
+    /* Inhibit the defaults as an explicit choice has been given. */
+    if ( opt_xpti == -1 )
+        opt_xpti = 0;
+
+    /* Interpret 'xpti' alone in its positive boolean form. */
+    if ( *s == '\0' )
+        opt_xpti = OPT_XPTI_DOM0 | OPT_XPTI_DOMU;
 
     do {
         ss = strchr(s, ',');
@@ -463,7 +700,7 @@ static __init int parse_xpti(const char *s)
 
         default:
             if ( !strcmp(s, "default") )
-                xpti_init_default(true);
+                opt_xpti = -1;
             else if ( (val = parse_boolean("dom0", s, ss)) >= 0 )
                 opt_xpti = (opt_xpti & ~OPT_XPTI_DOM0) |
                            (val ? OPT_XPTI_DOM0 : 0);
@@ -625,11 +862,57 @@ void __init init_speculation_mitigations(void)
     if ( default_xen_spec_ctrl )
         setup_force_cpu_cap(X86_FEATURE_SC_MSR_IDLE);
 
-    xpti_init_default(false);
+    if ( opt_xpti == -1 )
+        xpti_init_default(caps);
+
     if ( opt_xpti == 0 )
         setup_force_cpu_cap(X86_FEATURE_NO_XPTI);
     else
         setup_clear_cpu_cap(X86_FEATURE_NO_XPTI);
+
+    l1tf_calculations(caps);
+
+    /*
+     * By default, enable PV domU L1TF mitigations on all L1TF-vulnerable
+     * hardware, except when running in shim mode.
+     *
+     * In shim mode, SHADOW is expected to be compiled out, and a malicious
+     * guest kernel can only attack the shim Xen, not the host Xen.
+     */
+    if ( opt_pv_l1tf == -1 )
+    {
+        if ( pv_shim || !cpu_has_bug_l1tf )
+            opt_pv_l1tf = 0;
+        else
+            opt_pv_l1tf = OPT_PV_L1TF_DOMU;
+    }
+
+    /*
+     * By default, enable L1D_FLUSH on L1TF-vulnerable hardware, unless
+     * instructed to skip the flush on vmentry by our outer hypervisor.
+     */
+    if ( !boot_cpu_has(X86_FEATURE_L1D_FLUSH) )
+        opt_l1d_flush = 0;
+    else if ( opt_l1d_flush == -1 )
+        opt_l1d_flush = cpu_has_bug_l1tf && !(caps & ARCH_CAPS_SKIP_L1DFL);
+
+    /*
+     * We do not disable HT by default on affected hardware.
+     *
+     * Firstly, if the user intends to use exclusively PV, or HVM shadow
+     * guests, HT isn't a concern and should remain fully enabled.  Secondly,
+     * safety for HVM HAP guests can be arranged by the toolstack with core
+     * parking, pinning or cpupool configurations, including mixed setups.
+     *
+     * However, if we are on affected hardware, with HT enabled, and the user
+     * hasn't explicitly chosen whether to use HT or not, nag them to do so.
+     */
+    if ( opt_smt == -1 && cpu_has_bug_l1tf && !pv_shim &&
+         boot_cpu_data.x86_num_siblings > 1 )
+        warning_add(
+            "Booted on L1TF-vulnerable hardware with SMT/Hyperthreading\n"
+            "enabled.  Please assess your configuration and choose an\n"
+            "explicit 'smt=<bool>' setting.  See XSA-273.\n");
 
     print_details(thunk, caps);
 

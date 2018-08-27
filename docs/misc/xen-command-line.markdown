@@ -489,10 +489,10 @@ accounting for hardware capabilities as enumerated via CPUID.
 
 Currently accepted:
 
-The Speculation Control hardware features `ibrsb`, `stibp`, `ibpb`, `ssbd` are
-used by default if available and applicable.  They can be ignored,
-e.g. `no-ibrsb`, at which point Xen won't use them itself, and won't offer
-them to guests.
+The Speculation Control hardware features `ibrsb`, `stibp`, `ibpb`,
+`l1d-flush` and `ssbd` are used by default if available and applicable.  They can
+be ignored, e.g. `no-ibrsb`, at which point Xen won't use them itself, and
+won't offer them to guests.
 
 ### cpuid\_mask\_cpu (AMD only)
 > `= fam_0f_rev_c | fam_0f_rev_d | fam_0f_rev_e | fam_0f_rev_f | fam_0f_rev_g | fam_10_rev_b | fam_10_rev_c | fam_11_rev_b`
@@ -935,6 +935,8 @@ version are 1 and 2.
 * `transitive` Permit or disallow the use of transitive grants.  Note that the
 use of grant table v2 without transitive grants is an ABI breakage from the
 guests point of view.
+
+The usage of gnttab v2 is not security supported on ARM platforms.
 
 ### gnttab\_max\_frames
 > `= <integer>`
@@ -1544,6 +1546,30 @@ do; there may be other custom operating systems which do.  If you're
 certain you don't plan on having PV guests which use this feature,
 turning it off can reduce the attack surface.
 
+### pv-l1tf (x86)
+> `= List of [ <bool>, dom0=<bool>, domu=<bool> ]`
+
+> Default: `false` on believed-unaffected hardware, or in pv-shim mode.
+>          `domu`  on believed-affected hardware.
+
+Mitigations for L1TF / XSA-273 / CVE-2018-3620 for PV guests.
+
+For backwards compatibility, we may not alter an architecturally-legitimate
+pagetable entry a PV guest chooses to write.  We can however force such a
+guest into shadow mode so that Xen controls the PTEs which are reachable by
+the CPU pagewalk.
+
+Shadowing is performed at the point where a PV guest first tries to write an
+L1TF-vulnerable PTE.  Therefore, a PV guest kernel which has been updated with
+its own L1TF mitigations will not trigger shadow mode if it is well behaved.
+
+If CONFIG\_SHADOW\_PAGING is not compiled in, this mitigation instead crashes
+the guest when an L1TF-vulnerable PTE is written, which still allows updated,
+well-behaved PV guests to run, despite Shadow being compiled out.
+
+In the pv-shim case, Shadow is expected to be compiled out, and a malicious
+guest kernel can only leak data from the shim Xen, rather than the host Xen.
+
 ### pv-shim (x86)
 > `= <boolean>`
 
@@ -1748,6 +1774,13 @@ Use `smap=hvm` to allow SMAP use by HVM guests only.
 Flag to enable Supervisor Mode Execution Protection
 Use `smep=hvm` to allow SMEP use by HVM guests only.
 
+### smt (x86)
+> `= <boolean>`
+
+Default: `true`
+
+Control bring up of multiple hyper-threads per CPU core.
+
 ### snb\_igd\_quirk
 > `= <boolean> | cap | <integer>`
 
@@ -1758,7 +1791,8 @@ false disable the quirk workaround, which is also the default.
 
 ### spec-ctrl (x86)
 > `= List of [ <bool>, xen=<bool>, {pv,hvm,msr-sc,rsb}=<bool>,
->              bti-thunk=retpoline|lfence|jmp, {ibrs,ibpb,ssbd,eager-fpu}=<bool> ]`
+>              bti-thunk=retpoline|lfence|jmp, {ibrs,ibpb,ssbd,eager-fpu,
+>              l1d-flush}=<bool> ]`
 
 Controls for speculative execution sidechannel mitigations.  By default, Xen
 will pick the most appropriate mitigations based on compiled in support,
@@ -1770,10 +1804,15 @@ extreme care.**
 
 An overall boolean value, `spec-ctrl=no`, can be specified to turn off all
 mitigations, including pieces of infrastructure used to virtualise certain
-mitigation features for guests.  Alternatively, a slightly more restricted
-`spec-ctrl=no-xen` can be used to turn off all of Xen's mitigations, while
-leaving the virtualisation support in place for guests to use.  Use of a
-positive boolean value for either of these options is invalid.
+mitigation features for guests.  This also includes settings which `xpti`,
+`smt`, `pv-l1tf` control, unless the respective option(s) have been
+specified earlier on the command line.
+
+Alternatively, a slightly more restricted `spec-ctrl=no-xen` can be used to
+turn off all of Xen's mitigations, while leaving the virtualisation support
+in place for guests to use.
+
+Use of a positive boolean value for either of these options is invalid.
 
 The booleans `pv=`, `hvm=`, `msr-sc=` and `rsb=` offer fine grained control
 over the alternative blocks used by Xen.  These impact Xen's ability to
@@ -1812,6 +1851,12 @@ On all hardware, the `eager-fpu=` option can be used to force or prevent Xen
 from using fully eager FPU context switches.  This is currently implemented as
 a global control.  By default, Xen will choose to use fully eager context
 switches on hardware believed to speculate past #NM exceptions.
+
+On hardware supporting L1D_FLUSH, the `l1d-flush=` option can be used to force
+or prevent Xen from issuing an L1 data cache flush on each VMEntry.
+Irrespective of Xen's setting, the feature is virtualised for HVM guests to
+use.  By default, Xen will enable this mitigation on hardware believed to be
+vulnerable to L1TF.
 
 ### sync\_console
 > `= <boolean>`

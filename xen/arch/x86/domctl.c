@@ -225,7 +225,8 @@ static int update_domain_cpuid_info(struct domain *d,
          */
         call_policy_changed = (is_hvm_domain(d) &&
                                ((old_7d0 ^ p->feat.raw[0].d) &
-                                cpufeat_mask(X86_FEATURE_IBRSB)));
+                                (cpufeat_mask(X86_FEATURE_IBRSB) |
+                                 cpufeat_mask(X86_FEATURE_L1D_FLUSH))));
         break;
 
     case 0xa:
@@ -1163,7 +1164,7 @@ long arch_do_domctl(
             if ( _xcr0_accum )
             {
                 if ( evc->size >= PV_XSAVE_HDR_SIZE + XSTATE_AREA_MIN_SIZE )
-                    ret = validate_xstate(_xcr0, _xcr0_accum,
+                    ret = validate_xstate(d, _xcr0, _xcr0_accum,
                                           &_xsave_area->xsave_hdr);
             }
             else if ( !_xcr0 )
@@ -1187,8 +1188,7 @@ long arch_do_domctl(
                 vcpu_pause(v);
                 v->arch.xcr0 = _xcr0;
                 v->arch.xcr0_accum = _xcr0_accum;
-                if ( _xcr0_accum & XSTATE_NONLAZY )
-                    v->arch.nonlazy_xstate_used = 1;
+                v->arch.nonlazy_xstate_used = _xcr0_accum & XSTATE_NONLAZY;
                 compress_xsave_states(v, _xsave_area,
                                       evc->size - PV_XSAVE_HDR_SIZE);
                 vcpu_unpause(v);

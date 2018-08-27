@@ -583,6 +583,12 @@ static void vmx_cpuid_policy_changed(struct vcpu *v)
         vmx_clear_msr_intercept(v, MSR_PRED_CMD,  VMX_MSR_RW);
     else
         vmx_set_msr_intercept(v, MSR_PRED_CMD,  VMX_MSR_RW);
+
+    /* MSR_FLUSH_CMD is safe to pass through if the guest knows about it. */
+    if ( cp->feat.l1d_flush )
+        vmx_clear_msr_intercept(v, MSR_FLUSH_CMD, VMX_MSR_RW);
+    else
+        vmx_set_msr_intercept(v, MSR_FLUSH_CMD, VMX_MSR_RW);
 }
 
 int vmx_guest_x86_mode(struct vcpu *v)
@@ -2758,8 +2764,10 @@ enum
 
 #define LBR_FROM_SIGNEXT_2MSB  ((1ULL << 59) | (1ULL << 60))
 
-#define FIXUP_LBR_TSX            (1u << 0)
-#define FIXUP_BDW_ERRATUM_BDF14  (1u << 1)
+#define LBR_MSRS_INSERTED      (1u << 0)
+#define LBR_FIXUP_TSX          (1u << 1)
+#define LBR_FIXUP_BDF14        (1u << 2)
+#define LBR_FIXUP_MASK         (LBR_FIXUP_TSX | LBR_FIXUP_BDF14)
 
 static bool __read_mostly lbr_tsx_fixup_needed;
 static bool __read_mostly bdw_erratum_bdf14_fixup_needed;
@@ -2822,7 +2830,7 @@ static int is_last_branch_msr(u32 ecx)
 
 static int vmx_msr_read_intercept(unsigned int msr, uint64_t *msr_content)
 {
-    const struct vcpu *curr = current;
+    struct vcpu *curr = current;
 
     HVM_DBG_LOG(DBG_LEVEL_MSR, "ecx=%#x", msr);
 
@@ -2901,7 +2909,7 @@ static int vmx_msr_read_intercept(unsigned int msr, uint64_t *msr_content)
         if ( passive_domain_do_rdmsr(msr, msr_content) )
             goto done;
 
-        if ( vmx_read_guest_msr(msr, msr_content) == 0 )
+        if ( vmx_read_guest_msr(curr, msr, msr_content) == 0 )
             break;
 
         if ( is_last_branch_msr(msr) )
@@ -3036,11 +3044,14 @@ void vmx_vlapic_msr_changed(struct vcpu *v)
 static int vmx_msr_write_intercept(unsigned int msr, uint64_t msr_content)
 {
     struct vcpu *v = current;
+    const struct cpuid_policy *cp = v->domain->arch.cpuid;
 
     HVM_DBG_LOG(DBG_LEVEL_MSR, "ecx=%#x, msr_value=%#"PRIx64, msr, msr_content);
 
     switch ( msr )
     {
+        uint64_t rsvd;
+
     case MSR_IA32_SYSENTER_CS:
         __vmwrite(GUEST_SYSENTER_CS, msr_content);
         break;
@@ -3093,45 +3104,85 @@ static int vmx_msr_write_intercept(unsigned int msr, uint64_t msr_content)
         wrmsrl(MSR_SYSCALL_MASK, msr_content);
         break;
 
-    case MSR_IA32_DEBUGCTLMSR: {
-        int i, rc = 0;
-        uint64_t supported = IA32_DEBUGCTLMSR_LBR | IA32_DEBUGCTLMSR_BTF;
+    case MSR_IA32_DEBUGCTLMSR:
+        rsvd = ~(IA32_DEBUGCTLMSR_LBR | IA32_DEBUGCTLMSR_BTF);
 
-        if ( boot_cpu_has(X86_FEATURE_RTM) )
-            supported |= IA32_DEBUGCTLMSR_RTM;
-        if ( msr_content & ~supported )
+        /* TODO: Wire vPMU settings properly through the CPUID policy */
+        if ( vpmu_is_set(vcpu_vpmu(v), VPMU_CPU_HAS_BTS) )
         {
-            /* Perhaps some other bits are supported in vpmu. */
-            if ( vpmu_do_wrmsr(msr, msr_content, supported) )
-                break;
+            rsvd &= ~(IA32_DEBUGCTLMSR_TR | IA32_DEBUGCTLMSR_BTS |
+                      IA32_DEBUGCTLMSR_BTINT);
+
+            if ( cpu_has(&current_cpu_data, X86_FEATURE_DSCPL) )
+                rsvd &= ~(IA32_DEBUGCTLMSR_BTS_OFF_OS |
+                          IA32_DEBUGCTLMSR_BTS_OFF_USR);
         }
-        if ( msr_content & IA32_DEBUGCTLMSR_LBR )
+
+        if ( cp->feat.rtm )
+            rsvd &= ~IA32_DEBUGCTLMSR_RTM;
+
+        if ( msr_content & rsvd )
+            goto gp_fault;
+
+        /*
+         * When a guest first enables LBR, arrange to save and restore the LBR
+         * MSRs and allow the guest direct access.
+         *
+         * MSR_DEBUGCTL and LBR has existed almost as long as MSRs have
+         * existed, and there is no architectural way to hide the feature, or
+         * fail the attempt to enable LBR.
+         *
+         * Unknown host LBR MSRs or hitting -ENOSPC with the guest load/save
+         * list are definitely hypervisor bugs, whereas -ENOMEM for allocating
+         * the load/save list is simply unlucky (and shouldn't occur with
+         * sensible management by the toolstack).
+         *
+         * Either way, there is nothing we can do right now to recover, and
+         * the guest won't execute correctly either.  Simply crash the domain
+         * to make the failure obvious.
+         */
+        if ( !(v->arch.hvm_vmx.lbr_flags & LBR_MSRS_INSERTED) &&
+             (msr_content & IA32_DEBUGCTLMSR_LBR) )
         {
             const struct lbr_info *lbr = last_branch_msr_get();
-            if ( lbr == NULL )
-                break;
 
-            for ( ; (rc == 0) && lbr->count; lbr++ )
-                for ( i = 0; (rc == 0) && (i < lbr->count); i++ )
-                    if ( (rc = vmx_add_guest_msr(lbr->base + i)) == 0 )
+            if ( unlikely(!lbr) )
+            {
+                gprintk(XENLOG_ERR, "Unknown Host LBR MSRs\n");
+                domain_crash(v->domain);
+                return X86EMUL_OKAY;
+            }
+
+            for ( ; lbr->count; lbr++ )
+            {
+                unsigned int i;
+
+                for ( i = 0; i < lbr->count; i++ )
+                {
+                    int rc = vmx_add_guest_msr(v, lbr->base + i, 0);
+
+                    if ( unlikely(rc) )
                     {
-                        vmx_clear_msr_intercept(v, lbr->base + i, VMX_MSR_RW);
-                        if ( lbr_tsx_fixup_needed )
-                            v->arch.hvm_vmx.lbr_fixup_enabled |= FIXUP_LBR_TSX;
-                        if ( bdw_erratum_bdf14_fixup_needed )
-                            v->arch.hvm_vmx.lbr_fixup_enabled |=
-                                FIXUP_BDW_ERRATUM_BDF14;
+                        gprintk(XENLOG_ERR,
+                                "Guest load/save list error %d\n", rc);
+                        domain_crash(v->domain);
+                        return X86EMUL_OKAY;
                     }
+
+                    vmx_clear_msr_intercept(v, lbr->base + i, VMX_MSR_RW);
+                }
+            }
+
+            v->arch.hvm_vmx.lbr_flags |= LBR_MSRS_INSERTED;
+            if ( lbr_tsx_fixup_needed )
+                v->arch.hvm_vmx.lbr_flags |= LBR_FIXUP_TSX;
+            if ( bdw_erratum_bdf14_fixup_needed )
+                v->arch.hvm_vmx.lbr_flags |= LBR_FIXUP_BDF14;
         }
 
-        if ( (rc < 0) ||
-             (msr_content && (vmx_add_host_load_msr(msr) < 0)) )
-            hvm_inject_hw_exception(TRAP_machine_check, X86_EVENT_NO_EC);
-        else
-            __vmwrite(GUEST_IA32_DEBUGCTL, msr_content);
-
+        __vmwrite(GUEST_IA32_DEBUGCTL, msr_content);
         break;
-    }
+
     case MSR_IA32_FEATURE_CONTROL:
     case MSR_IA32_VMX_BASIC ... MSR_IA32_VMX_VMFUNC:
         /* None of these MSRs are writeable. */
@@ -3154,7 +3205,7 @@ static int vmx_msr_write_intercept(unsigned int msr, uint64_t msr_content)
         if ( wrmsr_viridian_regs(msr, msr_content) ) 
             break;
 
-        if ( vmx_write_guest_msr(msr, msr_content) == 0 ||
+        if ( vmx_write_guest_msr(v, msr, msr_content) == 0 ||
              is_last_branch_msr(msr) )
             break;
 
@@ -3701,6 +3752,7 @@ void vmx_vmexit_handler(struct cpu_user_regs *regs)
              */
             __vmread(EXIT_QUALIFICATION, &exit_qualification);
             HVMTRACE_1D(TRAP_DEBUG, exit_qualification);
+            __restore_debug_registers(v);
             write_debugreg(6, exit_qualification | DR_STATUS_RESERVED_ONE);
             if ( !v->domain->debugger_attached )
             {
@@ -4165,11 +4217,11 @@ out:
 static void lbr_tsx_fixup(void)
 {
     struct vcpu *curr = current;
-    unsigned int msr_count = curr->arch.hvm_vmx.msr_count;
+    unsigned int msr_count = curr->arch.hvm_vmx.msr_save_count;
     struct vmx_msr_entry *msr_area = curr->arch.hvm_vmx.msr_area;
     struct vmx_msr_entry *msr;
 
-    if ( (msr = vmx_find_msr(lbr_from_start, VMX_GUEST_MSR)) != NULL )
+    if ( (msr = vmx_find_msr(curr, lbr_from_start, VMX_MSR_GUEST)) != NULL )
     {
         /*
          * Sign extend into bits 61:62 while preserving bit 63
@@ -4179,15 +4231,15 @@ static void lbr_tsx_fixup(void)
             msr->data |= ((LBR_FROM_SIGNEXT_2MSB & msr->data) << 2);
     }
 
-    if ( (msr = vmx_find_msr(lbr_lastint_from, VMX_GUEST_MSR)) != NULL )
+    if ( (msr = vmx_find_msr(curr, lbr_lastint_from, VMX_MSR_GUEST)) != NULL )
         msr->data |= ((LBR_FROM_SIGNEXT_2MSB & msr->data) << 2);
 }
 
-static void sign_extend_msr(u32 msr, int type)
+static void sign_extend_msr(struct vcpu *v, u32 msr, int type)
 {
     struct vmx_msr_entry *entry;
 
-    if ( (entry = vmx_find_msr(msr, type)) != NULL )
+    if ( (entry = vmx_find_msr(v, msr, type)) != NULL )
     {
         if ( entry->data & VADDR_TOP_BIT )
             entry->data |= CANONICAL_MASK;
@@ -4198,6 +4250,8 @@ static void sign_extend_msr(u32 msr, int type)
 
 static void bdw_erratum_bdf14_fixup(void)
 {
+    struct vcpu *curr = current;
+
     /*
      * Occasionally, on certain Broadwell CPUs MSR_IA32_LASTINTTOIP has
      * been observed to have the top three bits corrupted as though the
@@ -4207,17 +4261,17 @@ static void bdw_erratum_bdf14_fixup(void)
      * erratum BDF14. Fix up MSR_IA32_LASTINT{FROM,TO}IP by
      * sign-extending into bits 48:63.
      */
-    sign_extend_msr(MSR_IA32_LASTINTFROMIP, VMX_GUEST_MSR);
-    sign_extend_msr(MSR_IA32_LASTINTTOIP, VMX_GUEST_MSR);
+    sign_extend_msr(curr, MSR_IA32_LASTINTFROMIP, VMX_MSR_GUEST);
+    sign_extend_msr(curr, MSR_IA32_LASTINTTOIP, VMX_MSR_GUEST);
 }
 
 static void lbr_fixup(void)
 {
     struct vcpu *curr = current;
 
-    if ( curr->arch.hvm_vmx.lbr_fixup_enabled & FIXUP_LBR_TSX )
+    if ( curr->arch.hvm_vmx.lbr_flags & LBR_FIXUP_TSX )
         lbr_tsx_fixup();
-    if ( curr->arch.hvm_vmx.lbr_fixup_enabled & FIXUP_BDW_ERRATUM_BDF14 )
+    if ( curr->arch.hvm_vmx.lbr_flags & LBR_FIXUP_BDF14 )
         bdw_erratum_bdf14_fixup();
 }
 
@@ -4285,7 +4339,7 @@ bool vmx_vmenter_helper(const struct cpu_user_regs *regs)
     }
 
  out:
-    if ( unlikely(curr->arch.hvm_vmx.lbr_fixup_enabled) )
+    if ( unlikely(curr->arch.hvm_vmx.lbr_flags & LBR_FIXUP_MASK) )
         lbr_fixup();
 
     HVMTRACE_ND(VMENTRY, 0, 1/*cycles*/, 0, 0, 0, 0, 0, 0, 0);

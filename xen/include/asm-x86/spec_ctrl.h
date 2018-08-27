@@ -29,14 +29,26 @@ void init_speculation_mitigations(void);
 extern bool opt_ibpb;
 extern bool opt_ssbd;
 extern int8_t opt_eager_fpu;
+extern int8_t opt_l1d_flush;
 
 extern bool bsp_delay_spec_ctrl;
 extern uint8_t default_xen_spec_ctrl;
 extern uint8_t default_spec_ctrl_flags;
 
-extern uint8_t opt_xpti;
+extern int8_t opt_xpti;
 #define OPT_XPTI_DOM0  0x01
 #define OPT_XPTI_DOMU  0x02
+
+extern int8_t opt_pv_l1tf;
+#define OPT_PV_L1TF_DOM0  0x01
+#define OPT_PV_L1TF_DOMU  0x02
+
+/*
+ * The L1D address mask, which might be wider than reported in CPUID, and the
+ * system physical address above which there are believed to be no cacheable
+ * memory regions, thus unable to leak data via the L1TF vulnerability.
+ */
+extern paddr_t l1tf_addr_mask, l1tf_safe_maddr;
 
 static inline void init_shadow_spec_ctrl_state(void)
 {
