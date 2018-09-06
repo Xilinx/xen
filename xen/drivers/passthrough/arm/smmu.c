@@ -1167,8 +1167,11 @@ static void arm_smmu_init_context_bank(struct arm_smmu_domain *smmu_domain)
 	      (TTBCR_RGN_WBWA << TTBCR_ORGN0_SHIFT) |
 	      (TTBCR_RGN_WBWA << TTBCR_IRGN0_SHIFT);
 
-	if (!stage1)
-		reg |= (TTBCR_SL0_LVL_1 << TTBCR_SL0_SHIFT);
+	/* Xen: Match VTCR_EL2 SL0 attribute */
+	if (!stage1) {
+		u32 vtcr = READ_SYSREG32(VTCR_EL2);
+		reg |= vtcr & (TTBCR_SL0_MASK << TTBCR_SL0_SHIFT);
+	}
 
 	writel_relaxed(reg, cb_base + ARM_SMMU_CB_TTBCR);
 
