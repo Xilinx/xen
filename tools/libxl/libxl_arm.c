@@ -461,6 +461,57 @@ static int make_memory_nodes(libxl__gc *gc, void *fdt,
     return 0;
 }
 
+static int make_reserved_nodes(libxl__gc *gc, void *fdt,
+                               libxl_domain_config *d_config)
+{
+    int res, i;
+    const char *name;
+
+    if (d_config->num_sshms == 0)
+        return 0;
+
+    res = fdt_begin_node(fdt, "reserved-memory");
+    if (res) return res;
+
+    res = fdt_property_cell(fdt, "#address-cells", ROOT_ADDRESS_CELLS);
+    if (res) return res;
+
+    res = fdt_property_cell(fdt, "#size-cells", ROOT_SIZE_CELLS);
+    if (res) return res;
+
+    res = fdt_property(fdt, "ranges", NULL, 0);
+    if (res) return res;
+
+    for (i = 0; i < d_config->num_sshms; i++) {
+        uint64_t start = d_config->sshms[i].begin;
+
+        if (d_config->sshms[i].role == LIBXL_SSHM_ROLE_SLAVE)
+            start += d_config->sshms[i].offset;
+        name = GCSPRINTF("xen-shmem@%"PRIx64, start);
+
+        res = fdt_begin_node(fdt, name);
+        if (res) return res;
+
+        res = fdt_property_regs(gc, fdt, ROOT_ADDRESS_CELLS, ROOT_SIZE_CELLS,
+                                1, start, d_config->sshms[i].size);
+        if (res) return res;
+
+        res = fdt_property_compat(gc, fdt, 1, "xen,shared-memory");
+        if (res) return res;
+
+        res = fdt_property_string(fdt, "id", d_config->sshms[i].id);
+        if (res) return res;
+
+        res = fdt_end_node(fdt);
+        if (res) return res;
+    }
+
+    res = fdt_end_node(fdt);
+    if (res) return res;
+
+    return 0;
+}
+
 static int make_gicv2_node(libxl__gc *gc, void *fdt,
                            uint64_t gicd_base, uint64_t gicd_size,
                            uint64_t gicc_base, uint64_t gicc_size)
@@ -836,10 +887,11 @@ static int copy_partial_fdt(libxl__gc *gc, void *fdt, void *pfdt)
 
 #define FDT_MAX_SIZE (1<<20)
 
-static int libxl__prepare_dtb(libxl__gc *gc, libxl_domain_build_info *info,
+static int libxl__prepare_dtb(libxl__gc *gc, libxl_domain_config *d_config,
                               libxl__domain_build_state *state,
                               struct xc_dom_image *dom)
 {
+    libxl_domain_build_info *info = &d_config->b_info;
     void *fdt = NULL;
     void *pfdt = NULL;
     int rc, res;
@@ -922,6 +974,7 @@ next_resize:
         FDT( make_psci_node(gc, fdt) );
 
         FDT( make_memory_nodes(gc, fdt, dom) );
+        FDT( make_reserved_nodes(gc, fdt, d_config) );
 
         switch (info->arch_arm.gic_version) {
         case LIBXL_GIC_VERSION_V2:
@@ -971,12 +1024,13 @@ out:
 }
 
 int libxl__arch_domain_init_hw_description(libxl__gc *gc,
-                                           libxl_domain_build_info *info,
+                                           libxl_domain_config *d_config,
                                            libxl__domain_build_state *state,
                                            struct xc_dom_image *dom)
 {
     int rc;
     uint64_t val;
+    libxl_domain_build_info *info = &d_config->b_info;
 
     assert(info->type == LIBXL_DOMAIN_TYPE_PV);
 
@@ -992,7 +1046,7 @@ int libxl__arch_domain_init_hw_description(libxl__gc *gc,
     if (rc)
         return rc;
 
-    rc = libxl__prepare_dtb(gc, info, state, dom);
+    rc = libxl__prepare_dtb(gc, d_config, state, dom);
     if (rc) goto out;
 
     if (!libxl_defbool_val(info->acpi)) {
