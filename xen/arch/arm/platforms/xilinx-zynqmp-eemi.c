@@ -570,7 +570,7 @@ static bool pm_check_access(const struct pm_access *acl, struct domain *d, int i
 /* Check if a domain has access to a node.  */
 static bool domain_has_node_access(struct domain *d, enum pm_node_id node)
 {
-    if ( node < 0 || node > ARRAY_SIZE(pm_node_access) )
+    if ( node < 0 || node >= ARRAY_SIZE(pm_node_access) )
         return false;
 
     /* NODE_UNKNOWN is treated as a wildcard.  */
@@ -585,7 +585,7 @@ static bool domain_has_reset_access(struct domain *d, enum pm_reset rst)
 {
     int rst_idx = PM_RESET_IDX(rst);
 
-    if ( rst_idx < 0 || rst_idx > ARRAY_SIZE(pm_reset_access) )
+    if ( rst_idx < 0 || rst_idx >= ARRAY_SIZE(pm_reset_access) )
         return false;
 
     return pm_check_access(pm_reset_access, d, rst_idx);
@@ -623,7 +623,7 @@ static bool domain_mediate_mmio_access(struct domain *d,
             /* Memory range.  */
             if ( addr < pm_mmio_access[i].start )
                 continue;
-            if ( addr > pm_mmio_access[i].end )
+            if ( addr >= pm_mmio_access[i].end )
                 continue;
         } else {
             /* Single register.  */
