@@ -598,6 +598,15 @@ static bool domain_has_reset_access(struct domain *d, enum pm_reset rst)
     return pm_check_access(pm_reset_access, d, rst_idx);
 }
 
+/* Check if a clock id is valid */
+static bool clock_id_is_valid(enum pm_clock clk_id)
+{
+    if ( clk_id < 0 || clk_id >= PM_CLOCK_END )
+        return false;
+
+    return true;
+}
+
 /*
  * Check if a given domain has access to perform an indirect
  * MMIO access.
@@ -776,11 +785,8 @@ bool zynqmp_eemi_mediate(register_t fid,
     case PM_QUERY_DATA:
     case PM_CLOCK_ENABLE:
     case PM_CLOCK_DISABLE:
-    case PM_CLOCK_GETSTATE:
-    case PM_CLOCK_GETDIVIDER:
     case PM_CLOCK_SETDIVIDER:
     case PM_CLOCK_SETPARENT:
-    case PM_CLOCK_GETPARENT:
         if ( !is_hardware_domain(current->domain) ) {
             printk("eemi: fn=%d No access", pm_fn);
             ret[0] = PM_RET_ERROR_ACCESS;
@@ -792,6 +798,19 @@ bool zynqmp_eemi_mediate(register_t fid,
     case PM_CLOCK_GETRATE:
         ret[0] = PM_RET_ERROR_NOTSUPPORTED;
         goto done;
+
+    case PM_CLOCK_GETSTATE:
+    case PM_CLOCK_GETDIVIDER:
+    case PM_CLOCK_GETPARENT:
+        if ( !clock_id_is_valid(pm_arg[0]) )
+        {
+            gprintk(XENLOG_WARNING, "zynqmp-pm: fn=%u Invalid clock=%u\n",
+                    pm_fn, pm_arg[0]);
+            ret[0] = PM_RET_INVALID_PARAM;
+            goto done;
+        }
+        else
+            goto forward_to_fw;
 
     /* These calls are never allowed.  */
     case PM_SYSTEM_SHUTDOWN:
