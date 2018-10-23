@@ -553,6 +553,80 @@ static const struct {
     }
 };
 
+#define PM_CLOCK2NODE(clk, nd)  { .clock = clk, .node = nd }
+
+/* This array must be ordered by the increasing clock ID values */
+static const struct pm_clock2node {
+    enum pm_clock clock;
+    enum pm_node_id node;
+} pm_clock_node_map[] = {
+    PM_CLOCK2NODE(PM_CLOCK_DP_VIDEO_REF, NODE_DP),
+    PM_CLOCK2NODE(PM_CLOCK_DP_AUDIO_REF, NODE_DP),
+    PM_CLOCK2NODE(PM_CLOCK_DP_STC_REF, NODE_DP),
+    PM_CLOCK2NODE(PM_CLOCK_GDMA_REF, NODE_GDMA),
+    PM_CLOCK2NODE(PM_CLOCK_DPDMA_REF, NODE_DP),
+    PM_CLOCK2NODE(PM_CLOCK_SATA_REF, NODE_SATA),
+    PM_CLOCK2NODE(PM_CLOCK_PCIE_REF, NODE_PCIE),
+    PM_CLOCK2NODE(PM_CLOCK_GPU_REF, NODE_GPU),
+    PM_CLOCK2NODE(PM_CLOCK_GPU_PP0_REF, NODE_GPU),
+    PM_CLOCK2NODE(PM_CLOCK_GPU_PP1_REF, NODE_GPU),
+    PM_CLOCK2NODE(PM_CLOCK_USB0_BUS_REF, NODE_USB_0),
+    PM_CLOCK2NODE(PM_CLOCK_USB1_BUS_REF, NODE_USB_1),
+    PM_CLOCK2NODE(PM_CLOCK_USB3_DUAL_REF, NODE_USB_0),
+    PM_CLOCK2NODE(PM_CLOCK_USB3_DUAL_REF, NODE_USB_1),
+    PM_CLOCK2NODE(PM_CLOCK_CPU_R5, NODE_RPU),
+    PM_CLOCK2NODE(PM_CLOCK_CPU_R5_CORE, NODE_RPU),
+    PM_CLOCK2NODE(PM_CLOCK_CSU_PLL, NODE_PCAP),
+    PM_CLOCK2NODE(PM_CLOCK_PCAP, NODE_PCAP),
+    PM_CLOCK2NODE(PM_CLOCK_GEM_TSU_REF, NODE_ETH_0),
+    PM_CLOCK2NODE(PM_CLOCK_GEM_TSU_REF, NODE_ETH_1),
+    PM_CLOCK2NODE(PM_CLOCK_GEM_TSU_REF, NODE_ETH_2),
+    PM_CLOCK2NODE(PM_CLOCK_GEM_TSU_REF, NODE_ETH_3),
+    PM_CLOCK2NODE(PM_CLOCK_GEM_TSU, NODE_ETH_0),
+    PM_CLOCK2NODE(PM_CLOCK_GEM_TSU, NODE_ETH_1),
+    PM_CLOCK2NODE(PM_CLOCK_GEM_TSU, NODE_ETH_2),
+    PM_CLOCK2NODE(PM_CLOCK_GEM_TSU, NODE_ETH_3),
+    PM_CLOCK2NODE(PM_CLOCK_GEM0_TX, NODE_ETH_0),
+    PM_CLOCK2NODE(PM_CLOCK_GEM1_TX, NODE_ETH_1),
+    PM_CLOCK2NODE(PM_CLOCK_GEM2_TX, NODE_ETH_2),
+    PM_CLOCK2NODE(PM_CLOCK_GEM3_TX, NODE_ETH_3),
+    PM_CLOCK2NODE(PM_CLOCK_GEM0_RX, NODE_ETH_0),
+    PM_CLOCK2NODE(PM_CLOCK_GEM1_RX, NODE_ETH_1),
+    PM_CLOCK2NODE(PM_CLOCK_GEM2_RX, NODE_ETH_2),
+    PM_CLOCK2NODE(PM_CLOCK_GEM3_RX, NODE_ETH_3),
+    PM_CLOCK2NODE(PM_CLOCK_QSPI_REF, NODE_QSPI),
+    PM_CLOCK2NODE(PM_CLOCK_SDIO0_REF, NODE_SD_0),
+    PM_CLOCK2NODE(PM_CLOCK_SDIO1_REF, NODE_SD_1),
+    PM_CLOCK2NODE(PM_CLOCK_UART0_REF, NODE_UART_0),
+    PM_CLOCK2NODE(PM_CLOCK_UART1_REF, NODE_UART_1),
+    PM_CLOCK2NODE(PM_CLOCK_SPI0_REF, NODE_SPI_0),
+    PM_CLOCK2NODE(PM_CLOCK_SPI1_REF, NODE_SPI_1),
+    PM_CLOCK2NODE(PM_CLOCK_NAND_REF, NODE_NAND),
+    PM_CLOCK2NODE(PM_CLOCK_I2C0_REF, NODE_I2C_0),
+    PM_CLOCK2NODE(PM_CLOCK_I2C1_REF, NODE_I2C_1),
+    PM_CLOCK2NODE(PM_CLOCK_CAN0_REF, NODE_CAN_0),
+    PM_CLOCK2NODE(PM_CLOCK_CAN1_REF, NODE_CAN_1),
+    PM_CLOCK2NODE(PM_CLOCK_CAN0, NODE_CAN_0),
+    PM_CLOCK2NODE(PM_CLOCK_CAN1, NODE_CAN_1),
+    PM_CLOCK2NODE(PM_CLOCK_DLL_REF, NODE_SD_0),
+    PM_CLOCK2NODE(PM_CLOCK_DLL_REF, NODE_SD_1),
+    PM_CLOCK2NODE(PM_CLOCK_ADMA_REF, NODE_ADMA),
+    PM_CLOCK2NODE(PM_CLOCK_PL0_REF, NODE_PL),
+    PM_CLOCK2NODE(PM_CLOCK_PL1_REF, NODE_PL),
+    PM_CLOCK2NODE(PM_CLOCK_PL2_REF, NODE_PL),
+    PM_CLOCK2NODE(PM_CLOCK_PL3_REF, NODE_PL),
+    PM_CLOCK2NODE(PM_CLOCK_CAN0_MIO, NODE_CAN_0),
+    PM_CLOCK2NODE(PM_CLOCK_CAN1_MIO, NODE_CAN_1),
+    PM_CLOCK2NODE(PM_CLOCK_GEM0_REF, NODE_ETH_0),
+    PM_CLOCK2NODE(PM_CLOCK_GEM1_REF, NODE_ETH_1),
+    PM_CLOCK2NODE(PM_CLOCK_GEM2_REF, NODE_ETH_2),
+    PM_CLOCK2NODE(PM_CLOCK_GEM3_REF, NODE_ETH_3),
+    PM_CLOCK2NODE(PM_CLOCK_GEM0_REF_UNGATED, NODE_ETH_0),
+    PM_CLOCK2NODE(PM_CLOCK_GEM1_REF_UNGATED, NODE_ETH_1),
+    PM_CLOCK2NODE(PM_CLOCK_GEM2_REF_UNGATED, NODE_ETH_2),
+    PM_CLOCK2NODE(PM_CLOCK_GEM3_REF_UNGATED, NODE_ETH_3),
+};
+
 static bool pm_check_access(const struct pm_access *acl, struct domain *d, int idx)
 {
     unsigned long mfn;
@@ -598,6 +672,31 @@ static bool clock_id_is_valid(enum pm_clock clk_id)
         return false;
 
     return true;
+}
+
+/*
+ * Check if a domain has access to a clock control.
+ * Note: domain has access to clock control if it has access to all the nodes
+ * the are driven by the target clock.
+ */
+static bool domain_has_clock_access(struct domain *d, enum pm_clock clk_id)
+{
+    uint32_t i;
+    bool access = false;
+
+    for ( i = 0; i < ARRAY_SIZE(pm_clock_node_map) &&
+          pm_clock_node_map[i].clock <= clk_id; i++ )
+    {
+        if ( pm_clock_node_map[i].clock == clk_id )
+        {
+            if ( !domain_has_node_access(d, pm_clock_node_map[i].node) )
+                return false;
+
+            access = true;
+        }
+    }
+
+    return access;
 }
 
 /*
@@ -776,10 +875,6 @@ bool zynqmp_eemi(struct cpu_user_regs *regs)
     case EEMI_FID(PM_PINCTRL_CONFIG_PARAM_SET):
     case EEMI_FID(PM_IOCTL):
     case EEMI_FID(PM_QUERY_DATA):
-    case EEMI_FID(PM_CLOCK_ENABLE):
-    case EEMI_FID(PM_CLOCK_DISABLE):
-    case EEMI_FID(PM_CLOCK_SETDIVIDER):
-    case EEMI_FID(PM_CLOCK_SETPARENT):
         if ( !is_hardware_domain(current->domain) )
         {
             gprintk(XENLOG_WARNING, "eemi: fn=%u No access", pm_fn);
@@ -805,6 +900,26 @@ bool zynqmp_eemi(struct cpu_user_regs *regs)
         }
         else
             goto forward_to_fw;
+
+    case EEMI_FID(PM_CLOCK_ENABLE):
+    case EEMI_FID(PM_CLOCK_DISABLE):
+    case EEMI_FID(PM_CLOCK_SETDIVIDER):
+    case EEMI_FID(PM_CLOCK_SETPARENT):
+        if ( !clock_id_is_valid(nodeid) )
+        {
+            gprintk(XENLOG_WARNING, "zynqmp-pm: fn=%u Invalid clock=%u\n",
+                    pm_fn, nodeid);
+            ret = XST_PM_INVALID_PARAM;
+            goto done;
+        }
+        if ( !domain_has_clock_access(current->domain, nodeid) )
+        {
+            gprintk(XENLOG_WARNING, "zynqmp-pm: fn=%u No access to clock=%u\n",
+                    pm_fn, nodeid);
+            ret = XST_PM_NO_ACCESS;
+            goto done;
+        }
+        goto forward_to_fw;
 
     /* These calls are never allowed.  */
     case EEMI_FID(PM_SYSTEM_SHUTDOWN):
