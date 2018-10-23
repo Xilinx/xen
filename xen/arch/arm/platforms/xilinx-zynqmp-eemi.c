@@ -158,9 +158,6 @@ static const struct pm_access pm_node_access[] = {
 
     /* Only for the hardware domain.  */
     [NODE_AFI] = { .hwdom_access = true },
-    [NODE_APLL] = { .hwdom_access = true },
-    [NODE_DPLL] = { .hwdom_access = true },
-    [NODE_IOPLL] = { .hwdom_access = true },
     [NODE_DDR] = { .hwdom_access = true },
     [NODE_IPI_APU] = { .hwdom_access = true },
     [NODE_PCAP] = { .hwdom_access = true },
@@ -266,11 +263,6 @@ static const struct pm_access pm_reset_access[] = {
     [PM_RESET_IDX(PM_RESET_RPU_DBG0)] = { MM_RPU },
     [PM_RESET_IDX(PM_RESET_DBG_LPD)] = { .hwdom_access = true },
     [PM_RESET_IDX(PM_RESET_DBG_FPD)] = { .hwdom_access = true },
-    [PM_RESET_IDX(PM_RESET_APLL)] = { .hwdom_access = true },
-    [PM_RESET_IDX(PM_RESET_DPLL)] = { .hwdom_access = true },
-    [PM_RESET_IDX(PM_RESET_VPLL)] = { .hwdom_access = true },
-    [PM_RESET_IDX(PM_RESET_IOPLL)] = { .hwdom_access = true },
-    [PM_RESET_IDX(PM_RESET_RPLL)] = { .hwdom_access = true },
     [PM_RESET_IDX(PM_RESET_GPO3_PL_0)] = { .hwdom_access = true },
     [PM_RESET_IDX(PM_RESET_GPO3_PL_1)] = { .hwdom_access = true },
     [PM_RESET_IDX(PM_RESET_GPO3_PL_2)] = { .hwdom_access = true },
