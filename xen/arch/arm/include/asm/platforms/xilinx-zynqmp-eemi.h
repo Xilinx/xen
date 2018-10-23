@@ -86,21 +86,31 @@ enum pm_api_id {
 
 /**
  * @XST_PM_SUCCESS:		Success
+ * @XST_PM_ARGS:		illegal arguments provided (deprecated)
+ * @XST_PM_NOTSUPPORTED:	feature not supported  (deprecated)
+ * @XST_PM_INVALID_PARAM:	invalid argument
  * @XST_PM_INTERNAL:	Unexpected error
  * @XST_PM_CONFLICT:	Conflicting requirements
  * @XST_PM_NO_ACCESS:	Access rights violation
  * @XST_PM_INVALID_NODE:	Does not apply to node passed as argument
  * @XST_PM_DOUBLE_REQ:	Duplicate request
  * @XST_PM_ABORT_SUSPEND:	Target has aborted suspend
+ * @XST_PM_TIMEOUT:		timeout in communication with PMU
+ * @XST_PM_NODE_USED:		node is already in use
  */
 enum pm_ret_status {
     XST_PM_SUCCESS = 0,
+    XST_PM_ARGS = 1,
+    XST_PM_NOTSUPPORTED = 4,
+    XST_PM_INVALID_PARAM = 15,
     XST_PM_INTERNAL = 2000,
     XST_PM_CONFLICT,
     XST_PM_NO_ACCESS,
     XST_PM_INVALID_NODE,
     XST_PM_DOUBLE_REQ,
     XST_PM_ABORT_SUSPEND,
+    XST_PM_TIMEOUT,
+    XST_PM_NODE_USED
 };
 
 /* IPI SMC function numbers enum definition and fids */
