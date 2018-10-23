@@ -779,8 +779,6 @@ bool zynqmp_eemi_mediate(register_t fid,
     case PM_CLOCK_GETSTATE:
     case PM_CLOCK_GETDIVIDER:
     case PM_CLOCK_SETDIVIDER:
-    case PM_CLOCK_SETRATE:
-    case PM_CLOCK_GETRATE:
     case PM_CLOCK_SETPARENT:
     case PM_CLOCK_GETPARENT:
         if ( !is_hardware_domain(current->domain) ) {
@@ -789,6 +787,11 @@ bool zynqmp_eemi_mediate(register_t fid,
             goto done;
         }
         goto forward_to_fw;
+
+    case PM_CLOCK_SETRATE:
+    case PM_CLOCK_GETRATE:
+        ret[0] = PM_RET_ERROR_NOTSUPPORTED;
+        goto done;
 
     /* These calls are never allowed.  */
     case PM_SYSTEM_SHUTDOWN:
