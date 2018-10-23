@@ -921,6 +921,18 @@ bool zynqmp_eemi(struct cpu_user_regs *regs)
         }
         goto forward_to_fw;
 
+    case EEMI_FID(PM_PLL_GET_PARAMETER):
+    case EEMI_FID(PM_PLL_GET_MODE):
+        if ( nodeid < NODE_APLL || nodeid > NODE_IOPLL )
+        {
+            gprintk(XENLOG_WARNING, "zynqmp-pm: fn=%u Invalid pll node %u\n",
+                    pm_fn, nodeid);
+            ret = XST_PM_INVALID_PARAM;
+            goto done;
+        }
+        else
+            goto forward_to_fw;
+
     /* These calls are never allowed.  */
     case EEMI_FID(PM_SYSTEM_SHUTDOWN):
         ret = XST_PM_NO_ACCESS;
