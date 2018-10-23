@@ -142,6 +142,8 @@ static const struct pm_access pm_node_access[] = {
     [NODE_SD_0] = { MM_SD0 },
     [NODE_SD_1] = { MM_SD1 },
     [NODE_DP] = { MM_DP },
+    [NODE_VPLL] = { MM_DP },
+    [NODE_RPLL] = { MM_DP },
 
     /* Guest with GDMA Channel 0 gets PM access. Other guests don't.  */
     [NODE_GDMA] = { MM_GDMA_CH0 },
@@ -157,9 +159,7 @@ static const struct pm_access pm_node_access[] = {
     /* Only for the hardware domain.  */
     [NODE_AFI] = { .hwdom_access = true },
     [NODE_APLL] = { .hwdom_access = true },
-    [NODE_VPLL] = { .hwdom_access = true },
     [NODE_DPLL] = { .hwdom_access = true },
-    [NODE_RPLL] = { .hwdom_access = true },
     [NODE_IOPLL] = { .hwdom_access = true },
     [NODE_DDR] = { .hwdom_access = true },
     [NODE_IPI_APU] = { .hwdom_access = true },
@@ -932,6 +932,24 @@ bool zynqmp_eemi(struct cpu_user_regs *regs)
         }
         else
             goto forward_to_fw;
+
+    case PM_PLL_SET_PARAMETER:
+    case PM_PLL_SET_MODE:
+        if ( nodeid < NODE_APLL || nodeid > NODE_IOPLL )
+        {
+            gprintk(XENLOG_WARNING, "zynqmp-pm: fn=%u Invalid pll node %u\n",
+                    pm_fn, nodeid);
+            ret = XST_PM_INVALID_PARAM;
+            goto done;
+        }
+        if ( !domain_has_node_access(current->domain, nodeid) )
+        {
+            gprintk(XENLOG_WARNING, "zynqmp-pm: fn=%u No access to pll=%u\n",
+                    pm_fn, nodeid);
+            ret = XST_PM_NO_ACCESS;
+            goto done;
+        }
+        goto forward_to_fw;
 
     /* These calls are never allowed.  */
     case EEMI_FID(PM_SYSTEM_SHUTDOWN):
