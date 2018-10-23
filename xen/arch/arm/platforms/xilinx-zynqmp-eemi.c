@@ -927,6 +927,18 @@ bool zynqmp_eemi_mediate(register_t fid,
         }
         goto forward_to_fw;
 
+    case PM_PLL_GET_PARAMETER:
+    case PM_PLL_GET_MODE:
+        if ( pm_arg[0] < NODE_APLL || pm_arg[0] > NODE_IOPLL )
+        {
+            gprintk(XENLOG_WARNING, "zynqmp-pm: fn=%u Invalid pll node %u\n",
+                    pm_fn, pm_arg[0]);
+            ret[0] = PM_RET_INVALID_PARAM;
+            goto done;
+        }
+        else
+            goto forward_to_fw;
+
     /* These calls are never allowed.  */
     case PM_SYSTEM_SHUTDOWN:
         ret[0] = PM_RET_ERROR_ACCESS;
