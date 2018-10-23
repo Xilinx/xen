@@ -322,54 +322,6 @@ static const struct {
     bool hwdom_access;
     bool readonly;
 } pm_mmio_access[] = {
-    {
-        .start = MM_CRF_APB + R_CRF_APLL_CTRL,
-        .end = MM_CRF_APB + R_CRF_ACPU_CTRL,
-        .hwdom_access = true
-    },
-    {
-        .start = MM_CRL_APB + R_CRL_IOPLL_CTRL,
-        .end = MM_CRL_APB + R_CRL_RPLL_TO_FPD_CTRL,
-        .hwdom_access = true
-    },
-    { .start = MM_CRF_APB + R_CRF_DP_VIDEO_REF_CTRL, .node = NODE_DP },
-    { .start = MM_CRF_APB + R_CRF_DP_AUDIO_REF_CTRL, .node = NODE_DP },
-    { .start = MM_CRF_APB + R_CRF_DP_STC_REF_CTRL, .node = NODE_DP },
-    { .start = MM_CRF_APB + R_CRF_GPU_REF_CTRL, .node = NODE_GPU },
-    { .start = MM_CRF_APB + R_CRF_SATA_REF_CTRL, .node = NODE_SATA },
-    { .start = MM_CRF_APB + R_CRF_PCIE_REF_CTRL, .node = NODE_PCIE },
-    { .start = MM_CRF_APB + R_CRF_GDMA_REF_CTRL, .node = NODE_GDMA },
-    { .start = MM_CRF_APB + R_CRF_DPDMA_REF_CTRL, .node = NODE_DP },
-    { .start = MM_CRL_APB + R_CRL_USB3_DUAL_REF_CTRL, .node = NODE_USB_0 },
-    { .start = MM_CRL_APB + R_CRL_USB0_BUS_REF_CTRL, .node = NODE_USB_0 },
-    { .start = MM_CRL_APB + R_CRL_USB1_BUS_REF_CTRL, .node = NODE_USB_1 },
-    { .start = MM_CRL_APB + R_CRL_USB1_BUS_REF_CTRL, .node = NODE_USB_1 },
-    { .start = MM_CRL_APB + R_CRL_GEM0_REF_CTRL, .node = NODE_ETH_0 },
-    { .start = MM_CRL_APB + R_CRL_GEM1_REF_CTRL, .node = NODE_ETH_1 },
-    { .start = MM_CRL_APB + R_CRL_GEM2_REF_CTRL, .node = NODE_ETH_2 },
-    { .start = MM_CRL_APB + R_CRL_GEM3_REF_CTRL, .node = NODE_ETH_3 },
-    { .start = MM_CRL_APB + R_CRL_QSPI_REF_CTRL, .node = NODE_QSPI },
-    { .start = MM_CRL_APB + R_CRL_SDIO0_REF_CTRL, .node = NODE_SD_0 },
-    { .start = MM_CRL_APB + R_CRL_SDIO1_REF_CTRL, .node = NODE_SD_1 },
-    { .start = MM_CRL_APB + R_CRL_UART0_REF_CTRL, .node = NODE_UART_0 },
-    { .start = MM_CRL_APB + R_CRL_UART1_REF_CTRL, .node = NODE_UART_1 },
-    { .start = MM_CRL_APB + R_CRL_SPI0_REF_CTRL, .node = NODE_SPI_0 },
-    { .start = MM_CRL_APB + R_CRL_SPI1_REF_CTRL, .node = NODE_SPI_1 },
-    { .start = MM_CRL_APB + R_CRL_CAN0_REF_CTRL, .node = NODE_CAN_0 },
-    { .start = MM_CRL_APB + R_CRL_CAN1_REF_CTRL, .node = NODE_CAN_1 },
-    { .start = MM_CRL_APB + R_CRL_CPU_R5_CTRL, .node = NODE_RPU },
-    { .start = MM_CRL_APB + R_CRL_IOU_SWITCH_CTRL, .hwdom_access = true },
-    { .start = MM_CRL_APB + R_CRL_CSU_PLL_CTRL, .hwdom_access = true },
-    { .start = MM_CRL_APB + R_CRL_PCAP_CTRL, .hwdom_access = true },
-    { .start = MM_CRL_APB + R_CRL_LPD_SWITCH_CTRL, .hwdom_access = true },
-    { .start = MM_CRL_APB + R_CRL_LPD_LSBUS_CTRL, .hwdom_access = true },
-    { .start = MM_CRL_APB + R_CRL_DBG_LPD_CTRL, .hwdom_access = true },
-    { .start = MM_CRL_APB + R_CRL_NAND_REF_CTRL, .node = NODE_NAND },
-    { .start = MM_CRL_APB + R_CRL_ADMA_REF_CTRL, .node = NODE_ADMA },
-    { .start = MM_CRL_APB + R_CRL_PL0_REF_CTRL, .hwdom_access = true },
-    { .start = MM_CRL_APB + R_CRL_PL1_REF_CTRL, .hwdom_access = true },
-    { .start = MM_CRL_APB + R_CRL_PL2_REF_CTRL, .hwdom_access = true },
-    { .start = MM_CRL_APB + R_CRL_PL3_REF_CTRL, .hwdom_access = true },
     { .start = MM_CRL_APB + R_CRL_PL0_THR_CTRL, .hwdom_access = true },
     { .start = MM_CRL_APB + R_CRL_PL1_THR_CTRL, .hwdom_access = true },
     { .start = MM_CRL_APB + R_CRL_PL2_THR_CTRL, .hwdom_access = true },
@@ -378,56 +330,12 @@ static const struct {
     { .start = MM_CRL_APB + R_CRL_PL1_THR_CNT, .hwdom_access = true },
     { .start = MM_CRL_APB + R_CRL_PL2_THR_CNT, .hwdom_access = true },
     { .start = MM_CRL_APB + R_CRL_PL3_THR_CNT, .hwdom_access = true },
-    { .start = MM_CRL_APB + R_CRL_GEM_TSU_REF_CTRL, .node = NODE_ETH_0 },
-    { .start = MM_CRL_APB + R_CRL_DLL_REF_CTRL, .hwdom_access = true },
-    { .start = MM_CRL_APB + R_CRL_AMS_REF_CTRL, .hwdom_access = true },
-    { .start = MM_CRL_APB + R_CRL_I2C0_REF_CTRL, .node = NODE_I2C_0 },
-    { .start = MM_CRL_APB + R_CRL_I2C1_REF_CTRL, .node = NODE_I2C_1 },
-    { .start = MM_CRL_APB + R_CRL_TIMESTAMP_REF_CTRL, .hwdom_access = true },
     /* MIOs are controlled by the hardware domain.  */
     {
         .start = MM_IOU_SLCR + R_IOU_SLCR_MIO_PIN_0,
         .end = MM_IOU_SLCR + R_IOU_SLCR_MIO_MST_TRI2,
         .hwdom_access = true
     },
-    { .start = MM_IOU_SLCR + R_IOU_SLCR_WDT_CLK_SEL, .hwdom_access = true },
-    {
-        .start = MM_IOU_SLCR + R_IOU_SLCR_CAN_MIO_CTRL,
-        .mask = 0x1ff, .node = NODE_CAN_0
-    },
-    {
-        .start = MM_IOU_SLCR + R_IOU_SLCR_CAN_MIO_CTRL,
-        .mask = 0x1ff << 15, .node = NODE_CAN_1
-    },
-    {
-        .start = MM_IOU_SLCR + R_IOU_SLCR_GEM_CLK_CTRL,
-        .mask = 0xf, .node = NODE_ETH_0
-    },
-    {
-        .start = MM_IOU_SLCR + R_IOU_SLCR_GEM_CLK_CTRL,
-        .mask = 0xf << 5, .node = NODE_ETH_1
-    },
-    {
-        .start = MM_IOU_SLCR + R_IOU_SLCR_GEM_CLK_CTRL,
-        .mask = 0xf << 10, .node = NODE_ETH_2
-    },
-    {
-        .start = MM_IOU_SLCR + R_IOU_SLCR_GEM_CLK_CTRL,
-        .mask = 0xf << 15, .node = NODE_ETH_3
-    },
-    {
-        .start = MM_IOU_SLCR + R_IOU_SLCR_GEM_CLK_CTRL,
-        .mask = 0x7 << 20, .hwdom_access = true
-    },
-    {
-        .start = MM_IOU_SLCR + R_IOU_SLCR_SDIO_CLK_CTRL,
-        .mask = 0x7, .node = NODE_SD_0
-    },
-    {
-        .start = MM_IOU_SLCR + R_IOU_SLCR_SDIO_CLK_CTRL,
-        .mask = 0x7 << 17, .node = NODE_SD_1
-    },
-
     {
         .start = MM_IOU_SLCR + R_IOU_SLCR_CTRL_REG_SD,
         .mask = 0x1, .node = NODE_SD_0
@@ -463,23 +371,6 @@ static const struct {
         .start = MM_IOU_SLCR + R_IOU_SLCR_GEM_CTRL,
         .mask = 0x3 << 6, .node = NODE_ETH_3
     },
-    {
-        .start = MM_IOU_SLCR + R_IOU_SLCR_IOU_TTC_APB_CLK,
-        .mask = 0x3 << 0, .node = NODE_TTC_0
-    },
-    {
-        .start = MM_IOU_SLCR + R_IOU_SLCR_IOU_TTC_APB_CLK,
-        .mask = 0x3 << 2, .node = NODE_TTC_1
-    },
-    {
-        .start = MM_IOU_SLCR + R_IOU_SLCR_IOU_TTC_APB_CLK,
-        .mask = 0x3 << 4, .node = NODE_TTC_2
-    },
-    {
-        .start = MM_IOU_SLCR + R_IOU_SLCR_IOU_TTC_APB_CLK,
-        .mask = 0x3 << 6, .node = NODE_TTC_3
-    },
-
     {
         .start = MM_IOU_SLCR + R_IOU_SLCR_IOU_TAPDLY_BYPASS,
         .mask = 0x3, .node = NODE_NAND
@@ -541,16 +432,6 @@ static const struct {
         .end = MM_PMU_GLOBAL + R_PMU_GLOBAL_PERS_GLOB_GEN_STORAGE7,
         .readonly = true,
     },
-    {
-        /* Universal read-only access to CRF. Linux CCF needs this.  */
-        .start = MM_CRF_APB, .end = MM_CRF_APB + 0x104,
-        .readonly = true,
-    },
-    {
-        /* Universal read-only access to CRL. Linux CCF needs this.  */
-        .start = MM_CRL_APB, .end = MM_CRL_APB + 0x284,
-        .readonly = true,
-    }
 };
 
 #define PM_CLOCK2NODE(clk, nd)  { .clock = clk, .node = nd }
