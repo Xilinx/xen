@@ -772,8 +772,6 @@ bool zynqmp_eemi(struct cpu_user_regs *regs)
     case EEMI_FID(PM_CLOCK_GETSTATE):
     case EEMI_FID(PM_CLOCK_GETDIVIDER):
     case EEMI_FID(PM_CLOCK_SETDIVIDER):
-    case EEMI_FID(PM_CLOCK_SETRATE):
-    case EEMI_FID(PM_CLOCK_GETRATE):
     case EEMI_FID(PM_CLOCK_SETPARENT):
     case EEMI_FID(PM_CLOCK_GETPARENT):
         if ( !is_hardware_domain(current->domain) )
@@ -783,6 +781,11 @@ bool zynqmp_eemi(struct cpu_user_regs *regs)
             goto done;
         }
         goto forward_to_fw;
+
+    case EEMI_FID(PM_CLOCK_SETRATE):
+    case EEMI_FID(PM_CLOCK_GETRATE):
+        ret = XST_PM_NOTSUPPORTED;
+        goto done;
 
     /* These calls are never allowed.  */
     case EEMI_FID(PM_SYSTEM_SHUTDOWN):
