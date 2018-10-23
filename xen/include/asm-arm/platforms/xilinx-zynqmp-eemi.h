@@ -95,7 +95,12 @@ enum pm_api_id {
 	PM_CLOCK_GETRATE,
 	PM_CLOCK_SETPARENT,
 	PM_CLOCK_GETPARENT,
-	PM_API_MAX
+    /* PLL control API functions */
+    PM_PLL_SET_PARAMETER = 48,
+    PM_PLL_GET_PARAMETER,
+    PM_PLL_SET_MODE,
+    PM_PLL_GET_MODE,
+    PM_API_MAX
 };
 
 enum pm_node_id {
