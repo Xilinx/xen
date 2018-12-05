@@ -132,6 +132,7 @@ int xenmem_add_to_physmap_one(
 
         break;
     case XENMAPSPACE_gmfn_foreign:
+    case XENMAPSPACE_gmfn_share:
     {
         struct domain *od;
         p2m_type_t p2mt;
@@ -146,7 +147,11 @@ int xenmem_add_to_physmap_one(
             return -EINVAL;
         }
 
-        rc = xsm_map_gmfn_foreign(XSM_TARGET, d, od);
+        if ( space == XENMAPSPACE_gmfn_foreign )
+            rc = xsm_map_gmfn_foreign(XSM_TARGET, d, od);
+        else
+            rc = xsm_map_gmfn_share(XSM_TARGET, d, od);
+
         if ( rc )
         {
             put_pg_owner(od);

@@ -985,6 +985,8 @@ static int xenmem_add_to_physmap_batch(struct domain *d,
             return -EOPNOTSUPP;
         break;
 
+    case XENMAPSPACE_gmfn_share:
+        /* fall through */
     case XENMAPSPACE_gmfn_foreign:
         extra.foreign_domid = xatpb->u.foreign_domid;
         break;
