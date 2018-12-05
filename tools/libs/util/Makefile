@@ -8,6 +8,7 @@ SRCS-y += libxlu_disk_l.c
 SRCS-y += libxlu_disk.c
 SRCS-y += libxlu_vif.c
 SRCS-y += libxlu_pci.c
+SRCS-y += libxlu_sshm.c
 
 CFLAGS += -Wno-format-zero-length -Wmissing-declarations \
 	-Wno-declaration-after-statement -Wformat-nonliteral
