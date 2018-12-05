@@ -94,6 +94,137 @@ int libxl__sshm_check_overlap(libxl__gc *gc, uint32_t domid,
     return 0;
 }
 
+/*
+ * Decrease the refcount of an sshm. When refcount reaches 0,
+ * clean up the whole sshm path.
+ * Xenstore operations are done within the same transaction.
+ */
+static void libxl__sshm_decref(libxl__gc *gc, xs_transaction_t xt,
+                               const char *sshm_path)
+{
+    int count;
+    const char *count_path, *count_string;
+
+    count_path = GCSPRINTF("%s/usercnt", sshm_path);
+    if (libxl__xs_read_checked(gc, xt, count_path, &count_string) ||
+        count_string == NULL)
+        return;
+    count = atoi(count_string);
+
+    if (--count == 0) {
+        libxl__xs_path_cleanup(gc, xt, sshm_path);
+        return;
+    }
+
+    count_string = GCSPRINTF("%d", count);
+    libxl__xs_write_checked(gc, xt, count_path, count_string);
+
+    return;
+}
+
+static void libxl__sshm_do_unmap(libxl__gc *gc, uint32_t domid, const char *id,
+                                 uint64_t begin, uint64_t size)
+{
+    uint64_t end;
+    begin >>= XC_PAGE_SHIFT;
+    size >>= XC_PAGE_SHIFT;
+    end = begin + size;
+    for (; begin < end; ++begin) {
+        if (xc_domain_remove_from_physmap(CTX->xch, domid, begin)) {
+            SSHM_ERROR(domid, id,
+                       "unable to unmap shared page at 0x%"PRIx64".",
+                       begin);
+        }
+    }
+}
+
+/* unmap static shared memory areas mapped by libxl__sshm_add */
+static void libxl__sshm_del_borrower(libxl__gc *gc, xs_transaction_t xt,
+                                     uint32_t domid, const char *id)
+{
+    const char *borrower_path, *begin_str, *size_str;
+    uint64_t begin, size;
+
+    borrower_path = GCSPRINTF("%s/borrowers/%"PRIu32, SSHM_PATH(id), domid);
+
+    begin_str = libxl__xs_read(gc, xt, GCSPRINTF("%s/begin", borrower_path));
+    size_str = libxl__xs_read(gc, xt, GCSPRINTF("%s/size", borrower_path));
+    begin = strtoull(begin_str, NULL, 16);
+    size = strtoull(size_str, NULL, 16);
+
+    libxl__sshm_do_unmap(gc, domid, id, begin, size);
+    libxl__xs_path_cleanup(gc, xt, borrower_path);
+}
+
+/*
+ * Add libxl__sshm_del to unmap static shared memory areas mapped by
+ * libxl__sshm_add during domain creation. The unmapping process is:
+ *
+ * For a owner: decrease the refcount of the sshm region, if the refcount
+ * reaches 0, cleanup the whole sshm path.
+ *
+ * For a borrower:
+ * 1) unmap the shared pages, and cleanup related xs entries. If the
+ *    system works normally, all the shared pages will be unmapped, so there
+ *    won't be page leaks. In case of errors, the unmapping process will go
+ *    on and unmap all the other pages that can be unmapped, so the other
+ *    pages won't be leaked, either.
+ * 2) Decrease the refcount of the sshm region, if the refcount reaches
+ *    0, cleanup the whole sshm path.
+ */
+int libxl__sshm_del(libxl__gc *gc,  uint32_t domid)
+{
+    int rc, i;
+    xs_transaction_t xt = XBT_NULL;
+    const char *dom_path, *dom_sshm_path, *role;
+    char **sshm_ents;
+    unsigned int sshm_num;
+
+    dom_path = libxl__xs_get_dompath(gc, domid);
+    dom_sshm_path = GCSPRINTF("%s/static_shm", dom_path);
+
+    for (;;) {
+        rc = libxl__xs_transaction_start(gc, &xt);
+        if (rc) goto out;
+
+        sshm_ents = libxl__xs_directory(gc, xt, dom_sshm_path, &sshm_num);
+        if (!sshm_ents) {
+            if (errno != ENOENT) {
+                LOGE(ERROR, "unable to get xenstore device listing %s",
+                     dom_sshm_path);
+                goto out;
+            }
+            break;
+        }
+
+        for (i = 0; i < sshm_num; ++i) {
+            role = libxl__xs_read(gc, xt,
+                    GCSPRINTF("%s/%s/role",
+                        dom_sshm_path,
+                        sshm_ents[i]));
+            assert(role);
+            if (!strncmp(role, "borrower", 8))
+                libxl__sshm_del_borrower(gc, xt, domid, sshm_ents[i]);
+            else if (strncmp(role, "owner", 5)) {
+                rc = ERROR_INVAL;
+                goto out;
+            }
+
+
+            libxl__sshm_decref(gc, xt, SSHM_PATH(sshm_ents[i]));
+        }
+
+        rc = libxl__xs_transaction_commit(gc, &xt);
+        if (!rc) break;
+        if (rc < 0) goto out;
+    }
+
+    rc = 0;
+out:
+    libxl__xs_transaction_abort(gc, &xt);
+    return rc;
+}
+
 /*   libxl__sshm_do_map -- map pages into borrower's physmap
  *
  *   This functions maps
