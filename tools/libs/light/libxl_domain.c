@@ -1181,6 +1181,14 @@ void libxl__destroy_domid(libxl__egc *egc, libxl__destroy_domid_state *dis)
         goto out;
     }
 
+    /*
+     * Only possible errors are unrecoverable xenstore transaction
+     * errors.
+     */
+    rc = libxl__sshm_del(gc, domid);
+    if (rc)
+        LOGD(ERROR, domid, "Deleting static shm failed.");
+
     libxl__multidev_begin(ao, &dis->multidev);
     dis->multidev.callback = destroy_domid_pci_done;
     libxl__device_pci_destroy_all(egc, domid, &dis->multidev);
