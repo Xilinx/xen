@@ -247,6 +247,8 @@ define(`domain_comms', `
 		copy
 		unmap
 	};
+	allow $1 $2:mmu share_mem;
+	allow $2 $1:mmu share_mem;
 ')
 
 # domain_self_comms(domain)

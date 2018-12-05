@@ -217,6 +217,14 @@ DEFINE_XEN_GUEST_HANDLE(xen_machphys_mapping_t);
                                       Stage-2 using the Normal Memory
                                       Inner/Outer Write-Back Cacheable
                                       memory attribute. */
+#define XENMAPSPACE_gmfn_share   6 /* GMFN from another dom,
+                                      XENMEM_add_to_physmap_batch (and
+                                      currently ARM) only. Unlike
+                                      XENMAPSPACE_gmfn_foreign, it
+                                      requires current to have mapping
+                                      privileges instead of the
+                                      destination domain. */
+
 /* ` } */
 
 /*

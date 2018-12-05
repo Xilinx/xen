@@ -118,6 +118,7 @@ static const struct xsm_ops __initconst_cf_clobber dummy_ops = {
     .add_to_physmap                = xsm_add_to_physmap,
     .remove_from_physmap           = xsm_remove_from_physmap,
     .map_gmfn_foreign              = xsm_map_gmfn_foreign,
+    .map_gmfn_share                = xsm_map_gmfn_share,
 
 #ifdef CONFIG_VM_EVENT
     .vm_event_control              = xsm_vm_event_control,
