@@ -592,12 +592,14 @@ struct xen_domctl_bind_pt_irq {
 */
 #define DPCI_ADD_MAPPING         1
 #define DPCI_REMOVE_MAPPING      0
+#define CACHEABILITY_DEVMEM      0 /* device memory, the default */
+#define CACHEABILITY_MEMORY      1 /* normal memory */
 struct xen_domctl_memory_mapping {
     uint64_aligned_t first_gfn; /* first page (hvm guest phys page) in range */
     uint64_aligned_t first_mfn; /* first page (machine page) in range */
     uint64_aligned_t nr_mfns;   /* number of pages in range (>0) */
     uint32_t add_mapping;       /* add or remove mapping */
-    uint32_t padding;           /* padding for 64-bit aligned structure */
+    uint32_t cache_policy;      /* cacheability of the memory mapping */
 };
 
 

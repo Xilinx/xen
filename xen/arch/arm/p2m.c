@@ -1336,9 +1336,24 @@ int unmap_regions_p2mt(struct domain *d,
 int map_mmio_regions(struct domain *d,
                      gfn_t start_gfn,
                      unsigned long nr,
-                     mfn_t mfn)
+                     mfn_t mfn,
+                     uint32_t cache_policy)
 {
-    return p2m_insert_mapping(d, start_gfn, nr, mfn, p2m_mmio_direct_dev);
+    p2m_type_t t;
+
+    switch ( cache_policy )
+    {
+    case CACHEABILITY_MEMORY:
+        t = p2m_ram_rw;
+        break;
+    case CACHEABILITY_DEVMEM:
+        t = p2m_mmio_direct_dev;
+        break;
+    default:
+        return -ENOSYS;
+    }
+
+    return p2m_insert_mapping(d, start_gfn, nr, mfn, t);
 }
 
 int unmap_mmio_regions(struct domain *d,

@@ -926,6 +926,7 @@ long do_domctl(XEN_GUEST_HANDLE_PARAM(xen_domctl_t) u_domctl)
         unsigned long nr_mfns = op->u.memory_mapping.nr_mfns;
         unsigned long mfn_end = mfn + nr_mfns - 1;
         int add = op->u.memory_mapping.add_mapping;
+        uint32_t cache_policy = op->u.memory_mapping.cache_policy;
 
         ret = -EINVAL;
         if ( mfn_end < mfn || /* wrap? */
@@ -952,10 +953,11 @@ long do_domctl(XEN_GUEST_HANDLE_PARAM(xen_domctl_t) u_domctl)
         if ( add )
         {
             printk(XENLOG_G_DEBUG
-                   "memory_map:add: dom%d gfn=%lx mfn=%lx nr=%lx\n",
-                   d->domain_id, gfn, mfn, nr_mfns);
+                   "memory_map:add: dom%d gfn=%lx mfn=%lx nr=%lx cache=%u\n",
+                   d->domain_id, gfn, mfn, nr_mfns, cache_policy);
 
-            ret = map_mmio_regions(d, _gfn(gfn), nr_mfns, _mfn(mfn));
+            ret = map_mmio_regions(d, _gfn(gfn), nr_mfns, _mfn(mfn),
+                                   cache_policy);
             if ( ret < 0 )
                 printk(XENLOG_G_WARNING
                        "memory_map:fail: dom%d gfn=%lx mfn=%lx nr=%lx ret:%ld\n",
