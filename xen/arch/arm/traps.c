@@ -1786,7 +1786,8 @@ static bool try_map_mmio(gfn_t gfn)
          gfn_to_gaddr(gfn) >= d->arch.vgic.cbase &&
          (gfn_to_gaddr(gfn) - d->arch.vgic.cbase) < d->arch.vgic.csize )
         return !map_mmio_regions(d, gfn, d->arch.vgic.csize / PAGE_SIZE,
-                                 maddr_to_mfn(d->arch.vgic.vbase));
+                                 maddr_to_mfn(d->arch.vgic.vbase),
+                                 CACHEABILITY_DEVMEM);
 
     /*
      * Device-Tree should already have everything mapped when building

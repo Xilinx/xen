@@ -67,8 +67,11 @@ static int __init modify_identity_mmio(struct domain *d, unsigned long pfn,
 
     for ( ; ; )
     {
-        rc = map ?   map_mmio_regions(d, _gfn(pfn), nr_pages, _mfn(pfn))
-                 : unmap_mmio_regions(d, _gfn(pfn), nr_pages, _mfn(pfn));
+        if ( map )
+            rc = map_mmio_regions(d, _gfn(pfn), nr_pages, _mfn(pfn),
+                                  CACHEABILITY_DEVMEM);
+        else
+            rc = unmap_mmio_regions(d, _gfn(pfn), nr_pages, _mfn(pfn));
         if ( rc == 0 )
             break;
         if ( rc < 0 )

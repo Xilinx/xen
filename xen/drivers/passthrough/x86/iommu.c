@@ -345,7 +345,8 @@ static int __hwdom_init cf_check identity_map(unsigned long s, unsigned long e,
             /* End the rangeset iteration, as other regions will also fail. */
             return -EOPNOTSUPP;
         }
-        while ( (rc = map_mmio_regions(d, _gfn(s), e - s + 1, _mfn(s))) > 0 )
+        while ( (rc = map_mmio_regions(d, _gfn(s), e - s + 1, _mfn(s),
+                                       CACHEABILITY_DEVMEM)) > 0 )
         {
             s += rc;
             process_pending_softirqs();

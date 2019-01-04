@@ -351,7 +351,8 @@ int unmap_mmio_regions(struct domain *d,
 int map_mmio_regions(struct domain *d,
                      gfn_t start_gfn,
                      unsigned long nr,
-                     mfn_t mfn)
+                     mfn_t mfn,
+                     uint32_t cache_policy)
 {
     BUG_ON("unimplemented");
 }

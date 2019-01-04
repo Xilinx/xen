@@ -1668,11 +1668,15 @@ static unsigned int mmio_order(const struct domain *d,
 int map_mmio_regions(struct domain *d,
                      gfn_t start_gfn,
                      unsigned long nr,
-                     mfn_t mfn)
+                     mfn_t mfn,
+                     uint32_t cache_policy)
 {
     int ret = 0;
     unsigned long i;
     unsigned int iter, order;
+
+    if ( cache_policy != CACHEABILITY_DEVMEM )
+        return -ENOSYS;
 
     if ( !paging_mode_translate(d) )
     {
