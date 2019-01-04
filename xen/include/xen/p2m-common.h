@@ -18,7 +18,8 @@ guest_physmap_remove_page(struct domain *d, gfn_t gfn, mfn_t mfn,
 int map_mmio_regions(struct domain *d,
                      gfn_t start_gfn,
                      unsigned long nr,
-                     mfn_t mfn);
+                     mfn_t mfn,
+                     uint32_t cache_policy);
 int unmap_mmio_regions(struct domain *d,
                        gfn_t start_gfn,
                        unsigned long nr,
