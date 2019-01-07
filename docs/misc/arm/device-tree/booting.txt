@@ -226,3 +226,121 @@ chosen {
         };
     };
 };
+
+
+Device Assignment
+=================
+
+Device Assignment (Passthrough) is supported by adding another module,
+alongside the kernel and ramdisk, with the device tree fragment
+corresponding to the device node to assign to the guest.
+
+The dtb sub-node should have the following properties:
+
+- compatible
+
+    "multiboot,device-tree"
+
+- reg
+
+    Specifies the physical address of the device tree binary fragment
+    RAM and its length.
+
+As an example:
+
+        module@0xc000000 {
+            compatible = "multiboot,device-tree", "multiboot,module";
+            reg = <0x0 0xc000000 0xffffff>;
+        };
+
+The DTB fragment is loaded in cacheable memory, at 0xc000000 in the
+example above. It should follow the convention explained in
+docs/misc/arm/passthrough.txt. The DTB fragment will be added to the
+guest device tree, so that the guest kernel will be able to discover the
+device.
+
+In addition, the following properties for each device node in the device
+tree fragment will be used for the device assignment setup:
+
+- xen,reg
+
+  The xen,reg property is an array of:
+
+    <phys_addr size guest_addr>
+
+  They specify the physical address and size of the device memory
+  ranges together with the corresponding guest address to map them to.
+  The size of `phys_addr' and `guest_addr' is determined by
+  #address_cells; the size of `size' is determined by #size_cells.
+  The memory will be mapped as device memory in the guest
+  (p2m_mmio_direct_dev).
+
+- interrupts
+
+  The interrupts property specifies the interrupt of the device. They
+  are automatically routed to the guest domain with virtual irqs ==
+  physical irqs. Note that only GIC interrupts are supported.
+
+- interrupt-parent
+
+  It contains a reference to the interrupt controller node. It should be
+  65000, corresponding to GUEST_PHANDLE_GIC. Only the GIC interrupt
+  controller, v2 or v3, is supported.
+
+- xen,path
+
+  A new string property named "xen,path" holds the path in the host device
+  tree to the corresponding device node.
+
+The following is a real-world example of a device tree fragment for the
+network card on Xilinx MPSoC boards:
+
+/dts-v1/;
+
+/ {
+    #address-cells = <0x2>;
+    #size-cells = <0x1>;
+
+    passthrough {
+        compatible = "simple-bus";
+        ranges;
+        #address-cells = <0x2>;
+        #size-cells = <0x1>;
+
+        misc_clk {
+            #clock-cells = <0x0>;
+            clock-frequency = <0x7735940>;
+            compatible = "fixed-clock";
+            linux,phandle = <0x1>;
+            phandle = <0x1>;
+        };
+
+        ethernet@ff0e0000 {
+            compatible = "cdns,zynqmp-gem";
+            status = "okay";
+            interrupt-parent = <0xfde8>;
+            interrupts = <0x0 0x3f 0x4 0x0 0x3f 0x4>;
+            reg = <0x0 0xff0e0000 0x1000>;
+            clock-names = "pclk", "hclk", "tx_clk", "rx_clk";
+            #address-cells = <0x1>;
+            #size-cells = <0x0>;
+            clocks = <0x1 0x1 0x1 0x1>;
+            phy-mode = "rgmii-id";
+            xlnx,ptp-enet-clock = <0x0>;
+            local-mac-address = [00 0a 35 00 22 01];
+            phy-handle = <0x2>;
+            xen,path = "/amba/ethernet@ff0e0000";
+            xen,reg = <0x0 0xff0e0000 0x1000 0x0 0xff0e0000>;
+
+            phy@c {
+                reg = <0xc>;
+                ti,rx-internal-delay = <0x8>;
+                ti,tx-internal-delay = <0xa>;
+                ti,fifo-depth = <0x1>;
+                ti,rxctrl-strap-worka;
+                linux,phandle = <0x2>;
+                phandle = <0x2>;
+            };
+        };
+    };
+};
