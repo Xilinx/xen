@@ -426,7 +426,7 @@ int __init kernel_probe(struct kernel_info *info,
     struct bootmodule *mod = NULL;
     struct bootcmdline *cmd = NULL;
     struct dt_device_node *node;
-    u64 kernel_addr, initrd_addr, size;
+    u64 kernel_addr = 0, initrd_addr = 0, dtb_addr = 0, size;
     int rc;
 
     /* domain is NULL only for the hardware domain */
@@ -469,6 +469,16 @@ int __init kernel_probe(struct kernel_info *info,
                 dt_get_range(&val, node, &initrd_addr, &size);
                 info->initrd_bootmodule = boot_module_find_by_addr_and_kind(
                         BOOTMOD_RAMDISK, initrd_addr);
+            }
+            else if ( dt_device_is_compatible(node, "multiboot,device-tree") )
+            {
+                u32 len;
+                const __be32 *val;
+
+                val = dt_get_property(node, "reg", &len);
+                dt_get_range(&val, node, &dtb_addr, &size);
+                info->dtb_bootmodule = boot_module_find_by_addr_and_kind(
+                        BOOTMOD_GUEST_DTB, dtb_addr);
             }
             else
                 continue;
