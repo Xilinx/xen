@@ -2262,15 +2262,12 @@ void __init create_domUs(void)
         struct domain *d;
         struct xen_domctl_createdomain d_cfg = {
             .arch.gic_version = XEN_DOMCTL_CONFIG_GIC_NATIVE,
-            .arch.nr_spis = 0,
+            .arch.nr_spis = gic_number_lines() - 32,
             .flags = XEN_DOMCTL_CDF_hvm_guest,
         };
 
         if ( !dt_device_is_compatible(node, "xen,domain") )
             continue;
-
-        if ( dt_property_read_bool(node, "vpl011") )
-            d_cfg.arch.nr_spis = GUEST_VPL011_SPI - 32 + 1;
 
         d = domain_create(++max_init_domid, &d_cfg);
         if ( IS_ERR(d) )
