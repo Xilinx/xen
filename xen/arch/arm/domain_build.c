@@ -2101,6 +2101,101 @@ static int __init construct_domain(struct domain *d, struct kernel_info *kinfo)
     return 0;
 }
 
+static int __init scan_pt_node(const void *pfdt,
+                               int nodeoff, const char *name, int depth,
+                               u32 address_cells, u32 size_cells,
+                               void *data)
+{
+    int rc;
+    struct dt_device_node *node;
+    int len, i;
+    const struct fdt_property *prop;
+    struct kernel_info *kinfo = data;
+    struct domain *d = kinfo->d;
+    const __be32 *cell;
+
+    if ( depth > 2 )
+        return 0;
+
+    prop = fdt_get_property_namelen(pfdt, nodeoff, "xen,reg",
+                                    strlen("xen,reg"), &len);
+    if ( prop != NULL )
+    {
+        paddr_t mstart, size, gstart;
+        cell = (const __be32 *)prop->data;
+        len = fdt32_to_cpu(prop->len) /
+              ((address_cells*2 + size_cells) * sizeof (u32));
+
+        for ( i = 0; i < len; i++ )
+        {
+            mstart = dt_next_cell(address_cells, &cell);
+            size = dt_next_cell(size_cells, &cell);
+            gstart = dt_next_cell(address_cells, &cell);
+
+            rc = guest_physmap_add_entry(d, gaddr_to_gfn(gstart),
+                                         maddr_to_mfn(mstart),
+                                         get_order_from_bytes(size),
+                                         p2m_mmio_direct_dev);
+            if ( rc < 0 )
+            {
+                dprintk(XENLOG_ERR,
+                        "Failed to map %"PRIpaddr" to the guest at%"PRIpaddr"\n",
+                        mstart, gstart);
+                return -EFAULT;
+            }
+        }
+    }
+
+    prop = fdt_get_property_namelen(pfdt, nodeoff, "xen,path",
+                                    strlen("xen,path"), &len);
+    if ( prop != NULL ) {
+        node = dt_find_node_by_path((char *)prop->data);
+        if ( node != NULL )
+            rc = iommu_assign_dt_device(d, node);
+        else
+            dprintk(XENLOG_ERR, "Couldn't find node %s in host_dt!\n",
+                    (char *)prop->data);
+    }
+
+    prop = fdt_get_property_namelen(pfdt, nodeoff, "interrupts",
+                                    strlen("interrupts"), &len);
+    if ( prop != NULL )
+    {
+        int pt_irq;
+        fdt32_t *u = (fdt32_t*)prop->data;
+        /* The GIC interrupt format is 3 cells per interrupt */
+        len = fdt32_to_cpu(prop->len) / (3 * sizeof (u32));
+
+        for ( i = 0; i < len; i++, u += 3 )
+        {
+            pt_irq = fdt32_to_cpu(*(u + 1)) + 32;
+
+            vgic_reserve_virq(d, pt_irq);
+            rc = route_irq_to_guest(d, pt_irq, pt_irq, "routed IRQ");
+            if ( rc < 0 )
+                return rc;
+        }
+    }
+
+    return 0;
+}
+
+static int __init domain_adding_devices(struct domain *d,
+                                        struct kernel_info *kinfo)
+{
+    void *pfdt;
+
+    pfdt = ioremap_cache(kinfo->dtb_bootmodule->start,
+            kinfo->dtb_bootmodule->size);
+    if ( pfdt == NULL )
+        return -EFAULT;
+
+    device_tree_for_each_node(pfdt, scan_pt_node, kinfo);
+
+    iounmap(pfdt);
+    return 0;
+}
+
 static int __init construct_domU(struct domain *d,
                                  const struct dt_device_node *node)
 {
@@ -2149,6 +2244,9 @@ static int __init construct_domU(struct domain *d,
 
     if ( kinfo.vpl011 )
         rc = domain_vpl011_init(d, NULL);
+
+    if ( kinfo.dtb_bootmodule )
+        rc = domain_adding_devices(d, &kinfo);
 
     return rc;
 }
