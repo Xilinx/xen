@@ -14,6 +14,7 @@
 #include <xen/guest_access.h>
 #include <xen/iocap.h>
 #include <xen/acpi.h>
+#include <xen/vmap.h>
 #include <xen/warning.h>
 #include <acpi/actables.h>
 #include <asm/device.h>
@@ -1667,6 +1668,61 @@ static int __init make_vpl011_uart_node(const struct domain *d, void *fdt)
 }
 #endif
 
+static int __init copy_properties(void *fdt, void *pfdt, int nodeoff)
+{
+    int propoff, nameoff, r;
+    const struct fdt_property *prop;
+
+    for ( propoff = fdt_first_property_offset(pfdt, nodeoff);
+          propoff >= 0;
+          propoff = fdt_next_property_offset(pfdt, propoff) )
+    {
+
+        if ( !(prop = fdt_get_property_by_offset(pfdt, propoff, NULL)) )
+            return -FDT_ERR_INTERNAL;
+
+        nameoff = fdt32_to_cpu(prop->nameoff);
+        r = fdt_property(fdt, fdt_string(pfdt, nameoff),
+                         prop->data, fdt32_to_cpu(prop->len));
+        if ( r )
+            return r;
+    }
+
+    /* FDT_ERR_NOTFOUND => There is no more properties for this node */
+    return ( propoff != -FDT_ERR_NOTFOUND ) ? propoff : 0;
+}
+
+static int __init copy_node(void *fdt, void *pfdt, int nodeoff, int depth)
+{
+    int r;
+
+    r = fdt_begin_node(fdt, fdt_get_name(pfdt, nodeoff, NULL));
+    if ( r )
+        return r;
+
+    r = copy_properties(fdt, pfdt, nodeoff);
+    if ( r )
+        return r;
+
+    for ( nodeoff = fdt_first_subnode(pfdt, nodeoff);
+          nodeoff >= 0;
+          nodeoff = fdt_next_subnode(pfdt, nodeoff) )
+    {
+        r = copy_node(fdt, pfdt, nodeoff, depth + 1);
+        if ( r )
+            return r;
+    }
+
+    if ( nodeoff != -FDT_ERR_NOTFOUND )
+        return nodeoff;
+
+    r = fdt_end_node(fdt);
+    if ( r )
+        return r;
+
+    return 0;
+}
+
 /*
  * The max size for DT is 2MB. However, the generated DT is small, 4KB
  * are enough for now, but we might have to increase it in the future.
@@ -1736,6 +1792,38 @@ static int __init prepare_dtb_domU(struct domain *d, struct kernel_info *kinfo)
 #endif
         if ( ret )
             goto err;
+    }
+
+    if ( kinfo->dtb_bootmodule ) {
+        int nodeoff, res;
+        void *pfdt;
+
+        pfdt = ioremap_cache(kinfo->dtb_bootmodule->start,
+                             kinfo->dtb_bootmodule->size);
+        if ( pfdt == NULL )
+            return -EFAULT;
+
+        if ( fdt_magic(pfdt) != FDT_MAGIC )
+            return -EINVAL;
+
+        nodeoff = fdt_path_offset(pfdt, "/passthrough");
+        if (nodeoff < 0)
+            return nodeoff;
+
+        res = copy_node(kinfo->fdt, pfdt, nodeoff, 0);
+        if ( res )
+            return res;
+
+        nodeoff = fdt_path_offset(pfdt, "/aliases");
+        if ( nodeoff >= 0 )
+        {
+            res = copy_node(kinfo->fdt, pfdt, nodeoff, 0);
+            if ( res )
+                return res;
+        }
+
+
+        iounmap(pfdt);
     }
 
     ret = fdt_end_node(kinfo->fdt);
