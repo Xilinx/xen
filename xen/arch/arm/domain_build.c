@@ -375,10 +375,8 @@ static int __init write_properties(struct domain *d, struct kernel_info *kinfo,
     int res = 0;
     int had_dom0_bootargs = 0;
 
-    const struct bootmodule *kernel = kinfo->kernel_bootmodule;
-
-    if ( kernel && kernel->cmdline[0] )
-        bootargs = &kernel->cmdline[0];
+    if ( kinfo->cmdline && kinfo->cmdline[0] )
+        bootargs = &kinfo->cmdline[0];
 
     dt_for_each_property_node (node, prop)
     {
@@ -950,9 +948,9 @@ static int __init make_chosen_node(const struct kernel_info *kinfo)
     if ( res )
         return res;
 
-    if ( mod && mod->cmdline[0] )
+    if ( kinfo->cmdline && kinfo->cmdline[0] )
     {
-        bootargs = &mod->cmdline[0];
+        bootargs = &kinfo->cmdline[0];
         res = fdt_property(fdt, "bootargs", bootargs, strlen(bootargs) + 1);
         if ( res )
            return res;
@@ -2107,6 +2105,7 @@ static void __init find_gnttab_region(struct domain *d,
 
 int __init construct_dom0(struct domain *d)
 {
+    const struct bootcmdline *kernel = boot_cmdline_find_by_kind(BOOTMOD_KERNEL);
     struct kernel_info kinfo = {};
     struct vcpu *saved_current;
     int rc, i, cpu;
@@ -2152,6 +2151,7 @@ int __init construct_dom0(struct domain *d)
 
 #endif
 
+    kinfo.cmdline = (kernel != NULL) ? &kernel->cmdline[0] : NULL;
     allocate_memory(d, &kinfo);
     find_gnttab_region(d, &kinfo);
 

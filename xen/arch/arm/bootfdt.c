@@ -172,11 +172,13 @@ static void __init process_multiboot_node(const void *fdt, int node,
     const __be32 *cell;
     bootmodule_kind kind;
     paddr_t start, size;
-    const char *cmdline;
     /* sizeof("/chosen/") + DT_MAX_NAME + '/' + DT_MAX_NAME + '/0' => 92 */
     int len = 92;
     char path[92];
-    int ret;
+    int parent_node, ret;
+
+    parent_node = fdt_parent_offset(fdt, node);
+    ASSERT(parent_node >= 0);
 
     /* Check that the node is under "/chosen" (first 7 chars of path) */
     ret = fdt_get_path(fdt, node, path, len);
@@ -232,17 +234,12 @@ static void __init process_multiboot_node(const void *fdt, int node,
             kind = BOOTMOD_XSM;
     }
 
-    prop = fdt_get_property(fdt, node, "bootargs", &len);
-    if ( prop )
-    {
-        if ( len > BOOTMOD_MAX_CMDLINE )
-            panic("module %s command line too long\n", name);
-        cmdline = prop->data;
-    }
-    else
-        cmdline = NULL;
+    add_boot_module(kind, start, size);
 
-    add_boot_module(kind, start, size, cmdline);
+    prop = fdt_get_property(fdt, node, "bootargs", &len);
+    if ( !prop )
+        return;
+    add_boot_cmdline(fdt_get_name(fdt, parent_node, &len), prop->data, kind);
 }
 
 static void __init process_chosen_node(const void *fdt, int node,
@@ -288,7 +285,7 @@ static void __init process_chosen_node(const void *fdt, int node,
 
     printk("Initrd %"PRIpaddr"-%"PRIpaddr"\n", start, end);
 
-    add_boot_module(BOOTMOD_RAMDISK, start, end-start, NULL);
+    add_boot_module(BOOTMOD_RAMDISK, start, end-start);
 }
 
 static int __init early_scan_node(const void *fdt,
@@ -311,6 +308,7 @@ static void __init early_print_info(void)
 {
     struct meminfo *mi = &bootinfo.mem;
     struct bootmodules *mods = &bootinfo.modules;
+    struct bootcmdlines *cmds = &bootinfo.cmdlines;
     int i, nr_rsvd;
 
     for ( i = 0; i < mi->nr_banks; i++ )
@@ -319,12 +317,12 @@ static void __init early_print_info(void)
                      mi->bank[i].start + mi->bank[i].size - 1);
     printk("\n");
     for ( i = 0 ; i < mods->nr_mods; i++ )
-        printk("MODULE[%d]: %"PRIpaddr" - %"PRIpaddr" %-12s %s\n",
+        printk("MODULE[%d]: %"PRIpaddr" - %"PRIpaddr" %-12s\n",
                      i,
                      mods->module[i].start,
                      mods->module[i].start + mods->module[i].size,
-                     boot_module_kind_as_string(mods->module[i].kind),
-                     mods->module[i].cmdline);
+                     boot_module_kind_as_string(mods->module[i].kind));
+
     nr_rsvd = fdt_num_mem_rsv(device_tree_flattened);
     for ( i = 0; i < nr_rsvd; i++ )
     {
@@ -336,6 +334,11 @@ static void __init early_print_info(void)
         printk(" RESVD[%d]: %"PRIpaddr" - %"PRIpaddr"\n",
                      i, s, e);
     }
+    printk("\n");
+    for ( i = 0 ; i < cmds->nr_mods; i++ )
+        printk("CMDLINE[%d]:%s %s\n", i,
+               cmds->cmdline[i].dt_name,
+               &cmds->cmdline[i].cmdline[0]);
     printk("\n");
 }
 
@@ -353,7 +356,7 @@ size_t __init boot_fdt_info(const void *fdt, paddr_t paddr)
     if ( ret < 0 )
         panic("No valid device tree\n");
 
-    add_boot_module(BOOTMOD_FDT, paddr, fdt_totalsize(fdt), NULL);
+    add_boot_module(BOOTMOD_FDT, paddr, fdt_totalsize(fdt));
 
     device_tree_for_each_node((void *)fdt, early_scan_node, NULL);
     early_print_info();
@@ -373,11 +376,11 @@ const char *boot_fdt_cmdline(const void *fdt)
     prop = fdt_get_property(fdt, node, "xen,xen-bootargs", NULL);
     if ( prop == NULL )
     {
-        struct bootmodule *dom0_mod =
-            boot_module_find_by_kind(BOOTMOD_KERNEL);
+        struct bootcmdline *dom0_cmdline =
+            boot_cmdline_find_by_kind(BOOTMOD_KERNEL);
 
         if (fdt_get_property(fdt, node, "xen,dom0-bootargs", NULL) ||
-            ( dom0_mod && dom0_mod->cmdline[0] ) )
+            ( dom0_cmdline && dom0_cmdline->cmdline[0] ) )
             prop = fdt_get_property(fdt, node, "bootargs", NULL);
     }
     if ( prop == NULL )
