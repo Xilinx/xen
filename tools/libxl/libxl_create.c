@@ -531,6 +531,14 @@ int libxl__domain_build(libxl__gc *gc,
         ret = ERROR_INVAL;
         goto out;
     }
+
+    /* The p2m has been setup, we could map the static shared memory now. */
+    ret = libxl__sshm_add(gc, domid, d_config->sshms, d_config->num_sshms);
+    if (ret != 0) {
+        LOG(ERROR, "failed to map static shared memory");
+        goto out;
+    }
+
     ret = libxl__build_post(gc, domid, info, state, vments, localents);
 out:
     return ret;
@@ -1095,6 +1103,25 @@ static void initiate_domain_create(libxl__egc *egc,
     libxl__domain_build_state_init(&dcs->build_state);
 
     ret = libxl__domain_config_setdefault(gc,d_config,domid);
+    if (ret) goto error_out;
+
+    if (d_config->num_sshms != 0 &&
+        !libxl__arch_domain_support_sshm(&d_config->b_info)) {
+        LOGD(ERROR, domid, "static_shm is not supported by this domain type.");
+        ret = ERROR_INVAL;
+        goto error_out;
+    }
+
+    for (i = 0; i < d_config->num_sshms; ++i) {
+        ret = libxl__sshm_setdefault(gc, domid, &d_config->sshms[i]);
+        if (ret) {
+            LOGD(ERROR, domid, "Unable to set defaults for static shm");
+            goto error_out;
+        }
+    }
+
+    ret = libxl__sshm_check_overlap(gc, domid,
+                                    d_config->sshms, d_config->num_sshms);
     if (ret) goto error_out;
 
     ret = libxl__domain_make(gc, d_config, &dcs->build_state, &domid);
