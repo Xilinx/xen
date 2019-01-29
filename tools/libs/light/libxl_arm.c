@@ -673,6 +673,65 @@ static int make_memory_nodes(libxl__gc *gc, void *fdt,
     return 0;
 }
 
+static int make_reserved_nodes(libxl__gc *gc, void *fdt,
+                               libxl_domain_config *d_config)
+{
+    int res, i;
+    const char *name;
+
+    if (d_config->num_sshms == 0)
+        return 0;
+
+    res = fdt_begin_node(fdt, "reserved-memory");
+    if (res) return res;
+
+    res = fdt_property_cell(fdt, "#address-cells", GUEST_ROOT_ADDRESS_CELLS);
+    if (res) return res;
+
+    res = fdt_property_cell(fdt, "#size-cells", GUEST_ROOT_SIZE_CELLS);
+    if (res) return res;
+
+    res = fdt_property(fdt, "ranges", NULL, 0);
+    if (res) return res;
+
+    for (i = 0; i < d_config->num_sshms; i++) {
+        uint64_t start = d_config->sshms[i].begin;
+
+        if (d_config->sshms[i].offset != LIBXL_SSHM_RANGE_UNKNOWN)
+            start += d_config->sshms[i].offset;
+
+        name = GCSPRINTF("xen-shmem@%"PRIx64, start);
+
+        res = fdt_begin_node(fdt, name);
+        if (res) return res;
+
+        res = fdt_property_regs(gc, fdt, GUEST_ROOT_ADDRESS_CELLS,
+                                GUEST_ROOT_SIZE_CELLS, 1, start,
+                                d_config->sshms[i].size);
+        if (res) return res;
+
+        res = fdt_property_compat(gc, fdt, 1, "xen,shared-memory-v1");
+        if (res) return res;
+
+        res = fdt_property_string(fdt, "xen,id", d_config->sshms[i].id);
+        if (res) return res;
+
+        if (d_config->sshms[i].role == LIBXL_SSHM_ROLE_BORROWER) {
+            res = fdt_property_u64(fdt, "xen,offset",
+                                   d_config->sshms[i].offset);
+            if (res) return res;
+        }
+
+        res = fdt_end_node(fdt);
+        if (res) return res;
+    }
+
+    res = fdt_end_node(fdt);
+    if (res) return res;
+
+    return 0;
+}
+
 static int make_gicv2_node(libxl__gc *gc, void *fdt,
                            uint64_t gicd_base, uint64_t gicd_size,
                            uint64_t gicc_base, uint64_t gicc_size)
@@ -1339,6 +1398,7 @@ next_resize:
         FDT( make_psci_node(gc, fdt) );
 
         FDT( make_memory_nodes(gc, fdt, dom) );
+        FDT( make_reserved_nodes(gc, fdt, d_config) );
 
         switch (info->arch_arm.gic_version) {
         case LIBXL_GIC_VERSION_V2:
