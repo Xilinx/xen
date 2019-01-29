@@ -242,7 +242,7 @@ static void __init process_multiboot_node(const void *fdt, int node,
     if ( !prop )
         return;
     add_boot_cmdline(fdt_get_name(fdt, parent_node, &len), prop->data,
-                     kind, domU);
+                     kind, start, domU);
 }
 
 static void __init process_chosen_node(const void *fdt, int node,
@@ -339,7 +339,7 @@ static void __init early_print_info(void)
     }
     printk("\n");
     for ( i = 0 ; i < cmds->nr_mods; i++ )
-        printk("CMDLINE[%d]:%s %s\n", i,
+        printk("CMDLINE[%"PRIpaddr"]:%s %s\n", cmds->cmdline[i].start,
                cmds->cmdline[i].dt_name,
                &cmds->cmdline[i].cmdline[0]);
     printk("\n");
