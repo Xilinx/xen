@@ -543,6 +543,11 @@
 #define LIBXL_HAVE_DEVICE_DISK_SPECIFICATION 1
 
 /*
+ * LIBXL_HAVE_SSHM indicates that libxl supports static shared memory regions.
+ */
+#define LIBXL_HAVE_SSHM 1
+
+/*
  * libxl ABI compatibility
  *
  * The only guarantee which libxl makes regarding ABI compatibility
@@ -2831,6 +2836,9 @@ static inline int libxl_qemu_monitor_command_0x041200(libxl_ctx *ctx,
 }
 #define libxl_qemu_monitor_command libxl_qemu_monitor_command_0x041200
 #endif
+
+/* Constant for libxl_static_shm */
+#define LIBXL_SSHM_RANGE_UNKNOWN UINT64_MAX
 
 #include <libxl_event.h>
 
