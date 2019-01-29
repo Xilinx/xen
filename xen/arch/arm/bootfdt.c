@@ -173,10 +173,14 @@ static void __init process_multiboot_node(const void *fdt, int node,
     bootmodule_kind kind;
     paddr_t start, size;
     const char *cmdline;
-    int len;
     /* sizeof("/chosen/") + DT_MAX_NAME + '/' + DT_MAX_NAME + '/0' => 92 */
+    int len = 92;
     char path[92];
     int ret;
+
+    /* Check that the node is under "/chosen" (first 7 chars of path) */
+    ret = fdt_get_path(fdt, node, path, len);
+    if ( ret != 0 || strncmp(path, "/chosen", 7) )
 
     /* Check that the node is under "/chosen" (first 7 chars of path) */
     ret = fdt_get_path(fdt, node, path, sizeof (path));
