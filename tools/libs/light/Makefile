@@ -113,6 +113,7 @@ SRCS-y += libxl_vdispl.c
 SRCS-y += libxl_pvcalls.c
 SRCS-y += libxl_vsnd.c
 SRCS-y += libxl_vkb.c
+SRCS-y += libxl_sshm.c
 SRCS-y += libxl_genid.c
 SRCS-y += _libxl_types.c
 SRCS-y += libxl_flask.c
