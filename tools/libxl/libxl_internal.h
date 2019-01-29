@@ -4840,6 +4840,20 @@ int libxl__is_domid_recent(libxl__gc *gc, uint32_t domid, bool *recent);
 #endif
 
 /*
+ * Set up static shared ram pages for HVM domains to communicate
+ *
+ * This function should only be called after the memory map is constructed
+ * and before any further memory access.
+ */
+_hidden int libxl__sshm_add(libxl__gc *gc, uint32_t domid,
+                            libxl_static_shm *sshm, int len);
+
+_hidden int libxl__sshm_check_overlap(libxl__gc *gc, uint32_t domid,
+                                      libxl_static_shm *sshms, int len);
+_hidden int libxl__sshm_setdefault(libxl__gc *gc, uint32_t domid,
+                                   libxl_static_shm *sshm);
+
+/*
  * Local variables:
  * mode: C
  * c-basic-offset: 4
