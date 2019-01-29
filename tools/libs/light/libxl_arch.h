@@ -97,6 +97,12 @@ _hidden
 int libxl__arch_hvm_unmap_gsi(libxl__gc *gc, uint32_t sbdf, uint32_t domid);
 _hidden
 bool libxl__arch_local_domain_has_pirq_notion(libxl__gc *gc);
+
+bool libxl__arch_domain_support_sshm(const libxl_domain_build_info *b_info);
+
+_hidden
+int libxl__arch_domain_sshm_cachepolicy_setdefault(libxl_static_shm *sshm);
+
 #if defined(__i386__) || defined(__x86_64__)
 
 #define IOAPIC_BASE_ADDRESS 0xfec00000

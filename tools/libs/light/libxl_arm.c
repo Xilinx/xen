@@ -1843,6 +1843,21 @@ bool libxl__arch_local_domain_has_pirq_notion(libxl__gc *gc)
     return true;
 }
 
+bool libxl__arch_domain_support_sshm(const libxl_domain_build_info *b_info)
+{
+    return true;
+}
+
+int libxl__arch_domain_sshm_cachepolicy_setdefault(libxl_static_shm *sshm)
+{
+    if (sshm->cache_policy == LIBXL_SSHM_CACHEPOLICY_UNKNOWN)
+        sshm->cache_policy = LIBXL_SSHM_CACHEPOLICY_ARM_NORMAL;
+    if (sshm->cache_policy >= LIBXL_SSHM_CACHEPOLICY_X86_NORMAL)
+        return ERROR_INVAL;
+
+    return 0;
+}
+
 /*
  * Local variables:
  * mode: C
