@@ -355,6 +355,11 @@
 #define LIBXL_HAVE_BUILDINFO_BOOTLOADER_ARGS 1
 
 /*
+ * LIBXL_HAVE_SSHM indicates that libxl supports static shared memory regions.
+ */
+#define LIBXL_HAVE_SSHM 1
+
+/*
  * libxl ABI compatibility
  *
  * The only guarantee which libxl makes regarding ABI compatibility
@@ -2404,6 +2409,9 @@ int libxl_fd_set_nonblock(libxl_ctx *ctx, int fd, int nonblock);
  */
 int libxl_qemu_monitor_command(libxl_ctx *ctx, uint32_t domid,
                                const char *command_line, char **output);
+
+/* Constant for libxl_static_shm */
+#define LIBXL_SSHM_RANGE_UNKNOWN UINT64_MAX
 
 #include <libxl_event.h>
 
