@@ -567,10 +567,52 @@ static void __init init_pdx(void)
     }
 }
 
+static void __init check_reserved_memory(paddr_t *bank_start, paddr_t *bank_size)
+{
+    paddr_t bank_end = *bank_start + *bank_size;
+    struct meminfo mem = bootinfo.mem;
+    int i;
+
+    for ( i = 0; i < bootinfo.reserved_mem.nr_banks; i++ )
+    {
+        struct membank rbank = bootinfo.reserved_mem.bank[i];
+
+        if ( *bank_start < rbank.start && bank_end <= rbank.start )
+            continue;
+
+        if ( *bank_start >= (rbank.start + rbank.size) )
+            continue;
+
+        /* memory bank overlaps with reserved memory region */
+        if ( rbank.start > *bank_start )
+        {
+            bank_end = rbank.start;
+            if ( *bank_start + *bank_size > rbank.start + rbank.size )
+            {
+                mem.bank[mem.nr_banks].start = rbank.start + rbank.size;
+                mem.bank[mem.nr_banks].size = *bank_start + *bank_size -
+                    mem.bank[mem.nr_banks].start;
+                mem.nr_banks++;
+            }
+        }
+        else if ( rbank.start + rbank.size > *bank_start)
+        {
+           if (rbank.start + rbank.size < bank_end )
+               *bank_start = rbank.start + rbank.size;
+           else
+               *bank_start = bank_end;
+        }
+
+        *bank_size = bank_end - *bank_start;
+    }
+}
+
 #ifdef CONFIG_ARM_32
 static void __init setup_mm(unsigned long dtb_paddr, size_t dtb_size)
 {
-    paddr_t ram_start, ram_end, ram_size;
+    paddr_t ram_start = ~0;
+    paddr_t ram_end = 0;
+    paddr_t ram_size = 0;
     paddr_t s, e;
     unsigned long ram_pages;
     unsigned long heap_pages, xenheap_pages, domheap_pages;
@@ -584,18 +626,19 @@ static void __init setup_mm(unsigned long dtb_paddr, size_t dtb_size)
 
     init_pdx();
 
-    ram_start = bootinfo.mem.bank[0].start;
-    ram_size  = bootinfo.mem.bank[0].size;
-    ram_end   = ram_start + ram_size;
-
-    for ( i = 1; i < bootinfo.mem.nr_banks; i++ )
+    for ( i = 0; i < bootinfo.mem.nr_banks; i++ )
     {
-        paddr_t bank_start = bootinfo.mem.bank[i].start;
-        paddr_t bank_size = bootinfo.mem.bank[i].size;
-        paddr_t bank_end = bank_start + bank_size;
+        paddr_t bank_end;
 
-        ram_size  = ram_size + bank_size;
-        ram_start = min(ram_start,bank_start);
+        check_reserved_memory(&bootinfo.mem.bank[i].start,
+                              &bootinfo.mem.bank[i].size);
+
+        if ( !bootinfo.mem.bank[i].size )
+            continue;
+
+        bank_end = bootinfo.mem.bank[i].start + bootinfo.mem.bank[i].size;
+        ram_size  = ram_size + bootinfo.mem.bank[i].size;
+        ram_start = min(ram_start, bootinfo.mem.bank[i].start);
         ram_end   = max(ram_end,bank_end);
     }
 
@@ -667,6 +710,9 @@ static void __init setup_mm(unsigned long dtb_paddr, size_t dtb_size)
         paddr_t bank_start = bootinfo.mem.bank[i].start;
         paddr_t bank_end = bank_start + bootinfo.mem.bank[i].size;
 
+        if ( !bootinfo.mem.bank[i].size )
+            continue;
+
         s = bank_start;
         while ( s < bank_end )
         {
@@ -724,10 +770,20 @@ static void __init setup_mm(unsigned long dtb_paddr, size_t dtb_size)
     total_pages = 0;
     for ( bank = 0 ; bank < bootinfo.mem.nr_banks; bank++ )
     {
-        paddr_t bank_start = bootinfo.mem.bank[bank].start;
-        paddr_t bank_size = bootinfo.mem.bank[bank].size;
-        paddr_t bank_end = bank_start + bank_size;
+        paddr_t bank_start;
+        paddr_t bank_size;
+        paddr_t bank_end;
         paddr_t s, e;
+
+        check_reserved_memory(&bootinfo.mem.bank[bank].start,
+                              &bootinfo.mem.bank[bank].size);
+
+        bank_start = bootinfo.mem.bank[bank].start;
+        bank_size = bootinfo.mem.bank[bank].size;
+        bank_end = bank_start + bank_size;
+
+        if ( !bank_size )
+            continue;
 
         ram_size = ram_size + bank_size;
         ram_start = min(ram_start,bank_start);
