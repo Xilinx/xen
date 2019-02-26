@@ -1,0 +1,69 @@
+This document explains how to setup a cacheable shared memory region
+between dom0 and a domU.
+
+First, we have to add a reserved-memory node to the host device tree to
+advertise the special memory region to dom0, so that it won't use it to
+allocate memory as any other pages. For that, we can make use of the
+newly introduced "xen,shared-memory" compatible string. For example:
+
+    reserved-memory {
+        #address-cells = <0x2>;
+        #size-cells = <0x2>;
+        ranges;
+
+        xen-shmem@0 {
+            compatible = "xen,shared-memory";
+            reg = <0x0 0x70000000 0x0 0x1000>;
+        };
+    };
+
+This node tells dom0 that one page at 0x70000000 is to be use as
+reserved memory.
+
+Then, we need to do the same for DomU. We can do that by adding a device
+tree fragment to the DomU VM config file. The device tree fragment could
+be for example:
+
+/dts-v1/;
+
+/ {
+    /* #*cells are here to keep DTC happy */
+    #address-cells = <2>;
+    #size-cells = <2>;
+
+    passthrough {
+        #address-cells = <2>;
+        #size-cells = <2>;
+        ranges;
+
+        reserved-memory {
+            #address-cells = <2>;
+            #size-cells = <2>;
+            ranges;
+
+            xen-shmem@0 {
+                compatible = "xen,shared-memory";
+                reg = <0x0 0x70000000 0x0 0x1000>;
+            };
+        };
+    };
+};
+
+Similarly to the dom0 example, it tells the domU kernel that the page at
+0x70000000 is to be used as reserved memory. We add the device tree
+fragment to the DomU device tree using the device_tree option in the VM
+config file, the same way we use it for device assignment:
+
+device_tree = "/root/snippet.dtb"
+
+Finally, we only need to map the page into the DomU address space at the
+right address, which in this example is 0x70000000. We can do that with
+the iomem VM config option. It is possible to specify the cacheability
+of the mapping, "memory" means normal cacheable memory:
+
+iomem = ["0x70000,1@0x70000,memory"]
+
+In this example, we are asking to map one page at physical address
+0x70000000 into the guest pseudo-physical address space at 0x70000000.
+We are also asking to make the mapping a normal cacheable memory
+mapping.
