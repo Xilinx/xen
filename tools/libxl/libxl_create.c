@@ -1528,7 +1528,7 @@ static void domcreate_launch_dm(libxl__egc *egc, libxl__multidev *multidev,
         }
         ret = xc_domain_memory_mapping(CTX->xch, domid,
                                        io->gfn, io->start,
-                                       io->number, 1);
+                                       io->number, 1, CACHEABILITY_DEVMEM);
         if (ret < 0) {
             LOGED(ERROR, domid,
                   "failed to map to domain iomem range %"PRIx64"-%"PRIx64
