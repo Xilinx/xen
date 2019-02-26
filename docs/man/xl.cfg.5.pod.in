@@ -1303,7 +1303,7 @@ is given in hexadecimal format and may either be a range, e.g. C<2f8-2ff>
 It is recommended to only use this option for trusted VMs under
 administrator's control.
 
-=item B<iomem=[ "IOMEM_START,NUM_PAGES[@GFN]", "IOMEM_START,NUM_PAGES[@GFN]", ...]>
+=item B<iomem=[ "IOMEM_START,NUM_PAGES[@GFN],CACHEABILITY", "IOMEM_START,NUM_PAGES[@GFN],CACHEABILITY", ...]>
 
 Allow auto-translated domains to access specific hardware I/O memory pages.
 
@@ -1314,6 +1314,8 @@ B<GFN> is not specified, the mapping will be performed using B<IOMEM_START>
 as a start in the guest's address space, therefore performing a 1:1 mapping
 by default.
 All of these values must be given in hexadecimal format.
+B<CACHEABILITY> can be "devmem" for device memory, the default if not
+specified, or it can be "memory" for normal memory.
 
 Note that the IOMMU won't be updated with the mappings specified with this
 option. This option therefore should not be used to pass through any

@@ -306,6 +306,11 @@ libxl_ioport_range = Struct("ioport_range", [
     ("number", uint32),
     ])
 
+libxl_cacheability = Enumeration("cacheability", [
+    (0, "devmem"),
+    (1, "memory"),
+    ], init_val = "LIBXL_CACHEABILITY_DEVMEM")
+
 libxl_iomem_range = Struct("iomem_range", [
     # start host frame number to be mapped to the guest
     ("start", uint64),
@@ -313,6 +318,8 @@ libxl_iomem_range = Struct("iomem_range", [
     ("number", uint64),
     # guest frame number used as a start for the mapping
     ("gfn", uint64, {'init_val': "LIBXL_INVALID_GFN"}),
+    # cacheability of the memory region
+    ("cache_policy", libxl_cacheability),
     ])
 
 libxl_vga_interface_info = Struct("vga_interface_info", [
