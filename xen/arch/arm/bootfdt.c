@@ -163,6 +163,76 @@ static void __init process_memory_node(const void *fdt, int node,
     }
 }
 
+static void __init process_reserved_memory_node(const void *fdt,
+                                                int node,
+                                                int depth,
+                                                const char *name,
+                                                u32 as,
+                                                u32 ss)
+{
+    const struct fdt_property *prop;
+    int i;
+    int banks;
+    const __be32 *cell;
+    paddr_t start, size;
+    u32 reg_cells;
+    u32 address_cells[DEVICE_TREE_MAX_DEPTH];
+    u32 size_cells[DEVICE_TREE_MAX_DEPTH];
+
+    address_cells[depth] = as;
+    size_cells[depth] = ss;
+    node = fdt_next_node(fdt, node, &depth);
+
+    for ( ; node >= 0 && depth > 1;
+            node = fdt_next_node(fdt, node, &depth) )
+    {
+        name = fdt_get_name(fdt, node, NULL);
+
+        if ( depth >= DEVICE_TREE_MAX_DEPTH )
+        {
+            printk("Warning: device tree node `%s' is nested too deep\n",
+                   name);
+            continue;
+        }
+
+        address_cells[depth] = device_tree_get_u32(fdt, node,
+                                                   "#address-cells",
+                                                   address_cells[depth-1]);
+        size_cells[depth] = device_tree_get_u32(fdt, node,
+                                                "#size-cells",
+                                                size_cells[depth-1]);
+        if ( address_cells[depth-1] < 1 || size_cells[depth-1] < 1 )
+        {
+            printk("fdt: node `%s': invalid #address-cells or #size-cells",
+                    name);
+            continue;
+        }
+
+        prop = fdt_get_property(fdt, node, "reg", NULL);
+        if ( !prop )
+        {
+            printk("fdt: node `%s': missing `reg' property\n", name);
+            continue;
+        }
+
+        reg_cells = address_cells[depth-1] + size_cells[depth-1];
+        cell = (const __be32 *)prop->data;
+        banks = fdt32_to_cpu(prop->len) / (reg_cells * sizeof (u32));
+
+        for ( i = 0; i < banks && bootinfo.reserved_mem.nr_banks < NR_MEM_BANKS; i++ )
+        {
+            device_tree_get_reg(&cell, address_cells[depth-1], size_cells[depth-1],
+                                &start, &size);
+            if ( !size )
+                continue;
+
+            bootinfo.reserved_mem.bank[bootinfo.reserved_mem.nr_banks].start = start;
+            bootinfo.reserved_mem.bank[bootinfo.reserved_mem.nr_banks].size = size;
+            bootinfo.reserved_mem.nr_banks++;
+        }
+    }
+}
+
 static void __init process_multiboot_node(const void *fdt, int node,
                                           const char *name,
                                           u32 address_cells, u32 size_cells)
@@ -300,6 +370,9 @@ static int __init early_scan_node(const void *fdt,
 {
     if ( device_tree_node_matches(fdt, node, "memory") )
         process_memory_node(fdt, node, name, address_cells, size_cells);
+    else if ( device_tree_node_matches(fdt, node, "reserved-memory") )
+        process_reserved_memory_node(fdt, node, depth, name,
+                                     address_cells, size_cells);
     else if ( depth <= 3 && (device_tree_node_compatible(fdt, node, "xen,multiboot-module" ) ||
               device_tree_node_compatible(fdt, node, "multiboot,module" )))
         process_multiboot_node(fdt, node, name, address_cells, size_cells);
