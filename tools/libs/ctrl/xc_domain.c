@@ -1899,7 +1899,8 @@ int xc_domain_memory_mapping(
     unsigned long first_gfn,
     unsigned long first_mfn,
     unsigned long nr_mfns,
-    uint32_t add_mapping)
+    uint32_t add_mapping,
+    uint32_t cache_policy)
 {
     struct xen_domctl domctl = {};
     xc_domaininfo_t info;
@@ -1920,6 +1921,7 @@ int xc_domain_memory_mapping(
     domctl.cmd = XEN_DOMCTL_memory_mapping;
     domctl.domain = domid;
     domctl.u.memory_mapping.add_mapping = add_mapping;
+    domctl.u.memory_mapping.cache_policy = cache_policy;
     max_batch_sz = nr_mfns;
     do
     {
@@ -1956,7 +1958,7 @@ int xc_domain_memory_mapping(
      */
     if ( ret && add_mapping != DPCI_REMOVE_MAPPING )
         xc_domain_memory_mapping(xch, domid, first_gfn, first_mfn, nr_mfns,
-                                 DPCI_REMOVE_MAPPING);
+                                 DPCI_REMOVE_MAPPING, CACHEABILITY_DEVMEM);
 
     /* We might get E2BIG so many times that we never advance. */
     if ( !done && !ret )
