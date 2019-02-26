@@ -432,6 +432,14 @@ static void init_console_info(libxl__gc *gc,
        Only 'channels' when mapped to consoles have a string name. */
 }
 
+static uint32_t libxl__cacheability_to_xc(libxl_cacheability c)
+{
+    if (c == LIBXL_CACHEABILITY_MEMORY)
+        return CACHEABILITY_MEMORY;
+    /* default to devmem */
+    return CACHEABILITY_DEVMEM;
+}
+
 int libxl__domain_build(libxl__gc *gc,
                         libxl_domain_config *d_config,
                         uint32_t domid,
@@ -1375,7 +1383,9 @@ static void domcreate_launch_dm(libxl__egc *egc, libxl__multidev *multidev,
         }
         ret = xc_domain_memory_mapping(CTX->xch, domid,
                                        io->gfn, io->start,
-                                       io->number, 1, CACHEABILITY_DEVMEM);
+                                       io->number, 1,
+                                       libxl__cacheability_to_xc(
+                                           io->cache_policy));
         if (ret < 0) {
             LOGED(ERROR, domid,
                   "failed to map to domain iomem range %"PRIx64"-%"PRIx64

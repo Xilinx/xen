@@ -1529,6 +1529,7 @@ void parse_config_data(const char *config_source,
         }
         for (i = 0; i < num_iomem; i++) {
             int used;
+            char cache[7];
 
             buf = xlu_cfg_get_listitem (iomem, i);
             if (!buf) {
@@ -1537,14 +1538,26 @@ void parse_config_data(const char *config_source,
                 exit(1);
             }
             libxl_iomem_range_init(&b_info->iomem[i]);
-            ret = sscanf(buf, "%" SCNx64",%" SCNx64"%n@%" SCNx64"%n",
+            ret = sscanf(buf, "%" SCNx64",%" SCNx64"%n@%" SCNx64"%n,%6s%n",
                          &b_info->iomem[i].start,
                          &b_info->iomem[i].number, &used,
-                         &b_info->iomem[i].gfn, &used);
+                         &b_info->iomem[i].gfn, &used,
+                         cache, &used);
             if (ret < 2 || buf[used] != '\0') {
                 fprintf(stderr,
                         "xl: Invalid argument parsing iomem: %s\n", buf);
                 exit(1);
+            }
+            if (ret == 4) {
+                if (!strcmp(cache, "memory"))
+                    b_info->iomem[i].cache_policy = LIBXL_CACHEABILITY_MEMORY;
+                else if (!strcmp(cache, "devmem"))
+                    b_info->iomem[i].cache_policy = LIBXL_CACHEABILITY_DEVMEM;
+                else {
+                    fprintf(stderr,
+                            "xl: Invalid iomem cache parameter: %s\n", cache);
+                    exit(1);
+                }
             }
         }
     }
