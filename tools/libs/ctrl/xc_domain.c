@@ -1899,6 +1899,23 @@ int xc_domain_memory_mapping(
     unsigned long first_gfn,
     unsigned long first_mfn,
     unsigned long nr_mfns,
+    uint32_t add_mapping)
+{
+    return xc_domain_memory_mapping_cache(xch,
+                                          domid,
+                                          first_gfn,
+                                          first_mfn,
+                                          nr_mfns,
+                                          add_mapping,
+                                          CACHEABILITY_DEVMEM);
+}
+
+int xc_domain_memory_mapping_cache(
+    xc_interface *xch,
+    uint32_t domid,
+    unsigned long first_gfn,
+    unsigned long first_mfn,
+    unsigned long nr_mfns,
     uint32_t add_mapping,
     uint32_t cache_policy)
 {
@@ -1957,8 +1974,9 @@ int xc_domain_memory_mapping(
      * Errors here are ignored.
      */
     if ( ret && add_mapping != DPCI_REMOVE_MAPPING )
-        xc_domain_memory_mapping(xch, domid, first_gfn, first_mfn, nr_mfns,
-                                 DPCI_REMOVE_MAPPING, CACHEABILITY_DEVMEM);
+        xc_domain_memory_mapping_cache(xch, domid, first_gfn, first_mfn,
+                                       nr_mfns, DPCI_REMOVE_MAPPING,
+                                       CACHEABILITY_DEVMEM);
 
     /* We might get E2BIG so many times that we never advance. */
     if ( !done && !ret )
