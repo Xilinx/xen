@@ -1069,7 +1069,7 @@ int map_mmio_regions(struct domain *d,
     switch ( cache_policy )
     {
     case CACHEABILITY_MEMORY:
-        t = p2m_ram_rw;
+        t = p2m_mmio_direct_c;
         break;
     case CACHEABILITY_DEVMEM:
         t = p2m_mmio_direct_dev;

@@ -1424,7 +1424,7 @@ static int __init handle_node(struct domain *d, struct kernel_info *kinfo,
      * p2m.
      */
     if ( !strcmp(dt_node_name(node), "reserved-memory") )
-        p2mt = p2m_ram_rw;
+        p2mt = p2m_mmio_direct_c;
 
     res = handle_device(d, node, p2mt);
     if ( res)
