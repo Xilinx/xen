@@ -641,7 +641,8 @@ static int __init make_memory_node(const struct domain *d,
 {
     int res, i;
     int reg_size = addrcells + sizecells;
-    int nr_cells = reg_size*kinfo->mem.nr_banks;
+    int nr_cells = reg_size * (kinfo->mem.nr_banks + (is_hardware_domain(d) ?
+                               bootinfo.reserved_mem.nr_banks : 0));
     __be32 reg[nr_cells];
     __be32 *cells;
 
@@ -667,6 +668,20 @@ static int __init make_memory_node(const struct domain *d,
                    i, start, start + size);
 
         dt_child_set_range(&cells, addrcells, sizecells, start, size);
+    }
+
+    if ( is_hardware_domain(d) )
+    {
+        for ( i = 0; i < bootinfo.reserved_mem.nr_banks; i++ )
+        {
+            u64 start = bootinfo.reserved_mem.bank[i].start;
+            u64 size = bootinfo.reserved_mem.bank[i].size;
+
+            dt_dprintk("  Bank %d: %#"PRIx64"->%#"PRIx64"\n",
+                    i, start, start + size);
+
+            dt_child_set_range(&cells, addrcells, sizecells, start, size);
+        }
     }
 
     res = fdt_property(fdt, "reg", reg, sizeof(reg));
