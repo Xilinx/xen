@@ -46,13 +46,21 @@ be for example:
                 reg = <0x0 0x70000000 0x0 0x1000>;
             };
         };
+
+        memory {
+            device_type = "memory";
+            reg = <0x0 0x70000000 0x0 0x1000>;
+        };
     };
 };
 
 Similarly to the dom0 example, it tells the domU kernel that the page at
-0x70000000 is to be used as reserved memory. We add the device tree
-fragment to the DomU device tree using the device_tree option in the VM
-config file, the same way we use it for device assignment:
+0x70000000 is to be used as reserved memory. Note that we also added the
+range to a regular memory node, because it is required by device tree
+that all reserved-memory ranges are also covered by the regular memory
+nodes.  We add the device tree fragment to the DomU device tree using
+the device_tree option in the VM config file, the same way we use it for
+device assignment:
 
 device_tree = "/root/snippet.dtb"
 
