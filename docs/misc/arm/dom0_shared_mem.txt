@@ -4,7 +4,7 @@ between dom0 and a domU.
 First, we have to add a reserved-memory node to the host device tree to
 advertise the special memory region to dom0, so that it won't use it to
 allocate memory as any other pages. For that, we can make use of the
-newly introduced "xen,shared-memory" compatible string. For example:
+newly introduced "xen,shared-memory-v1" compatible string. For example:
 
     reserved-memory {
         #address-cells = <0x2>;
@@ -12,7 +12,7 @@ newly introduced "xen,shared-memory" compatible string. For example:
         ranges;
 
         xen-shmem@0 {
-            compatible = "xen,shared-memory";
+            compatible = "xen,shared-memory-v1";
             reg = <0x0 0x70000000 0x0 0x1000>;
         };
     };
@@ -42,7 +42,7 @@ be for example:
             ranges;
 
             xen-shmem@0 {
-                compatible = "xen,shared-memory";
+                compatible = "xen,shared-memory-v1";
                 reg = <0x0 0x70000000 0x0 0x1000>;
             };
         };
