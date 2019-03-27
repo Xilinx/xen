@@ -190,7 +190,7 @@ unsigned long total_pages;
 extern char __init_begin[], __init_end[];
 
 /* Checking VA memory layout alignment. */
-static void __init __maybe_unused build_assertions(void)
+static void __maybe_unused __init __maybe_unused build_assertions(void)
 {
     /* 2MB aligned regions */
     BUILD_BUG_ON(XEN_VIRT_START & ~SECOND_MASK);
