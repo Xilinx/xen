@@ -1,8 +1,13 @@
 AS         = $(CROSS_COMPILE)as
 LD         = $(CROSS_COMPILE)ld
 ifeq ($(clang),y)
-CC         = $(CROSS_COMPILE)clang
-CXX        = $(CROSS_COMPILE)clang++
+ifneq ($(CROSS_COMPILE),)
+CC         = clang -target $(CROSS_COMPILE:-=)
+CXX        = clang++ -target $(CROSS_COMPILE:-=)
+else
+CC         = clang
+CXX        = clang++
+endif
 LD_LTO     = $(CROSS_COMPILE)llvm-ld
 else
 CC         = $(CROSS_COMPILE)gcc
