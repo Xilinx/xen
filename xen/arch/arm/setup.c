@@ -533,9 +533,14 @@ static paddr_t __init get_xen_paddr(void)
 static void __init init_pdx(void)
 {
     paddr_t bank_start, bank_size, bank_end;
-
-    u64 mask = pdx_init_mask(bootinfo.mem.bank[0].start);
+    u64 mask;
     int bank;
+
+    /*
+     * We always map the first 1<<MAX_ORDER of RAM, hence, they are left
+     * uncompressed.
+     */
+    mask = pdx_init_mask(1ULL << (MAX_ORDER + PAGE_SHIFT));
 
     for ( bank = 0 ; bank < bootinfo.mem.nr_banks; bank++ )
     {
