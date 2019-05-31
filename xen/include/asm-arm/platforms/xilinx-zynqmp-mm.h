@@ -172,6 +172,11 @@
 #define MM_PMU_GLOBAL           0xffd80000
 #define MM_CSU                  0xffca0000
 
+#define MM_TCM_0_A 0xffe00000
+#define MM_TCM_0_B 0xffe20000
+#define MM_TCM_1_A 0xffe90000
+#define MM_TCM_1_B 0xffeb0000
+
 /* Selected set of register definitions:  */
 #define R_CRF_APLL_CTRL           0x20
 #define R_CRF_ACPU_CTRL           0x60
