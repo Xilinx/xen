@@ -165,6 +165,11 @@ static const struct pm_access pm_node_access[] = {
 
     [NODE_PCIE] = { MM_PCIE_ATTRIB },
     [NODE_RTC] = { MM_RTC },
+
+    [NODE_TCM_0_A] = { MM_TCM_0_A },
+    [NODE_TCM_0_B] = { MM_TCM_0_B },
+    [NODE_TCM_1_A] = { MM_TCM_1_A },
+    [NODE_TCM_1_B] = { MM_TCM_1_B },
 };
 
 /*
