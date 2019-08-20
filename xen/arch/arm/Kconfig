@@ -106,6 +106,10 @@ config HARDEN_BRANCH_PREDICTOR
 	  firmware.
 
 	  If unsure, say Y.
+config COLORING
+	bool "L2 cache coloring"
+	default n
+	depends on ARM_64
 
 config TEE
 	bool "Enable TEE mediators support" if EXPERT = "y"
