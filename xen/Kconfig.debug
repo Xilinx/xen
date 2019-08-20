@@ -91,6 +91,15 @@ config UBSAN
 
 	  If unsure, say N here.
 
+config COLORING_DEBUG
+	bool "Coloring debug messages"
+	depends on ARM_64 && COLORING
+	---help---
+	Cache coloring debug messages will be logged to XEN output.
+	This feature only works if CONFIG_EARLY_PRINTK is set.
+
+	If unsure, say N here.
+
 endif # DEBUG || EXPERT
 
 endmenu
