@@ -77,6 +77,10 @@ config SBSA_VUART_CONSOLE
 	  Allows a guest to use SBSA Generic UART as a console. The
 	  SBSA Generic UART implements a subset of ARM PL011 UART.
 
+config COLORING
+	bool "L2 cache coloring"
+	default n
+	depends on ARM_64
 endmenu
 
 menu "ARM errata workaround via the alternative framework"
