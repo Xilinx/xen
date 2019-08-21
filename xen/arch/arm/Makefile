@@ -61,6 +61,7 @@ obj-y += vsmc.o
 obj-y += vpsci.o
 obj-y += vuart.o
 obj-$(CONFIG_COLORING) += coloring.o
+obj-$(CONFIG_COLORING) += color_alloc.o
 
 #obj-bin-y += ....o
 
