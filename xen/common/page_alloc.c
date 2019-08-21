@@ -2264,7 +2264,10 @@ int assign_pages(
         page_set_owner(&pg[i], d);
         smp_wmb(); /* Domain pointer must be visible before updating refcnt. */
         pg[i].count_info = PGC_allocated | 1;
-        page_list_add_tail(&pg[i], &d->page_list);
+        if ( pg->colored )
+            page_list_add(&pg[i], &d->page_list);
+        else
+            page_list_add_tail(&pg[i], &d->page_list);
     }
 
  out:
@@ -2279,6 +2282,16 @@ struct page_info *alloc_domheap_pages(
     struct page_info *pg = NULL;
     unsigned int bits = memflags >> _MEMF_bits, zone_hi = NR_ZONES - 1;
     unsigned int dma_zone;
+
+    /* Only Dom0 and DomUs are supported for coloring */
+    if ( d && d->max_colors > 0 )
+    {
+        /* Colored allocation must be done on 0 order */
+        if (order)
+            return NULL;
+
+        return alloc_col_domheap_page(d, memflags);
+    }
 
     ASSERT(!in_irq());
 
@@ -2372,7 +2385,10 @@ void free_domheap_pages(struct page_info *pg, unsigned int order)
             scrub = 1;
         }
 
-        free_heap_pages(pg, order, scrub);
+        if ( pg->colored )
+            free_col_heap_page(pg);
+        else
+            free_heap_pages(pg, order, scrub);
     }
 
     if ( drop_dom_ref )
