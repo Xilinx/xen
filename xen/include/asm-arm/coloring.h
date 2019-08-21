@@ -59,6 +59,8 @@ bool check_domain_colors(struct domain *d);
  */
 uint32_t *setup_default_colors(unsigned int *col_num);
 
+void coloring_dump_info(struct domain *d);
+
 /* Colored allocator functions */
 bool init_col_heap_pages(struct page_info *pg, unsigned long nr_pages);
 struct page_info *alloc_col_domheap_page(
@@ -92,6 +94,11 @@ static inline uint64_t get_max_colors(void)
 static inline void free_col_heap_page(struct page_info *pg)
 {
 	return;
+}
+
+static inline void coloring_dump_info(struct domain *d)
+{
+    return;
 }
 #endif /* CONFIG_COLORING */
 

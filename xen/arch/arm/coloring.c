@@ -335,6 +335,18 @@ static int __init parse_xen_colors(const char *s)
 }
 custom_param("xen_colors", parse_xen_colors);
 
+void coloring_dump_info(struct domain *d)
+{
+    int i;
+
+    printk("Domain %d has %u color(s) [ ", d->domain_id, d->max_colors);
+    for ( i = 0; i < d->max_colors; i++ )
+    {
+        printk("%"PRIu32" ", d->colors[i]);
+    }
+    printk("]\n");
+}
+
 /*
  * Local variables:
  * mode: C
