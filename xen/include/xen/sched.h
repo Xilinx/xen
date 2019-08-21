@@ -330,6 +330,10 @@ struct domain
     atomic_t         shr_pages;       /* number of shared pages             */
     atomic_t         paged_pages;     /* number of paged-out pages          */
 
+    /* Coloring. */
+    uint32_t        *colors;
+    unsigned int    max_colors;
+
     /* Scheduling. */
     void            *sched_priv;    /* scheduler-specific data */
     struct cpupool  *cpupool;
