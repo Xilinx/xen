@@ -25,4 +25,12 @@
 
 #define MAX_COLORS_CELLS 4
 
+#ifdef CONFIG_COLORING
+bool __init coloring_init(void);
+#else /* !CONFIG_COLORING */
+static inline bool __init coloring_init(void)
+{
+    return true;
+}
+#endif /* CONFIG_COLORING */
 #endif /* !__ASM_ARM_COLORING_H__ */
