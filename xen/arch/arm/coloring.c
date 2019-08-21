@@ -182,6 +182,19 @@ bool __init coloring_init(void)
     return true;
 }
 
+/**
+ * Compute color id from the page @param pg.
+ * Page size determines the lowest available bit, while add_col_mask is used to
+ * select the rest.
+ *
+ * @param pg              Page address
+ * @return unsigned long  Color id
+ */
+unsigned long color_from_page(struct page_info *pg)
+{
+  return ((addr_col_mask & page_to_maddr(pg)) >> PAGE_SHIFT);
+}
+
 uint64_t get_max_colors(void)
 {
     return col_num_max;

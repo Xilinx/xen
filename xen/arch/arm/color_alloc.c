@@ -43,10 +43,6 @@ static bool color_init_state = true;
 
 static DEFINE_SPINLOCK(heap_lock);
 
-#ifndef color_from_page
-#define color_from_page(pg) 0
-#endif
-
 #define page_to_head(pg) (&color_heap[color_from_page(pg)])
 #define color_to_head(col) (&color_heap[col])
 

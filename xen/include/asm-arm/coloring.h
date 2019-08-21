@@ -36,6 +36,13 @@
 #ifdef CONFIG_COLORING
 bool __init coloring_init(void);
 
+/* 
+ * Compute the color of the given page address.
+ * This function should change depending on the cache architecture
+ * specifications. Currently only ARMv8 is supported and implemented.
+ */
+unsigned long color_from_page(struct page_info *pg);
+
 /* Return the maximum available number of colors supported by the hardware */
 uint64_t get_max_colors(void);
 
