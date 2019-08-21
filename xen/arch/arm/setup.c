@@ -53,6 +53,7 @@
 #include <asm/tee/tee.h>
 #include <xsm/xsm.h>
 #include <asm/acpi.h>
+#include <asm/coloring.h>
 
 struct bootinfo __initdata bootinfo;
 
@@ -820,6 +821,9 @@ void __init start_xen(unsigned long boot_phys_offset,
     cmdline = boot_fdt_cmdline(device_tree_flattened);
     printk("Command line: %s\n", cmdline);
     cmdline_parse(cmdline);
+
+    if ( !coloring_init() )
+        panic("Xen Coloring support: setup failed\n");
 
     /* Register Xen's load address as a boot module. */
     xen_bootmodule = add_boot_module(BOOTMOD_XEN, xen_paddr,

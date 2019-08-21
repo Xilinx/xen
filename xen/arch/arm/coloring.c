@@ -38,8 +38,13 @@ static uint32_t xen_col_mask[MAX_COLORS_CELLS];
 static uint32_t dom0_col_num;
 /* Coloring configuration of Dom0 as bitmask */
 static uint32_t dom0_col_mask[MAX_COLORS_CELLS];
+/* Maximum number of available color(s) */
+static uint32_t max_col_num;
+/* Maximum available coloring configuration as bitmask */
+static uint32_t max_col_mask[MAX_COLORS_CELLS];
 
 static uint64_t way_size;
+static uint64_t addr_col_mask;
 
 #define CTR_LINESIZE_MASK 0x7
 #define CTR_SIZE_SHIFT 13
@@ -112,6 +117,84 @@ static uint64_t get_llc_way_size(void)
     isb();
 
     return (cache_line_size * cache_set_num);
+}
+
+/*
+ * Return the coloring mask based on the value of @param llc_way_size.
+ * This mask represents the bits in the address that can be used
+ * for defining available colors.
+ *
+ * @param llc_way_size		Last level cache way size.
+ * @return unsigned long	The coloring bitmask.
+ */
+static __init uint64_t calculate_addr_col_mask(uint64_t llc_way_size)
+{
+    uint64_t addr_col_mask = 0;
+    unsigned int i;
+    unsigned int low_idx, high_idx;
+
+    low_idx = PAGE_SHIFT;
+    high_idx = get_count_order(llc_way_size) - 1;
+
+    for ( i = low_idx; i <= high_idx; i++ )
+        addr_col_mask |= (1 << i);
+
+    return addr_col_mask;
+}
+
+bool __init coloring_init(void)
+{
+    int i;
+
+    printk(XENLOG_INFO "Initialize XEN coloring: \n");
+    /*
+     * If the way size is not provided by the configuration, try to get
+     * this information from hardware.
+     */
+    if ( !way_size )
+    {
+        way_size = get_llc_way_size();
+
+        if ( !way_size )
+        {
+            printk(XENLOG_ERR "ERROR: way size is null\n");
+            return false;
+        }
+    }
+
+    addr_col_mask = calculate_addr_col_mask(way_size);
+    if ( !addr_col_mask )
+    {
+        printk(XENLOG_ERR "ERROR: addr_col_mask is null\n");
+        return false;
+    }
+
+    max_col_num = ((addr_col_mask >> PAGE_SHIFT) + 1);
+
+   /*
+    * If the user or the platform itself provide a way_size
+    * configuration that corresponds to a number of max.
+    * colors greater than the one we support, we cannot
+    * continue. So the check on offset value is necessary.
+    */
+    if ( max_col_num > 32 * MAX_COLORS_CELLS )
+    {
+        printk(XENLOG_ERR "ERROR: max. color value not supported\n");
+        return false;
+    }
+
+    for ( i = 0; i < max_col_num; i++ )
+    {
+        unsigned int offset = i / 32;
+
+        max_col_mask[offset] |= (1 << i % 32);
+    }
+
+    printk(XENLOG_INFO "Way size: 0x%"PRIx64"\n", way_size);
+    printk(XENLOG_INFO "Color bits in address: 0x%"PRIx64"\n", addr_col_mask);
+    printk(XENLOG_INFO "Max number of colors: %u\n", max_col_num);
+
+    return true;
 }
 
 /*************************
