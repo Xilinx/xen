@@ -1215,8 +1215,9 @@ void parse_config_data(const char *config_source,
                    *usbctrls, *usbdevs, *p9devs, *vdispls, *pvcallsifs_devs,
                    *sshms;
     XLU_ConfigList *channels, *ioports, *irqs, *iomem, *viridian, *dtdevs,
-                   *mca_caps;
-    int num_ioports, num_irqs, num_iomem, num_cpus, num_viridian, num_mca_caps;
+                   *mca_caps, *colors;
+    int num_ioports, num_irqs, num_iomem, num_cpus, num_viridian, num_mca_caps,
+                    num_colors;
     int pci_power_mgmt = 0;
     int pci_msitranslate = 0;
     int pci_permissive = 0;
@@ -1364,6 +1365,60 @@ void parse_config_data(const char *config_source,
 
     if (!xlu_cfg_get_long (config, "maxmem", &l, 0))
         b_info->max_memkb = l * 1024;
+
+    if (!xlu_cfg_get_list(config, "colors", &colors, &num_colors, 0)) {
+        int ret, k, p, cur_index;
+
+        b_info->num_colors = 0;
+        /* Get number of colors based on ranges */
+        for (i = 0; i < num_colors; i++) {
+            uint32_t start, end;
+
+            buf = xlu_cfg_get_listitem (colors, i);
+            if (!buf) {
+                fprintf(stderr,
+                    "xl: Unable to get element %d in colors range list\n", i);
+                exit(1);
+            }
+
+            ret = sscanf(buf, "%u-%u", &start, &end);
+            if (ret < 2) {
+                fprintf(stderr,
+                    "xl: Invalid argument parsing colors range: %s\n", buf);
+                exit(1);
+            }
+
+            if (start > end) {
+                fprintf(stderr,
+                    "xl: invalid range: S:%u > E:%u \n", start,end);
+                exit(1);
+            }
+
+            /*
+             * Alloc a first array and then increase its size with realloc based
+             * on the number of ranges
+             */
+
+            /* Check for overlaps */
+            for (k = start; k <= end; k++) {
+                 for (p = 0; p < b_info->num_colors; p++)
+                    if(b_info->colors[p] == k) {
+                        fprintf(stderr,
+                            "xl: overlapped ranges not allowed\n");
+                        exit(1);
+                    }
+            }
+
+            cur_index = b_info->num_colors;
+            b_info->num_colors += (end - start) + 1;
+            b_info->colors = (uint32_t *)realloc(b_info->colors,
+                             sizeof(*b_info->colors) * b_info->num_colors);
+
+            for (k = start; cur_index < b_info->num_colors;
+                cur_index++, k++)
+                b_info->colors[cur_index] = k;
+        }
+    }
 
     if (!xlu_cfg_get_long (config, "vcpus", &l, 0)) {
         vcpus = l;
