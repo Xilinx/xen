@@ -144,6 +144,21 @@ static __init unsigned long calculate_addr_col_mask(unsigned int llc_way_size)
     return addr_col_mask;
 }
 
+static int copy_mask_to_list(
+    uint64_t col_val, uint32_t *col_list, uint64_t col_num)
+{
+    unsigned int i, k;
+
+    if ( !col_list )
+        return -EINVAL;
+
+    for ( i = 0, k = 0; k < col_num; i++ )
+        if (col_val & (1 << i))
+            col_list[k++] = i;
+
+    return 0;
+}
+
 bool __init coloring_init(void)
 {
     int i;
@@ -180,6 +195,26 @@ bool __init coloring_init(void)
     C_DEBUG("Max number of colors: %lu (0x%lx)\n", col_num_max, col_val_max);
 
     return true;
+}
+
+uint32_t *setup_default_colors(unsigned int *col_num)
+{
+    uint32_t *col_list;
+
+    if ( dom0_colors_num )
+    {
+        *col_num = dom0_colors_num;
+        col_list = xzalloc_array(uint32_t, dom0_colors_num);
+        if ( !col_list )
+        {
+            C_DEBUG("setup_default_colors: Alloc failed\n");
+            return NULL;
+        }
+        copy_mask_to_list(dom0_colors_mask, col_list, dom0_colors_num);
+        return col_list;
+    }
+
+    return NULL;
 }
 
 /**

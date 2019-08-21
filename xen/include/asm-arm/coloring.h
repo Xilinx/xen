@@ -46,6 +46,13 @@ unsigned long color_from_page(struct page_info *pg);
 /* Return the maximum available number of colors supported by the hardware */
 uint64_t get_max_colors(void);
 
+/*
+ * Return an array with default colors selection and store the number of
+ * colors in @param col_num. The array selection will be equal to the dom0
+ * color configuration.
+ */
+uint32_t *setup_default_colors(unsigned int *col_num);
+
 /* Colored allocator functions */
 bool init_col_heap_pages(struct page_info *pg, unsigned long nr_pages);
 struct page_info *alloc_col_domheap_page(
