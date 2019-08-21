@@ -49,6 +49,7 @@
 #include <asm/setup.h>
 #include <xsm/xsm.h>
 #include <asm/acpi.h>
+#include <asm/coloring.h>
 
 struct bootinfo __initdata bootinfo;
 
@@ -884,6 +885,9 @@ void __init start_xen(unsigned long boot_phys_offset,
                              (paddr_t)(uintptr_t)(_start + boot_phys_offset),
                              (paddr_t)(uintptr_t)(_end - _start + 1), false);
     BUG_ON(!xen_bootmodule);
+
+    if ( !coloring_init() )
+        panic("Xen Coloring support: setup failed\n");
 
     xen_paddr = get_xen_paddr();
     setup_pagetables(boot_phys_offset, xen_paddr);

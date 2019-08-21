@@ -30,5 +30,11 @@
 #else
 #define C_DEBUG(fmt, args...) { }
 #endif
-
+#ifdef CONFIG_COLORING
+bool __init coloring_init(void);
+#else
+static bool inline __init coloring_init(void)
+{
+    return true;
+}
 #endif /* !__ASM_ARM_COLORING_H__ */
