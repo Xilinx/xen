@@ -47,6 +47,12 @@ unsigned long color_from_page(struct page_info *pg);
 uint64_t get_max_colors(void);
 
 /*
+ * Check colors of a given domain.
+ * Return true if check passed, false otherwise.
+ */
+bool check_domain_colors(struct domain *d);
+
+/*
  * Return an array with default colors selection and store the number of
  * colors in @param col_num. The array selection will be equal to the dom0
  * color configuration.
