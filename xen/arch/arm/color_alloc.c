@@ -39,6 +39,7 @@ typedef struct page_list_head color_list;
 static color_list *color_heap;
 static long total_avail_col_pages;
 static u64 col_num_max;
+static bool color_init_state = true;
 
 static DEFINE_SPINLOCK(heap_lock);
 
@@ -202,6 +203,40 @@ void free_col_heap_page(struct page_info *pg)
     page_set_owner(pg, NULL);
     total_avail_col_pages++;
     page_list_add_order( pg, page_to_head(pg) );
+}
+
+bool init_col_heap_pages(struct page_info *pg, unsigned long nr_pages)
+{
+    int i;
+
+    if ( color_init_state )
+    {
+        col_num_max = get_max_colors();
+        color_heap = xmalloc_array(color_list, col_num_max);
+        BUG_ON(!color_heap);
+
+        for ( i = 0; i < col_num_max; i++ )
+        {
+            C_DEBUG("Init list for color: %u\n", i);
+            INIT_PAGE_LIST_HEAD(&color_heap[i]);
+        }
+
+        color_init_state = false;
+    }
+
+    C_DEBUG("Init color heap pages with %lu pages for a given size of 0x%lx\n",
+            nr_pages, nr_pages * PAGE_SIZE);
+    C_DEBUG("Paging starting from: 0x%lx\n", page_to_maddr(pg));
+    total_avail_col_pages += nr_pages;
+
+    for ( i = 0; i < nr_pages; i++ )
+    {
+        pg->colored = true;
+        page_list_add_order(pg, page_to_head(pg));
+        pg++;
+    }
+
+    return true;
 }
 
 static void dump_col_heap(unsigned char key)

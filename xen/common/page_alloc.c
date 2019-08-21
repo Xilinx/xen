@@ -142,6 +142,7 @@
 #include <asm/page.h>
 #include <asm/numa.h>
 #include <asm/flushtlb.h>
+#include <asm/coloring.h>
 #ifdef CONFIG_X86
 #include <asm/guest.h>
 #include <asm/p2m.h>
@@ -1792,7 +1793,11 @@ unsigned long total_free_pages(void)
 {
     return total_avail_pages - midsize_alloc_zone_pages;
 }
-
+#if CONFIG_COLORING
+extern unsigned long buddy_required_size;
+#else
+static unsigned long buddy_required_size = 0;
+#endif
 void __init end_boot_allocator(void)
 {
     unsigned int i;
@@ -1809,12 +1814,46 @@ void __init end_boot_allocator(void)
             break;
         }
     }
+
     for ( i = nr_bootmem_regions; i-- > 0; )
     {
         struct bootmem_region *r = &bootmem_region_list[i];
-        if ( r->s < r->e )
-            init_heap_pages(mfn_to_page(_mfn(r->s)), r->e - r->s);
+
+	/*
+         * Find the first region that can fill the buddy allocator memory
+         * specified by XEN_COLOR_BUDDY_NR_PAGES macro.
+         * Assign the first XEN_COLOR_BUDDY_NR_PAGES of memory to the buddy
+         * allocator and the remaining one to the colored allocator.
+         */
+        if ( buddy_required_size && (r->e - r->s) >=
+            (buddy_required_size >> PAGE_SHIFT) )
+        {
+            unsigned long nr_pages = 0;
+
+            C_DEBUG("Allocating 0x%lx for buddy allocator starting from: 0x%lx\n",
+                buddy_required_size, pfn_to_paddr(r->s));
+            init_heap_pages(mfn_to_page(_mfn(r->s)),
+                (buddy_required_size >> PAGE_SHIFT));
+
+            r->s += (buddy_required_size >> PAGE_SHIFT);
+            nr_pages = (r->e - r->s);
+            C_DEBUG("COLORED: Init heap pages from 0x%lx with size: 0x%lx\n",
+                pfn_to_paddr(r->s), nr_pages*PAGE_SIZE);
+            if( !init_col_heap_pages(mfn_to_page(_mfn(r->s)), nr_pages) )
+                init_heap_pages(mfn_to_page(_mfn(r->s)), nr_pages);
+            buddy_required_size = 0;
+        }
+        else
+        {
+            C_DEBUG("COLORED: Init heap pages from 0x%lx with size: 0x%lx\n",
+                pfn_to_paddr(r->s),(r->e - r->s)*PAGE_SIZE);
+            if( !init_col_heap_pages(mfn_to_page(_mfn(r->s)), r->e - r->s) )
+                init_heap_pages(mfn_to_page(_mfn(r->s)), r->e - r->s);
+        }
     }
+
+    ASSERT(!buddy_required_size);
+
     nr_bootmem_regions = 0;
     init_heap_pages(virt_to_page(bootmem_region_list), 1);
 

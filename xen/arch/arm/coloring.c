@@ -28,6 +28,9 @@
 #include <asm/coloring.h>
 #include <asm/io.h>
 
+/* Minimum size required for buddy allocator to work with colored one */
+unsigned long buddy_required_size __read_mostly = MB(512);
+
 /* Number of color(s) assigned to Xen */
 static uint64_t xen_col_num;
 /* Coloring configuration of Xen as bitmask */
@@ -179,6 +182,11 @@ bool __init coloring_init(void)
     return true;
 }
 
+uint64_t get_max_colors(void)
+{
+    return col_num_max;
+}
+
 /*************************
  * PARSING COLORING BOOTARGS
  */
@@ -241,6 +249,14 @@ static int __init parse_way_size(const char *s)
     return *s ? -EINVAL : 0;
 }
 custom_param("way_size", parse_way_size);
+
+static int __init parse_buddy_required_size(const char *s)
+{
+    buddy_required_size = simple_strtoull(s, &s, 0);
+
+    return *s ? -EINVAL : 0;
+}
+custom_param("buddy_size", parse_buddy_required_size);
 
 static int __init parse_dom0_colors(const char *s)
 {

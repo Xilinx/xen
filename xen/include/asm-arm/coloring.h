@@ -36,7 +36,11 @@
 #ifdef CONFIG_COLORING
 bool __init coloring_init(void);
 
+/* Return the maximum available number of colors supported by the hardware */
+uint64_t get_max_colors(void);
+
 /* Colored allocator functions */
+bool init_col_heap_pages(struct page_info *pg, unsigned long nr_pages);
 struct page_info *alloc_col_domheap_page(
 	struct domain *d, unsigned int memflags);
 void free_col_heap_page(struct page_info *pg);
@@ -48,10 +52,21 @@ static bool inline __init coloring_init(void)
     return true;
 }
 
+static inline bool init_col_heap_pages(
+	struct page_info *pg, unsigned long nr_pages)
+{
+	return false;
+}
+
 static inline struct page_info *alloc_col_domheap_page(
 	struct domain *d, unsigned int memflags)
 {
 	return NULL;
+}
+
+static inline uint64_t get_max_colors(void)
+{
+    return 0;
 }
 
 static inline void free_col_heap_page(struct page_info *pg)
