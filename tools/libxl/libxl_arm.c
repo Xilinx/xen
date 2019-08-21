@@ -102,6 +102,17 @@ int libxl__arch_domain_prepare_config(libxl__gc *gc,
         return ERROR_FAIL;
     }
 
+    config->arch.colors.max_colors = d_config->b_info.num_colors;
+    for (i = 0; i < sizeof(config->arch.colors.colors) / 4; i++)
+        config->arch.colors.colors[i] = 0;
+    for (i = 0; i < d_config->b_info.num_colors; i++) {
+        unsigned int j = d_config->b_info.colors[i] / 32;
+        if (j > sizeof(config->arch.colors.colors) / 4)
+            return ERROR_FAIL;
+        config->arch.colors.colors[j] |= (1 << (d_config->b_info.colors[i] % 32));
+    }
+    LOG(DEBUG, "Setup domain colors");
+
     return 0;
 }
 
