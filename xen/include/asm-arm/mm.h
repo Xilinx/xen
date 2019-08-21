@@ -88,6 +88,10 @@ struct page_info
          */
         u32 tlbflush_timestamp;
     };
+
+    /* Is page managed by the cache-colored allocator? */
+    bool colored;
+
     u64 pad;
 };
 
