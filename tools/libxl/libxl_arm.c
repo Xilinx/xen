@@ -89,6 +89,10 @@ int libxl__arch_domain_prepare_config(libxl__gc *gc,
         return ERROR_FAIL;
     }
 
+    xc_config->colors.max_colors = d_config->b_info.num_colors;
+    set_xen_guest_handle_raw(xc_config->colors.colors, d_config->b_info.colors);
+    LOG(DEBUG, "Setup domain colors");
+
     return 0;
 }
 
