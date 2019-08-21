@@ -609,6 +609,34 @@ fail:   PRINT("- Boot failed -\r\n")
 
 GLOBAL(_end_boot)
 
+/*
+ * Switch TTBR
+ *
+ * x0    ttbr
+ *
+ * TODO: This code does not comply with break-before-make.
+ */
+ENTRY(switch_ttbr)
+        dsb   sy                     /* Ensure the flushes happen before
+                                      * continuing */
+        isb                          /* Ensure synchronization with previous
+                                      * changes to text */
+        tlbi   alle2                 /* Flush hypervisor TLB */
+        ic     iallu                 /* Flush I-cache */
+        dsb    sy                    /* Ensure completion of TLB flush */
+        isb
+
+        msr    TTBR0_EL2, x0
+
+        isb                          /* Ensure synchronization with previous
+                                      * changes to text */
+        tlbi   alle2                 /* Flush hypervisor TLB */
+        ic     iallu                 /* Flush I-cache */
+        dsb    sy                    /* Ensure completion of TLB flush */
+        isb
+
+        ret
+
 /* Copy Xen to new location and switch TTBR
  * x0    ttbr
  * x1    source address
@@ -655,23 +683,7 @@ ENTRY(relocate_xen)
         subs  x9, x9, x10
         bgt   1b
 
-        dsb   sy                     /* Ensure the flushes happen before
-                                      * continuing */
-        isb                          /* Ensure synchronization with previous
-                                      * changes to text */
-        tlbi   alle2                 /* Flush hypervisor TLB */
-        ic     iallu                 /* Flush I-cache */
-        dsb    sy                    /* Ensure completion of TLB flush */
-        isb
-
-        msr    TTBR0_EL2, x0
-
-        isb                          /* Ensure synchronization with previous
-                                      * changes to text */
-        tlbi   alle2                 /* Flush hypervisor TLB */
-        ic     iallu                 /* Flush I-cache */
-        dsb    sy                    /* Ensure completion of TLB flush */
-        isb
+        b    switch_ttbr
 
         ret
 
