@@ -485,14 +485,14 @@ static paddr_t __init next_module(paddr_t s, paddr_t *end)
  * Xen is relocated to as near to the top of RAM as possible and
  * aligned to a XEN_PADDR_ALIGN boundary.
  */
-static paddr_t __init get_xen_paddr(void)
+static paddr_t __init get_xen_paddr(uint32_t xen_size)
 {
     struct meminfo *mi = &bootinfo.mem;
     paddr_t min_size;
     paddr_t paddr = 0;
     int i;
 
-    min_size = (_end - _start + (XEN_PADDR_ALIGN-1)) & ~(XEN_PADDR_ALIGN-1);
+    min_size = (xen_size + (XEN_PADDR_ALIGN-1)) & ~(XEN_PADDR_ALIGN-1);
 
     /* Find the highest bank with enough space. */
     for ( i = 0; i < mi->nr_banks; i++ )
@@ -889,7 +889,7 @@ void __init start_xen(unsigned long boot_phys_offset,
     if ( !coloring_init() )
         panic("Xen Coloring support: setup failed\n");
 
-    xen_paddr = get_xen_paddr();
+    xen_paddr = get_xen_paddr(_end - _start);
     setup_pagetables(boot_phys_offset, xen_paddr);
 
     /* Update Xen's address now that we have relocated. */
