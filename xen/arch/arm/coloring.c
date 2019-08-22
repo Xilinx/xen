@@ -35,7 +35,7 @@
 #define MAX_XEN_COLOR   128
 
 /* Minimum size required for buddy allocator to work with colored one */
-unsigned long buddy_required_size __read_mostly = MB(512);
+unsigned long buddy_required_size __read_mostly = MB(64);
 
 /* Number of color(s) assigned to Xen */
 static uint64_t xen_col_num;
