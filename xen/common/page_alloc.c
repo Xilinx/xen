@@ -1815,7 +1815,7 @@ void __init end_boot_allocator(void)
         }
     }
 
-    for ( i = nr_bootmem_regions; i-- > 0; )
+    for ( i = 0; i < nr_bootmem_regions; i++ )
     {
         struct bootmem_region *r = &bootmem_region_list[i];
 
