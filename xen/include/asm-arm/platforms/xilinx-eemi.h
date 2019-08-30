@@ -72,6 +72,8 @@ enum pm_api_id {
     PM_PLL_GET_PARAMETER,
     PM_PLL_SET_MODE,
     PM_PLL_GET_MODE,
+    /* PM Feature Check */
+    PM_FEATURE_CHECK = 63,
     PM_API_MAX
 };
 
