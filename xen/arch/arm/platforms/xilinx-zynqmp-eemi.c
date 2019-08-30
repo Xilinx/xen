@@ -95,7 +95,7 @@
  * bits that affect multiple nodes.
  *
  * Some of the calls act on more global state. For example acting on
- * NODE_PS, which affects many a lot of nodes. This higher level
+ * PM_DEV_PS, which affects many a lot of nodes. This higher level
  * orchestrating is left for the hardware-domain only.
  */
 
@@ -112,64 +112,64 @@ struct pm_access
  */
 static const struct pm_access pm_node_access[] = {
     /* MM_RPU grants access to alll RPU Nodes.  */
-    [NODE_RPU] = { MM_RPU },
-    [NODE_RPU_0] = { MM_RPU },
-    [NODE_RPU_1] = { MM_RPU },
-    [NODE_IPI_RPU_0] = { MM_RPU },
+    [PM_DEV_RPU] = { MM_RPU },
+    [PM_DEV_RPU_0] = { MM_RPU },
+    [PM_DEV_RPU_1] = { MM_RPU },
+    [PM_DEV_IPI_RPU_0] = { MM_RPU },
 
     /* GPU nodes.  */
-    [NODE_GPU] = { MM_GPU },
-    [NODE_GPU_PP_0] = { MM_GPU },
-    [NODE_GPU_PP_1] = { MM_GPU },
+    [PM_DEV_GPU] = { MM_GPU },
+    [PM_DEV_GPU_PP_0] = { MM_GPU },
+    [PM_DEV_GPU_PP_1] = { MM_GPU },
 
-    [NODE_USB_0] = { MM_USB3_0_XHCI },
-    [NODE_USB_1] = { MM_USB3_1_XHCI },
-    [NODE_TTC_0] = { MM_TTC0 },
-    [NODE_TTC_1] = { MM_TTC1 },
-    [NODE_TTC_2] = { MM_TTC2 },
-    [NODE_TTC_3] = { MM_TTC3 },
-    [NODE_SATA] = { MM_SATA_AHCI_HBA },
-    [NODE_ETH_0] = { MM_GEM0 },
-    [NODE_ETH_1] = { MM_GEM1 },
-    [NODE_ETH_2] = { MM_GEM2 },
-    [NODE_ETH_3] = { MM_GEM3 },
-    [NODE_UART_0] = { MM_UART0 },
-    [NODE_UART_1] = { MM_UART1 },
-    [NODE_SPI_0] = { MM_SPI0 },
-    [NODE_SPI_1] = { MM_SPI1 },
-    [NODE_I2C_0] = { MM_I2C0 },
-    [NODE_I2C_1] = { MM_I2C1 },
-    [NODE_SD_0] = { MM_SD0 },
-    [NODE_SD_1] = { MM_SD1 },
-    [NODE_DP] = { MM_DP },
-    [NODE_VPLL] = { MM_DP },
-    [NODE_RPLL] = { MM_DP },
+    [PM_DEV_USB_0] = { MM_USB3_0_XHCI },
+    [PM_DEV_USB_1] = { MM_USB3_1_XHCI },
+    [PM_DEV_TTC_0] = { MM_TTC0 },
+    [PM_DEV_TTC_1] = { MM_TTC1 },
+    [PM_DEV_TTC_2] = { MM_TTC2 },
+    [PM_DEV_TTC_3] = { MM_TTC3 },
+    [PM_DEV_SATA] = { MM_SATA_AHCI_HBA },
+    [PM_DEV_ETH_0] = { MM_GEM0 },
+    [PM_DEV_ETH_1] = { MM_GEM1 },
+    [PM_DEV_ETH_2] = { MM_GEM2 },
+    [PM_DEV_ETH_3] = { MM_GEM3 },
+    [PM_DEV_UART_0] = { MM_UART0 },
+    [PM_DEV_UART_1] = { MM_UART1 },
+    [PM_DEV_SPI_0] = { MM_SPI0 },
+    [PM_DEV_SPI_1] = { MM_SPI1 },
+    [PM_DEV_I2C_0] = { MM_I2C0 },
+    [PM_DEV_I2C_1] = { MM_I2C1 },
+    [PM_DEV_SD_0] = { MM_SD0 },
+    [PM_DEV_SD_1] = { MM_SD1 },
+    [PM_DEV_DP] = { MM_DP },
+    [PM_DEV_VPLL] = { MM_DP },
+    [PM_DEV_RPLL] = { MM_DP },
 
     /* Guest with GDMA Channel 0 gets PM access. Other guests don't.  */
-    [NODE_GDMA] = { MM_GDMA_CH0 },
+    [PM_DEV_GDMA] = { MM_GDMA_CH0 },
     /* Guest with ADMA Channel 0 gets PM access. Other guests don't.  */
-    [NODE_ADMA] = { MM_ADMA_CH0 },
+    [PM_DEV_ADMA] = { MM_ADMA_CH0 },
 
-    [NODE_NAND] = { MM_NAND },
-    [NODE_QSPI] = { MM_QSPI },
-    [NODE_GPIO] = { MM_GPIO },
-    [NODE_CAN_0] = { MM_CAN0 },
-    [NODE_CAN_1] = { MM_CAN1 },
+    [PM_DEV_NAND] = { MM_NAND },
+    [PM_DEV_QSPI] = { MM_QSPI },
+    [PM_DEV_GPIO] = { MM_GPIO },
+    [PM_DEV_CAN_0] = { MM_CAN0 },
+    [PM_DEV_CAN_1] = { MM_CAN1 },
 
     /* Only for the hardware domain.  */
-    [NODE_AFI] = { .hwdom_access = true },
-    [NODE_DDR] = { .hwdom_access = true },
-    [NODE_IPI_APU] = { .hwdom_access = true },
-    [NODE_PCAP] = { .hwdom_access = true },
-    [NODE_LPD] = { .hwdom_access = true },
+    [PM_DEV_AFI] = { .hwdom_access = true },
+    [PM_DEV_DDR] = { .hwdom_access = true },
+    [PM_DEV_IPI_APU] = { .hwdom_access = true },
+    [PM_DEV_PCAP] = { .hwdom_access = true },
+    [PM_DEV_LPD] = { .hwdom_access = true },
 
-    [NODE_PCIE] = { MM_PCIE_ATTRIB },
-    [NODE_RTC] = { MM_RTC },
+    [PM_DEV_PCIE] = { MM_PCIE_ATTRIB },
+    [PM_DEV_RTC] = { MM_RTC },
 
-    [NODE_TCM_0_A] = { MM_TCM_0_A },
-    [NODE_TCM_0_B] = { MM_TCM_0_B },
-    [NODE_TCM_1_A] = { MM_TCM_1_A },
-    [NODE_TCM_1_B] = { MM_TCM_1_B },
+    [PM_DEV_TCM_0_A] = { MM_TCM_0_A },
+    [PM_DEV_TCM_0_B] = { MM_TCM_0_B },
+    [PM_DEV_TCM_1_A] = { MM_TCM_1_A },
+    [PM_DEV_TCM_1_B] = { MM_TCM_1_B },
 };
 
 /*
@@ -336,91 +336,91 @@ static const struct {
     },
     {
         .start = MM_IOU_SLCR + R_IOU_SLCR_CTRL_REG_SD,
-        .mask = 0x1, .node = NODE_SD_0
+        .mask = 0x1, .node = PM_DEV_SD_0
     },
     {
         .start = MM_IOU_SLCR + R_IOU_SLCR_CTRL_REG_SD,
-        .mask = 0x1 << 15, .node = NODE_SD_1
+        .mask = 0x1 << 15, .node = PM_DEV_SD_1
     },
     /* A series of SD regs with the same layout.  */
     {
         .start = MM_IOU_SLCR + R_IOU_SLCR_SD_ITAPDLY,
         .end = MM_IOU_SLCR + R_IOU_SLCR_SD_CDN_CTRL,
-        .mask = 0x3ff << 0, .node = NODE_SD_0
+        .mask = 0x3ff << 0, .node = PM_DEV_SD_0
     },
     {
         .start = MM_IOU_SLCR + R_IOU_SLCR_SD_ITAPDLY,
         .end = MM_IOU_SLCR + R_IOU_SLCR_SD_CDN_CTRL,
-        .mask = 0x3ff << 16, .node = NODE_SD_1
+        .mask = 0x3ff << 16, .node = PM_DEV_SD_1
     },
     {
         .start = MM_IOU_SLCR + R_IOU_SLCR_GEM_CTRL,
-        .mask = 0x3 << 0, .node = NODE_ETH_0
+        .mask = 0x3 << 0, .node = PM_DEV_ETH_0
     },
     {
         .start = MM_IOU_SLCR + R_IOU_SLCR_GEM_CTRL,
-        .mask = 0x3 << 2, .node = NODE_ETH_1
+        .mask = 0x3 << 2, .node = PM_DEV_ETH_1
     },
     {
         .start = MM_IOU_SLCR + R_IOU_SLCR_GEM_CTRL,
-        .mask = 0x3 << 4, .node = NODE_ETH_2
+        .mask = 0x3 << 4, .node = PM_DEV_ETH_2
     },
     {
         .start = MM_IOU_SLCR + R_IOU_SLCR_GEM_CTRL,
-        .mask = 0x3 << 6, .node = NODE_ETH_3
+        .mask = 0x3 << 6, .node = PM_DEV_ETH_3
     },
     {
         .start = MM_IOU_SLCR + R_IOU_SLCR_IOU_TAPDLY_BYPASS,
-        .mask = 0x3, .node = NODE_NAND
+        .mask = 0x3, .node = PM_DEV_NAND
     },
     {
         .start = MM_IOU_SLCR + R_IOU_SLCR_IOU_TAPDLY_BYPASS,
-        .mask = 0x1 << 2, .node = NODE_QSPI
+        .mask = 0x1 << 2, .node = PM_DEV_QSPI
     },
     {
         .start = MM_IOU_SLCR + R_IOU_SLCR_IOU_COHERENT_CTRL,
-        .mask = 0xf << 0, .node = NODE_ETH_0
+        .mask = 0xf << 0, .node = PM_DEV_ETH_0
     },
     {
         .start = MM_IOU_SLCR + R_IOU_SLCR_IOU_COHERENT_CTRL,
-        .mask = 0xf << 4, .node = NODE_ETH_1
+        .mask = 0xf << 4, .node = PM_DEV_ETH_1
     },
     {
         .start = MM_IOU_SLCR + R_IOU_SLCR_IOU_COHERENT_CTRL,
-        .mask = 0xf << 8, .node = NODE_ETH_2
+        .mask = 0xf << 8, .node = PM_DEV_ETH_2
     },
     {
         .start = MM_IOU_SLCR + R_IOU_SLCR_IOU_COHERENT_CTRL,
-        .mask = 0xf << 12, .node = NODE_ETH_3
+        .mask = 0xf << 12, .node = PM_DEV_ETH_3
     },
     {
         .start = MM_IOU_SLCR + R_IOU_SLCR_IOU_COHERENT_CTRL,
-        .mask = 0xf << 16, .node = NODE_SD_0
+        .mask = 0xf << 16, .node = PM_DEV_SD_0
     },
     {
         .start = MM_IOU_SLCR + R_IOU_SLCR_IOU_COHERENT_CTRL,
-        .mask = 0xf << 20, .node = NODE_SD_1
+        .mask = 0xf << 20, .node = PM_DEV_SD_1
     },
     {
         .start = MM_IOU_SLCR + R_IOU_SLCR_IOU_COHERENT_CTRL,
-        .mask = 0xf << 24, .node = NODE_NAND
+        .mask = 0xf << 24, .node = PM_DEV_NAND
     },
     {
         .start = MM_IOU_SLCR + R_IOU_SLCR_IOU_COHERENT_CTRL,
-        .mask = 0xf << 28, .node = NODE_QSPI
+        .mask = 0xf << 28, .node = PM_DEV_QSPI
     },
     { .start = MM_IOU_SLCR + R_IOU_SLCR_VIDEO_PSS_CLK_SEL, .hwdom_access = true },
     /* No access to R_IOU_SLCR_IOU_INTERCONNECT_ROUTE at all.  */
-    { .start = MM_IOU_SLCR + R_IOU_SLCR_IOU_RAM_GEM0, .node = NODE_ETH_0 },
-    { .start = MM_IOU_SLCR + R_IOU_SLCR_IOU_RAM_GEM1, .node = NODE_ETH_1 },
-    { .start = MM_IOU_SLCR + R_IOU_SLCR_IOU_RAM_GEM2, .node = NODE_ETH_2 },
-    { .start = MM_IOU_SLCR + R_IOU_SLCR_IOU_RAM_GEM3, .node = NODE_ETH_3 },
-    { .start = MM_IOU_SLCR + R_IOU_SLCR_IOU_RAM_SD0, .node = NODE_SD_0 },
-    { .start = MM_IOU_SLCR + R_IOU_SLCR_IOU_RAM_SD1, .node = NODE_SD_1 },
-    { .start = MM_IOU_SLCR + R_IOU_SLCR_IOU_RAM_CAN0, .node = NODE_CAN_0 },
-    { .start = MM_IOU_SLCR + R_IOU_SLCR_IOU_RAM_CAN1, .node = NODE_CAN_1 },
-    { .start = MM_IOU_SLCR + R_IOU_SLCR_IOU_RAM_LQSPI, .node = NODE_QSPI },
-    { .start = MM_IOU_SLCR + R_IOU_SLCR_IOU_RAM_NAND, .node = NODE_NAND },
+    { .start = MM_IOU_SLCR + R_IOU_SLCR_IOU_RAM_GEM0, .node = PM_DEV_ETH_0 },
+    { .start = MM_IOU_SLCR + R_IOU_SLCR_IOU_RAM_GEM1, .node = PM_DEV_ETH_1 },
+    { .start = MM_IOU_SLCR + R_IOU_SLCR_IOU_RAM_GEM2, .node = PM_DEV_ETH_2 },
+    { .start = MM_IOU_SLCR + R_IOU_SLCR_IOU_RAM_GEM3, .node = PM_DEV_ETH_3 },
+    { .start = MM_IOU_SLCR + R_IOU_SLCR_IOU_RAM_SD0, .node = PM_DEV_SD_0 },
+    { .start = MM_IOU_SLCR + R_IOU_SLCR_IOU_RAM_SD1, .node = PM_DEV_SD_1 },
+    { .start = MM_IOU_SLCR + R_IOU_SLCR_IOU_RAM_CAN0, .node = PM_DEV_CAN_0 },
+    { .start = MM_IOU_SLCR + R_IOU_SLCR_IOU_RAM_CAN1, .node = PM_DEV_CAN_1 },
+    { .start = MM_IOU_SLCR + R_IOU_SLCR_IOU_RAM_LQSPI, .node = PM_DEV_QSPI },
+    { .start = MM_IOU_SLCR + R_IOU_SLCR_IOU_RAM_NAND, .node = PM_DEV_NAND },
     {
         .start = MM_PMU_GLOBAL + R_PMU_GLOBAL_PWR_STATE,
         .readonly = true,
@@ -439,89 +439,89 @@ static const struct pm_clock2node {
     enum pm_clock clock;
     enum pm_node_id node;
 } pm_clock_node_map[] = {
-    PM_CLOCK2NODE(PM_CLOCK_RPLL, NODE_DP),
-    PM_CLOCK2NODE(PM_CLOCK_VPLL, NODE_DP),
-    PM_CLOCK2NODE(PM_CLOCK_RPLL_TO_FPD, NODE_DP),
-    PM_CLOCK2NODE(PM_CLOCK_VPLL_TO_LPD, NODE_DP),
-    PM_CLOCK2NODE(PM_CLOCK_DP_VIDEO_REF, NODE_DP),
-    PM_CLOCK2NODE(PM_CLOCK_DP_AUDIO_REF, NODE_DP),
-    PM_CLOCK2NODE(PM_CLOCK_DP_STC_REF, NODE_DP),
-    PM_CLOCK2NODE(PM_CLOCK_GDMA_REF, NODE_GDMA),
-    PM_CLOCK2NODE(PM_CLOCK_DPDMA_REF, NODE_DP),
-    PM_CLOCK2NODE(PM_CLOCK_SATA_REF, NODE_SATA),
-    PM_CLOCK2NODE(PM_CLOCK_PCIE_REF, NODE_PCIE),
-    PM_CLOCK2NODE(PM_CLOCK_GPU_REF, NODE_GPU),
-    PM_CLOCK2NODE(PM_CLOCK_GPU_PP0_REF, NODE_GPU),
-    PM_CLOCK2NODE(PM_CLOCK_GPU_PP1_REF, NODE_GPU),
-    PM_CLOCK2NODE(PM_CLOCK_TOPSW_LSBUS, NODE_DDR),
-    PM_CLOCK2NODE(PM_CLOCK_LPD_LSBUS, NODE_TTC_0),
-    PM_CLOCK2NODE(PM_CLOCK_LPD_LSBUS, NODE_TTC_1),
-    PM_CLOCK2NODE(PM_CLOCK_LPD_LSBUS, NODE_TTC_2),
-    PM_CLOCK2NODE(PM_CLOCK_LPD_LSBUS, NODE_TTC_3),
-    PM_CLOCK2NODE(PM_CLOCK_USB0_BUS_REF, NODE_USB_0),
-    PM_CLOCK2NODE(PM_CLOCK_USB1_BUS_REF, NODE_USB_1),
-    PM_CLOCK2NODE(PM_CLOCK_USB3_DUAL_REF, NODE_USB_0),
-    PM_CLOCK2NODE(PM_CLOCK_USB3_DUAL_REF, NODE_USB_1),
-    PM_CLOCK2NODE(PM_CLOCK_CPU_R5, NODE_RPU),
-    PM_CLOCK2NODE(PM_CLOCK_CPU_R5_CORE, NODE_RPU),
-    PM_CLOCK2NODE(PM_CLOCK_CSU_PLL, NODE_PCAP),
-    PM_CLOCK2NODE(PM_CLOCK_PCAP, NODE_PCAP),
-    PM_CLOCK2NODE(PM_CLOCK_GEM_TSU_REF, NODE_ETH_0),
-    PM_CLOCK2NODE(PM_CLOCK_GEM_TSU_REF, NODE_ETH_1),
-    PM_CLOCK2NODE(PM_CLOCK_GEM_TSU_REF, NODE_ETH_2),
-    PM_CLOCK2NODE(PM_CLOCK_GEM_TSU_REF, NODE_ETH_3),
-    PM_CLOCK2NODE(PM_CLOCK_GEM_TSU, NODE_ETH_0),
-    PM_CLOCK2NODE(PM_CLOCK_GEM_TSU, NODE_ETH_1),
-    PM_CLOCK2NODE(PM_CLOCK_GEM_TSU, NODE_ETH_2),
-    PM_CLOCK2NODE(PM_CLOCK_GEM_TSU, NODE_ETH_3),
-    PM_CLOCK2NODE(PM_CLOCK_GEM0_TX, NODE_ETH_0),
-    PM_CLOCK2NODE(PM_CLOCK_GEM1_TX, NODE_ETH_1),
-    PM_CLOCK2NODE(PM_CLOCK_GEM2_TX, NODE_ETH_2),
-    PM_CLOCK2NODE(PM_CLOCK_GEM3_TX, NODE_ETH_3),
-    PM_CLOCK2NODE(PM_CLOCK_GEM0_RX, NODE_ETH_0),
-    PM_CLOCK2NODE(PM_CLOCK_GEM1_RX, NODE_ETH_1),
-    PM_CLOCK2NODE(PM_CLOCK_GEM2_RX, NODE_ETH_2),
-    PM_CLOCK2NODE(PM_CLOCK_GEM3_RX, NODE_ETH_3),
-    PM_CLOCK2NODE(PM_CLOCK_QSPI_REF, NODE_QSPI),
-    PM_CLOCK2NODE(PM_CLOCK_SDIO0_REF, NODE_SD_0),
-    PM_CLOCK2NODE(PM_CLOCK_SDIO1_REF, NODE_SD_1),
-    PM_CLOCK2NODE(PM_CLOCK_UART0_REF, NODE_UART_0),
-    PM_CLOCK2NODE(PM_CLOCK_UART1_REF, NODE_UART_1),
-    PM_CLOCK2NODE(PM_CLOCK_SPI0_REF, NODE_SPI_0),
-    PM_CLOCK2NODE(PM_CLOCK_SPI1_REF, NODE_SPI_1),
-    PM_CLOCK2NODE(PM_CLOCK_NAND_REF, NODE_NAND),
-    PM_CLOCK2NODE(PM_CLOCK_I2C0_REF, NODE_I2C_0),
-    PM_CLOCK2NODE(PM_CLOCK_I2C1_REF, NODE_I2C_1),
-    PM_CLOCK2NODE(PM_CLOCK_CAN0_REF, NODE_CAN_0),
-    PM_CLOCK2NODE(PM_CLOCK_CAN1_REF, NODE_CAN_1),
-    PM_CLOCK2NODE(PM_CLOCK_CAN0, NODE_CAN_0),
-    PM_CLOCK2NODE(PM_CLOCK_CAN1, NODE_CAN_1),
-    PM_CLOCK2NODE(PM_CLOCK_DLL_REF, NODE_SD_0),
-    PM_CLOCK2NODE(PM_CLOCK_DLL_REF, NODE_SD_1),
-    PM_CLOCK2NODE(PM_CLOCK_ADMA_REF, NODE_ADMA),
-    PM_CLOCK2NODE(PM_CLOCK_AMS_REF, NODE_LPD),
-    PM_CLOCK2NODE(PM_CLOCK_PL0_REF, NODE_PL),
-    PM_CLOCK2NODE(PM_CLOCK_PL1_REF, NODE_PL),
-    PM_CLOCK2NODE(PM_CLOCK_PL2_REF, NODE_PL),
-    PM_CLOCK2NODE(PM_CLOCK_PL3_REF, NODE_PL),
-    PM_CLOCK2NODE(PM_CLOCK_RPLL_INT, NODE_DP),
-    PM_CLOCK2NODE(PM_CLOCK_RPLL_PRE_SRC, NODE_DP),
-    PM_CLOCK2NODE(PM_CLOCK_RPLL_INT_MUX, NODE_DP),
-    PM_CLOCK2NODE(PM_CLOCK_RPLL_POST_SRC, NODE_DP),
-    PM_CLOCK2NODE(PM_CLOCK_VPLL_INT, NODE_DP),
-    PM_CLOCK2NODE(PM_CLOCK_VPLL_PRE_SRC, NODE_DP),
-    PM_CLOCK2NODE(PM_CLOCK_VPLL_INT_MUX, NODE_DP),
-    PM_CLOCK2NODE(PM_CLOCK_VPLL_POST_SRC, NODE_DP),
-    PM_CLOCK2NODE(PM_CLOCK_CAN0_MIO, NODE_CAN_0),
-    PM_CLOCK2NODE(PM_CLOCK_CAN1_MIO, NODE_CAN_1),
-    PM_CLOCK2NODE(PM_CLOCK_GEM0_REF, NODE_ETH_0),
-    PM_CLOCK2NODE(PM_CLOCK_GEM1_REF, NODE_ETH_1),
-    PM_CLOCK2NODE(PM_CLOCK_GEM2_REF, NODE_ETH_2),
-    PM_CLOCK2NODE(PM_CLOCK_GEM3_REF, NODE_ETH_3),
-    PM_CLOCK2NODE(PM_CLOCK_GEM0_REF_UNGATED, NODE_ETH_0),
-    PM_CLOCK2NODE(PM_CLOCK_GEM1_REF_UNGATED, NODE_ETH_1),
-    PM_CLOCK2NODE(PM_CLOCK_GEM2_REF_UNGATED, NODE_ETH_2),
-    PM_CLOCK2NODE(PM_CLOCK_GEM3_REF_UNGATED, NODE_ETH_3),
+    PM_CLOCK2NODE(PM_CLOCK_RPLL, PM_DEV_DP),
+    PM_CLOCK2NODE(PM_CLOCK_VPLL, PM_DEV_DP),
+    PM_CLOCK2NODE(PM_CLOCK_RPLL_TO_FPD, PM_DEV_DP),
+    PM_CLOCK2NODE(PM_CLOCK_VPLL_TO_LPD, PM_DEV_DP),
+    PM_CLOCK2NODE(PM_CLOCK_DP_VIDEO_REF, PM_DEV_DP),
+    PM_CLOCK2NODE(PM_CLOCK_DP_AUDIO_REF, PM_DEV_DP),
+    PM_CLOCK2NODE(PM_CLOCK_DP_STC_REF, PM_DEV_DP),
+    PM_CLOCK2NODE(PM_CLOCK_GDMA_REF, PM_DEV_GDMA),
+    PM_CLOCK2NODE(PM_CLOCK_DPDMA_REF, PM_DEV_DP),
+    PM_CLOCK2NODE(PM_CLOCK_SATA_REF, PM_DEV_SATA),
+    PM_CLOCK2NODE(PM_CLOCK_PCIE_REF, PM_DEV_PCIE),
+    PM_CLOCK2NODE(PM_CLOCK_GPU_REF, PM_DEV_GPU),
+    PM_CLOCK2NODE(PM_CLOCK_GPU_PP0_REF, PM_DEV_GPU),
+    PM_CLOCK2NODE(PM_CLOCK_GPU_PP1_REF, PM_DEV_GPU),
+    PM_CLOCK2NODE(PM_CLOCK_TOPSW_LSBUS, PM_DEV_DDR),
+    PM_CLOCK2NODE(PM_CLOCK_LPD_LSBUS, PM_DEV_TTC_0),
+    PM_CLOCK2NODE(PM_CLOCK_LPD_LSBUS, PM_DEV_TTC_1),
+    PM_CLOCK2NODE(PM_CLOCK_LPD_LSBUS, PM_DEV_TTC_2),
+    PM_CLOCK2NODE(PM_CLOCK_LPD_LSBUS, PM_DEV_TTC_3),
+    PM_CLOCK2NODE(PM_CLOCK_USB0_BUS_REF, PM_DEV_USB_0),
+    PM_CLOCK2NODE(PM_CLOCK_USB1_BUS_REF, PM_DEV_USB_1),
+    PM_CLOCK2NODE(PM_CLOCK_USB3_DUAL_REF, PM_DEV_USB_0),
+    PM_CLOCK2NODE(PM_CLOCK_USB3_DUAL_REF, PM_DEV_USB_1),
+    PM_CLOCK2NODE(PM_CLOCK_CPU_R5, PM_DEV_RPU),
+    PM_CLOCK2NODE(PM_CLOCK_CPU_R5_CORE, PM_DEV_RPU),
+    PM_CLOCK2NODE(PM_CLOCK_CSU_PLL, PM_DEV_PCAP),
+    PM_CLOCK2NODE(PM_CLOCK_PCAP, PM_DEV_PCAP),
+    PM_CLOCK2NODE(PM_CLOCK_GEM_TSU_REF, PM_DEV_ETH_0),
+    PM_CLOCK2NODE(PM_CLOCK_GEM_TSU_REF, PM_DEV_ETH_1),
+    PM_CLOCK2NODE(PM_CLOCK_GEM_TSU_REF, PM_DEV_ETH_2),
+    PM_CLOCK2NODE(PM_CLOCK_GEM_TSU_REF, PM_DEV_ETH_3),
+    PM_CLOCK2NODE(PM_CLOCK_GEM_TSU, PM_DEV_ETH_0),
+    PM_CLOCK2NODE(PM_CLOCK_GEM_TSU, PM_DEV_ETH_1),
+    PM_CLOCK2NODE(PM_CLOCK_GEM_TSU, PM_DEV_ETH_2),
+    PM_CLOCK2NODE(PM_CLOCK_GEM_TSU, PM_DEV_ETH_3),
+    PM_CLOCK2NODE(PM_CLOCK_GEM0_TX, PM_DEV_ETH_0),
+    PM_CLOCK2NODE(PM_CLOCK_GEM1_TX, PM_DEV_ETH_1),
+    PM_CLOCK2NODE(PM_CLOCK_GEM2_TX, PM_DEV_ETH_2),
+    PM_CLOCK2NODE(PM_CLOCK_GEM3_TX, PM_DEV_ETH_3),
+    PM_CLOCK2NODE(PM_CLOCK_GEM0_RX, PM_DEV_ETH_0),
+    PM_CLOCK2NODE(PM_CLOCK_GEM1_RX, PM_DEV_ETH_1),
+    PM_CLOCK2NODE(PM_CLOCK_GEM2_RX, PM_DEV_ETH_2),
+    PM_CLOCK2NODE(PM_CLOCK_GEM3_RX, PM_DEV_ETH_3),
+    PM_CLOCK2NODE(PM_CLOCK_QSPI_REF, PM_DEV_QSPI),
+    PM_CLOCK2NODE(PM_CLOCK_SDIO0_REF, PM_DEV_SD_0),
+    PM_CLOCK2NODE(PM_CLOCK_SDIO1_REF, PM_DEV_SD_1),
+    PM_CLOCK2NODE(PM_CLOCK_UART0_REF, PM_DEV_UART_0),
+    PM_CLOCK2NODE(PM_CLOCK_UART1_REF, PM_DEV_UART_1),
+    PM_CLOCK2NODE(PM_CLOCK_SPI0_REF, PM_DEV_SPI_0),
+    PM_CLOCK2NODE(PM_CLOCK_SPI1_REF, PM_DEV_SPI_1),
+    PM_CLOCK2NODE(PM_CLOCK_NAND_REF, PM_DEV_NAND),
+    PM_CLOCK2NODE(PM_CLOCK_I2C0_REF, PM_DEV_I2C_0),
+    PM_CLOCK2NODE(PM_CLOCK_I2C1_REF, PM_DEV_I2C_1),
+    PM_CLOCK2NODE(PM_CLOCK_CAN0_REF, PM_DEV_CAN_0),
+    PM_CLOCK2NODE(PM_CLOCK_CAN1_REF, PM_DEV_CAN_1),
+    PM_CLOCK2NODE(PM_CLOCK_CAN0, PM_DEV_CAN_0),
+    PM_CLOCK2NODE(PM_CLOCK_CAN1, PM_DEV_CAN_1),
+    PM_CLOCK2NODE(PM_CLOCK_DLL_REF, PM_DEV_SD_0),
+    PM_CLOCK2NODE(PM_CLOCK_DLL_REF, PM_DEV_SD_1),
+    PM_CLOCK2NODE(PM_CLOCK_ADMA_REF, PM_DEV_ADMA),
+    PM_CLOCK2NODE(PM_CLOCK_AMS_REF, PM_DEV_LPD),
+    PM_CLOCK2NODE(PM_CLOCK_PL0_REF, PM_DEV_PL),
+    PM_CLOCK2NODE(PM_CLOCK_PL1_REF, PM_DEV_PL),
+    PM_CLOCK2NODE(PM_CLOCK_PL2_REF, PM_DEV_PL),
+    PM_CLOCK2NODE(PM_CLOCK_PL3_REF, PM_DEV_PL),
+    PM_CLOCK2NODE(PM_CLOCK_RPLL_INT, PM_DEV_DP),
+    PM_CLOCK2NODE(PM_CLOCK_RPLL_PRE_SRC, PM_DEV_DP),
+    PM_CLOCK2NODE(PM_CLOCK_RPLL_INT_MUX, PM_DEV_DP),
+    PM_CLOCK2NODE(PM_CLOCK_RPLL_POST_SRC, PM_DEV_DP),
+    PM_CLOCK2NODE(PM_CLOCK_VPLL_INT, PM_DEV_DP),
+    PM_CLOCK2NODE(PM_CLOCK_VPLL_PRE_SRC, PM_DEV_DP),
+    PM_CLOCK2NODE(PM_CLOCK_VPLL_INT_MUX, PM_DEV_DP),
+    PM_CLOCK2NODE(PM_CLOCK_VPLL_POST_SRC, PM_DEV_DP),
+    PM_CLOCK2NODE(PM_CLOCK_CAN0_MIO, PM_DEV_CAN_0),
+    PM_CLOCK2NODE(PM_CLOCK_CAN1_MIO, PM_DEV_CAN_1),
+    PM_CLOCK2NODE(PM_CLOCK_GEM0_REF, PM_DEV_ETH_0),
+    PM_CLOCK2NODE(PM_CLOCK_GEM1_REF, PM_DEV_ETH_1),
+    PM_CLOCK2NODE(PM_CLOCK_GEM2_REF, PM_DEV_ETH_2),
+    PM_CLOCK2NODE(PM_CLOCK_GEM3_REF, PM_DEV_ETH_3),
+    PM_CLOCK2NODE(PM_CLOCK_GEM0_REF_UNGATED, PM_DEV_ETH_0),
+    PM_CLOCK2NODE(PM_CLOCK_GEM1_REF_UNGATED, PM_DEV_ETH_1),
+    PM_CLOCK2NODE(PM_CLOCK_GEM2_REF_UNGATED, PM_DEV_ETH_2),
+    PM_CLOCK2NODE(PM_CLOCK_GEM3_REF_UNGATED, PM_DEV_ETH_3),
 };
 
 static bool pm_check_access(const struct pm_access *acl, struct domain *d, int idx)
@@ -544,8 +544,8 @@ static bool domain_has_node_access(struct domain *d, enum pm_node_id node)
     if ( node < 0 || node >= ARRAY_SIZE(pm_node_access) )
         return false;
 
-    /* NODE_UNKNOWN is treated as a wildcard.  */
-    if ( node == NODE_UNKNOWN )
+    /* PM_DEV_UNKNOWN is treated as a wildcard.  */
+    if ( node == PM_DEV_UNKNOWN )
         return true;
 
     return pm_check_access(pm_node_access, d, node);
@@ -820,7 +820,7 @@ bool zynqmp_eemi(struct cpu_user_regs *regs)
 
     case EEMI_FID(PM_PLL_GET_PARAMETER):
     case EEMI_FID(PM_PLL_GET_MODE):
-        if ( nodeid < NODE_APLL || nodeid > NODE_IOPLL )
+        if ( nodeid < PM_DEV_APLL || nodeid > PM_DEV_IOPLL )
         {
             gprintk(XENLOG_WARNING, "zynqmp-pm: fn=%u Invalid pll node %u\n",
                     pm_fn, nodeid);
@@ -832,7 +832,7 @@ bool zynqmp_eemi(struct cpu_user_regs *regs)
 
     case PM_PLL_SET_PARAMETER:
     case PM_PLL_SET_MODE:
-        if ( nodeid < NODE_APLL || nodeid > NODE_IOPLL )
+        if ( nodeid < PM_DEV_APLL || nodeid > PM_DEV_IOPLL )
         {
             gprintk(XENLOG_WARNING, "zynqmp-pm: fn=%u Invalid pll node %u\n",
                     pm_fn, nodeid);
