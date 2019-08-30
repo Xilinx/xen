@@ -18,6 +18,7 @@
  */
 
 #include <asm/platform.h>
+#include <asm/platforms/xilinx-eemi.h>
 #include <asm/platforms/xilinx-zynqmp-eemi.h>
 
 #define FID_MASK      0xf000u

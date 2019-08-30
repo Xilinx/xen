@@ -103,6 +103,7 @@
 
 #include <xen/iocap.h>
 #include <asm/platform.h>
+#include <asm/platforms/xilinx-eemi.h>
 #include <asm/platforms/xilinx-zynqmp-eemi.h>
 #include <asm/platforms/xilinx-zynqmp-mm.h>
 
