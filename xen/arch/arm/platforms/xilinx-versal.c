@@ -17,7 +17,12 @@
  */
 
 #include <asm/platform.h>
-#include <asm/platforms/xilinx-zynqmp-eemi.h>
+#include <asm/platforms/xilinx-versal-eemi.h>
+
+#define FID_MASK      0xf000u
+#define IPI_FID_VALUE 0x1000u
+
+#define is_ipi_fid(_fid) (((_fid) & FID_MASK) == IPI_FID_VALUE)
 
 static const char * const versal_dt_compat[] __initconst =
 {
@@ -29,11 +34,17 @@ bool versal_hvc(struct cpu_user_regs *regs)
 {
     register_t ret[4] = { 0 };
 
-    if ( !is_hardware_domain(current->domain) )
-        return false;
+    if ( is_ipi_fid(regs->x0) ) {
+        if ( !is_hardware_domain(current->domain) )
+            return false;
 
-    call_smcc64(regs->x0, regs->x1, regs->x2, regs->x3,
-            regs->x4, regs->x5, regs->x6, ret);
+        call_smcc64(regs->x0, regs->x1, regs->x2, regs->x3,
+                    regs->x4, regs->x5, regs->x6, ret);
+    } else {
+        if ( !versal_eemi_mediate(regs->x0, regs->x1, regs->x2, regs->x3,
+                                  regs->x4, regs->x5, regs->x6, ret) )
+            return false;
+    }
 
     regs->x0 = ret[0];
     regs->x1 = ret[1];
