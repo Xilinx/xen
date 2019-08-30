@@ -32,7 +32,7 @@
  * * Program bitstreams for the programmable logic
  * * etc
  *
- * Allthough the details of the setup are configurable, in the common case
+ * Although the details of the setup are configurable, in the common case
  * the PMU lives in the Secure world. NS World cannot directly communicate
  * with it and must use proxy services from ARM Trusted Firmware to reach
  * the PMU.
@@ -91,7 +91,7 @@
  * are typically protected for secure-world access only and also from
  * certain masters only, so guests cannot access them directly.
  * Registers within the memory regions affect certain nodes. In this case,
- * our imput is an address and we map that address into a node. If the
+ * our input is an address and we map that address into a node. If the
  * guest has ownership of that node, the access is allowed.
  * Some registers contain bitfields and a single register may contain
  * bits that affect multiple nodes.
