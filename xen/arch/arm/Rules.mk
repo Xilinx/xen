@@ -11,12 +11,20 @@ CFLAGS += -I$(BASEDIR)/include
 $(call cc-options-add,CFLAGS,CC,$(EMBEDDED_EXTRA_CFLAGS))
 $(call cc-option-add,CFLAGS,CC,-Wnested-externs)
 
+ifneq ($(armds),y)
 # Prevent floating-point variables from creeping into Xen.
 CFLAGS-$(CONFIG_ARM_32) += -msoft-float
 CFLAGS-$(CONFIG_ARM_32) += -mcpu=cortex-a15
 
 CFLAGS-$(CONFIG_ARM_64) += -mcpu=generic
 CFLAGS-$(CONFIG_ARM_64) += -mgeneral-regs-only # No fp registers etc
+else
+CFLAGS-$(CONFIG_ARM_32) += -msoft-float
+CFLAGS-$(CONFIG_ARM_32) += -mcpu=cortex-a15
+
+CFLAGS-$(CONFIG_ARM_64) += -mcpu=generic
+CFLAGS-$(CONFIG_ARM_64) += -mgeneral-regs-only # No fp registers etc
+endif
 
 ifneq ($(call cc-option,$(CC),-fvisibility=hidden,n),n)
 CFLAGS += -DGCC_HAS_VISIBILITY_ATTRIBUTE

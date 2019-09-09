@@ -221,7 +221,9 @@ CFLAGS += -Wall -Wstrict-prototypes
 
 $(call cc-option-add,HOSTCFLAGS,HOSTCC,-Wdeclaration-after-statement)
 $(call cc-option-add,CFLAGS,CC,-Wdeclaration-after-statement)
+ifneq ($(armds),y)
 $(call cc-option-add,CFLAGS,CC,-Wno-unused-but-set-variable)
+endif
 $(call cc-option-add,CFLAGS,CC,-Wno-unused-local-typedefs)
 
 LDFLAGS += $(foreach i, $(EXTRA_LIB), -L$(i)) 
@@ -234,8 +236,12 @@ endif
 APPEND_LDFLAGS += $(foreach i, $(APPEND_LIB), -L$(i))
 APPEND_CFLAGS += $(foreach i, $(APPEND_INCLUDES), -I$(i))
 
-EMBEDDED_EXTRA_CFLAGS := -nopie -fno-stack-protector -fno-stack-protector-all
+EMBEDDED_EXTRA_CFLAGS := -fno-stack-protector -fno-stack-protector-all
 EMBEDDED_EXTRA_CFLAGS += -fno-exceptions
+
+ifneq ($(armds),y)
+EMBEDDED_EXTRA_CFLAGS += -nopie
+endif
 
 XEN_EXTFILES_URL ?= http://xenbits.xen.org/xen-extfiles
 # All the files at that location were downloaded from elsewhere on

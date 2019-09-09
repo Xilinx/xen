@@ -1,6 +1,15 @@
 AS         = $(CROSS_COMPILE)as
+AR         = $(CROSS_COMPILE)ar
 LD         = $(CROSS_COMPILE)ld
 ifeq ($(clang),y)
+ifeq ($(armds),y)
+CC         = armclang
+CXX        = armclang
+LD_LTO     = armlink --verbose --no_scanlib
+LD         = armlink --verbose --no_scanlib
+AS         = armasm
+AR         = armar
+else
 ifneq ($(CROSS_COMPILE),)
 CC         = clang -target $(CROSS_COMPILE:-=)
 CXX        = clang++ -target $(CROSS_COMPILE:-=)
@@ -9,13 +18,13 @@ CC         = clang
 CXX        = clang++
 endif
 LD_LTO     = $(CROSS_COMPILE)llvm-ld
+endif
 else
 CC         = $(CROSS_COMPILE)gcc
 CXX        = $(CROSS_COMPILE)g++
 LD_LTO     = $(CROSS_COMPILE)ld
 endif
 CPP        = $(CC) -E
-AR         = $(CROSS_COMPILE)ar
 RANLIB     = $(CROSS_COMPILE)ranlib
 NM         = $(CROSS_COMPILE)nm
 STRIP      = $(CROSS_COMPILE)strip

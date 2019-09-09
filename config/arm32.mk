@@ -4,12 +4,14 @@ CONFIG_ARM_$(XEN_OS) := y
 
 CONFIG_XEN_INSTALL_SUFFIX :=
 
-# -march= -mcpu=
-
 # Explicitly specifiy 32-bit ARM ISA since toolchain default can be -mthumb:
-CFLAGS += -marm
-
+ifeq ($(armds),y)
+# VE needed
+CFLAGS += --target=arm-arm-none-eabi -march=armv7-a
+else
+CFLAGS += -marm # -march= -mcpu=
 # Use only if calling $(LD) directly.
 LDFLAGS_DIRECT += -EL
+endif
 
 IOEMU_CPU_ARCH ?= arm
