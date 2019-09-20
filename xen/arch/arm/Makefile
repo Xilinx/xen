@@ -102,8 +102,12 @@ prelink.o: $(ALL_OBJS)
 	$(LD) $(LDFLAGS) -r -o $@ $^
 endif
 
+ifeq ($(armds),y)
+$(TARGET)-syms: prelink.o xen.scat
+	armlink --scatter="xen.scat" $(LDFLAGS) $(BASEDIR)/common/symbols-dummy.o -o $@
+else
 $(TARGET)-syms: prelink.o xen.lds
-	$(LD) $(LDFLAGS) --scatter xen.scat  prelink.o \
+	$(LD) $(LDFLAGS) -T xen.lds -N prelink.o \
 	    $(BASEDIR)/common/symbols-dummy.o -o $(@D)/.$(@F).0
 	$(NM) -pa --format=sysv $(@D)/.$(@F).0 \
 		| $(BASEDIR)/tools/symbols $(all_symbols) --sysv --sort >$(@D)/.$(@F).0.S
@@ -119,14 +123,22 @@ $(TARGET)-syms: prelink.o xen.lds
 		| $(BASEDIR)/tools/symbols --xensyms --sysv --sort \
 		>$(@D)/$(@F).map
 	rm -f $(@D)/.$(@F).[0-9]*
+endif
 
 asm-offsets.s: $(TARGET_SUBARCH)/asm-offsets.c
 	$(CC) $(filter-out -flto,$(CFLAGS)) -S -o $@ $<
 
+ifeq ($(armds),y)
+xen.scat: xen.scat.S
+	$(CC) -P -E -Ui386 $(AFLAGS) -o $@ $<
+	sed -e 's/xen\.scat\.o:/xen\.scat:/g' <.xen.scat.d >.xen.scat.d.new
+	mv -f .xen.scat.d.new .xen.scat.d
+else
 xen.lds: xen.lds.S
 	$(CC) -P -E -Ui386 $(AFLAGS) -o $@ $<
 	sed -e 's/xen\.lds\.o:/xen\.lds:/g' <.xen.lds.d >.xen.lds.d.new
 	mv -f .xen.lds.d.new .xen.lds.d
+endif
 
 dtb.o: $(CONFIG_DTB_FILE)
 

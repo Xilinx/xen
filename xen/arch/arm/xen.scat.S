@@ -1,5 +1,3 @@
-#! armclang --target=aarch64-arm-none-eabi -E -x c -I../../include -DASM
-
 #include <xen/cache.h>
 #include <asm/page.h>
 #include <asm/percpu.h>
@@ -86,7 +84,7 @@ LOAD XEN_VIRT_START
   {
     *(.data.rel)
     *(.data.rel.*)
-#CONSTRUCTORS ????
+;#CONSTRUCTORS ????
   }
 
   .data.ex_table AlignExpr(+0, SMP_CACHE_BYTES)
@@ -184,14 +182,6 @@ LOAD XEN_VIRT_START
     *(.bss.percpu)
     *(.bss.percpu.read_mostly, OVERALIGN SMP_CACHE_BYTES)
   }
-
-#ifdef CONFIG_DTB_FILE
-  .dtb
-  {
-    *(.dtb)
-  }
-#endif
-
 }
 
 
