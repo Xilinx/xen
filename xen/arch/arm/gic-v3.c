@@ -1328,9 +1328,9 @@ static const hw_irq_controller gicv3_guest_irq_type = {
     .set_affinity = gicv3_irq_set_affinity,
 };
 
-static paddr_t __initdata dbase = INVALID_PADDR;
-static paddr_t __initdata vbase = INVALID_PADDR, vsize = 0;
-static paddr_t __initdata cbase = INVALID_PADDR, csize = 0;
+static paddr_t dbase = INVALID_PADDR;
+static paddr_t vbase = INVALID_PADDR, vsize = 0;
+static paddr_t cbase = INVALID_PADDR, csize = 0;
 
 /* If the GICv3 supports GICv2, initialize it */
 static void __init gicv3_init_v2(void)
