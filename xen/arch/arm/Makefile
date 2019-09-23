@@ -103,7 +103,7 @@ prelink.o: $(ALL_OBJS)
 endif
 
 $(TARGET)-syms: prelink.o xen.lds
-	$(LD) $(LDFLAGS) -T xen.lds -N prelink.o \
+	$(LD) $(LDFLAGS) --scatter xen.scat  prelink.o \
 	    $(BASEDIR)/common/symbols-dummy.o -o $(@D)/.$(@F).0
 	$(NM) -pa --format=sysv $(@D)/.$(@F).0 \
 		| $(BASEDIR)/tools/symbols $(all_symbols) --sysv --sort >$(@D)/.$(@F).0.S
