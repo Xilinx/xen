@@ -1,14 +1,14 @@
-#include <xen/cache.h>
-#include <asm/page.h>
-#include <asm/percpu.h>
-#undef ENTRY
-#undef ALIGN
+#define PAGE_SIZE 4096
+#define POINTER_ALIGN 8
+#define SMP_CACHE_BYTES 128
+#define STACK_SIZE 32768
+#define XEN_VIRT_START 0x00200000
 
 LOAD XEN_VIRT_START
 {
   .text AlignExpr(+0, PAGE_SIZE) PADVALUE 0x9090
   {
-    *(.text)
+    *(.text*)
     *(.text.cold)
     *(.text.unlikely)
     *(.fixup)
@@ -56,7 +56,7 @@ LOAD XEN_VIRT_START
   }
 
 #if defined(CONFIG_HAS_VPCI) && defined(CONFIG_LATE_HWDOM)
-  .rodata.data.vpci AlignExpr(+0, POINTER_ALIGN)
+  .rodata.data.vpci AlignExpr(+0, POINTER_ALIGN) SORTTYPE Lexical
   {
     *(SORT(.data.vpci.*))
   }
@@ -71,8 +71,8 @@ LOAD XEN_VIRT_START
 
   .data AlignExpr(+0, PAGE_SIZE)
   {
-    *(.data.page_aligned)
-    *(.data)
+    *(.data.page_aligned.*)
+    *(.data.*)
   }
 
   .data.schedulers AlignExpr(+0, 8)
@@ -100,6 +100,11 @@ LOAD XEN_VIRT_START
   .data.read_mostly +0
   {
     *(.data.read_mostly)
+  }
+
+  .arch.info AlignExpr(+0, 8) 
+  {
+     *(.arch.info)
   }
 
   .dev.info AlignExpr(+0, 8)
@@ -160,21 +165,25 @@ LOAD XEN_VIRT_START
   {
     *(.ctors)
     *(.init_array)
-    *(SORT(.init_array.*))
+  }
+
+  .init_array_sorted AlignExpr(+0, 8) SORTTYPE Lexical
+  {
+    *(.init_array.*)
   }
 
 #if defined(CONFIG_HAS_VPCI) && !defined(CONFIG_LATE_HWDOM)
-  .data.vpci AlignExpr(+0, POINTER_ALIGN)
+  .data.vpci AlignExpr(+0, POINTER_ALIGN) SORTTYPE Lexical
   {
-    *(SORT(.data.vpci.*))
+    *(.data.vpci.*)
   }
 #endif
 
   .bss AlignExpr(+0, STACK_SIZE)
   {
-    *(.bss.stack_aligned)
-    *(.bss.page_aligned, OVERALIGN PAGE_SIZE)
-    *(.bss)
+    *(.bss.stack_aligned*)
+    *(.bss.page_aligned*, OVERALIGN PAGE_SIZE)
+    *(.bss*)
   }
 
   .bss.percpu AlignExpr(+0, SMP_CACHE_BYTES)
