@@ -6,7 +6,9 @@
 
 LOAD XEN_VIRT_START
 {
-  .text AlignExpr(+0, PAGE_SIZE) PADVALUE 0x9090
+;_start
+;_stext
+  _text AlignExpr(+0, PAGE_SIZE) PADVALUE 0x9090
   {
     *(.text*)
     *(.text.cold)
@@ -14,23 +16,29 @@ LOAD XEN_VIRT_START
     *(.fixup)
     *(.gnu.warning)
   }
+;_etext
 
-  .rodata.bug_frames.0 AlignExpr(+0, PAGE_SIZE)
+;_srodata
+;__start_bug_frames
+  _rodata_bug_frames_0 AlignExpr(+0, PAGE_SIZE)
   {
     *(.bug_frames.0)
   }
+;__stop_bug_frames_0
 
-  .rodata.bug_frames.1 +0
+  _rodata_bug_frames_1 +0
   {
     *(.bug_frames.1)
   }
+;__stop_bug_frames_1
 
-  .rodata.bug_frames.2 +0
+  _rodata_bug_frames_2 +0
   {
     *(.bug_frames.2)
   }
+;__stop_bug_frames_2
 
-  .rodata.data +0
+  _rodata_data +0
   {
     *(.rodata)
     *(.rodata.*)
@@ -39,158 +47,211 @@ LOAD XEN_VIRT_START
   }
 
 #ifdef CONFIG_LOCK_PROFILE
-  .rodata.lockprofile.data AlignExpr(+0, POINTER_ALIGN)
+;__lock_profile_start
+  _rodata_lockprofile_data AlignExpr(+0, POINTER_ALIGN)
   {
     *(.lockprofile.data)
   }
+;__lock_profile_end
 #endif
 
-  .rodata.data.param AlignExpr(+0, POINTER_ALIGN)
+;__param_start
+  _rodata_data_param AlignExpr(+0, POINTER_ALIGN)
   {
     *(.data.param)
   }
+;__param_end
 
-  .rodata.proc.info +0
+;__proc_info_start
+  _rodata_proc_info +0
   {
     *(.proc.info)
   }
+;__proc_info_end
 
 #if defined(CONFIG_HAS_VPCI) && defined(CONFIG_LATE_HWDOM)
-  .rodata.data.vpci AlignExpr(+0, POINTER_ALIGN) SORTTYPE Lexical
+;__start_vpci_array
+  _rodata_data_vpci AlignExpr(+0, POINTER_ALIGN) SORTTYPE Lexical
   {
     *(SORT(.data.vpci.*))
   }
+;__end_vpci_array
 #endif
 
 #if defined(BUILD_ID)
-  .note.gnu.build-id +0
+;__note_gnu_build_id_start
+  _note_gnu_build_id +0
   {
     *(.note.gnu.build-id)
   }
+;__note_gnu_build_id_end
 #endif
 
-  .data AlignExpr(+0, PAGE_SIZE)
+;_erodata
+
+  _data AlignExpr(+0, PAGE_SIZE)
   {
     *(.data.page_aligned.*)
     *(.data.*)
   }
 
-  .data.schedulers AlignExpr(+0, 8)
+;__start_schedulers_array
+  _data_schedulers AlignExpr(+0, 8)
   {
     *(.data.schedulers)
   }
+;__end_schedulers_array
 
-  .data.rel +0
+  _data_rel +0
   {
     *(.data.rel)
     *(.data.rel.*)
 ;#CONSTRUCTORS ????
   }
 
-  .data.ex_table AlignExpr(+0, SMP_CACHE_BYTES)
+;__start___ex_table  
+  _data_ex_table AlignExpr(+0, SMP_CACHE_BYTES)
   {
     *(.ex_table)
   }
+;__stop___ex_table
 
-  .data.ex_table.pre +0
+;__start___pre_ex_table
+  _data_ex_table_pre +0
   {
     *(.ex_table.pre)
   }
+;__stop___pre_ex_table
 
-  .data.read_mostly +0
+  _data_read_mostly +0
   {
     *(.data.read_mostly)
   }
 
-  .arch.info AlignExpr(+0, 8) 
+;_splatform
+  _arch_info AlignExpr(+0, 8) 
   {
      *(.arch.info)
   }
+;_eplatform
 
-  .dev.info AlignExpr(+0, 8)
+;_sdevice
+  _dev_info AlignExpr(+0, 8)
   {
     *(.dev.info)
   }
+;_edevice
 
-  .adev.info AlignExpr(+0, 8)
+;_asdevice
+  _adev_info AlignExpr(+0, 8)
   {
     *(.adev.info)
   }
+;_aedevice
 
-  .init.text AlignExpr(+0, PAGE_SIZE)
+;__init_begin
+;_sinittext
+  _init_text AlignExpr(+0, PAGE_SIZE)
   {
     *(.init.text)
   }
+;_einittext
 
-  .init.rodata AlignExpr(+0, PAGE_SIZE)
+  _init_rodata AlignExpr(+0, PAGE_SIZE)
   {
     *(.init.rodata)
     *(.init.rodata.rel)
     *(.init.rodata.str*)
   }
 
-  .init.setup AlignExpr(+0, POINTER_ALIGN)
+;__setup_start
+  _init_setup AlignExpr(+0, POINTER_ALIGN)
   {
     *(.init.setup)
   }
+;__setup_end
 
-  .initcallpresmp.init +0
+;__initcall_start
+  _initcallpresmp_init +0
   {
     *(.initcallpresmp.init)
   }
+;__presmp_initcall_end
 
-  .initcall1.init +0
+  _initcall1_init +0
   {
     *(.initcall1.init)
   }
+;__initcall_end
 
-  .altinstructions AlignExpr(+0, 4)
+;__alt_instructions
+  _altinstructions AlignExpr(+0, 4)
   {
     *(.altinstructions)
   }
+;__alt_instructions_end
 
-  .altinstr_replacement AlignExpr(+0, 4)
+  _altinstr_replacement AlignExpr(+0, 4)
   {
     *(.altinstr_replacement)
   }
 
-  .init.data +0
+  _init_data +0
   {
     *(.init.data)
     *(.init.data.rel)
     *(.init.data.rel.*)
   }
 
-  .ctors AlignExpr(+0, 8)
+;__ctors_start
+  _ctors AlignExpr(+0, 8)
   {
     *(.ctors)
     *(.init_array)
   }
 
-  .init_array_sorted AlignExpr(+0, 8) SORTTYPE Lexical
+  _init_array_sorted AlignExpr(+0, 8) SORTTYPE Lexical
   {
     *(.init_array.*)
   }
+;__ctors_end
 
 #if defined(CONFIG_HAS_VPCI) && !defined(CONFIG_LATE_HWDOM)
-  .data.vpci AlignExpr(+0, POINTER_ALIGN) SORTTYPE Lexical
+  _data_vpci AlignExpr(+0, POINTER_ALIGN) SORTTYPE Lexical
   {
     *(.data.vpci.*)
   }
 #endif
+;__init_end_efi
 
-  .bss AlignExpr(+0, STACK_SIZE)
+;__init_end
+;__bss_start
+  _bss AlignExpr(+0, STACK_SIZE)
   {
     *(.bss.stack_aligned*)
     *(.bss.page_aligned*, OVERALIGN PAGE_SIZE)
     *(.bss*)
   }
 
-  .bss.percpu AlignExpr(+0, SMP_CACHE_BYTES)
+
+;__per_cpu_start
+  _bss_percpu AlignExpr(+0, SMP_CACHE_BYTES)
   {
     *(.bss.percpu)
     *(.bss.percpu.read_mostly, OVERALIGN SMP_CACHE_BYTES)
   }
+;__per_cpu_data_end
+;__bss_end
+;_end
+
+#ifdef CONFIG_DTB_FILE
+;_sdtb
+  _dtb
+ {
+    *(.dtb)
+ }
+#endif
+
 }
 
 
