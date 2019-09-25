@@ -60,7 +60,12 @@ CFLAGS += -nostdinc -fno-builtin -fno-common
 CFLAGS += -Werror -Wredundant-decls -Wno-pointer-arith
 $(call cc-option-add,CFLAGS,CC,-Wvla)
 CFLAGS += -pipe -D__XEN__ -include $(BASEDIR)/include/xen/config.h
+
+ifeq ($(armds),y)
+CFLAGS += -nostdlibinc -nostdlib -Wno-unused-command-line-argument
 CFLAGS += -include $(BASEDIR)/include/asm/armds.h
+endif
+
 CFLAGS-$(CONFIG_DEBUG_INFO) += -g
 CFLAGS += '-D__OBJECT_FILE__="$@"'
 
