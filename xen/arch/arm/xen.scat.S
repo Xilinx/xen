@@ -26,7 +26,7 @@ LOAD XEN_VIRT_START
   }
 ;__stop_bug_frames_0
 
-  _rodata_bug_frames_1 +0
+  _rodata_bug_frames_1 +0 FIXED ZEROPAD
   {
     *(.bug_frames.1)
   }
@@ -96,7 +96,7 @@ LOAD XEN_VIRT_START
   }
 
 ;__start_schedulers_array
-  _data_schedulers AlignExpr(+0, 8)
+  _data_schedulers AlignExpr(+0, 8) FIXED ZEROPAD
   {
     *(.data.schedulers)
   }
@@ -157,7 +157,7 @@ LOAD XEN_VIRT_START
   }
 ;_einittext
 
-  _init_rodata AlignExpr(+0, PAGE_SIZE)
+  _init_rodata AlignExpr(+0, PAGE_SIZE) FIXED ZEROPAD
   {
     *(.init.rodata)
     *(.init.rodata.rel)
