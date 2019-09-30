@@ -89,7 +89,7 @@ LOAD XEN_VIRT_START
 
 ;_erodata
 
-  _data AlignExpr(+0, PAGE_SIZE)
+  _data AlignExpr(+0, PAGE_SIZE) FIXED ZEROPAD
   {
     *(.data.page_aligned.*)
     *(.data.*)
