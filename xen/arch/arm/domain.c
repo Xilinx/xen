@@ -34,6 +34,7 @@
 #include <asm/vfp.h>
 #include <asm/vgic.h>
 #include <asm/vtimer.h>
+#include <asm/coloring.h>
 
 #include "vuart.h"
 
@@ -686,6 +687,41 @@ int arch_domain_create(struct domain *d,
     if ( is_hardware_domain(d) && (rc = domain_vuart_init(d)) )
         goto fail;
 
+    d->max_colors = 0;
+#ifdef CONFIG_COLORING
+    /* Setup domain colors */
+    if ( d->domain_id >= 0 && !config->arch.colors.max_colors )
+    {
+        C_DEBUG("Color configuration not found, using default\n");
+        d->colors = setup_default_colors(&d->max_colors);
+        if ( !d->colors ){
+            C_DEBUG("Alloc failed\n");
+            goto fail;
+        }
+    }
+    else
+    {
+        d->colors = xzalloc_array(uint32_t, config->arch.colors.max_colors);
+        if ( !d->colors ){
+            C_DEBUG("Failed to alloc colors\n");
+            goto fail;
+        }
+
+        d->max_colors = config->arch.colors.max_colors;
+        if ( copy_from_guest(d->colors, config->arch.colors.colors,
+            d->max_colors) )
+        {
+            C_DEBUG("Failed to copy colors\n");
+            goto fail;
+        }
+
+        if( !check_domain_colors(d) )
+        {
+            C_DEBUG("Failed to check colors\n");
+            goto fail;
+        }
+    }
+#endif
     return 0;
 
 fail:
