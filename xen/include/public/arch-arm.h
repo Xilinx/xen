@@ -297,6 +297,13 @@ struct vcpu_guest_context {
 typedef struct vcpu_guest_context vcpu_guest_context_t;
 DEFINE_XEN_GUEST_HANDLE(vcpu_guest_context_t);
 
+__DEFINE_XEN_GUEST_HANDLE(col, uint32_t);
+
+struct color_guest_config {
+    uint32_t max_colors;
+    XEN_GUEST_HANDLE(col) colors;
+};
+
 /*
  * struct xen_arch_domainconfig's ABI is covered by
  * XEN_DOMCTL_INTERFACE_VERSION.
@@ -323,6 +330,8 @@ struct xen_arch_domainconfig {
      *
      */
     uint32_t clock_frequency;
+
+    struct color_guest_config colors;
 };
 #endif /* __XEN__ || __XEN_TOOLS__ */
 
