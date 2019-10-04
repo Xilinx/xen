@@ -258,6 +258,49 @@ uint32_t *setup_default_colors(unsigned int *col_num)
     return NULL;
 }
 
+paddr_t next_xen_colored(paddr_t phys)
+{
+    unsigned int i;
+    unsigned int col_next_number = 0;
+    unsigned int col_cur_number = (phys & addr_col_mask) >> PAGE_SHIFT;
+    int overrun = 0;
+    paddr_t ret;
+
+    /*
+     * Check if address color conforms to Xen selection. If it does, return
+     * the address as is.
+     */
+    for( i = 0; i < xen_col_num; i++)
+        if ( col_cur_number == xen_col_list[i] )
+            return phys;
+
+    /* Find next col */
+    for( i = xen_col_num -1 ; i >= 0; i--)
+    {
+        if ( col_cur_number > xen_col_list[i])
+        {
+            /* Need to start to first element and add a way_size */
+            if ( i == (xen_col_num - 1) )
+            {
+                col_next_number = xen_col_list[0];
+                overrun = 1;
+            }
+            else
+            {
+                col_next_number = xen_col_list[i+1];
+                overrun = 0;
+            }
+            break;
+        }
+    }
+
+    /* Align phys to way_size */
+    ret = phys - (PAGE_SIZE * col_cur_number);
+    /* Add the offset based on color selection*/
+    ret += (PAGE_SIZE * (col_next_number)) + (way_size*overrun);
+    return ret;
+}
+
 /**
  * Compute color id from the page @param pg.
  * Page size determines the lowest available bit, while add_col_mask is used to

@@ -53,6 +53,20 @@ uint64_t get_max_colors(void);
 bool check_domain_colors(struct domain *d);
 
 /*
+ * Return physical page address that conforms to the colors selection
+ * given in col_selection_mask after @param phys.
+ *
+ * @param phys		Physical address start.
+ * @param addr_col_mask	Mask specifying the bits available for coloring.
+ * @param col_selection_mask	Mask asserting the color bits to be used,
+ * must not be 0.
+ *
+ * @return The lowest physical page address being greater or equal than
+ * 'phys' and belonging to Xen color selection
+ */
+paddr_t next_xen_colored(paddr_t phys);
+
+/*
  * Return an array with default colors selection and store the number of
  * colors in @param col_num. The array selection will be equal to the dom0
  * color configuration.
