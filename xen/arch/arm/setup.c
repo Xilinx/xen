@@ -849,6 +849,7 @@ void __init start_xen(unsigned long boot_phys_offset,
     };
     int rc;
     paddr_t xen_paddr = (paddr_t)(_start + boot_phys_offset);
+    uint32_t xen_size = (_end - _start);
 
     dcache_line_bytes = read_dcache_line_bytes();
 
@@ -880,13 +881,16 @@ void __init start_xen(unsigned long boot_phys_offset,
     if ( !coloring_init() )
         panic("Xen Coloring support: setup failed\n");
 
+    xen_size = XEN_COLOR_MAP_SIZE;
+#ifdef CONFIG_COLORING
+    xen_paddr = get_xen_paddr(xen_size);
+#endif
+
     /* Register Xen's load address as a boot module. */
-    xen_bootmodule = add_boot_module(BOOTMOD_XEN, xen_paddr,
-                             (paddr_t)(uintptr_t)(_end - _start + 1), false);
+    xen_bootmodule = add_boot_module(BOOTMOD_XEN, xen_paddr, xen_size, false);
     BUG_ON(!xen_bootmodule);
 
     setup_pagetables(boot_phys_offset, xen_paddr);
-
     setup_mm();
 
     /* Parse the ACPI tables for possible boot-time configuration */
@@ -999,6 +1003,17 @@ void __init start_xen(unsigned long boot_phys_offset,
 
     setup_virt_paging();
 
+    /*
+     * This removal is useful if cache coloring is enabled but
+     * it should not affect non coloring configuration.
+     * The removal is done earlier than discard_initial_modules
+     * beacuse in do_initcalls there is the livepatch support
+     * setup which uses the virtual addresses starting from
+     * BOOT_RELOC_VIRT_START.
+     * Remove coloring mappings to expose a clear state to the
+     * livepatch module.
+     */
+    remove_early_mappings(BOOT_RELOC_VIRT_START, SZ_2M);
     do_initcalls();
 
     /*

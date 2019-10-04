@@ -418,6 +418,7 @@ int __cpu_up(unsigned int cpu)
 {
     int rc;
     s_time_t deadline;
+    vaddr_t *smp_up_cpu_addr;
 
     printk("Bringing up CPU%d\n", cpu);
 
@@ -433,10 +434,22 @@ int __cpu_up(unsigned int cpu)
     /* Tell the remote CPU what its logical CPU ID is. */
     init_data.cpuid = cpu;
 
+    /*
+     * If coloring is enabled, non-Master CPUs boot using the old Xen code.
+     * During the boot process each cpu is booted one after another using the
+     * smp_cpu_cpu variable. This variable is accessed in head.S using its
+     * physical address.
+     * That address is calculated using the physical offset of the old Xen
+     * code. With coloring we can not rely anymore on that offset. For this
+     * reason in order to boot the other cpus we rely on the old xen code that
+     * was mapped during tables setup in mm.c so that we can use the old physical
+     * offset and the old head.S code also. In order to modify the old Xen code
+     * we need to access it using the mapped done in color_xen.
+     */
+    smp_up_cpu_addr = (vaddr_t *)virt_boot_xen((vaddr_t)&smp_up_cpu);
+    *smp_up_cpu_addr = cpu_logical_map(cpu);
     /* Open the gate for this CPU */
-    smp_up_cpu = cpu_logical_map(cpu);
-    clean_dcache(smp_up_cpu);
-
+    clean_dcache(*smp_up_cpu_addr);
     rc = arch_cpu_up(cpu);
 
     console_end_sync();

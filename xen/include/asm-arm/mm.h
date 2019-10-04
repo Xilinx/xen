@@ -367,6 +367,13 @@ int arch_acquire_resource(struct domain *d, unsigned int type, unsigned int id,
     return -EOPNOTSUPP;
 }
 
+#ifdef CONFIG_COLORING
+#define virt_boot_xen(virt)\
+    (vaddr_t)((virt - XEN_VIRT_START) + BOOT_RELOC_VIRT_START)
+#else
+#define virt_boot_xen(virt) virt
+#endif
+
 #endif /*  __ARCH_ARM_MM__ */
 /*
  * Local variables:
