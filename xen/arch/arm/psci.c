@@ -25,6 +25,7 @@
 #include <asm/cpufeature.h>
 #include <asm/psci.h>
 #include <asm/acpi.h>
+#include <asm/coloring.h>
 
 /*
  * While a 64-bit OS can make calls with SMC32 calling conventions, for
@@ -49,7 +50,8 @@ int call_psci_cpu_on(int cpu)
 {
     struct arm_smccc_res res;
 
-    arm_smccc_smc(psci_cpu_on_nr, cpu_logical_map(cpu), __pa(init_secondary),
+    arm_smccc_smc(psci_cpu_on_nr, cpu_logical_map(cpu),
+                  __pa(virt_boot_xen((vaddr_t)init_secondary)),
                   &res);
 
     return PSCI_RET(res);
