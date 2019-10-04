@@ -23,6 +23,7 @@
 #include <xen/smp.h>
 #include <asm/psci.h>
 #include <asm/acpi.h>
+#include <asm/coloring.h>
 
 /*
  * While a 64-bit OS can make calls with SMC32 calling conventions, for
@@ -43,7 +44,8 @@ static uint32_t psci_cpu_on_nr;
 
 int call_psci_cpu_on(int cpu)
 {
-    return call_smc(psci_cpu_on_nr, cpu_logical_map(cpu), __pa(init_secondary), 0);
+    return call_smc(psci_cpu_on_nr, cpu_logical_map(cpu),
+                __pa(virt_boot_xen((vaddr_t)init_secondary)), 0);
 }
 
 void call_psci_system_off(void)

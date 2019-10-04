@@ -41,6 +41,7 @@
 #include <xen/sizes.h>
 #include <xen/libfdt/libfdt.h>
 #include <asm/setup.h>
+#include <asm/coloring.h>
 
 struct domain *dom_xen, *dom_io, *dom_cow;
 
@@ -80,6 +81,9 @@ lpae_t boot_first_id[LPAE_ENTRIES] __attribute__((__aligned__(4096)));
 #endif
 lpae_t boot_second[LPAE_ENTRIES]  __attribute__((__aligned__(4096)));
 lpae_t boot_third[LPAE_ENTRIES]  __attribute__((__aligned__(4096)));
+#ifdef CONFIG_COLORING
+lpae_t boot_colored_xen[LPAE_ENTRIES]  __attribute__((__aligned__(4096)));
+#endif
 
 /* Main runtime page tables */
 
@@ -610,6 +614,189 @@ static void clear_table(void *table)
     clean_and_invalidate_dcache_va_range(table, PAGE_SIZE);
 }
 
+#ifdef CONFIG_COLORING
+extern void switch_ttbr(uint64_t ttbr);
+
+/*
+ * Translate a Xen (.text) virtual address to the colored physical one
+ * depending on the hypervisor configuration.
+ * N.B: this function must be used only when migrating from non colored to
+ * colored pagetables since it assumes to have the temporary mappings created
+ * during setup_pagetables that starts from BOOT_RELOC_VIRT_START.
+ * After the migration we have to use virt_to_maddr.
+ */
+static paddr_t virt_to_maddr_colored(vaddr_t virt)
+{
+    unsigned int va_offset;
+
+    va_offset = virt - XEN_VIRT_START;
+    return __pa(BOOT_RELOC_VIRT_START + va_offset);
+}
+
+static void __init coloring_temp_mappings(paddr_t xen_paddr, vaddr_t virt_start)
+{
+    int i;
+    lpae_t pte;
+    unsigned int xen_text_size = (_end - _start);
+
+    xen_text_size = PAGE_ALIGN(xen_text_size);
+
+    C_DEBUG("First level mapping\n");
+    pte = mfn_to_xen_entry(maddr_to_mfn(__pa(boot_second)), MT_NORMAL);
+    pte.pt.table = 1;
+    boot_first[first_table_offset(virt_start)] = pte;
+
+    C_DEBUG("Second level mapping\n");
+    pte = mfn_to_xen_entry(maddr_to_mfn(__pa(boot_colored_xen)), MT_NORMAL);
+    pte.pt.table = 1;
+    boot_second[second_table_offset(virt_start)] = pte;
+
+    C_DEBUG("Third level mapping\n");
+    for ( i = 0; i < (xen_text_size/PAGE_SIZE); i++ )
+    {
+        mfn_t mfn;
+        xen_paddr = next_xen_colored(xen_paddr);
+        mfn = maddr_to_mfn(xen_paddr);
+        pte = mfn_to_xen_entry(mfn, MT_NORMAL);
+        pte.pt.table = 1; /* 4k mappings always have this bit set */
+        boot_colored_xen[i] = pte;
+        xen_paddr += PAGE_SIZE;
+    }
+
+   flush_xen_data_tlb_local();
+}
+
+/*
+ * Boot-time pagetable setup with coloring support
+ * Changes here may need matching changes in head.S
+ *
+ * The process can be explained as follows:
+ * - Create a temporary colored mapping that conforms to Xen color selection.
+ * - Update all the pagetables links that point to the next level table(s):
+ * this process is crucial beacause the translation tables are not physically
+ * contiguous and we cannot calculate the physical addresses by using the
+ * standard method (physical offset). In order to get the correct physical
+ * address we use virt_to_maddr_colored that translates the virtual address
+ * into a physical one based on the Xen coloring configuration.
+ * - Copy Xen to the new location.
+ * - Update TTBR0_EL2 with the new root page table address.
+ */
+void __init setup_pagetables(unsigned long boot_phys_offset, paddr_t xen_paddr)
+{
+    int i;
+    lpae_t pte, *p;
+    paddr_t pt_phys;
+    mfn_t pt_phys_mfn;
+    paddr_t _xen_paddr = xen_paddr;
+
+    phys_offset = boot_phys_offset;
+
+    ASSERT((_end - _start) < SECOND_SIZE);
+    /* Create temporary mappings */
+    coloring_temp_mappings(xen_paddr, BOOT_RELOC_VIRT_START);
+
+    /* Build pagetables links */
+    p = (void *)xen_pgtable;
+    pt_phys = virt_to_maddr_colored((vaddr_t)xen_first);
+    pt_phys_mfn = maddr_to_mfn(pt_phys);
+    p[0] = mfn_to_xen_entry(pt_phys_mfn, MT_NORMAL);
+    p[0].pt.table = 1;
+    p[0].pt.xn = 0;
+    p = (void *)xen_first;
+
+    for ( i = 0; i < 2; i++ )
+    {
+        pt_phys = virt_to_maddr_colored((vaddr_t)(xen_second + i * LPAE_ENTRIES));
+        pt_phys_mfn = maddr_to_mfn(pt_phys);
+        p[i] = mfn_to_xen_entry(pt_phys_mfn, MT_NORMAL);
+        p[i].pt.table = 1;
+        p[i].pt.xn = 0;
+    }
+
+    for ( i = 0; i < LPAE_ENTRIES; i++ )
+    {
+        mfn_t mfn;
+        vaddr_t va = XEN_VIRT_START + (i << PAGE_SHIFT);
+        _xen_paddr = next_xen_colored(_xen_paddr);
+        mfn = maddr_to_mfn(_xen_paddr);
+        if ( !is_kernel(va) )
+            break;
+        pte = mfn_to_xen_entry(mfn, MT_NORMAL);
+        pte.pt.table = 1; /* 4k mappings always have this bit set */
+        if ( is_kernel_text(va) || is_kernel_inittext(va) )
+        {
+            pte.pt.xn = 0;
+            pte.pt.ro = 1;
+        }
+        if ( is_kernel_rodata(va) )
+            pte.pt.ro = 1;
+        xen_xenmap[i] = pte;
+        _xen_paddr += PAGE_SIZE;
+    }
+
+    /* Initialise xen second level entries ... */
+    /* ... Xen's text etc */
+    pt_phys = virt_to_maddr_colored((vaddr_t)(xen_xenmap));
+    pt_phys_mfn = maddr_to_mfn(pt_phys);
+    pte = mfn_to_xen_entry(pt_phys_mfn, MT_NORMAL);
+    pte.pt.table = 1;
+    xen_second[second_table_offset(XEN_VIRT_START)] = pte;
+
+    /* ... Fixmap */
+    pt_phys = virt_to_maddr_colored((vaddr_t)(xen_fixmap));
+    pt_phys_mfn = maddr_to_mfn(pt_phys);
+    pte = mfn_to_xen_entry(pt_phys_mfn, MT_NORMAL);
+    pte.pt.table = 1;
+    xen_second[second_table_offset(FIXMAP_ADDR(0))] = pte;
+
+    /* ... DTB */
+    pte = boot_second[second_table_offset(BOOT_FDT_VIRT_START)];
+    xen_second[second_table_offset(BOOT_FDT_VIRT_START)] = pte;
+    pte = boot_second[second_table_offset(BOOT_FDT_VIRT_START + SZ_2M)];
+    xen_second[second_table_offset(BOOT_FDT_VIRT_START + SZ_2M)] = pte;
+
+    /* Update the value of init_ttbr */
+    init_ttbr = virt_to_maddr_colored((vaddr_t)xen_pgtable);
+    clean_dcache(init_ttbr);
+
+    /* Copy Xen to the new location */
+    memcpy((void*)BOOT_RELOC_VIRT_START,
+        (const void*)XEN_VIRT_START, (_end - _start));
+    clean_dcache_va_range((void*)BOOT_RELOC_VIRT_START, (_end - _start));
+
+    /* Change ttbr */
+    switch_ttbr(init_ttbr);
+
+    /*
+     * Keep mapped old Xen memory in a contiguous mapping
+     * for other cpus to boot. This mapping will also replace the
+     * one created at the beginning of setup_pagetables.
+     */
+    C_DEBUG("Keeping mapping from 0x%lx (VA: 0x%lx) for 2 MiB\n",
+        XEN_VIRT_START + phys_offset, BOOT_RELOC_VIRT_START);
+    create_mappings(xen_second, BOOT_RELOC_VIRT_START,
+                paddr_to_pfn(XEN_VIRT_START + phys_offset),
+                SZ_2M >> PAGE_SHIFT, SZ_2M);
+
+    /*
+     * Clear the copy of the boot pagetables. Each secondary CPU
+     * rebuilds these itself (see head.S), exept for boot_colored_xen
+     * table that is used only by the primary CPU in this function,
+     * in order to enable coloring for Xen itself.
+     */
+    clear_table(boot_pgtable);
+    clear_table(boot_first);
+    clear_table(boot_first_id);
+    clear_table(boot_second);
+    clear_table(boot_third);
+    clear_table(boot_colored_xen);
+
+    /* From now on, no mapping may be both writable and executable. */
+    WRITE_SYSREG32(READ_SYSREG32(SCTLR_EL2) | SCTLR_WXN, SCTLR_EL2);
+    /* Flush everything after setting WXN bit. */
+    flush_xen_text_tlb_local();
+}
+#else
 /* Boot-time pagetable setup.
  * Changes here may need matching changes in head.S */
 void __init setup_pagetables(unsigned long boot_phys_offset, paddr_t xen_paddr)
@@ -733,14 +920,21 @@ void __init setup_pagetables(unsigned long boot_phys_offset, paddr_t xen_paddr)
                               DOMHEAP_SECOND_PAGES*PAGE_SIZE);
 #endif
 }
+#endif /* !CONFIG_COLORING */
 
 #ifdef CONFIG_ARM_64
 int init_secondary_pagetables(int cpu)
 {
+    /*
+     * For coloring the value of the ttbr was already set up during
+     * setup_pagetables.
+     */
+#ifndef CONFIG_COLORING
     /* Set init_ttbr for this CPU coming up. All CPus share a single setof
      * pagetables, but rewrite it each time for consistency with 32 bit. */
     init_ttbr = (uintptr_t) xen_pgtable + phys_offset;
     clean_dcache(init_ttbr);
+#endif
     return 0;
 }
 #else
@@ -856,12 +1050,20 @@ void __init setup_xenheap_mappings(unsigned long base_mfn,
         else if ( xenheap_first_first_slot == -1)
         {
             /* Use xenheap_first_first to bootstrap the mappings */
-            first = xenheap_first_first;
+            paddr_t phys_addr;
 
-            pte = pte_of_xenaddr((vaddr_t)xenheap_first_first);
+            /*
+             * At this stage is safe to use virt_to_maddr because Xen mapping
+             * is already in place. Using virt_to_maddr allows us to unify
+             * codepath with and without cache coloring enabled.
+             */
+            phys_addr = virt_to_maddr((vaddr_t)xenheap_first_first);
+            pte = mfn_to_xen_entry(maddr_to_mfn(phys_addr),MT_NORMAL);
+
             pte.pt.table = 1;
             write_pte(p, pte);
 
+            first = xenheap_first_first;
             xenheap_first_first_slot = slot;
         }
         else

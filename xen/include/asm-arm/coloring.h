@@ -34,6 +34,18 @@
 #define C_DEBUG(fmt, args...) { }
 #endif
 #ifdef CONFIG_COLORING
+
+/*
+ * Amount of memory that we need to map in order to color Xen.  The value
+ * depends on the maximum number of available colors of the hardware.  The
+ * memory size is pessimistically calculated assuming only one color is used,
+ * which means that any pages belonging to any other color has to be skipped.
+ */
+#define XEN_COLOR_MAP_SIZE \
+	((((_end - _start) * get_max_colors())\
+		+ (XEN_PADDR_ALIGN-1)) & ~(XEN_PADDR_ALIGN-1))
+#define XEN_COLOR_MAP_SIZE_M (XEN_COLOR_MAP_SIZE >> 20)
+
 bool __init coloring_init(void);
 
 /* 
@@ -82,6 +94,8 @@ struct page_info *alloc_col_domheap_page(
 void free_col_heap_page(struct page_info *pg);
 
 #else /* !CONFIG_COLORING */
+
+#define XEN_COLOR_MAP_SIZE (_end - _start)
 
 static bool inline __init coloring_init(void)
 {

@@ -376,6 +376,11 @@ void __init discard_initial_modules(void)
     mi->nr_mods = 0;
 
     remove_early_mappings(BOOT_FDT_VIRT_START, SZ_2M);
+    /*
+     * This removal is useful if cache coloring is enabled but
+     * it should not affect non coloring configuration
+     */
+    remove_early_mappings(BOOT_RELOC_VIRT_START, SZ_2M);
 }
 
 /*
@@ -853,6 +858,7 @@ void __init start_xen(unsigned long boot_phys_offset,
     struct bootmodule *xen_bootmodule;
     struct domain *dom0;
     struct xen_domctl_createdomain dom0_cfg = {};
+    uint32_t xen_size = (_end - _start);
 
     dcache_line_bytes = read_dcache_line_bytes();
 
@@ -881,16 +887,17 @@ void __init start_xen(unsigned long boot_phys_offset,
     printk("Command line: %s\n", cmdline);
     cmdline_parse(cmdline);
 
+    if ( !coloring_init() )
+        panic("Xen Coloring support: setup failed\n");
+    xen_size = XEN_COLOR_MAP_SIZE;
+
     /* Register Xen's load address as a boot module. */
     xen_bootmodule = add_boot_module(BOOTMOD_XEN,
                              (paddr_t)(uintptr_t)(_start + boot_phys_offset),
-                             (paddr_t)(uintptr_t)(_end - _start + 1), false);
+                             (paddr_t)(uintptr_t)(xen_size + 1), false);
     BUG_ON(!xen_bootmodule);
 
-    if ( !coloring_init() )
-        panic("Xen Coloring support: setup failed\n");
-
-    xen_paddr = get_xen_paddr(_end - _start);
+    xen_paddr = get_xen_paddr(xen_size);
     setup_pagetables(boot_phys_offset, xen_paddr);
 
     /* Update Xen's address now that we have relocated. */
