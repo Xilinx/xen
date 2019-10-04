@@ -366,6 +366,13 @@ void clear_and_clean_page(struct page_info *page);
 
 unsigned int arch_get_dma_bitsize(void);
 
+#ifdef CONFIG_COLORING
+#define virt_boot_xen(virt)\
+    (vaddr_t)((virt - XEN_VIRT_START) + BOOT_RELOC_VIRT_START)
+#else
+#define virt_boot_xen(virt) virt
+#endif
+
 #endif /*  __ARCH_ARM_MM__ */
 /*
  * Local variables:
