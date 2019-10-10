@@ -597,13 +597,13 @@ void * __init early_fdt_map(paddr_t fdt_paddr)
     return fdt_virt;
 }
 
-void __init remove_early_mappings(void)
+void __init remove_early_mappings(unsigned long va, unsigned long size)
 {
     lpae_t pte = {0};
-    write_pte(xen_second + second_table_offset(BOOT_FDT_VIRT_START), pte);
-    write_pte(xen_second + second_table_offset(BOOT_FDT_VIRT_START + SZ_2M),
+    write_pte(xen_second + second_table_offset(va), pte);
+    write_pte(xen_second + second_table_offset(va + size),
               pte);
-    flush_xen_tlb_range_va(BOOT_FDT_VIRT_START, BOOT_FDT_SLOT_SIZE);
+    flush_xen_tlb_range_va(va, size);
 }
 
 /*
