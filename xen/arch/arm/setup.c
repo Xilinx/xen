@@ -37,6 +37,7 @@
 #include <xen/vmap.h>
 #include <xen/libfdt/libfdt.h>
 #include <xen/acpi.h>
+#include <xen/sizes.h>
 #include <asm/alternative.h>
 #include <asm/page.h>
 #include <asm/current.h>
@@ -374,7 +375,7 @@ void __init discard_initial_modules(void)
 
     mi->nr_mods = 0;
 
-    remove_early_mappings();
+    remove_early_mappings(BOOT_FDT_VIRT_START, SZ_2M);
 }
 
 /*
