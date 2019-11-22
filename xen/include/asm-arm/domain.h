@@ -30,7 +30,7 @@ enum domain_type {
 #endif
 
 /* The hardware domain has always its memory direct mapped. */
-#define is_domain_direct_mapped(d) is_hardware_domain(d)
+#define is_domain_direct_mapped(d) (is_hardware_domain(d) && !(d->max_colors))
 
 struct vtimer {
     struct vcpu *v;
