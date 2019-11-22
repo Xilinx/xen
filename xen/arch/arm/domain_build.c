@@ -25,6 +25,7 @@
 #include <asm/setup.h>
 #include <asm/cpufeature.h>
 #include <asm/domain_build.h>
+#include <asm/coloring.h>
 
 #include <xen/irq.h>
 #include <xen/grant_table.h>
@@ -470,7 +471,41 @@ fail:
           " %ldKB unallocated. Fix the VMs configurations.\n",
           (unsigned long)kinfo->unassigned_mem >> 10);
 }
+#ifdef CONFIG_COLORING
+static void __init allocate_colored_memory(
+    struct domain *d, struct kernel_info *kinfo)
+{
+    int res;
+    struct page_info *pg;
+    struct membank *bank;
+    gfn_t sgfn = gaddr_to_gfn(GUEST_RAM0_BASE);
 
+    bank = &kinfo->mem.bank[kinfo->mem.nr_banks];
+    bank->size = kinfo->unassigned_mem;
+    bank->start = GUEST_RAM0_BASE;
+    printk("Allocating colored mappings totalling %ldMB for DOM %d:\n",
+           (unsigned long)(kinfo->unassigned_mem >> 20), d->domain_id);
+
+    while ( kinfo->unassigned_mem > 0 )
+    {
+        pg = alloc_col_domheap_page(d, 0);
+        if ( !pg )
+            panic("ERROR: Failed alloc pages to DOM: %d\n", d->domain_id);
+
+        res = guest_physmap_add_page(d, sgfn, page_to_mfn(pg), 0);
+
+        if ( res )
+        {
+            printk("ERROR: Failed map pages to DOM: %d", d->domain_id);
+            BUG();
+        }
+        sgfn = gfn_add(sgfn,1);
+        kinfo->unassigned_mem -= PAGE_SIZE;
+    }
+
+    kinfo->mem.nr_banks++;
+}
+#endif
 static int __init write_properties(struct domain *d, struct kernel_info *kinfo,
                                    const struct dt_device_node *node)
 {
@@ -2336,7 +2371,12 @@ int __init construct_dom0(struct domain *d)
     /* type must be set before allocate_memory */
     d->arch.type = kinfo.type;
 #endif
-    allocate_memory_11(d, &kinfo);
+#ifdef CONFIG_COLORING
+    if ( d->max_colors )
+        allocate_colored_memory(d, &kinfo);
+    else
+#endif
+        allocate_memory_11(d, &kinfo);
     find_gnttab_region(d, &kinfo);
 
     /* Map extra GIC MMIO, irqs and other hw stuffs to dom0. */
