@@ -28,6 +28,12 @@
 #include <asm/coloring.h>
 #include <asm/io.h>
 
+/* By default Xen uses the lowestmost color */
+#define XEN_COLOR_DEFAULT_MASK 0x0001
+#define XEN_COLOR_DEFAULT_NUM 1
+/* Current maximum useful colors */
+#define MAX_XEN_COLOR   128
+
 /* Minimum size required for buddy allocator to work with colored one */
 unsigned long buddy_required_size __read_mostly = MB(512);
 
@@ -35,6 +41,8 @@ unsigned long buddy_required_size __read_mostly = MB(512);
 static uint64_t xen_col_num;
 /* Coloring configuration of Xen as bitmask */
 static uint64_t xen_col_mask;
+/* Xen colors IDs */
+static uint32_t xen_col_list[MAX_XEN_COLOR];
 
 /* Number of color(s) assigned to Dom0 */
 static uint64_t dom0_colors_num;
@@ -161,7 +169,7 @@ static int copy_mask_to_list(
 
 bool __init coloring_init(void)
 {
-    int i;
+    int i, rc;
 
     C_DEBUG("Initialize XEN coloring: \n");
     /*
@@ -193,6 +201,22 @@ bool __init coloring_init(void)
     C_DEBUG("Way size: 0x%lx\n", way_size);
     C_DEBUG("Color bits in address: 0x%lx\n", addr_col_mask);
     C_DEBUG("Max number of colors: %lu (0x%lx)\n", col_num_max, col_val_max);
+
+    /* Clean Xen color array with default color value */
+    memset(xen_col_list, 0, sizeof(uint32_t) *  MAX_XEN_COLOR);
+
+    if ( !xen_col_num )
+    {
+        xen_col_mask = XEN_COLOR_DEFAULT_MASK;
+        xen_col_num = XEN_COLOR_DEFAULT_NUM;
+        C_DEBUG("Xen color configuration not found. Using default\n");
+    }
+
+    C_DEBUG("Xen color configuration: 0x%lx\n", xen_col_mask);
+    rc = copy_mask_to_list(xen_col_mask, xen_col_list, xen_col_num);
+
+    if ( rc )
+        return false;
 
     return true;
 }
