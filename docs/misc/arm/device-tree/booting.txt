@@ -144,6 +144,9 @@ with the following properties:
 
     An integer specifying the number of vcpus to allocate to the guest.
 
+- colors
+    A 64 bit bitmask specifying the color configuration for the guest.
+
 - vpl011
 
     An empty property to enable/disable a virtual pl011 for the guest to
