@@ -2589,6 +2589,20 @@ Currently, only the "sbsa_uart" model is supported for ARM.
 
 =back
 
+=over 4
+
+=item B<colors=[ "COLORS_RANGE", "COLORS_RANGE", ...]>
+
+Specify the color configuration for the guest. B<COLORS_RANGE> is expressed
+using colors numbers. The range starts always from 0 up to the maximum amount
+of available colors.
+The number of available colors depends on the LLC layout of the specific
+platform and determines the maximum allowed value.  This number can be either
+calculated or read from the output given by the hypervisor during boot, if
+DEBUG logging is enabled.
+
+=back
+
 =head3 x86
 
 =over 4
