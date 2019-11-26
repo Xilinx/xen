@@ -279,6 +279,20 @@ when the RSB gets overwritten.  The former control all RSB overwriting, while
 the latter two can be used to fine tune overwriting on from HVM context, and
 an entry from a native (PV or Xen) context.
 
+### buddy\_size (arm64)
+> `= <size in megabyte>`
+
+> Default: `64 MB`
+
+Amount of memory reserved for the buddy allocator when colored allocator is
+active. This options is useful only if coloring support is enabled.
+The colored allocator is meant as an alternative to the buddy allocator,
+since its allocation policy is by definition incompatible with the
+generic one. Since the Xen heap systems is not colored yet, we need to
+support the coexistence of the two allocators for now. This parameter, which is
+optional and for expert only, is used to set the amount of memory reserved to
+the buddy allocator.
+
 ### clocksource (x86)
 > `= pit | hpet | acpi | tsc`
 
@@ -678,6 +692,16 @@ Flag that makes a dom0 boot in PVHv2 mode.
 
 Flag that makes a dom0 use shadow paging. Only works when "pvh" is
 enabled.
+
+### dom0\_colors (arm64)
+> `= List of <integer>-<integer>`
+
+> Default: `All available colors`
+
+Specify dom0 color configuration. If the parameter is not set, all available
+colors are chosen and the user is warned on Xen's serial console. This color
+configuration acts also as the default one for all DomUs that do not have any
+explicit color assignment in their configuration file.
 
 ### dom0\_ioports\_disable (x86)
 > `= List of <hex>-<hex>`
@@ -2097,6 +2121,20 @@ unknown NMIs will still be processed.
 Set the NMI watchdog timeout in seconds.  Specifying `0` will turn off
 the watchdog.
 
+### way\_size (arm64)
+> `= <size in byte>`
+
+> Default: `Obtained from the hardware`
+
+Specify the way size of the Last Level Cache. This parameter is only useful with
+coloring support enabled. It is an optional, expert-only parameter and it is
+used to calculate what bits in the physical address can be used by the coloring
+algorithm, and thus the maximum available colors on the platform. It can be
+obtained by dividing the total LLC size by the number of associativity ways.
+By default, the value is also automatically computed during coloring
+initialization to avoid any kind of misconfiguration. For this reason, it is
+highly recommended to use this boot argument with specific needs only.
+
 ### x2apic (x86)
 > `= <boolean>`
 
@@ -2112,6 +2150,15 @@ Permit use of x2apic setup for SMP environments.
 In the case that x2apic is in use, this option switches between physical and
 clustered mode.  The default, given no hint from the **FADT**, is cluster
 mode.
+
+### xen\_colors (arm64)
+> `= List of <integer>-<integer>`
+
+> Default: `0-0: the lowermost color`
+
+Specify Xen color configuration. 
+Two colors are most likely needed on platforms where private caches are
+physically indexed, e.g. the L1 instruction cache of the Arm Cortex-A57.
 
 ### xenheap\_megabytes (arm32)
 > `= <size>`
