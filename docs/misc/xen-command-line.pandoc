@@ -270,6 +270,54 @@ and not running softirqs. Reduce this if softirqs are not being run frequently
 enough. Setting this to a high value may cause boot failure, particularly if
 the NMI watchdog is also enabled.
 
+### bti (x86)
+> `= List of [ <bool>, thunk=retpoline|lfence|jmp, ibrs=<bool>, ibpb=<bool>, rsb=<bool>, rsb_{vmexit,native}=<bool> ]`
+
+**WARNING: This command line option is deprecated, and superseded by
+_spec-ctrl=_ - using both options in combination is undefined.**
+
+Branch Target Injection controls.  By default, Xen will pick the most
+appropriate BTI mitigations based on compiled in support, loaded microcode,
+and hardware details.
+
+**WARNING: Any use of this option may interfere with heuristics.  Use with
+extreme care.**
+
+A (negative) boolean value can be specified to turn off all mitigations.
+(Use of a positive boolean value is invalid.)
+
+If Xen was compiled with INDIRECT\_THUNK support, `thunk=` can be used to
+select which of the thunks gets patched into the `__x86_indirect_thunk_%reg`
+locations.  The default thunk is `retpoline` (generally preferred for Intel
+hardware), with the alternatives being `jmp` (a `jmp *%reg` gadget, minimal
+overhead), and `lfence` (an `lfence; jmp *%reg` gadget, preferred for AMD).
+
+On hardware supporting IBRS, the `ibrs=` option can be used to force or
+prevent Xen using the feature itself.  If Xen is not using IBRS itself,
+functionality is still set up so IBRS can be virtualised for guests.
+
+On hardware supporting IBPB, the `ibpb=` option can be used to prevent Xen
+from issuing Branch Prediction Barriers on vcpu context switches.
+
+The `rsb=`, `rsb_vmexit=` and `rsb_native=` options can be used to control
+when the RSB gets overwritten.  The former control all RSB overwriting, while
+the latter two can be used to fine tune overwriting on from HVM context, and
+an entry from a native (PV or Xen) context.
+
+### buddy\_size (arm64)
+> `= <size in megabyte>`
+
+> Default: `64 MB`
+
+Amount of memory reserved for the buddy allocator when colored allocator is
+active. This options is useful only if coloring support is enabled.
+The colored allocator is meant as an alternative to the buddy allocator,
+since its allocation policy is by definition incompatible with the
+generic one. Since the Xen heap systems is not colored yet, we need to
+support the coexistence of the two allocators for now. This parameter, which is
+optional and for expert only, is used to set the amount of memory reserved to
+the buddy allocator.
+
 ### clocksource (x86)
 > `= pit | hpet | acpi | tsc`
 
@@ -767,7 +815,17 @@ Controls for the dom0 IOMMU setup.
 
     Incorrect use of this option may result in a malfunctioning system.
 
-### dom0_ioports_disable (x86)
+### dom0\_colors (arm64)
+> `= List of <integer>-<integer>`
+
+> Default: `All available colors`
+
+Specify dom0 color configuration. If the parameter is not set, all available
+colors are chosen and the user is warned on Xen's serial console. This color
+configuration acts also as the default one for all DomUs that do not have any
+explicit color assignment in their configuration file.
+
+### dom0\_ioports\_disable (x86)
 > `= List of <hex>-<hex>`
 
 Specify a list of IO ports to be excluded from dom0 access.
@@ -2293,6 +2351,20 @@ unknown NMIs will still be processed.
 Set the NMI watchdog timeout in seconds.  Specifying `0` will turn off
 the watchdog.
 
+### way\_size (arm64)
+> `= <size in byte>`
+
+> Default: `Obtained from the hardware`
+
+Specify the way size of the Last Level Cache. This parameter is only useful with
+coloring support enabled. It is an optional, expert-only parameter and it is
+used to calculate what bits in the physical address can be used by the coloring
+algorithm, and thus the maximum available colors on the platform. It can be
+obtained by dividing the total LLC size by the number of associativity ways.
+By default, the value is also automatically computed during coloring
+initialization to avoid any kind of misconfiguration. For this reason, it is
+highly recommended to use this boot argument with specific needs only.
+
 ### x2apic (x86)
 > `= <boolean>`
 
@@ -2309,7 +2381,16 @@ In the case that x2apic is in use, this option switches between physical and
 clustered mode.  The default, given no hint from the **FADT**, is cluster
 mode.
 
-### xenheap_megabytes (arm32)
+### xen\_colors (arm64)
+> `= List of <integer>-<integer>`
+
+> Default: `0-0: the lowermost color`
+
+Specify Xen color configuration. 
+Two colors are most likely needed on platforms where private caches are
+physically indexed, e.g. the L1 instruction cache of the Arm Cortex-A57.
+
+### xenheap\_megabytes (arm32)
 > `= <size>`
 
 > Default: `0` (1/32 of RAM)
