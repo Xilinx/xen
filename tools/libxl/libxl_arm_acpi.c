@@ -19,6 +19,7 @@
 #include "libxl_arm.h"
 
 #include <stdint.h>
+#include <xen-tools/libs.h>
 
 /* Below typedefs are useful for the headers under acpi/ */
 typedef uint8_t u8;
