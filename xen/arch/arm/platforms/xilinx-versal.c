@@ -17,7 +17,8 @@
  */
 
 #include <asm/platform.h>
-#include <asm/platforms/xilinx-zynqmp-eemi.h>
+#include <asm/platforms/xilinx-versal-eemi.h>
+#include <asm/smccc.h>
 
 static const char * const versal_dt_compat[] __initconst =
 {
@@ -27,8 +28,6 @@ static const char * const versal_dt_compat[] __initconst =
 
 static bool versal_smc(struct cpu_user_regs *regs)
 {
-    struct arm_smccc_res res;
-
     if ( !cpus_have_const_cap(ARM_SMCCC_1_1) )
     {
         printk_once(XENLOG_WARNING
@@ -37,24 +36,7 @@ static bool versal_smc(struct cpu_user_regs *regs)
         return false;
     }
 
-    if ( !is_hardware_domain(current->domain) )
-        return false;
-
-    arm_smccc_1_1_smc(get_user_reg(regs, 0),
-                      get_user_reg(regs, 1),
-                      get_user_reg(regs, 2),
-                      get_user_reg(regs, 3),
-                      get_user_reg(regs, 4),
-                      get_user_reg(regs, 5),
-                      get_user_reg(regs, 6),
-                      get_user_reg(regs, 7),
-                      &res);
-
-    set_user_reg(regs, 0, res.a0);
-    set_user_reg(regs, 1, res.a1);
-    set_user_reg(regs, 2, res.a2);
-    set_user_reg(regs, 3, res.a3);
-    return true;
+	return versal_eemi(regs);
 }
 
 PLATFORM_START(xilinx_versal, "Xilinx Versal")
