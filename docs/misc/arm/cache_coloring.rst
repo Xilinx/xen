@@ -115,12 +115,25 @@ Configuration example:
 .. raw:: html
 
     <pre>
-        domU1 {
+        xen,xen-bootargs = "console=dtuart dtuart=serial0 dom0_mem=1G dom0_max_vcpus=1 sched=null way_size=65536 xen_colors=0-1 dom0_colors=2-6";
+        xen,dom0-bootargs "console=hvc0 earlycon=xen earlyprintk=xen root=/dev/ram0"
+
+        dom0 {
+            compatible = "xen,linux-zimage" "xen,multiboot-module";
+            reg = <0x0 0x1000000 0x0 15858176>;
+        };
+
+        dom0-ramdisk {
+            compatible = "xen,linux-initrd" "xen,multiboot-module";
+            reg = <0x0 0x2000000 0x0 20638062>;
+        };
+
+        domU0 {
             #address-cells = <0x1>;
             #size-cells = <0x1>;
             compatible = "xen,domain";
-            memory = <0x0 0x20000>;
-            colors = <0x0 0xff00>;
+            memory = <0x0 0x40000>;
+            colors = <0x0 0x0f00>;
             cpus = <0x1>;
             vpl011 = <0x1>;
 
@@ -153,7 +166,7 @@ boot hangs as soon as the Xen image is loaded. To overcome this issue, it is
 enough to specify the way_size parameter in the command line. Any multiple
 greater than 1 of the page size allows the coloring mechanism to work, but the
 precise behavior on the system that QEMU is emulating can be obtained with its
-way_size.
+way_size. For instance, set way_size=65536.
 
 
 Fail to boot colored DomUs with large memory size
