@@ -31,6 +31,7 @@
 #include <asm/platform.h>
 #include <asm/procinfo.h>
 #include <asm/regs.h>
+#include <asm/setup.h>
 #include <asm/vfp.h>
 #include <asm/vgic.h>
 #include <asm/vtimer.h>
@@ -712,21 +713,31 @@ int arch_domain_create(struct domain *d,
         }
 
         d->max_colors = config->arch.colors.max_colors;
-        if ( copy_from_guest(d->colors, config->arch.colors.colors,
-                             d->max_colors) )
+        if ( d->domain_id <= max_init_domid )
+            memcpy(d->colors, config->arch.colors.colors.p, d->max_colors * sizeof(uint32_t));
+        else
         {
-            rc = -EINVAL;
-            printk(XENLOG_ERR "Failed to copy colors for dom%u\n", d->domain_id);
-            goto fail;
-        }
-
-        if ( !check_domain_colors(d) )
-        {
-            rc = -EINVAL;
-            printk(XENLOG_ERR "Failed to check colors for dom%u\n", d->domain_id);
-            goto fail;
+            rc = copy_from_guest(d->colors, config->arch.colors.colors, d->max_colors);
+            if ( rc != 0 )
+            {
+                rc = -EINVAL;
+                printk(XENLOG_ERR "Failed to copy colors for dom%u\n", d->domain_id);
+                goto fail;
+            }
         }
     }
+
+    if ( !check_domain_colors(d) )
+    {
+        rc = -EINVAL;
+        printk(XENLOG_ERR "Failed to check colors for dom%u\n", d->domain_id);
+        goto fail;
+    }
+
+    printk("Dom%u colors: [ ", d->domain_id);
+    for ( int i = 0; i < d->max_colors; i++ )
+        printk("%u ", d->colors[i]);
+    printk("]\n");
 #endif
     return 0;
 

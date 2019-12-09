@@ -2222,9 +2222,8 @@ static int __init construct_domU(struct domain *d,
                                  const struct dt_device_node *node)
 {
     struct kernel_info kinfo = {};
-    int rc, i, k;
+    int rc;
     u64 mem;
-    u64 col_val;
 
     rc = dt_property_read_u64(node, "memory", &mem);
     if ( !rc )
@@ -2244,31 +2243,6 @@ static int __init construct_domU(struct domain *d,
     if ( alloc_vcpu(d, 0, 0) == NULL )
         return -ENOMEM;
     d->max_pages = ~0U;
-
-    rc = dt_property_read_u64(node, "colors", &col_val);
-
-    if ( get_max_colors() && col_val )
-    {
-        printk("Colored configuration: 0x%"PRIx64"\n", col_val);
-        d->max_colors = 0;
-        if ( d->colors )
-            xfree(d->colors);
-
-        /* Calculate number of bit set */
-        for ( i = 0; i < get_max_colors(); i++)
-            if ( col_val & (1 << i) )
-                d->max_colors++;
-
-        d->colors = xzalloc_array(uint32_t, d->max_colors);
-        for ( i = 0, k = 0; k < d->max_colors; i++ )
-            if ( col_val & (1 << i) )
-                d->colors[k++] = i;
-
-        printk("DomU config: [ ");
-        for ( k = 0; k < d->max_colors; k++ )
-            printk("%u ", d->colors[k]);
-        printk("]\n");
-    }
 
     kinfo.d = d;
 
@@ -2303,6 +2277,8 @@ void __init create_domUs(void)
 {
     struct dt_device_node *node;
     const struct dt_device_node *chosen = dt_find_node_by_path("/chosen");
+    u64 col_val = 0;
+    uint32_t *colors = NULL;
 
     BUG_ON(chosen == NULL);
     dt_for_each_child_node(chosen, node)
@@ -2317,6 +2293,28 @@ void __init create_domUs(void)
         if ( !dt_device_is_compatible(node, "xen,domain") )
             continue;
 
+        d_cfg.arch.colors.max_colors = 0;
+        dt_property_read_u64(node, "colors", &col_val);
+        if ( get_max_colors() && col_val )
+        {
+            int i, k;
+
+            printk("Colored configuration: 0x%"PRIx64"\n", col_val);
+
+            /* Calculate number of bit set */
+            for ( i = 0; i < get_max_colors(); i++)
+                if ( col_val & (1 << i) )
+                    d_cfg.arch.colors.max_colors++;
+
+            colors = xzalloc_array(uint32_t, d_cfg.arch.colors.max_colors);
+            if ( !colors )
+                panic("Cannot allocate memory");
+            for ( i = 0, k = 0; k < d_cfg.arch.colors.max_colors; i++ )
+                if ( col_val & (1 << i) )
+                    colors[k++] = i;
+            set_xen_guest_handle(d_cfg.arch.colors.colors, colors);
+        }
+
         d = domain_create(++max_init_domid, &d_cfg);
         if ( IS_ERR(d) )
             panic("Error creating domain %s", dt_node_name(node));
@@ -2329,6 +2327,7 @@ void __init create_domUs(void)
             panic("Could not set up domain %s", dt_node_name(node));
 
         domain_unpause_by_systemcontroller(d);
+        xfree(colors);
     }
 }
 
