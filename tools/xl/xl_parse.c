@@ -1044,11 +1044,12 @@ void parse_config_data(const char *config_source,
                     }
             }
 
+            cur_index = b_info->num_colors;
             b_info->num_colors += (end - start) + 1;
-            b_info->colors = (uint32_t*)realloc(b_info->colors,
-                sizeof(*b_info->colors) * b_info->num_colors);
+            b_info->colors = (uint32_t *)realloc(b_info->colors,
+                             sizeof(*b_info->colors) * b_info->num_colors);
 
-            for (k = start, cur_index = 0; cur_index < b_info->num_colors;
+            for (k = start; cur_index < b_info->num_colors;
                 cur_index++, k++)
                 b_info->colors[cur_index] = k;
         }
