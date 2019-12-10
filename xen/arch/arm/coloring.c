@@ -221,6 +221,9 @@ bool __init coloring_init(void)
         C_DEBUG("Xen color configuration not found. Using default\n");
     }
 
+    if ( xen_col_num > col_num_max || xen_col_mask >= (1 << col_num_max) )
+        panic("Invalid Xen coloring configuration\n");
+
     C_DEBUG("Xen color configuration: 0x%lx\n", xen_col_mask);
     rc = copy_mask_to_list(xen_col_mask, xen_col_list, xen_col_num);
 
