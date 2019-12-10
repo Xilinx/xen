@@ -691,11 +691,12 @@ int arch_domain_create(struct domain *d,
     d->max_colors = 0;
 #ifdef CONFIG_COLORING
     /* Setup domain colors */
-    if ( d->domain_id >= 0 && !config->arch.colors.max_colors )
+    if ( !config->arch.colors.max_colors )
     {
         C_DEBUG("Color configuration not found, using default\n");
         d->colors = setup_default_colors(&d->max_colors);
-        if ( !d->colors ){
+        if ( !d->colors )
+        {
             rc = -ENOMEM;
             printk(XENLOG_ERR "Color array allocation failed for dom%u\n",
                    d->domain_id);
