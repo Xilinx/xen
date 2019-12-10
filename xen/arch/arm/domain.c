@@ -695,7 +695,9 @@ int arch_domain_create(struct domain *d,
         C_DEBUG("Color configuration not found, using default\n");
         d->colors = setup_default_colors(&d->max_colors);
         if ( !d->colors ){
-            C_DEBUG("Alloc failed\n");
+            rc = -ENOMEM;
+            printk(XENLOG_ERR "Color array allocation failed for dom%u\n",
+                   d->domain_id);
             goto fail;
         }
     }
@@ -703,21 +705,25 @@ int arch_domain_create(struct domain *d,
     {
         d->colors = xzalloc_array(uint32_t, config->arch.colors.max_colors);
         if ( !d->colors ){
-            C_DEBUG("Failed to alloc colors\n");
+            rc = -ENOMEM;
+            printk(XENLOG_ERR "Failed to alloc colors for dom%u\n",
+                   d->domain_id);
             goto fail;
         }
 
         d->max_colors = config->arch.colors.max_colors;
         if ( copy_from_guest(d->colors, config->arch.colors.colors,
-            d->max_colors) )
+                             d->max_colors) )
         {
-            C_DEBUG("Failed to copy colors\n");
+            rc = -EINVAL;
+            printk(XENLOG_ERR "Failed to copy colors for dom%u\n", d->domain_id);
             goto fail;
         }
 
-        if( !check_domain_colors(d) )
+        if ( !check_domain_colors(d) )
         {
-            C_DEBUG("Failed to check colors\n");
+            rc = -EINVAL;
+            printk(XENLOG_ERR "Failed to check colors for dom%u\n", d->domain_id);
             goto fail;
         }
     }
