@@ -168,6 +168,18 @@ static int copy_mask_to_list(
     return 0;
 }
 
+static int __init coloring_xen_info(void)
+{
+    printk(XENLOG_WARNING "Way size: 0x%lx\n", way_size);
+    printk(XENLOG_WARNING "Color bits in address: 0x%lx\n", addr_col_mask);
+    printk(XENLOG_WARNING "Max number of colors: %lu (0x%lx)\n", col_num_max, col_val_max);
+    printk(XENLOG_WARNING "Size of each color: %llu MB\n", (total_pages << PAGE_SHIFT) / (col_num_max*MB(1)));
+    printk(XENLOG_WARNING "Xen color configuration: 0x%lx\n", xen_col_mask);
+
+    return 0;
+}
+__initcall(coloring_xen_info);
+
 bool __init coloring_init(void)
 {
     int i, rc;
@@ -198,10 +210,6 @@ bool __init coloring_init(void)
     col_num_max = ((addr_col_mask >> PAGE_SHIFT) + 1);
     for ( i = 0; i < col_num_max; i++ )
         col_val_max |= (1 << i);
-
-    C_DEBUG("Way size: 0x%lx\n", way_size);
-    C_DEBUG("Color bits in address: 0x%lx\n", addr_col_mask);
-    C_DEBUG("Max number of colors: %lu (0x%lx)\n", col_num_max, col_val_max);
 
     /* Clean Xen color array with default color value */
     memset(xen_col_list, 0, sizeof(uint32_t) *  MAX_XEN_COLOR);
