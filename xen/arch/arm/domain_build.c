@@ -2279,6 +2279,7 @@ void __init create_domUs(void)
     const struct dt_device_node *chosen = dt_find_node_by_path("/chosen");
     u64 col_val = 0;
     uint32_t *colors = NULL;
+    int rc;
 
     BUG_ON(chosen == NULL);
     dt_for_each_child_node(chosen, node)
@@ -2294,10 +2295,13 @@ void __init create_domUs(void)
             continue;
 
         d_cfg.arch.colors.max_colors = 0;
-        dt_property_read_u64(node, "colors", &col_val);
-        if ( get_max_colors() && col_val )
+        rc = dt_property_read_u64(node, "colors", &col_val);
+        if ( rc && col_val )
         {
             int i, k;
+
+            if ( !get_max_colors() )
+                panic("Coloring requested but no colors configuration found!\n");
 
             if ( col_val >= (1 << get_max_colors()) )
                 panic("Invalid DomU colors configuration 0x%"PRIx64"\n", col_val);
