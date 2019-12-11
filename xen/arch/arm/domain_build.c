@@ -2299,6 +2299,9 @@ void __init create_domUs(void)
         {
             int i, k;
 
+            if ( col_val >= (1 << get_max_colors()) )
+                panic("Invalid DomU colors configuration 0x%"PRIx64"\n", col_val);
+
             printk("Colored configuration: 0x%"PRIx64"\n", col_val);
 
             /* Calculate number of bit set */
