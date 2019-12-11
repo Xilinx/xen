@@ -206,35 +206,6 @@ void *__vmap(const mfn_t *mfn, unsigned int granularity,
 {
     void *va = vm_alloc(nr * granularity, align, type);
     unsigned long cur = (unsigned long)va;
-#ifdef CONFIG_COLORING
-    /*
-     * Since the alternative module re-maps the Xen text, we need to handle
-     * the coloring scenario.
-     * In that case we need to re-map Xen using the same coloring logic used
-     * before during setup_pagetables.
-     */
-    if ((unsigned long)mfn_to_maddr(*mfn) == __pa(_start))
-    {
-        mfn_t mfn_col;
-        paddr_t xen_paddr = mfn_to_maddr(*mfn);
-        int iter = granularity * nr;
-        int i;
-
-        C_DEBUG("VM Alloc: %p\n", va);
-        C_DEBUG("Starting to mapping colored from physical 0x%lx\n", xen_paddr);
-        for ( i = 0; i < iter; i++, cur += PAGE_SIZE )
-        {
-            xen_paddr = next_xen_colored(xen_paddr);
-            mfn_col = maddr_to_mfn(xen_paddr);
-            if ( map_pages_to_xen(cur, mfn_col, 1, flags) )
-            {
-                vunmap(va);
-                va = NULL;
-            }
-            xen_paddr += PAGE_SIZE;
-        }
-    } else
-#endif
     for ( ; va && nr--; ++mfn, cur += PAGE_SIZE * granularity )
     {
         if ( map_pages_to_xen(cur, *mfn, granularity, flags) )
