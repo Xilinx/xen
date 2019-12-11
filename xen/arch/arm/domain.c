@@ -705,8 +705,11 @@ int arch_domain_create(struct domain *d,
     }
     else
     {
+        int i, k;
+
         d->colors = xzalloc_array(uint32_t, config->arch.colors.max_colors);
-        if ( !d->colors ){
+        if ( !d->colors )
+        {
             rc = -ENOMEM;
             printk(XENLOG_ERR "Failed to alloc colors for dom%u\n",
                    d->domain_id);
@@ -714,17 +717,10 @@ int arch_domain_create(struct domain *d,
         }
 
         d->max_colors = config->arch.colors.max_colors;
-        if ( d->domain_id <= max_init_domid )
-            memcpy(d->colors, config->arch.colors.colors.p, d->max_colors * sizeof(uint32_t));
-        else
+        for ( i = 0, k = 0; k < d->max_colors && i < 64; i++ )
         {
-            rc = copy_from_guest(d->colors, config->arch.colors.colors, d->max_colors);
-            if ( rc != 0 )
-            {
-                rc = -EINVAL;
-                printk(XENLOG_ERR "Failed to copy colors for dom%u\n", d->domain_id);
-                goto fail;
-            }
+            if ( config->arch.colors.colors & (1ULL << i) )
+                d->colors[k++] = i;
         }
     }
 

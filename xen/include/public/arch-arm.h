@@ -297,11 +297,9 @@ struct vcpu_guest_context {
 typedef struct vcpu_guest_context vcpu_guest_context_t;
 DEFINE_XEN_GUEST_HANDLE(vcpu_guest_context_t);
 
-__DEFINE_XEN_GUEST_HANDLE(col, uint32_t);
-
 struct color_guest_config {
     uint32_t max_colors;
-    XEN_GUEST_HANDLE(col) colors;
+    uint64_t colors;
 };
 
 /*
