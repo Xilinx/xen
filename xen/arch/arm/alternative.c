@@ -185,9 +185,6 @@ static int __apply_alternatives_multi_stop(void *unused)
     {
         int ret;
         struct alt_region region;
-        mfn_t xen_mfn = virt_to_mfn(_start);
-        paddr_t xen_size = _end - _start;
-        unsigned int xen_order = get_order_from_bytes(xen_size);
         void *xenmap;
 
         BUG_ON(patched);
@@ -196,8 +193,7 @@ static int __apply_alternatives_multi_stop(void *unused)
          * The text and inittext section are read-only. So re-map Xen to
          * be able to patch the code.
          */
-        xenmap = __vmap(&xen_mfn, 1U << xen_order, 1, 1, PAGE_HYPERVISOR,
-                        VMAP_DEFAULT);
+        xenmap = xen_map_text_rw();
         /* Re-mapping Xen is not expected to fail during boot. */
         BUG_ON(!xenmap);
 
@@ -208,7 +204,7 @@ static int __apply_alternatives_multi_stop(void *unused)
         /* The patching is not expected to fail during boot. */
         BUG_ON(ret != 0);
 
-        vunmap(xenmap);
+        xen_unmap_text_rw(xenmap);
 
         /* Barriers provided by the cache flushing */
         write_atomic(&patched, 1);
