@@ -45,8 +45,8 @@ void __init vm_init_type(enum vmap_region type, void *start, void *end)
     populate_pt_range(va, vm_low[type] - nr);
 }
 
-static void *vm_alloc(unsigned int nr, unsigned int align,
-                      enum vmap_region t)
+void *vm_alloc(unsigned int nr, unsigned int align,
+               enum vmap_region t)
 {
     unsigned int start, bit;
 

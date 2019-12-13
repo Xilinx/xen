@@ -12,6 +12,8 @@ enum vmap_region {
 
 void vm_init_type(enum vmap_region type, void *start, void *end);
 
+void *vm_alloc(unsigned int nr, unsigned int align,
+               enum vmap_region t);
 void *__vmap(const mfn_t *mfn, unsigned int granularity, unsigned int nr,
              unsigned int align, unsigned int flags, enum vmap_region);
 void *vmap(const mfn_t *mfn, unsigned int nr);
