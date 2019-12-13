@@ -615,6 +615,33 @@ static void clear_table(void *table)
 }
 
 #ifdef CONFIG_COLORING
+void* __init xen_map_text_rw(void)
+{
+    paddr_t xen_paddr = __pa(_start);
+    unsigned int xen_size = 1 << get_order_from_bytes(_end - _start);
+    void *va = vm_alloc(xen_size, 1, VMAP_DEFAULT);
+    unsigned long cur = (unsigned long)va;
+    mfn_t mfn_col;
+    unsigned int i;
+
+    C_DEBUG("VM Alloc: %p\n", va);
+    C_DEBUG("Starting to mapping colored from physical 0x%lx\n", xen_paddr);
+    for ( i = 0; i < xen_size; i++, cur += PAGE_SIZE )
+    {
+        xen_paddr = next_xen_colored(xen_paddr);
+        mfn_col = maddr_to_mfn(xen_paddr);
+        if ( map_pages_to_xen(cur, mfn_col, 1, PAGE_HYPERVISOR) )
+            return NULL;
+        xen_paddr += PAGE_SIZE;
+    }
+    return va;
+}
+
+void __init xen_unmap_text_rw(void *va)
+{
+    vunmap(va);
+}
+
 extern void switch_ttbr(uint64_t ttbr);
 
 /*
@@ -797,6 +824,19 @@ void __init setup_pagetables(unsigned long boot_phys_offset, paddr_t xen_paddr)
     flush_xen_text_tlb_local();
 }
 #else
+void* __init xen_map_text_rw(void)
+{
+    unsigned int xen_order = get_order_from_bytes(_end - _start);
+    mfn_t xen_mfn = virt_to_mfn(_start);
+    return __vmap(&xen_mfn, 1U << xen_order, 1, 1, PAGE_HYPERVISOR,
+                  VMAP_DEFAULT);
+}
+
+void __init xen_unmap_text_rw(void *va)
+{
+    vunmap(va);
+}
+
 /* Boot-time pagetable setup.
  * Changes here may need matching changes in head.S */
 void __init setup_pagetables(unsigned long boot_phys_offset, paddr_t xen_paddr)
