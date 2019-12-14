@@ -133,7 +133,7 @@ Configuration example:
             #size-cells = <0x1>;
             compatible = "xen,domain";
             memory = <0x0 0x40000>;
-            colors = <0x0 0x0f00>;
+            colors = <0x0f00>;
             cpus = <0x1>;
             vpl011 = <0x1>;
 

@@ -717,9 +717,11 @@ int arch_domain_create(struct domain *d,
         }
 
         d->max_colors = config->arch.colors.max_colors;
-        for ( i = 0, k = 0; k < d->max_colors && i < 64; i++ )
+        for ( i = 0, k = 0;
+              k < d->max_colors && i < sizeof(config->arch.colors.colors) * 8;
+              i++ )
         {
-            if ( config->arch.colors.colors & (1ULL << i) )
+            if ( config->arch.colors.colors[i / 32] & (1 << (i % 32)) )
                 d->colors[k++] = i;
         }
     }

@@ -2277,8 +2277,10 @@ void __init create_domUs(void)
 {
     struct dt_device_node *node;
     const struct dt_device_node *chosen = dt_find_node_by_path("/chosen");
-    u64 col_val = 0;
-    int rc;
+    u32 col_val;
+    const u32 *cells;
+    u32 len;
+    int cell, i, k;
 
     BUG_ON(chosen == NULL);
     dt_for_each_child_node(chosen, node)
@@ -2294,25 +2296,29 @@ void __init create_domUs(void)
             continue;
 
         d_cfg.arch.colors.max_colors = 0;
-        d_cfg.arch.colors.colors = 0ULL;
-        rc = dt_property_read_u64(node, "colors", &col_val);
-        if ( rc && col_val )
-        {
-            int i;
+        memset(&d_cfg.arch.colors.colors, 0x0, sizeof(d_cfg.arch.colors.colors));
 
+        cells = dt_get_property(node, "colors", &len);
+        if ( cells != NULL && len > 0 )
+        {
             if ( !get_max_colors() )
                 panic("Coloring requested but no colors configuration found!\n");
 
-            if ( col_val >= (1 << get_max_colors()) )
-                panic("Invalid DomU colors configuration 0x%"PRIx64"\n", col_val);
+            if ( len > sizeof(d_cfg.arch.colors.colors) )
+                panic("Dom0less DomU color information is invalid\n");
 
-            printk("Colored configuration: 0x%"PRIx64"\n", col_val);
-
-            /* Calculate number of bit set */
-            for ( i = 0; i < 64; i++)
-                if ( col_val & (1ULL << i) )
-                    d_cfg.arch.colors.max_colors++;
-            d_cfg.arch.colors.colors = col_val;
+            for ( k = 0, cell = len/4 - 1; cell >= 0; cell--, k++ )
+            {
+                col_val = be32_to_cpup(&cells[cell]);
+                if ( col_val )
+                {
+                    /* Calculate number of bit set */
+                    for ( i = 0; i < 32; i++)
+                        if ( col_val & (1 << i) )
+                            d_cfg.arch.colors.max_colors++;
+                    d_cfg.arch.colors.colors[k] = col_val;
+                }
+            }
         }
 
         d = domain_create(++max_init_domid, &d_cfg);
