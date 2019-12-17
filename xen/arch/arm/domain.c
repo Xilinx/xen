@@ -726,17 +726,17 @@ int arch_domain_create(struct domain *d,
         }
     }
 
+    printk("Dom%u colors: [ ", d->domain_id);
+    for ( int i = 0; i < d->max_colors; i++ )
+        printk("%u ", d->colors[i]);
+    printk("]\n");
+
     if ( !check_domain_colors(d) )
     {
         rc = -EINVAL;
         printk(XENLOG_ERR "Failed to check colors for dom%u\n", d->domain_id);
         goto fail;
     }
-
-    printk("Dom%u colors: [ ", d->domain_id);
-    for ( int i = 0; i < d->max_colors; i++ )
-        printk("%u ", d->colors[i]);
-    printk("]\n");
 #endif
     return 0;
 
