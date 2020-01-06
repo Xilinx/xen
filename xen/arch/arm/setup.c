@@ -867,6 +867,7 @@ void __init start_xen(unsigned long boot_phys_offset,
     struct bootmodule *xen_bootmodule;
     struct domain *d;
     int rc;
+    paddr_t xen_paddr = (paddr_t)(_start + boot_phys_offset);
 
     dcache_line_bytes = read_dcache_line_bytes();
 
@@ -893,12 +894,11 @@ void __init start_xen(unsigned long boot_phys_offset,
     cmdline_parse(cmdline);
 
     /* Register Xen's load address as a boot module. */
-    xen_bootmodule = add_boot_module(BOOTMOD_XEN,
-                             (paddr_t)(uintptr_t)(_start + boot_phys_offset),
+    xen_bootmodule = add_boot_module(BOOTMOD_XEN, xen_paddr,
                              (paddr_t)(uintptr_t)(_end - _start + 1), false);
     BUG_ON(!xen_bootmodule);
 
-    setup_pagetables(boot_phys_offset);
+    setup_pagetables(boot_phys_offset, xen_paddr);
 
     setup_mm();
 

@@ -634,7 +634,7 @@ static void clear_table(void *table)
 
 /* Boot-time pagetable setup.
  * Changes here may need matching changes in head.S */
-void __init setup_pagetables(unsigned long boot_phys_offset)
+void __init setup_pagetables(unsigned long boot_phys_offset, paddr_t xen_paddr)
 {
     uint64_t ttbr;
     lpae_t pte, *p;
