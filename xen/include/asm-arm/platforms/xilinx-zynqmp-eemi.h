@@ -93,6 +93,7 @@ enum pm_node_id {
 	PM_DEV_IPI_PL_2,
 	PM_DEV_IPI_PL_3,
 	PM_DEV_PL,
+	PM_DEV_SWDT_1,
 	PM_DEV_MAX
 };
 
@@ -330,6 +331,7 @@ enum pm_clock {
     PM_CLK_GEM1_REF_UNGATED,
     PM_CLK_GEM2_REF_UNGATED,
     PM_CLK_GEM3_REF_UNGATED,
+    PM_CLK_LPD_WDT,
     PM_CLK_END,
 };
 
