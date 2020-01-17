@@ -163,6 +163,7 @@ static const struct pm_access pm_node_access[] = {
     [PM_DEV_IPI_APU] = { .hwdom_access = true },
     [PM_DEV_PCAP] = { .hwdom_access = true },
     [PM_DEV_LPD] = { .hwdom_access = true },
+    [PM_DEV_PL] = { .hwdom_access = true },
 
     [PM_DEV_PCIE] = { MM_PCIE_ATTRIB },
     [PM_DEV_RTC] = { MM_RTC },
@@ -171,6 +172,7 @@ static const struct pm_access pm_node_access[] = {
     [PM_DEV_TCM_0_B] = { MM_TCM_0_B },
     [PM_DEV_TCM_1_A] = { MM_TCM_1_A },
     [PM_DEV_TCM_1_B] = { MM_TCM_1_B },
+    [PM_DEV_SWDT_1] = { MM_SWDT },
 };
 
 /*
@@ -505,6 +507,10 @@ static const struct pm_clock2node {
     PM_CLOCK2NODE(PM_CLK_PL1_REF, PM_DEV_PL),
     PM_CLOCK2NODE(PM_CLK_PL2_REF, PM_DEV_PL),
     PM_CLOCK2NODE(PM_CLK_PL3_REF, PM_DEV_PL),
+    PM_CLOCK2NODE(PM_CLK_IOPLL_INT, PM_DEV_PL),
+    PM_CLOCK2NODE(PM_CLK_IOPLL_PRE_SRC, PM_DEV_PL),
+    PM_CLOCK2NODE(PM_CLK_IOPLL_INT_MUX, PM_DEV_PL),
+    PM_CLOCK2NODE(PM_CLK_IOPLL_POST_SRC, PM_DEV_PL),
     PM_CLOCK2NODE(PM_CLK_RPLL_INT, PM_DEV_DP),
     PM_CLOCK2NODE(PM_CLK_RPLL_PRE_SRC, PM_DEV_DP),
     PM_CLOCK2NODE(PM_CLK_RPLL_INT_MUX, PM_DEV_DP),
@@ -523,6 +529,7 @@ static const struct pm_clock2node {
     PM_CLOCK2NODE(PM_CLK_GEM1_REF_UNGATED, PM_DEV_ETH_1),
     PM_CLOCK2NODE(PM_CLK_GEM2_REF_UNGATED, PM_DEV_ETH_2),
     PM_CLOCK2NODE(PM_CLK_GEM3_REF_UNGATED, PM_DEV_ETH_3),
+    PM_CLOCK2NODE(PM_CLK_LPD_WDT, PM_DEV_SWDT_1),
 };
 
 static bool pm_check_access(const struct pm_access *acl, struct domain *d, int idx)
