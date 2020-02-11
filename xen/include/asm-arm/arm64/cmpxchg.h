@@ -61,7 +61,10 @@ static inline unsigned long __xchg(unsigned long x, volatile void *ptr, int size
 	__ret; \
 })
 
-extern unsigned long __bad_cmpxchg(volatile void *ptr, int size);
+static __maybe_unused unsigned long  __bad_cmpxchg(volatile void *ptr, int size)
+{
+	BUG();
+}
 
 #define __CMPXCHG_CASE(w, sz, name)					\
 static inline bool __cmpxchg_case_##name(volatile void *ptr,		\
