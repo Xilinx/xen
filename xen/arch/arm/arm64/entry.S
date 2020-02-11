@@ -207,17 +207,11 @@
          * enter_hypervisor_* rather than do_trap_hyp_serror. This should make
          * easier to understand the path.
          */
-        alternative_if_not SKIP_SYNCHRONIZE_SERROR_ENTRY_EXIT
         bl      check_pending_guest_serror
-        alternative_else_nop_endif
 
         bl      enter_hypervisor_from_guest_preirq
         msr     daifclr, \iflags
         bl      enter_hypervisor_from_guest
-
-        alternative_if SKIP_SYNCHRONIZE_SERROR_ENTRY_EXIT
-        cbnz    x19, 1f
-        alternative_else_nop_endif
 
         mov     x0, sp
         bl      do_trap_\trap
