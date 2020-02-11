@@ -38,7 +38,10 @@ static inline void __xsm_action_mismatch_detected(void)
 }
 #else
 /* DO NOT implement this function; it is supposed to trigger link errors */
-void __xsm_action_mismatch_detected(void);
+static inline void __xsm_action_mismatch_detected(void)
+{
+    BUG();
+}
 #endif
 
 #ifdef CONFIG_XSM
