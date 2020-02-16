@@ -37,6 +37,7 @@
 #include <asm/vfp.h>
 #include <asm/vgic.h>
 #include <asm/vtimer.h>
+#include <asm/coloring.h>
 
 #include "vuart.h"
 
@@ -749,6 +750,58 @@ int arch_domain_create(struct domain *d,
     if ( is_hardware_domain(d) && (rc = domain_vuart_init(d)) )
         goto fail;
 
+    d->max_colors = 0;
+#ifdef CONFIG_COLORING
+    /* Setup domain colors */
+    if ( !config->arch.colors.max_colors )
+    {
+        if ( !is_hardware_domain(d) )
+            printk(XENLOG_INFO "Color configuration not found for dom%u, using default\n",
+                   d->domain_id);
+        d->colors = setup_default_colors(&d->max_colors);
+        if ( !d->colors )
+        {
+            rc = -ENOMEM;
+            printk(XENLOG_ERR "Color array allocation failed for dom%u\n",
+                   d->domain_id);
+            goto fail;
+        }
+    }
+    else
+    {
+        int i, k;
+
+        d->colors = xzalloc_array(uint32_t, config->arch.colors.max_colors);
+        if ( !d->colors )
+        {
+            rc = -ENOMEM;
+            printk(XENLOG_ERR "Failed to alloc colors for dom%u\n",
+                   d->domain_id);
+            goto fail;
+        }
+
+        d->max_colors = config->arch.colors.max_colors;
+        for ( i = 0, k = 0;
+              k < d->max_colors && i < sizeof(config->arch.colors.colors) * 8;
+              i++ )
+        {
+            if ( config->arch.colors.colors[i / 32] & (1 << (i % 32)) )
+                d->colors[k++] = i;
+        }
+    }
+
+    printk("Dom%u colors: [ ", d->domain_id);
+    for ( int i = 0; i < d->max_colors; i++ )
+        printk("%u ", d->colors[i]);
+    printk("]\n");
+
+    if ( !check_domain_colors(d) )
+    {
+        rc = -EINVAL;
+        printk(XENLOG_ERR "Failed to check colors for dom%u\n", d->domain_id);
+        goto fail;
+    }
+#endif
     return 0;
 
 fail:
