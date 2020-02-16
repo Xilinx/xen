@@ -556,6 +556,8 @@ page_list_splice(struct page_list_head *list, struct page_list_head *head)
     list_for_each_entry_safe(pos, tmp, head, list)
 # define page_list_for_each_safe_reverse(pos, tmp, head) \
     list_for_each_entry_safe_reverse(pos, tmp, head, list)
+# define page_list_for_each_reverse(pos, head) \
+    list_for_each_entry_reverse(pos, head, list)
 #endif
 
 static inline unsigned int get_order_from_bytes(paddr_t size)
