@@ -142,6 +142,42 @@ static __init uint64_t calculate_addr_col_mask(uint64_t llc_way_size)
     return addr_col_mask;
 }
 
+static int copy_mask_to_list(
+    uint32_t *col_mask, uint32_t *col_list, uint64_t col_num)
+{
+    unsigned int i, k, c;
+
+    if ( !col_list )
+        return -EINVAL;
+
+    for ( i = 0, k = 0; i < MAX_COLORS_CELLS; i++ )
+        for ( c = 0; k < col_num && c < 32; c++ )
+            if ( col_mask[i] & (1 << (c + (i*32))) )
+                col_list[k++] = c + (i * 32);
+
+    return 0;
+}
+
+uint32_t *setup_default_colors(uint32_t *col_num)
+{
+    uint32_t *col_list;
+
+    if ( dom0_col_num )
+    {
+        *col_num = dom0_col_num;
+        col_list = xzalloc_array(uint32_t, dom0_col_num);
+        if ( !col_list )
+        {
+            printk(XENLOG_ERR "setup_default_colors: Alloc failed\n");
+            return NULL;
+        }
+        copy_mask_to_list(dom0_col_mask, col_list, dom0_col_num);
+        return col_list;
+    }
+
+    return NULL;
+}
+
 bool __init coloring_init(void)
 {
     int i;
