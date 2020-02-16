@@ -210,6 +210,11 @@ unsigned int online_page(mfn_t mfn, uint32_t *status);
 int offline_page(mfn_t mfn, int broken, uint32_t *status);
 int query_page_offline(mfn_t mfn, uint32_t *status);
 
+/* Colored suballocator. */
+struct page_info *alloc_col_domheap_page(
+    struct domain *d, unsigned int memflags);
+void free_col_heap_page(struct page_info *pg);
+
 void heap_init_late(void);
 
 int assign_pages(
