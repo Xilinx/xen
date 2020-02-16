@@ -51,6 +51,9 @@ void coloring_dump_info(struct domain *d);
  * specifications.
  */
 unsigned long color_from_page(struct page_info *pg);
+
+/* Return the maximum available number of colors supported by the hardware */
+uint32_t get_max_colors(void);
 #else /* !CONFIG_COLORING */
 static inline bool __init coloring_init(void)
 {
@@ -60,6 +63,11 @@ static inline bool __init coloring_init(void)
 static inline void coloring_dump_info(struct domain *d)
 {
     return;
+}
+
+static inline uint32_t get_max_colors(void)
+{
+    return 0;
 }
 #endif /* CONFIG_COLORING */
 #endif /* !__ASM_ARM_COLORING_H__ */
