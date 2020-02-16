@@ -208,6 +208,11 @@ unsigned long color_from_page(struct page_info *pg)
   return ((addr_col_mask & page_to_maddr(pg)) >> PAGE_SHIFT);
 }
 
+uint32_t get_max_colors(void)
+{
+    return max_col_num;
+}
+
 bool __init coloring_init(void)
 {
     int i;
