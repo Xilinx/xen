@@ -27,6 +27,13 @@
 
 #ifdef CONFIG_COLORING
 bool __init coloring_init(void);
+
+/*
+ * Return an array with default colors selection and store the number of
+ * colors in @param col_num. The array selection will be equal to the dom0
+ * color configuration.
+ */
+uint32_t *setup_default_colors(uint32_t *col_num);
 #else /* !CONFIG_COLORING */
 static inline bool __init coloring_init(void)
 {
