@@ -178,6 +178,23 @@ uint32_t *setup_default_colors(uint32_t *col_num)
     return NULL;
 }
 
+bool check_domain_colors(struct domain *d)
+{
+    int i;
+    bool ret = false;
+
+    if ( !d )
+        return ret;
+
+    if ( d->max_colors > max_col_num )
+        return ret;
+
+    for ( i = 0; i < d->max_colors; i++ )
+        ret |= (d->colors[i] > (max_col_num - 1));
+
+    return !ret;
+}
+
 bool __init coloring_init(void)
 {
     int i;

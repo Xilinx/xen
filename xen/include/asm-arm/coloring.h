@@ -26,7 +26,15 @@
 #define MAX_COLORS_CELLS 4
 
 #ifdef CONFIG_COLORING
+#include <xen/sched.h>
+
 bool __init coloring_init(void);
+
+/*
+ * Check colors of a given domain.
+ * Return true if check passed, false otherwise.
+ */
+bool check_domain_colors(struct domain *d);
 
 /*
  * Return an array with default colors selection and store the number of
