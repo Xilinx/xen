@@ -894,7 +894,7 @@ static void __init __maybe_unused build_assertions(void)
 {
     struct xen_domctl d;
 
-    BUILD_BUG_ON(sizeof(d) != 16 /* header */ + 128 /* union */);
+    BUILD_BUG_ON(sizeof(d) != 16 /* header */ + 136 /* union */);
     BUILD_BUG_ON(offsetof(typeof(d), u) != 16);
 }
 
