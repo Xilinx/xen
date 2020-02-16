@@ -42,10 +42,17 @@ bool check_domain_colors(struct domain *d);
  * color configuration.
  */
 uint32_t *setup_default_colors(uint32_t *col_num);
+
+void coloring_dump_info(struct domain *d);
 #else /* !CONFIG_COLORING */
 static inline bool __init coloring_init(void)
 {
     return true;
+}
+
+static inline void coloring_dump_info(struct domain *d)
+{
+    return;
 }
 #endif /* CONFIG_COLORING */
 #endif /* !__ASM_ARM_COLORING_H__ */
