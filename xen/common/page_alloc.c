@@ -225,6 +225,13 @@ static bool __read_mostly scrub_debug;
 #define scrub_debug    false
 #endif
 
+#ifdef CONFIG_COLORING
+/* Minimum size required for buddy allocator to work with colored one */
+unsigned long buddy_required_size __read_mostly = MB(64);
+#else
+unsigned long buddy_required_size __read_mostly = 0;
+#endif
+
 /*
  * Bit width of the DMA heap -- used to override NUMA-node-first.
  * allocation strategy, which can otherwise exhaust low memory.
@@ -673,6 +680,13 @@ static void dump_col_heap(unsigned char key)
 
     printk("Total number of pages: %lu\n", total_avail_col_pages);
 }
+static int __init parse_buddy_required_size(const char *s)
+{
+    buddy_required_size = simple_strtoull(s, &s, 0);
+
+    return *s ? -EINVAL : 0;
+}
+custom_param("buddy_size", parse_buddy_required_size);
 #else /* !CONFIG_COLORING */
 #define init_col_heap_pages(x, y) init_heap_pages(x, y)
 
