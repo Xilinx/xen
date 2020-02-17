@@ -2135,11 +2135,26 @@ void __init end_boot_allocator(void)
             break;
         }
     }
-    for ( i = nr_bootmem_regions; i-- > 0; )
+
+    for ( i = 0; i < nr_bootmem_regions; i++ )
     {
         struct bootmem_region *r = &bootmem_region_list[i];
-        if ( r->s < r->e )
-            init_heap_pages(mfn_to_page(_mfn(r->s)), r->e - r->s);
+
+        /*
+         * Find the first region that can fill the buddy allocator memory
+         * specified by buddy_required_size.
+         */
+        if ( buddy_required_size && (r->e - r->s) >
+            PFN_DOWN(buddy_required_size) )
+        {
+            init_heap_pages(mfn_to_page(_mfn(r->s)),
+                PFN_DOWN(buddy_required_size));
+
+            r->s += PFN_DOWN(buddy_required_size);
+            buddy_required_size = 0;
+        }
+
+        init_col_heap_pages(mfn_to_page(_mfn(r->s)), r->e - r->s);
     }
     nr_bootmem_regions = 0;
     init_heap_pages(virt_to_page(bootmem_region_list), 1);
@@ -2563,7 +2578,10 @@ int assign_pages(
         page_set_owner(&pg[i], d);
         smp_wmb(); /* Domain pointer must be visible before updating refcnt. */
         pg[i].count_info = PGC_allocated | 1;
-        page_list_add_tail(&pg[i], &d->page_list);
+        if ( is_page_colored(pg) )
+            page_list_add(&pg[i], &d->page_list);
+        else
+            page_list_add_tail(&pg[i], &d->page_list);
     }
 
  out:
@@ -2579,6 +2597,15 @@ struct page_info *alloc_domheap_pages(
     unsigned int bits = memflags >> _MEMF_bits, zone_hi = NR_ZONES - 1;
     unsigned int dma_zone;
 
+    /* Only Dom0 and DomUs are supported for coloring */
+    if ( d && d->max_colors > 0 )
+    {
+        /* Colored allocation must be done on 0 order */
+        if (order)
+            return NULL;
+
+        return alloc_col_domheap_page(d, memflags);
+    }
     ASSERT(!in_irq());
 
     bits = domain_clamp_alloc_bitsize(memflags & MEMF_no_owner ? NULL : d,
@@ -2685,8 +2712,10 @@ void free_domheap_pages(struct page_info *pg, unsigned int order)
             scrub = 1;
         }
 
-        free_heap_pages(pg, order, scrub);
-    }
+        if ( is_page_colored(pg) )
+            free_col_heap_page(pg);
+        else
+            free_heap_pages(pg, order, scrub);}
 
     if ( drop_dom_ref )
         put_domain(d);

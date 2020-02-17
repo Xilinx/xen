@@ -2528,7 +2528,12 @@ int __init construct_dom0(struct domain *d)
     /* type must be set before allocate_memory */
     d->arch.type = kinfo.type;
 #endif
-    allocate_memory_11(d, &kinfo);
+#ifdef CONFIG_COLORING
+    if ( d->max_colors )
+        allocate_memory(d, &kinfo);
+    else
+#endif
+        allocate_memory_11(d, &kinfo);
     find_gnttab_region(d, &kinfo);
 
     /* Map extra GIC MMIO, irqs and other hw stuffs to dom0. */
