@@ -29,10 +29,18 @@
 #include <asm/coloring.h>
 #include <asm/io.h>
 
+/* By default Xen uses the lowestmost color */
+#define XEN_COLOR_DEFAULT_MASK 0x0001
+#define XEN_COLOR_DEFAULT_NUM 1
+/* Current maximum useful colors */
+#define MAX_XEN_COLOR   128
+
 /* Number of color(s) assigned to Xen */
 static uint32_t xen_col_num;
 /* Coloring configuration of Xen as bitmask */
 static uint32_t xen_col_mask[MAX_COLORS_CELLS];
+/* Xen colors IDs */
+static uint32_t xen_col_list[MAX_XEN_COLOR];
 
 /* Number of color(s) assigned to Dom0 */
 static uint32_t dom0_col_num;
@@ -215,7 +223,7 @@ uint32_t get_max_colors(void)
 
 bool __init coloring_init(void)
 {
-    int i;
+    int i, rc;
 
     printk(XENLOG_INFO "Initialize XEN coloring: \n");
     /*
@@ -264,6 +272,27 @@ bool __init coloring_init(void)
     printk(XENLOG_INFO "Way size: 0x%"PRIx64"\n", way_size);
     printk(XENLOG_INFO "Color bits in address: 0x%"PRIx64"\n", addr_col_mask);
     printk(XENLOG_INFO "Max number of colors: %u\n", max_col_num);
+
+    if ( !xen_col_num )
+    {
+        xen_col_mask[0] = XEN_COLOR_DEFAULT_MASK;
+        xen_col_num = XEN_COLOR_DEFAULT_NUM;
+        printk(XENLOG_WARNING "Xen color configuration not found. Using default\n");
+    }
+
+    printk(XENLOG_INFO "Xen color configuration: 0x%"PRIx32"%"PRIx32"%"PRIx32"%"PRIx32"\n",
+            xen_col_mask[3], xen_col_mask[2], xen_col_mask[1], xen_col_mask[0]);
+    rc = copy_mask_to_list(xen_col_mask, xen_col_list, xen_col_num);
+
+    if ( rc )
+        return false;
+
+    for ( i = 0; i < xen_col_num; i++ )
+        if ( xen_col_list[i] > (max_col_num - 1) )
+        {
+            printk(XENLOG_ERR "ERROR: max. color value not supported\n");
+            return false;
+        }
 
     return true;
 }
