@@ -31,6 +31,20 @@
 bool __init coloring_init(void);
 
 /*
+ * Return physical page address that conforms to the colors selection
+ * given in col_selection_mask after @param phys.
+ *
+ * @param phys         Physical address start.
+ * @param addr_col_mask        Mask specifying the bits available for coloring.
+ * @param col_selection_mask   Mask asserting the color bits to be used,
+ * must not be 0.
+ *
+ * @return The lowest physical page address being greater or equal than
+ * 'phys' and belonging to Xen color selection
+ */
+paddr_t next_xen_colored(paddr_t phys);
+
+/*
  * Check colors of a given domain.
  * Return true if check passed, false otherwise.
  */

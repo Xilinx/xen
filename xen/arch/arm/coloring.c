@@ -221,6 +221,49 @@ uint32_t get_max_colors(void)
     return max_col_num;
 }
 
+paddr_t next_xen_colored(paddr_t phys)
+{
+    unsigned int i;
+    unsigned int col_next_number = 0;
+    unsigned int col_cur_number = (phys & addr_col_mask) >> PAGE_SHIFT;
+    int overrun = 0;
+    paddr_t ret;
+
+    /*
+     * Check if address color conforms to Xen selection. If it does, return
+     * the address as is.
+     */
+    for( i = 0; i < xen_col_num; i++)
+        if ( col_cur_number == xen_col_list[i] )
+            return phys;
+
+    /* Find next col */
+    for( i = xen_col_num -1 ; i >= 0; i--)
+    {
+        if ( col_cur_number > xen_col_list[i])
+        {
+            /* Need to start to first element and add a way_size */
+            if ( i == (xen_col_num - 1) )
+            {
+                col_next_number = xen_col_list[0];
+                overrun = 1;
+            }
+            else
+            {
+                col_next_number = xen_col_list[i+1];
+                overrun = 0;
+            }
+            break;
+        }
+    }
+
+    /* Align phys to way_size */
+    ret = phys - (PAGE_SIZE * col_cur_number);
+    /* Add the offset based on color selection*/
+    ret += (PAGE_SIZE * (col_next_number)) + (way_size*overrun);
+    return ret;
+}
+
 bool __init coloring_init(void)
 {
     int i, rc;
