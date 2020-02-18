@@ -24,6 +24,7 @@
 #include <xen/types.h>
 #include <xen/lib.h>
 #include <xen/errno.h>
+#include <xen/keyhandler.h>
 
 #include <asm/sysregs.h>
 #include <asm/coloring.h>
@@ -433,6 +434,29 @@ void coloring_dump_info(struct domain *d)
     printk("]\n");
 }
 
+static void dump_coloring_info(unsigned char key)
+{
+    int i;
+
+    printk("Coloring general information\n");
+    printk("Way size: %"PRIu64"kB\n", way_size >> 10);
+    printk("Max. number of colors available: %"PRIu32"\n", max_col_num);
+
+    printk("Xen color(s):\t[");
+    for ( i = 0; i < xen_col_num; i++ )
+        printk(" %"PRIu32" ", xen_col_list[i]);
+    printk("]\n");
+}
+
+static __init int register_heap_trigger(void)
+{
+    register_keyhandler('C', dump_coloring_info, "dump coloring general info", 1);
+
+    /* Also print general information once at boot */
+    dump_coloring_info('C');
+    return 0;
+}
+__initcall(register_heap_trigger);
 /*
  * Local variables:
  * mode: C
