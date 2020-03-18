@@ -1,6 +1,11 @@
 #ifndef __ASM_ARM_PLATFORMS_XILINX_EEMI_H
 #define __ASM_ARM_PLATFORMS_XILINX_EEMI_H
 
+/**
+ * Get EEMI PM Function ID
+ */
+#define EEMI_PM_FID(fid) ((fid) & 0xFFFF)
+
 #define EEMI_FID(fid) ARM_SMCCC_CALL_VAL(ARM_SMCCC_FAST_CALL, \
                                          ARM_SMCCC_CONV_64,   \
                                          ARM_SMCCC_OWNER_SIP, \
