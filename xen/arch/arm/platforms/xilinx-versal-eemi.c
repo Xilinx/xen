@@ -431,7 +431,7 @@ bool versal_eemi(struct cpu_user_regs *regs)
     case EEMI_FID(PM_SET_REQUIREMENT):
     case EEMI_FID(PM_SET_MAX_LATENCY):
         if ( !domain_has_node_access(current->domain, nodeid) ) {
-            printk("versal-pm: fn=%d No access to node %d\n", pm_fn, nodeid);
+            printk("versal-pm: fn=0x%04x No access to node 0x%08x\n", pm_fn, nodeid);
             ret = XST_PM_NO_ACCESS;
             goto done;
         }
@@ -440,7 +440,7 @@ bool versal_eemi(struct cpu_user_regs *regs)
     case EEMI_FID(PM_RESET_ASSERT):
     case EEMI_FID(PM_RESET_GET_STATUS):
         if ( !domain_has_reset_access(current->domain, nodeid) ) {
-            printk("versal-pm: fn=%d No access to reset %d\n", pm_fn, nodeid);
+            printk("versal-pm: fn=0x%04x No access to reset 0x%08x\n", pm_fn, nodeid);
             ret = XST_PM_NO_ACCESS;
             goto done;
         }
@@ -476,7 +476,7 @@ bool versal_eemi(struct cpu_user_regs *regs)
     case EEMI_FID(PM_IOCTL):
     case EEMI_FID(PM_QUERY_DATA):
         if ( !is_hardware_domain(current->domain) ) {
-            printk("eemi: fn=%d No access", pm_fn);
+            printk("versal-pm: fn=0x%04x No access\n", pm_fn);
             ret = XST_PM_NO_ACCESS;
             goto done;
         }
@@ -492,7 +492,7 @@ bool versal_eemi(struct cpu_user_regs *regs)
     case EEMI_FID(PM_CLOCK_GETPARENT):
         if ( !clock_id_is_valid(nodeid) )
         {
-            gprintk(XENLOG_WARNING, "versal-pm: fn=0x%08x Invalid clock=0x%08x\n",
+            gprintk(XENLOG_WARNING, "versal-pm: fn=0x%04x Invalid clock=0x%08x\n",
                     pm_fn, nodeid);
             ret = XST_PM_INVALID_PARAM;
             goto done;
@@ -506,7 +506,7 @@ bool versal_eemi(struct cpu_user_regs *regs)
     case EEMI_FID(PM_CLOCK_SETPARENT):
         if ( !clock_id_is_valid(nodeid) )
         {
-            gprintk(XENLOG_WARNING, "versal-pm: fn=0x%08x Invalid clock=0x%08x\n",
+            gprintk(XENLOG_WARNING, "versal-pm: fn=0x%04x Invalid clock=0x%08x\n",
                     pm_fn, nodeid);
             ret = XST_PM_INVALID_PARAM;
             goto done;
@@ -520,7 +520,7 @@ bool versal_eemi(struct cpu_user_regs *regs)
         }
         if ( !domain_has_clock_access(current->domain, nodeid) )
         {
-            gprintk(XENLOG_WARNING, "versal-pm: fn=0x%08x No access to clock=0x%08x\n",
+            gprintk(XENLOG_WARNING, "versal-pm: fn=0x%04x No access to clock=0x%08x\n",
                     pm_fn, nodeid);
             ret = XST_PM_NO_ACCESS;
             goto done;
@@ -535,7 +535,7 @@ bool versal_eemi(struct cpu_user_regs *regs)
     case EEMI_FID(PM_PLL_SET_MODE):
         if ( !domain_has_node_access(current->domain, nodeid) )
         {
-            gprintk(XENLOG_WARNING, "versal-pm: fn=0x%08x No access to pll=0x%08x\n",
+            gprintk(XENLOG_WARNING, "versal-pm: fn=0x%04x No access to pll=0x%08x\n",
                     pm_fn, nodeid);
             ret = XST_PM_NO_ACCESS;
             goto done;
@@ -556,14 +556,14 @@ bool versal_eemi(struct cpu_user_regs *regs)
     case IPI_MAILBOX_FID(IPI_MAILBOX_DISABLE_IRQ):
         if ( !is_hardware_domain(current->domain) )
         {
-            gprintk(XENLOG_WARNING, "IPI mailbox: fn=%u No access", pm_fn);
+            gprintk(XENLOG_WARNING, "IPI mailbox: fn=0x%04x No access\n", pm_fn);
             ret = XST_PM_NO_ACCESS;
             goto done;
         }
         goto forward_to_fw;
 
     default:
-        printk("versal-pm: Unhandled PM Call: %d\n", (u32)fid);
+        printk("versal-pm: unhandled call: fn=0x%04x fid=0x%08x\n", pm_fn, fid);
         return false;
     }
 
