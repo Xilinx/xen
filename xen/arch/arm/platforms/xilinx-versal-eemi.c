@@ -399,10 +399,10 @@ bool versal_eemi(struct cpu_user_regs *regs)
     struct arm_smccc_res res;
     uint32_t fid = get_user_reg(regs, 0);
     uint32_t nodeid = get_user_reg(regs, 1);
-    unsigned int pm_fn = fid & 0xFFFF;
+    uint32_t pm_fn = EEMI_PM_FID(fid);
     enum pm_ret_status ret;
 
-    switch (pm_fn)
+    switch (fid)
     {
     /* Mandatory SMC32 functions. */
     case ARM_SMCCC_CALL_COUNT_FID(SIP):
