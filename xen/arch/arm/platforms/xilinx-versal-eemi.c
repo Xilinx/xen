@@ -128,6 +128,8 @@ static const struct pm_access pm_node_access[] = {
     [PM_NODE_IDX(PM_DEV_GT_10)] = { MM_DEV_GT_10 },
     [PM_NODE_IDX(PM_DEV_EFUSE_CACHE)] = { MM_DEV_EFUSE_CACHE },
     [PM_NODE_IDX(PM_DEV_AMS_ROOT)] = { MM_DEV_AMS_ROOT },
+
+    [PM_NODE_IDX(PM_DEV_AIE)] = { MM_DEV_AIE },
 };
 
 /*
@@ -246,6 +248,9 @@ static const struct pm_access pm_rst_access[] = {
     [PM_NODE_IDX(PM_RST_ADDR_REMAP)] = { .hwdom_access = true },
     [PM_NODE_IDX(PM_RST_CPI0)] = { .hwdom_access = true },
     [PM_NODE_IDX(PM_RST_CPI1)] = { .hwdom_access = true },
+
+    [PM_NODE_IDX(PM_RST_AIE_ARRAY)] = { PM_NODE_IDX(PM_DEV_AIE) },
+    [PM_NODE_IDX(PM_RST_AIE_SHIM)] = { PM_NODE_IDX(PM_DEV_AIE) },
 };
 
 struct pm_clk2node
