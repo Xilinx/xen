@@ -4,6 +4,7 @@
 /*
  * Selected set of memory mapped definitions of device nodes.
  */
+#define MM_DEV_PLD_0            (0U)
 #define MM_DEV_ACPU_0           (0xfd5c0000U)
 #define MM_DEV_ACPU_1           (0xfd5c0000U)
 #define MM_DEV_RPU0_0           (0xff9a0000U)
@@ -79,5 +80,7 @@
 #define MM_DEV_GT_10            (0xf7210000U)
 #define MM_DEV_EFUSE_CACHE      (0xf1250000U)
 #define MM_DEV_AMS_ROOT         (0xf1270000U)
+#define MM_DEV_AIE              (0xf70a0000U)
+#define MM_DEV_IPI_PMC          (0xff320000U)
 
 #endif /* __ASM_ARM_PLATFORMS_XILINX_VERSAL_MM_H */
