@@ -41,6 +41,8 @@ struct pm_access
 #define PM_NODE_IDX(Id) ((Id) & 0x3FFF)
 
 static const struct pm_access pm_node_access[] = {
+    [PM_NODE_IDX(PM_DEV_PLD_0)] = { .hwdom_access = true },
+
     [PM_NODE_IDX(PM_DEV_ACPU_0)] = { 0 },
     [PM_NODE_IDX(PM_DEV_ACPU_1)] = { 0 },
     [PM_NODE_IDX(PM_DEV_RPU0_0)] = { MM_DEV_RPU0_0 },
@@ -84,11 +86,6 @@ static const struct pm_access pm_node_access[] = {
     [PM_NODE_IDX(PM_DEV_I2C_PMC)] = { MM_DEV_I2C_PMC },
     [PM_NODE_IDX(PM_DEV_SDIO_0)] = { MM_DEV_SDIO_0 },
     [PM_NODE_IDX(PM_DEV_SDIO_1)] = { MM_DEV_SDIO_1 },
-
-    [PM_NODE_IDX(PM_DEV_PL_0)] = { .hwdom_access = true },
-    [PM_NODE_IDX(PM_DEV_PL_1)] = { .hwdom_access = true },
-    [PM_NODE_IDX(PM_DEV_PL_2)] = { .hwdom_access = true },
-    [PM_NODE_IDX(PM_DEV_PL_3)] = { .hwdom_access = true },
 
     [PM_NODE_IDX(PM_DEV_RTC)] = { MM_DEV_RTC },
     [PM_NODE_IDX(PM_DEV_ADMA_0)] = { MM_DEV_ADMA_0 },
@@ -159,10 +156,10 @@ static const struct pm_access pm_rst_access[] = {
     [PM_NODE_IDX(PM_RST_SYS_RST_3)] = { .hwdom_access = true },
     [PM_NODE_IDX(PM_RST_FPD)] = { .hwdom_access = true },
 
-    [PM_NODE_IDX(PM_RST_PL0)] = { PM_NODE_IDX(PM_DEV_PL_0) },
-    [PM_NODE_IDX(PM_RST_PL1)] = { PM_NODE_IDX(PM_DEV_PL_1) },
-    [PM_NODE_IDX(PM_RST_PL2)] = { PM_NODE_IDX(PM_DEV_PL_2) },
-    [PM_NODE_IDX(PM_RST_PL3)] = { PM_NODE_IDX(PM_DEV_PL_3) },
+    [PM_NODE_IDX(PM_RST_PL0)] = { PM_NODE_IDX(PM_DEV_PLD_0) },
+    [PM_NODE_IDX(PM_RST_PL1)] = { PM_NODE_IDX(PM_DEV_PLD_0) },
+    [PM_NODE_IDX(PM_RST_PL2)] = { PM_NODE_IDX(PM_DEV_PLD_0) },
+    [PM_NODE_IDX(PM_RST_PL3)] = { PM_NODE_IDX(PM_DEV_PLD_0) },
 
     [PM_NODE_IDX(PM_RST_APU)] = { 0 },
     [PM_NODE_IDX(PM_RST_ACPU_0)] = { 0 },
@@ -281,10 +278,10 @@ static const struct pm_clk2node pm_clk_node_map[] = {
     PM_CLK2NODE(PM_NODE_IDX(PM_CLK_SDIO0_REF), PM_NODE_IDX(PM_DEV_SDIO_0)),
     PM_CLK2NODE(PM_NODE_IDX(PM_CLK_SDIO1_REF), PM_NODE_IDX(PM_DEV_SDIO_1)),
     PM_CLK2NODE(PM_NODE_IDX(PM_CLK_I2C_REF), PM_NODE_IDX(PM_DEV_I2C_PMC)),
-    PM_CLK2NODE(PM_NODE_IDX(PM_CLK_PMC_PL0_REF), PM_NODE_IDX(PM_DEV_PL_0)),
-    PM_CLK2NODE(PM_NODE_IDX(PM_CLK_PMC_PL1_REF), PM_NODE_IDX(PM_DEV_PL_1)),
-    PM_CLK2NODE(PM_NODE_IDX(PM_CLK_PMC_PL2_REF), PM_NODE_IDX(PM_DEV_PL_2)),
-    PM_CLK2NODE(PM_NODE_IDX(PM_CLK_PMC_PL3_REF), PM_NODE_IDX(PM_DEV_PL_3)),
+    PM_CLK2NODE(PM_NODE_IDX(PM_CLK_PMC_PL0_REF), PM_NODE_IDX(PM_DEV_PLD_0)),
+    PM_CLK2NODE(PM_NODE_IDX(PM_CLK_PMC_PL1_REF), PM_NODE_IDX(PM_DEV_PLD_0)),
+    PM_CLK2NODE(PM_NODE_IDX(PM_CLK_PMC_PL2_REF), PM_NODE_IDX(PM_DEV_PLD_0)),
+    PM_CLK2NODE(PM_NODE_IDX(PM_CLK_PMC_PL3_REF), PM_NODE_IDX(PM_DEV_PLD_0)),
     PM_CLK2NODE(PM_NODE_IDX(PM_CLK_ACPU), PM_NODE_IDX(PM_DEV_ACPU_0)),
     PM_CLK2NODE(PM_NODE_IDX(PM_CLK_ACPU), PM_NODE_IDX(PM_DEV_ACPU_1)),
     PM_CLK2NODE(PM_NODE_IDX(PM_CLK_ADMA), PM_NODE_IDX(PM_DEV_ADMA_0)),
