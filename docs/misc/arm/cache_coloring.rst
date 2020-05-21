@@ -92,10 +92,22 @@ Examples:
 General coloring parameters
 ***************************
 
-Four additional parameters in the Xen command line are used to define the
-underlying coloring policy, which is not directly configurable otherwise.
+The following Xen command line parameters have been added:
 
-Please refer to the relative documentation in docs/man/xl.cfg.pod.5.in.
+- xen_colors=first-last
+- dom0_colors=first-last
+- way_size=65536
+
+Where first and last are the range of colors assigned to xen (in the
+case of xen_colors) and dom0 (in the case of dom0_colors). Please see a
+full description of the new command line options in
+docs/misc/xen-command-line.markdown.
+
+It is also recommended to specify "sched=null vwfi=native" among the Xen
+command line options to obtain the best IRQ latency results.
+
+A colors option has been added to the xl config file to assign colors to domUs.
+Please refer to its relative documentation in docs/man/xl.cfg.pod.5.in.
 
 Dom0less support
 ****************
@@ -115,7 +127,7 @@ Configuration example:
 .. raw:: html
 
     <pre>
-        xen,xen-bootargs = "console=dtuart dtuart=serial0 dom0_mem=1G dom0_max_vcpus=1 sched=null way_size=65536 xen_colors=0-1 dom0_colors=2-6";
+        xen,xen-bootargs = "console=dtuart dtuart=serial0 dom0_mem=1G dom0_max_vcpus=1 sched=null vwfi=native way_size=65536 xen_colors=0-1 dom0_colors=2-6";
         xen,dom0-bootargs "console=hvc0 earlycon=xen earlyprintk=xen root=/dev/ram0"
 
         dom0 {
