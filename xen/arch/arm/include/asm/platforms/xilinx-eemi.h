@@ -120,10 +120,6 @@ enum pm_ret_status {
     XST_PM_NODE_USED
 };
 
-bool xilinx_eemi(struct cpu_user_regs *regs, const uint32_t fid,
-                 uint32_t nodeid,
-                 uint32_t pm_fn);
-
 /*
  * Selected set of memory mapped definitions of device nodes.
  */
@@ -132,6 +128,12 @@ struct pm_access
     uint32_t addr;
     bool hwdom_access;    /* HW domain gets access regardless. */
 };
+
+bool xilinx_eemi(struct cpu_user_regs *regs, const uint32_t fid,
+                 uint32_t nodeid,
+                 uint32_t pm_fn,
+                 const struct pm_access *pm_node_access,
+                 const uint32_t pm_node_access_size);
 
 struct pm_clk2node
 {
@@ -142,5 +144,9 @@ struct pm_clk2node
 
 bool pm_check_access(const struct pm_access *acl, struct domain *d, u32 idx);
 
+/* Check if a domain has access to a node.  */
+bool domain_has_node_access(struct domain *d, const u32 node,
+                            const struct pm_access *pm_node_access,
+                            const uint32_t table_size);
 
 #endif /* __ASM_ARM_PLATFORMS_XILINX_EEMI_H */

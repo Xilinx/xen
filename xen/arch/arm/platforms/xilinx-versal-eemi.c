@@ -305,16 +305,6 @@ static const struct pm_clk2node pm_clk_node_map[] = {
 #define PM_CLK_SBCL_MASK    (0x3F << 20)    /* Clock subclass mask */
 #define PM_CLK_SBCL_PLL     (0x01 << 20)    /* PLL subclass value */
 
-/* Check if a domain has access to a node.  */
-static bool domain_has_node_access(struct domain *d, u32 node)
-{
-    u32 nd_idx = PM_NODE_IDX(node);
-
-    if ( nd_idx >= ARRAY_SIZE(pm_node_access) )
-        return false;
-
-    return pm_check_access(pm_node_access, d, nd_idx);
-}
 
 /* Check if a domain has access to a reset line.  */
 static bool domain_has_reset_access(struct domain *d, u32 rst)
@@ -363,7 +353,10 @@ static bool domain_has_clock_access(struct domain *d, u32 clk_id)
     {
         if ( pm_clk_node_map[i].clk_idx == clk_id )
         {
-            if ( !domain_has_node_access(d, pm_clk_node_map[i].dev_idx) )
+            if ( !domain_has_node_access(d,
+                                         PM_NODE_IDX(pm_clk_node_map[i].dev_idx),
+                                         pm_node_access,
+                                         ARRAY_SIZE(pm_node_access)) )
                 return false;
 
             access = true;
@@ -383,25 +376,6 @@ bool versal_eemi(struct cpu_user_regs *regs)
 
     switch (fid)
     {
-    case EEMI_FID(PM_GET_NODE_STATUS):
-    /* API for PUs.  */
-    case EEMI_FID(PM_REQ_SUSPEND):
-    case EEMI_FID(PM_FORCE_POWERDOWN):
-    case EEMI_FID(PM_ABORT_SUSPEND):
-    case EEMI_FID(PM_REQ_WAKEUP):
-    case EEMI_FID(PM_SET_WAKEUP_SOURCE):
-    /* API for slaves.  */
-    case EEMI_FID(PM_REQ_NODE):
-    case EEMI_FID(PM_RELEASE_NODE):
-    case EEMI_FID(PM_SET_REQUIREMENT):
-    case EEMI_FID(PM_SET_MAX_LATENCY):
-        if ( !domain_has_node_access(current->domain, nodeid) ) {
-            printk("versal-pm: fn=0x%04x No access to node 0x%08x\n", pm_fn, nodeid);
-            ret = XST_PM_NO_ACCESS;
-            goto done;
-        }
-        goto forward_to_fw;
-
     case EEMI_FID(PM_RESET_ASSERT):
     case EEMI_FID(PM_RESET_GET_STATUS):
         if ( !domain_has_reset_access(current->domain, nodeid) ) {
@@ -468,7 +442,9 @@ bool versal_eemi(struct cpu_user_regs *regs)
 
     case EEMI_FID(PM_PLL_SET_PARAMETER):
     case EEMI_FID(PM_PLL_SET_MODE):
-        if ( !domain_has_node_access(current->domain, nodeid) )
+        if ( !domain_has_node_access(current->domain, PM_NODE_IDX(nodeid),
+                                     pm_node_access,
+                                     ARRAY_SIZE(pm_node_access)) )
         {
             gprintk(XENLOG_WARNING, "versal-pm: fn=0x%04x No access to pll=0x%08x\n",
                     pm_fn, nodeid);
@@ -478,7 +454,9 @@ bool versal_eemi(struct cpu_user_regs *regs)
         goto forward_to_fw;
 
     default:
-        return xilinx_eemi(regs, fid, nodeid, pm_fn);
+        return xilinx_eemi(regs, fid, PM_NODE_IDX(nodeid), pm_fn,
+                           pm_node_access,
+                           ARRAY_SIZE(pm_node_access));
     }
 
 forward_to_fw:
