@@ -124,4 +124,20 @@ bool xilinx_eemi(struct cpu_user_regs *regs, const uint32_t fid,
                  uint32_t nodeid,
                  uint32_t pm_fn);
 
+/*
+ * Selected set of memory mapped definitions of device nodes.
+ */
+struct pm_access
+{
+    uint32_t addr;
+    bool hwdom_access;    /* HW domain gets access regardless. */
+};
+
+struct pm_clk2node
+{
+    uint32_t clk_idx;
+    uint32_t dev_idx;
+};
+#define PM_CLK2NODE(clk, dev)   { .clk_idx = clk, .dev_idx = dev }
+
 #endif /* __ASM_ARM_PLATFORMS_XILINX_EEMI_H */
