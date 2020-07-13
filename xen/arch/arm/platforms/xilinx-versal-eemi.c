@@ -24,14 +24,6 @@
 #include <asm/platforms/xilinx-versal-eemi.h>
 #include <asm/platforms/xilinx-versal-mm.h>
 
-/*
- * Selected set of memory mapped definitions of device nodes.
- */
-struct pm_access
-{
-    uint32_t addr;
-    bool hwdom_access;    /* HW domain gets access regardless. */
-};
 
 /*
  * This table maps a node into a memory address.
@@ -250,17 +242,10 @@ static const struct pm_access pm_rst_access[] = {
     [PM_NODE_IDX(PM_RST_AIE_SHIM)] = { PM_NODE_IDX(PM_DEV_AIE) },
 };
 
-struct pm_clk2node
-{
-    uint32_t clk_idx;
-    uint32_t dev_idx;
-};
 
 /*
  * This table maps a clk node into a device node.
  */
-#define PM_CLK2NODE(clk, dev)   { .clk_idx = clk, .dev_idx = dev }
-
 static const struct pm_clk2node pm_clk_node_map[] = {
     PM_CLK2NODE(PM_NODE_IDX(PM_CLK_SYSMON_REF), PM_NODE_IDX(PM_DEV_AMS_ROOT)),
     PM_CLK2NODE(PM_NODE_IDX(PM_CLK_TTC0), PM_NODE_IDX(PM_DEV_TTC_0)),
