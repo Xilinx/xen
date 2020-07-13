@@ -11,6 +11,7 @@ obj-$(CONFIG_ALL64_PLAT) += xgene-storm.o
 obj-$(CONFIG_ALL64_PLAT) += brcm-raspberry-pi.o
 obj-$(CONFIG_ALL64_PLAT) += imx8qm.o
 obj-$(CONFIG_ALL64_PLAT) += xilinx-versal.o
+obj-$(CONFIG_ALL64_PLAT) += xilinx-eemi.o
 obj-$(CONFIG_ALL64_PLAT) += xilinx-versal-eemi.o
 obj-$(CONFIG_MPSOC_PLATFORM)  += xilinx-zynqmp.o
 obj-$(CONFIG_MPSOC_PLATFORM)  += xilinx-zynqmp-eemi.o
