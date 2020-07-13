@@ -412,20 +412,6 @@ bool versal_eemi(struct cpu_user_regs *regs)
 
     switch (fid)
     {
-    /* Mandatory SMC32 functions. */
-    case ARM_SMCCC_CALL_COUNT_FID(SIP):
-    case ARM_SMCCC_CALL_UID_FID(SIP):
-    case ARM_SMCCC_REVISION_FID(SIP):
-        goto forward_to_fw;
-    /*
-     * We can't allow CPUs to suspend without Xen knowing about it.
-     * We accept but ignore the request and wait for the guest to issue
-     * a WFI which Xen will trap and act accordingly upon.
-     */
-    case EEMI_FID(PM_SELF_SUSPEND):
-        ret = XST_PM_SUCCESS;
-        goto done;
-
     case EEMI_FID(PM_GET_NODE_STATUS):
     /* API for PUs.  */
     case EEMI_FID(PM_REQ_SUSPEND):
@@ -455,9 +441,6 @@ bool versal_eemi(struct cpu_user_regs *regs)
         goto forward_to_fw;
 
     /* These calls are safe and always allowed.  */
-    case EEMI_FID(PM_GET_TRUSTZONE_VERSION):
-    case EEMI_FID(PM_GET_API_VERSION):
-    case EEMI_FID(PM_GET_CHIPID):
     case EEMI_FID(PM_FEATURE_CHECK):
         goto forward_to_fw;
 
@@ -465,33 +448,6 @@ bool versal_eemi(struct cpu_user_regs *regs)
     case EEMI_FID(PM_MMIO_WRITE):
     case EEMI_FID(PM_MMIO_READ):
         /* TBD */
-        ret = XST_PM_NOTSUPPORTED;
-        goto done;
-
-    /* Exclusive to the hardware domain.  */
-    case EEMI_FID(PM_INIT):
-    case EEMI_FID(PM_SET_CONFIGURATION):
-    case EEMI_FID(PM_FPGA_LOAD):
-    case EEMI_FID(PM_FPGA_GET_STATUS):
-    case EEMI_FID(PM_SECURE_SHA):
-    case EEMI_FID(PM_SECURE_RSA):
-    case EEMI_FID(PM_PINCTRL_SET_FUNCTION):
-    case EEMI_FID(PM_PINCTRL_REQUEST):
-    case EEMI_FID(PM_PINCTRL_RELEASE):
-    case EEMI_FID(PM_PINCTRL_GET_FUNCTION):
-    case EEMI_FID(PM_PINCTRL_CONFIG_PARAM_GET):
-    case EEMI_FID(PM_PINCTRL_CONFIG_PARAM_SET):
-    case EEMI_FID(PM_IOCTL):
-    case EEMI_FID(PM_QUERY_DATA):
-        if ( !is_hardware_domain(current->domain) ) {
-            printk("versal-pm: fn=0x%04x No access\n", pm_fn);
-            ret = XST_PM_NO_ACCESS;
-            goto done;
-        }
-        goto forward_to_fw;
-
-    case EEMI_FID(PM_CLOCK_SETRATE):
-    case EEMI_FID(PM_CLOCK_GETRATE):
         ret = XST_PM_NOTSUPPORTED;
         goto done;
 
@@ -550,29 +506,8 @@ bool versal_eemi(struct cpu_user_regs *regs)
         }
         goto forward_to_fw;
 
-    /* These calls are never allowed.  */
-    case EEMI_FID(PM_SYSTEM_SHUTDOWN):
-        ret = XST_PM_NO_ACCESS;
-        goto done;
-
-    case IPI_MAILBOX_FID(IPI_MAILBOX_OPEN):
-    case IPI_MAILBOX_FID(IPI_MAILBOX_RELEASE):
-    case IPI_MAILBOX_FID(IPI_MAILBOX_STATUS_ENQUIRY):
-    case IPI_MAILBOX_FID(IPI_MAILBOX_NOTIFY):
-    case IPI_MAILBOX_FID(IPI_MAILBOX_ACK):
-    case IPI_MAILBOX_FID(IPI_MAILBOX_ENABLE_IRQ):
-    case IPI_MAILBOX_FID(IPI_MAILBOX_DISABLE_IRQ):
-        if ( !is_hardware_domain(current->domain) )
-        {
-            gprintk(XENLOG_WARNING, "IPI mailbox: fn=0x%04x No access\n", pm_fn);
-            ret = XST_PM_NO_ACCESS;
-            goto done;
-        }
-        goto forward_to_fw;
-
     default:
-        printk("versal-pm: unhandled call: fn=0x%04x fid=0x%08x\n", pm_fn, fid);
-        return false;
+        return xilinx_eemi(regs, fid, nodeid, pm_fn);
     }
 
 forward_to_fw:
