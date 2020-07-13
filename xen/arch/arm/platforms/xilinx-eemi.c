@@ -22,6 +22,20 @@
 #include <asm/smccc.h>
 #include <asm/platforms/xilinx-eemi.h>
 
+bool pm_check_access(const struct pm_access *acl, struct domain *d, u32 idx)
+{
+    unsigned long mfn;
+
+    if ( acl[idx].hwdom_access && is_hardware_domain(d) )
+        return true;
+
+    mfn = paddr_to_pfn(acl[idx].addr);
+    if ( !mfn )
+        return false;
+
+    return iomem_access_permitted(d, mfn, mfn);
+}
+
 bool xilinx_eemi(struct cpu_user_regs *regs, const uint32_t fid,
                  uint32_t nodeid,
                  uint32_t pm_fn)

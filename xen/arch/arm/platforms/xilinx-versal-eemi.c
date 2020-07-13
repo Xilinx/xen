@@ -305,20 +305,6 @@ static const struct pm_clk2node pm_clk_node_map[] = {
 #define PM_CLK_SBCL_MASK    (0x3F << 20)    /* Clock subclass mask */
 #define PM_CLK_SBCL_PLL     (0x01 << 20)    /* PLL subclass value */
 
-static bool pm_check_access(const struct pm_access *acl, struct domain *d, u32 idx)
-{
-    unsigned long mfn;
-
-    if ( acl[idx].hwdom_access && is_hardware_domain(d) )
-        return true;
-
-    mfn = paddr_to_pfn(acl[idx].addr);
-    if ( !mfn )
-        return false;
-
-    return iomem_access_permitted(d, mfn, mfn);
-}
-
 /* Check if a domain has access to a node.  */
 static bool domain_has_node_access(struct domain *d, u32 node)
 {

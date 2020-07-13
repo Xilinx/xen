@@ -140,4 +140,7 @@ struct pm_clk2node
 };
 #define PM_CLK2NODE(clk, dev)   { .clk_idx = clk, .dev_idx = dev }
 
+bool pm_check_access(const struct pm_access *acl, struct domain *d, u32 idx);
+
+
 #endif /* __ASM_ARM_PLATFORMS_XILINX_EEMI_H */

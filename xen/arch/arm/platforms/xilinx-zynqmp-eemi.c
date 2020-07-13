@@ -523,20 +523,6 @@ static const struct pm_clk2node pm_clock_node_map[] = {
     PM_CLK2NODE(ZYNQMP_PM_CLK_LPD_WDT, ZYNQMP_PM_DEV_SWDT_1),
 };
 
-static bool pm_check_access(const struct pm_access *acl, struct domain *d, int idx)
-{
-    unsigned long mfn;
-
-    if ( acl[idx].hwdom_access && is_hardware_domain(d) )
-        return true;
-
-    mfn = paddr_to_pfn(acl[idx].addr);
-    if ( !mfn )
-        return false;
-
-    return iomem_access_permitted(d, mfn, mfn);
-}
-
 /* Check if a domain has access to a node.  */
 static bool domain_has_node_access(struct domain *d, uint32_t node)
 {
