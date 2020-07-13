@@ -320,7 +320,7 @@ static const struct {
     uint64_t start;
     uint64_t end;    /* Inclusive. If not set, single reg entry.  */
     uint32_t mask;   /* Zero means no mask, i.e all bits.  */
-    enum pm_node_id node;
+    uint32_t node;
     bool hwdom_access;
     bool readonly;
 } pm_mmio_access[] = {
@@ -440,8 +440,8 @@ static const struct {
 
 /* This array must be ordered by the increasing clock ID values */
 static const struct pm_clock2node {
-    enum pm_clock clock;
-    enum pm_node_id node;
+    uint32_t clock;
+    uint32_t node;
 } pm_clock_node_map[] = {
     PM_CLOCK2NODE(ZYNQMP_PM_CLK_RPLL, ZYNQMP_PM_DEV_DP),
     PM_CLOCK2NODE(ZYNQMP_PM_CLK_VPLL, ZYNQMP_PM_DEV_DP),
@@ -548,7 +548,7 @@ static bool pm_check_access(const struct pm_access *acl, struct domain *d, int i
 }
 
 /* Check if a domain has access to a node.  */
-static bool domain_has_node_access(struct domain *d, enum pm_node_id node)
+static bool domain_has_node_access(struct domain *d, uint32_t node)
 {
     if ( node < 0 || node >= ARRAY_SIZE(pm_node_access) )
         return false;
@@ -557,7 +557,7 @@ static bool domain_has_node_access(struct domain *d, enum pm_node_id node)
 }
 
 /* Check if a domain has access to a reset line.  */
-static bool domain_has_reset_access(struct domain *d, enum pm_reset rst)
+static bool domain_has_reset_access(struct domain *d, uint32_t rst)
 {
     int rst_idx = PM_RESET_IDX(rst);
 
@@ -568,7 +568,7 @@ static bool domain_has_reset_access(struct domain *d, enum pm_reset rst)
 }
 
 /* Check if a clock id is valid */
-static bool clock_id_is_valid(enum pm_clock clk_id)
+static bool clock_id_is_valid(uint32_t clk_id)
 {
     if ( clk_id < 0 || clk_id >= ZYNQMP_PM_CLK_END )
         return false;
@@ -581,7 +581,7 @@ static bool clock_id_is_valid(enum pm_clock clk_id)
  * Note: domain has access to clock control if it has access to all the nodes
  * the are driven by the target clock.
  */
-static bool domain_has_clock_access(struct domain *d, enum pm_clock clk_id)
+static bool domain_has_clock_access(struct domain *d, uint32_t clk_id)
 {
     uint32_t i;
     bool access = false;
