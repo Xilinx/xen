@@ -113,6 +113,7 @@ struct pm_access
  */
 static const struct pm_access pm_node_access[] = {
     /* MM_RPU grants access to alll RPU Nodes.  */
+    [ZYNQMP_PM_DEV_UNKNOWN] = { .hwdom_access = true },
     [ZYNQMP_PM_DEV_RPU] = { MM_RPU },
     [ZYNQMP_PM_DEV_RPU_0] = { MM_RPU },
     [ZYNQMP_PM_DEV_RPU_1] = { MM_RPU },
@@ -551,10 +552,6 @@ static bool domain_has_node_access(struct domain *d, enum pm_node_id node)
 {
     if ( node < 0 || node >= ARRAY_SIZE(pm_node_access) )
         return false;
-
-    /* ZYNQMP_PM_DEV_UNKNOWN is treated as a wildcard.  */
-    if ( node == ZYNQMP_PM_DEV_UNKNOWN )
-        return true;
 
     return pm_check_access(pm_node_access, d, node);
 }
