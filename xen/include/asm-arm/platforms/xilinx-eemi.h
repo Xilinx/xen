@@ -120,4 +120,8 @@ enum pm_ret_status {
     XST_PM_NODE_USED
 };
 
+bool xilinx_eemi(struct cpu_user_regs *regs, const uint32_t fid,
+                 uint32_t nodeid,
+                 uint32_t pm_fn);
+
 #endif /* __ASM_ARM_PLATFORMS_XILINX_EEMI_H */
