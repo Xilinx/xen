@@ -96,7 +96,7 @@
  * bits that affect multiple nodes.
  *
  * Some of the calls act on more global state. For example acting on
- * PM_DEV_PS, which affects many a lot of nodes. This higher level
+ * ZYNQMP_PM_DEV_PS, which affects many a lot of nodes. This higher level
  * orchestrating is left for the hardware-domain only.
  */
 
@@ -113,66 +113,66 @@ struct pm_access
  */
 static const struct pm_access pm_node_access[] = {
     /* MM_RPU grants access to alll RPU Nodes.  */
-    [PM_DEV_RPU] = { MM_RPU },
-    [PM_DEV_RPU_0] = { MM_RPU },
-    [PM_DEV_RPU_1] = { MM_RPU },
-    [PM_DEV_IPI_RPU_0] = { MM_RPU },
+    [ZYNQMP_PM_DEV_RPU] = { MM_RPU },
+    [ZYNQMP_PM_DEV_RPU_0] = { MM_RPU },
+    [ZYNQMP_PM_DEV_RPU_1] = { MM_RPU },
+    [ZYNQMP_PM_DEV_IPI_RPU_0] = { MM_RPU },
 
     /* GPU nodes.  */
-    [PM_DEV_GPU] = { MM_GPU },
-    [PM_DEV_GPU_PP_0] = { MM_GPU },
-    [PM_DEV_GPU_PP_1] = { MM_GPU },
+    [ZYNQMP_PM_DEV_GPU] = { MM_GPU },
+    [ZYNQMP_PM_DEV_GPU_PP_0] = { MM_GPU },
+    [ZYNQMP_PM_DEV_GPU_PP_1] = { MM_GPU },
 
-    [PM_DEV_USB_0] = { MM_USB3_0_XHCI },
-    [PM_DEV_USB_1] = { MM_USB3_1_XHCI },
-    [PM_DEV_TTC_0] = { MM_TTC0 },
-    [PM_DEV_TTC_1] = { MM_TTC1 },
-    [PM_DEV_TTC_2] = { MM_TTC2 },
-    [PM_DEV_TTC_3] = { MM_TTC3 },
-    [PM_DEV_SATA] = { MM_SATA_AHCI_HBA },
-    [PM_DEV_ETH_0] = { MM_GEM0 },
-    [PM_DEV_ETH_1] = { MM_GEM1 },
-    [PM_DEV_ETH_2] = { MM_GEM2 },
-    [PM_DEV_ETH_3] = { MM_GEM3 },
-    [PM_DEV_UART_0] = { MM_UART0 },
-    [PM_DEV_UART_1] = { MM_UART1 },
-    [PM_DEV_SPI_0] = { MM_SPI0 },
-    [PM_DEV_SPI_1] = { MM_SPI1 },
-    [PM_DEV_I2C_0] = { MM_I2C0 },
-    [PM_DEV_I2C_1] = { MM_I2C1 },
-    [PM_DEV_SD_0] = { MM_SD0 },
-    [PM_DEV_SD_1] = { MM_SD1 },
-    [PM_DEV_DP] = { MM_DP },
-    [PM_DEV_VPLL] = { MM_DP },
-    [PM_DEV_RPLL] = { MM_DP },
+    [ZYNQMP_PM_DEV_USB_0] = { MM_USB3_0_XHCI },
+    [ZYNQMP_PM_DEV_USB_1] = { MM_USB3_1_XHCI },
+    [ZYNQMP_PM_DEV_TTC_0] = { MM_TTC0 },
+    [ZYNQMP_PM_DEV_TTC_1] = { MM_TTC1 },
+    [ZYNQMP_PM_DEV_TTC_2] = { MM_TTC2 },
+    [ZYNQMP_PM_DEV_TTC_3] = { MM_TTC3 },
+    [ZYNQMP_PM_DEV_SATA] = { MM_SATA_AHCI_HBA },
+    [ZYNQMP_PM_DEV_ETH_0] = { MM_GEM0 },
+    [ZYNQMP_PM_DEV_ETH_1] = { MM_GEM1 },
+    [ZYNQMP_PM_DEV_ETH_2] = { MM_GEM2 },
+    [ZYNQMP_PM_DEV_ETH_3] = { MM_GEM3 },
+    [ZYNQMP_PM_DEV_UART_0] = { MM_UART0 },
+    [ZYNQMP_PM_DEV_UART_1] = { MM_UART1 },
+    [ZYNQMP_PM_DEV_SPI_0] = { MM_SPI0 },
+    [ZYNQMP_PM_DEV_SPI_1] = { MM_SPI1 },
+    [ZYNQMP_PM_DEV_I2C_0] = { MM_I2C0 },
+    [ZYNQMP_PM_DEV_I2C_1] = { MM_I2C1 },
+    [ZYNQMP_PM_DEV_SD_0] = { MM_SD0 },
+    [ZYNQMP_PM_DEV_SD_1] = { MM_SD1 },
+    [ZYNQMP_PM_DEV_DP] = { MM_DP },
+    [ZYNQMP_PM_DEV_VPLL] = { MM_DP },
+    [ZYNQMP_PM_DEV_RPLL] = { MM_DP },
 
     /* Guest with GDMA Channel 0 gets PM access. Other guests don't.  */
-    [PM_DEV_GDMA] = { MM_GDMA_CH0 },
+    [ZYNQMP_PM_DEV_GDMA] = { MM_GDMA_CH0 },
     /* Guest with ADMA Channel 0 gets PM access. Other guests don't.  */
-    [PM_DEV_ADMA] = { MM_ADMA_CH0 },
+    [ZYNQMP_PM_DEV_ADMA] = { MM_ADMA_CH0 },
 
-    [PM_DEV_NAND] = { MM_NAND },
-    [PM_DEV_QSPI] = { MM_QSPI },
-    [PM_DEV_GPIO] = { MM_GPIO },
-    [PM_DEV_CAN_0] = { MM_CAN0 },
-    [PM_DEV_CAN_1] = { MM_CAN1 },
+    [ZYNQMP_PM_DEV_NAND] = { MM_NAND },
+    [ZYNQMP_PM_DEV_QSPI] = { MM_QSPI },
+    [ZYNQMP_PM_DEV_GPIO] = { MM_GPIO },
+    [ZYNQMP_PM_DEV_CAN_0] = { MM_CAN0 },
+    [ZYNQMP_PM_DEV_CAN_1] = { MM_CAN1 },
 
     /* Only for the hardware domain.  */
-    [PM_DEV_AFI] = { .hwdom_access = true },
-    [PM_DEV_DDR] = { .hwdom_access = true },
-    [PM_DEV_IPI_APU] = { .hwdom_access = true },
-    [PM_DEV_PCAP] = { .hwdom_access = true },
-    [PM_DEV_LPD] = { .hwdom_access = true },
-    [PM_DEV_PL] = { .hwdom_access = true },
+    [ZYNQMP_PM_DEV_AFI] = { .hwdom_access = true },
+    [ZYNQMP_PM_DEV_DDR] = { .hwdom_access = true },
+    [ZYNQMP_PM_DEV_IPI_APU] = { .hwdom_access = true },
+    [ZYNQMP_PM_DEV_PCAP] = { .hwdom_access = true },
+    [ZYNQMP_PM_DEV_LPD] = { .hwdom_access = true },
+    [ZYNQMP_PM_DEV_PL] = { .hwdom_access = true },
 
-    [PM_DEV_PCIE] = { MM_PCIE_ATTRIB },
-    [PM_DEV_RTC] = { MM_RTC },
+    [ZYNQMP_PM_DEV_PCIE] = { MM_PCIE_ATTRIB },
+    [ZYNQMP_PM_DEV_RTC] = { MM_RTC },
 
-    [PM_DEV_TCM_0_A] = { MM_TCM_0_A },
-    [PM_DEV_TCM_0_B] = { MM_TCM_0_B },
-    [PM_DEV_TCM_1_A] = { MM_TCM_1_A },
-    [PM_DEV_TCM_1_B] = { MM_TCM_1_B },
-    [PM_DEV_SWDT_1] = { MM_SWDT },
+    [ZYNQMP_PM_DEV_TCM_0_A] = { MM_TCM_0_A },
+    [ZYNQMP_PM_DEV_TCM_0_B] = { MM_TCM_0_B },
+    [ZYNQMP_PM_DEV_TCM_1_A] = { MM_TCM_1_A },
+    [ZYNQMP_PM_DEV_TCM_1_B] = { MM_TCM_1_B },
+    [ZYNQMP_PM_DEV_SWDT_1] = { MM_SWDT },
 };
 
 /*
@@ -181,132 +181,132 @@ static const struct pm_access pm_node_access[] = {
  * over the affected node to grant it access to EEMI calls for
  * resetting that node.
  */
-#define PM_RESET_IDX(n) (n - PM_RST_PCIE_CFG)
+#define PM_RESET_IDX(n) (n - ZYNQMP_PM_RST_PCIE_CFG)
 static const struct pm_access pm_reset_access[] = {
-    [PM_RESET_IDX(PM_RST_PCIE_CFG)] = { MM_AXIPCIE_MAIN },
-    [PM_RESET_IDX(PM_RST_PCIE_BRIDGE)] = { MM_PCIE_ATTRIB },
-    [PM_RESET_IDX(PM_RST_PCIE_CTRL)] = { MM_PCIE_ATTRIB },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_PCIE_CFG)] = { MM_AXIPCIE_MAIN },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_PCIE_BRIDGE)] = { MM_PCIE_ATTRIB },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_PCIE_CTRL)] = { MM_PCIE_ATTRIB },
 
-    [PM_RESET_IDX(PM_RST_DP)] = { MM_DP },
-    [PM_RESET_IDX(PM_RST_SWDT_CRF)] = { MM_SWDT },
-    [PM_RESET_IDX(PM_RST_AFI_FM5)] = { .hwdom_access = true },
-    [PM_RESET_IDX(PM_RST_AFI_FM4)] = { .hwdom_access = true },
-    [PM_RESET_IDX(PM_RST_AFI_FM3)] = { .hwdom_access = true },
-    [PM_RESET_IDX(PM_RST_AFI_FM2)] = { .hwdom_access = true },
-    [PM_RESET_IDX(PM_RST_AFI_FM1)] = { .hwdom_access = true },
-    [PM_RESET_IDX(PM_RST_AFI_FM0)] = { .hwdom_access = true },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_DP)] = { MM_DP },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_SWDT_CRF)] = { MM_SWDT },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_AFI_FM5)] = { .hwdom_access = true },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_AFI_FM4)] = { .hwdom_access = true },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_AFI_FM3)] = { .hwdom_access = true },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_AFI_FM2)] = { .hwdom_access = true },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_AFI_FM1)] = { .hwdom_access = true },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_AFI_FM0)] = { .hwdom_access = true },
 
     /* Channel 0 grants PM access.  */
-    [PM_RESET_IDX(PM_RST_GDMA)] = { MM_GDMA_CH0 },
-    [PM_RESET_IDX(PM_RST_GPU_PP1)] = { MM_GPU },
-    [PM_RESET_IDX(PM_RST_GPU_PP0)] = { MM_GPU },
-    [PM_RESET_IDX(PM_RST_GT)] = { .hwdom_access = true },
-    [PM_RESET_IDX(PM_RST_SATA)] = { MM_SATA_AHCI_HBA },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_GDMA)] = { MM_GDMA_CH0 },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_GPU_PP1)] = { MM_GPU },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_GPU_PP0)] = { MM_GPU },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_GT)] = { .hwdom_access = true },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_SATA)] = { MM_SATA_AHCI_HBA },
 
     /* We don't allow anyone to turn on/off the ACPUs.  */
-    [PM_RESET_IDX(PM_RST_ACPU3_PWRON)] = { 0 },
-    [PM_RESET_IDX(PM_RST_ACPU2_PWRON)] = { 0 },
-    [PM_RESET_IDX(PM_RST_ACPU1_PWRON)] = { 0 },
-    [PM_RESET_IDX(PM_RST_ACPU0_PWRON)] = { 0 },
-    [PM_RESET_IDX(PM_RST_APU_L2)] = { 0 },
-    [PM_RESET_IDX(PM_RST_ACPU3)] = { 0 },
-    [PM_RESET_IDX(PM_RST_ACPU2)] = { 0 },
-    [PM_RESET_IDX(PM_RST_ACPU1)] = { 0 },
-    [PM_RESET_IDX(PM_RST_ACPU0)] = { 0 },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_ACPU3_PWRON)] = { 0 },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_ACPU2_PWRON)] = { 0 },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_ACPU1_PWRON)] = { 0 },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_ACPU0_PWRON)] = { 0 },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_APU_L2)] = { 0 },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_ACPU3)] = { 0 },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_ACPU2)] = { 0 },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_ACPU1)] = { 0 },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_ACPU0)] = { 0 },
 
-    [PM_RESET_IDX(PM_RST_DDR)] = { 0 },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_DDR)] = { 0 },
 
-    [PM_RESET_IDX(PM_RST_APM_FPD)] = { .hwdom_access = true },
-    [PM_RESET_IDX(PM_RST_SOFT)] = { .hwdom_access = true },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_APM_FPD)] = { .hwdom_access = true },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_SOFT)] = { .hwdom_access = true },
 
-    [PM_RESET_IDX(PM_RST_GEM0)] = { MM_GEM0 },
-    [PM_RESET_IDX(PM_RST_GEM1)] = { MM_GEM1 },
-    [PM_RESET_IDX(PM_RST_GEM2)] = { MM_GEM2 },
-    [PM_RESET_IDX(PM_RST_GEM3)] = { MM_GEM3 },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_GEM0)] = { MM_GEM0 },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_GEM1)] = { MM_GEM1 },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_GEM2)] = { MM_GEM2 },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_GEM3)] = { MM_GEM3 },
 
-    [PM_RESET_IDX(PM_RST_QSPI)] = { MM_QSPI },
-    [PM_RESET_IDX(PM_RST_UART0)] = { MM_UART0 },
-    [PM_RESET_IDX(PM_RST_UART1)] = { MM_UART1 },
-    [PM_RESET_IDX(PM_RST_SPI0)] = { MM_SPI0 },
-    [PM_RESET_IDX(PM_RST_SPI1)] = { MM_SPI1 },
-    [PM_RESET_IDX(PM_RST_SDIO0)] = { MM_SD0 },
-    [PM_RESET_IDX(PM_RST_SDIO1)] = { MM_SD1 },
-    [PM_RESET_IDX(PM_RST_CAN0)] = { MM_CAN0 },
-    [PM_RESET_IDX(PM_RST_CAN1)] = { MM_CAN1 },
-    [PM_RESET_IDX(PM_RST_I2C0)] = { MM_I2C0 },
-    [PM_RESET_IDX(PM_RST_I2C1)] = { MM_I2C1 },
-    [PM_RESET_IDX(PM_RST_TTC0)] = { MM_TTC0 },
-    [PM_RESET_IDX(PM_RST_TTC1)] = { MM_TTC1 },
-    [PM_RESET_IDX(PM_RST_TTC2)] = { MM_TTC2 },
-    [PM_RESET_IDX(PM_RST_TTC3)] = { MM_TTC3 },
-    [PM_RESET_IDX(PM_RST_SWDT_CRL)] = { MM_SWDT },
-    [PM_RESET_IDX(PM_RST_NAND)] = { MM_NAND },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_QSPI)] = { MM_QSPI },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_UART0)] = { MM_UART0 },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_UART1)] = { MM_UART1 },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_SPI0)] = { MM_SPI0 },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_SPI1)] = { MM_SPI1 },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_SDIO0)] = { MM_SD0 },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_SDIO1)] = { MM_SD1 },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_CAN0)] = { MM_CAN0 },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_CAN1)] = { MM_CAN1 },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_I2C0)] = { MM_I2C0 },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_I2C1)] = { MM_I2C1 },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_TTC0)] = { MM_TTC0 },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_TTC1)] = { MM_TTC1 },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_TTC2)] = { MM_TTC2 },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_TTC3)] = { MM_TTC3 },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_SWDT_CRL)] = { MM_SWDT },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_NAND)] = { MM_NAND },
     /* ADMA Channel 0 grants access to pull the reset signal.  */
-    [PM_RESET_IDX(PM_RST_ADMA)] = { MM_ADMA_CH0 },
-    [PM_RESET_IDX(PM_RST_GPIO)] = { MM_GPIO },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_ADMA)] = { MM_ADMA_CH0 },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_GPIO)] = { MM_GPIO },
     /* FIXME: What is this?  */
-    [PM_RESET_IDX(PM_RST_IOU_CC)] = { .hwdom_access = true },
-    [PM_RESET_IDX(PM_RST_TIMESTAMP)] = { .hwdom_access = true },
-    [PM_RESET_IDX(PM_RST_RPU_R50)] = { MM_RPU },
-    [PM_RESET_IDX(PM_RST_RPU_R51)] = { MM_RPU },
-    [PM_RESET_IDX(PM_RST_RPU_AMBA)] = { MM_RPU },
-    [PM_RESET_IDX(PM_RST_OCM)] = { .hwdom_access = true },
-    [PM_RESET_IDX(PM_RST_RPU_PGE)] = { MM_RPU },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_IOU_CC)] = { .hwdom_access = true },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_TIMESTAMP)] = { .hwdom_access = true },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_RPU_R50)] = { MM_RPU },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_RPU_R51)] = { MM_RPU },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_RPU_AMBA)] = { MM_RPU },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_OCM)] = { .hwdom_access = true },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_RPU_PGE)] = { MM_RPU },
 
-    [PM_RESET_IDX(PM_RST_USB0_CORERESET)] = { MM_USB3_0_XHCI },
-    [PM_RESET_IDX(PM_RST_USB0_HIBERRESET)] = { MM_USB3_0_XHCI },
-    [PM_RESET_IDX(PM_RST_USB0_APB)] = { MM_USB3_0_XHCI },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_USB0_CORERESET)] = { MM_USB3_0_XHCI },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_USB0_HIBERRESET)] = { MM_USB3_0_XHCI },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_USB0_APB)] = { MM_USB3_0_XHCI },
 
-    [PM_RESET_IDX(PM_RST_USB1_CORERESET)] = { MM_USB3_1_XHCI },
-    [PM_RESET_IDX(PM_RST_USB1_HIBERRESET)] = { MM_USB3_1_XHCI },
-    [PM_RESET_IDX(PM_RST_USB1_APB)] = { MM_USB3_1_XHCI },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_USB1_CORERESET)] = { MM_USB3_1_XHCI },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_USB1_HIBERRESET)] = { MM_USB3_1_XHCI },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_USB1_APB)] = { MM_USB3_1_XHCI },
 
-    [PM_RESET_IDX(PM_RST_IPI)] = { .hwdom_access = true },
-    [PM_RESET_IDX(PM_RST_APM_LPD)] = { .hwdom_access = true },
-    [PM_RESET_IDX(PM_RST_RTC)] = { MM_RTC },
-    [PM_RESET_IDX(PM_RST_SYSMON)] = { .hwdom_access = true },
-    [PM_RESET_IDX(PM_RST_AFI_FM6)] = { .hwdom_access = true },
-    [PM_RESET_IDX(PM_RST_LPD_SWDT)] = { MM_SWDT },
-    [PM_RESET_IDX(PM_RST_FPD)] = { .hwdom_access = true },
-    [PM_RESET_IDX(PM_RST_RPU_DBG1)] = { MM_RPU },
-    [PM_RESET_IDX(PM_RST_RPU_DBG0)] = { MM_RPU },
-    [PM_RESET_IDX(PM_RST_DBG_LPD)] = { .hwdom_access = true },
-    [PM_RESET_IDX(PM_RST_DBG_FPD)] = { .hwdom_access = true },
-    [PM_RESET_IDX(PM_RST_GPO3_PL_0)] = { .hwdom_access = true },
-    [PM_RESET_IDX(PM_RST_GPO3_PL_1)] = { .hwdom_access = true },
-    [PM_RESET_IDX(PM_RST_GPO3_PL_2)] = { .hwdom_access = true },
-    [PM_RESET_IDX(PM_RST_GPO3_PL_3)] = { .hwdom_access = true },
-    [PM_RESET_IDX(PM_RST_GPO3_PL_4)] = { .hwdom_access = true },
-    [PM_RESET_IDX(PM_RST_GPO3_PL_5)] = { .hwdom_access = true },
-    [PM_RESET_IDX(PM_RST_GPO3_PL_6)] = { .hwdom_access = true },
-    [PM_RESET_IDX(PM_RST_GPO3_PL_7)] = { .hwdom_access = true },
-    [PM_RESET_IDX(PM_RST_GPO3_PL_8)] = { .hwdom_access = true },
-    [PM_RESET_IDX(PM_RST_GPO3_PL_9)] = { .hwdom_access = true },
-    [PM_RESET_IDX(PM_RST_GPO3_PL_10)] = { .hwdom_access = true },
-    [PM_RESET_IDX(PM_RST_GPO3_PL_11)] = { .hwdom_access = true },
-    [PM_RESET_IDX(PM_RST_GPO3_PL_12)] = { .hwdom_access = true },
-    [PM_RESET_IDX(PM_RST_GPO3_PL_13)] = { .hwdom_access = true },
-    [PM_RESET_IDX(PM_RST_GPO3_PL_14)] = { .hwdom_access = true },
-    [PM_RESET_IDX(PM_RST_GPO3_PL_15)] = { .hwdom_access = true },
-    [PM_RESET_IDX(PM_RST_GPO3_PL_16)] = { .hwdom_access = true },
-    [PM_RESET_IDX(PM_RST_GPO3_PL_17)] = { .hwdom_access = true },
-    [PM_RESET_IDX(PM_RST_GPO3_PL_18)] = { .hwdom_access = true },
-    [PM_RESET_IDX(PM_RST_GPO3_PL_19)] = { .hwdom_access = true },
-    [PM_RESET_IDX(PM_RST_GPO3_PL_20)] = { .hwdom_access = true },
-    [PM_RESET_IDX(PM_RST_GPO3_PL_21)] = { .hwdom_access = true },
-    [PM_RESET_IDX(PM_RST_GPO3_PL_22)] = { .hwdom_access = true },
-    [PM_RESET_IDX(PM_RST_GPO3_PL_23)] = { .hwdom_access = true },
-    [PM_RESET_IDX(PM_RST_GPO3_PL_24)] = { .hwdom_access = true },
-    [PM_RESET_IDX(PM_RST_GPO3_PL_25)] = { .hwdom_access = true },
-    [PM_RESET_IDX(PM_RST_GPO3_PL_26)] = { .hwdom_access = true },
-    [PM_RESET_IDX(PM_RST_GPO3_PL_27)] = { .hwdom_access = true },
-    [PM_RESET_IDX(PM_RST_GPO3_PL_28)] = { .hwdom_access = true },
-    [PM_RESET_IDX(PM_RST_GPO3_PL_29)] = { .hwdom_access = true },
-    [PM_RESET_IDX(PM_RST_GPO3_PL_30)] = { .hwdom_access = true },
-    [PM_RESET_IDX(PM_RST_GPO3_PL_31)] = { .hwdom_access = true },
-    [PM_RESET_IDX(PM_RST_RPU_LS)] = { MM_RPU },
-    [PM_RESET_IDX(PM_RST_PS_ONLY)] = { .hwdom_access = true },
-    [PM_RESET_IDX(PM_RST_PL)] = { .hwdom_access = true },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_IPI)] = { .hwdom_access = true },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_APM_LPD)] = { .hwdom_access = true },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_RTC)] = { MM_RTC },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_SYSMON)] = { .hwdom_access = true },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_AFI_FM6)] = { .hwdom_access = true },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_LPD_SWDT)] = { MM_SWDT },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_FPD)] = { .hwdom_access = true },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_RPU_DBG1)] = { MM_RPU },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_RPU_DBG0)] = { MM_RPU },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_DBG_LPD)] = { .hwdom_access = true },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_DBG_FPD)] = { .hwdom_access = true },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_GPO3_PL_0)] = { .hwdom_access = true },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_GPO3_PL_1)] = { .hwdom_access = true },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_GPO3_PL_2)] = { .hwdom_access = true },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_GPO3_PL_3)] = { .hwdom_access = true },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_GPO3_PL_4)] = { .hwdom_access = true },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_GPO3_PL_5)] = { .hwdom_access = true },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_GPO3_PL_6)] = { .hwdom_access = true },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_GPO3_PL_7)] = { .hwdom_access = true },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_GPO3_PL_8)] = { .hwdom_access = true },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_GPO3_PL_9)] = { .hwdom_access = true },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_GPO3_PL_10)] = { .hwdom_access = true },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_GPO3_PL_11)] = { .hwdom_access = true },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_GPO3_PL_12)] = { .hwdom_access = true },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_GPO3_PL_13)] = { .hwdom_access = true },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_GPO3_PL_14)] = { .hwdom_access = true },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_GPO3_PL_15)] = { .hwdom_access = true },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_GPO3_PL_16)] = { .hwdom_access = true },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_GPO3_PL_17)] = { .hwdom_access = true },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_GPO3_PL_18)] = { .hwdom_access = true },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_GPO3_PL_19)] = { .hwdom_access = true },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_GPO3_PL_20)] = { .hwdom_access = true },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_GPO3_PL_21)] = { .hwdom_access = true },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_GPO3_PL_22)] = { .hwdom_access = true },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_GPO3_PL_23)] = { .hwdom_access = true },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_GPO3_PL_24)] = { .hwdom_access = true },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_GPO3_PL_25)] = { .hwdom_access = true },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_GPO3_PL_26)] = { .hwdom_access = true },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_GPO3_PL_27)] = { .hwdom_access = true },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_GPO3_PL_28)] = { .hwdom_access = true },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_GPO3_PL_29)] = { .hwdom_access = true },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_GPO3_PL_30)] = { .hwdom_access = true },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_GPO3_PL_31)] = { .hwdom_access = true },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_RPU_LS)] = { MM_RPU },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_PS_ONLY)] = { .hwdom_access = true },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_PL)] = { .hwdom_access = true },
 };
 
 /*
@@ -339,91 +339,91 @@ static const struct {
     },
     {
         .start = MM_IOU_SLCR + R_IOU_SLCR_CTRL_REG_SD,
-        .mask = 0x1, .node = PM_DEV_SD_0
+        .mask = 0x1, .node = ZYNQMP_PM_DEV_SD_0
     },
     {
         .start = MM_IOU_SLCR + R_IOU_SLCR_CTRL_REG_SD,
-        .mask = 0x1 << 15, .node = PM_DEV_SD_1
+        .mask = 0x1 << 15, .node = ZYNQMP_PM_DEV_SD_1
     },
     /* A series of SD regs with the same layout.  */
     {
         .start = MM_IOU_SLCR + R_IOU_SLCR_SD_ITAPDLY,
         .end = MM_IOU_SLCR + R_IOU_SLCR_SD_CDN_CTRL,
-        .mask = 0x3ff << 0, .node = PM_DEV_SD_0
+        .mask = 0x3ff << 0, .node = ZYNQMP_PM_DEV_SD_0
     },
     {
         .start = MM_IOU_SLCR + R_IOU_SLCR_SD_ITAPDLY,
         .end = MM_IOU_SLCR + R_IOU_SLCR_SD_CDN_CTRL,
-        .mask = 0x3ff << 16, .node = PM_DEV_SD_1
+        .mask = 0x3ff << 16, .node = ZYNQMP_PM_DEV_SD_1
     },
     {
         .start = MM_IOU_SLCR + R_IOU_SLCR_GEM_CTRL,
-        .mask = 0x3 << 0, .node = PM_DEV_ETH_0
+        .mask = 0x3 << 0, .node = ZYNQMP_PM_DEV_ETH_0
     },
     {
         .start = MM_IOU_SLCR + R_IOU_SLCR_GEM_CTRL,
-        .mask = 0x3 << 2, .node = PM_DEV_ETH_1
+        .mask = 0x3 << 2, .node = ZYNQMP_PM_DEV_ETH_1
     },
     {
         .start = MM_IOU_SLCR + R_IOU_SLCR_GEM_CTRL,
-        .mask = 0x3 << 4, .node = PM_DEV_ETH_2
+        .mask = 0x3 << 4, .node = ZYNQMP_PM_DEV_ETH_2
     },
     {
         .start = MM_IOU_SLCR + R_IOU_SLCR_GEM_CTRL,
-        .mask = 0x3 << 6, .node = PM_DEV_ETH_3
+        .mask = 0x3 << 6, .node = ZYNQMP_PM_DEV_ETH_3
     },
     {
         .start = MM_IOU_SLCR + R_IOU_SLCR_IOU_TAPDLY_BYPASS,
-        .mask = 0x3, .node = PM_DEV_NAND
+        .mask = 0x3, .node = ZYNQMP_PM_DEV_NAND
     },
     {
         .start = MM_IOU_SLCR + R_IOU_SLCR_IOU_TAPDLY_BYPASS,
-        .mask = 0x1 << 2, .node = PM_DEV_QSPI
+        .mask = 0x1 << 2, .node = ZYNQMP_PM_DEV_QSPI
     },
     {
         .start = MM_IOU_SLCR + R_IOU_SLCR_IOU_COHERENT_CTRL,
-        .mask = 0xf << 0, .node = PM_DEV_ETH_0
+        .mask = 0xf << 0, .node = ZYNQMP_PM_DEV_ETH_0
     },
     {
         .start = MM_IOU_SLCR + R_IOU_SLCR_IOU_COHERENT_CTRL,
-        .mask = 0xf << 4, .node = PM_DEV_ETH_1
+        .mask = 0xf << 4, .node = ZYNQMP_PM_DEV_ETH_1
     },
     {
         .start = MM_IOU_SLCR + R_IOU_SLCR_IOU_COHERENT_CTRL,
-        .mask = 0xf << 8, .node = PM_DEV_ETH_2
+        .mask = 0xf << 8, .node = ZYNQMP_PM_DEV_ETH_2
     },
     {
         .start = MM_IOU_SLCR + R_IOU_SLCR_IOU_COHERENT_CTRL,
-        .mask = 0xf << 12, .node = PM_DEV_ETH_3
+        .mask = 0xf << 12, .node = ZYNQMP_PM_DEV_ETH_3
     },
     {
         .start = MM_IOU_SLCR + R_IOU_SLCR_IOU_COHERENT_CTRL,
-        .mask = 0xf << 16, .node = PM_DEV_SD_0
+        .mask = 0xf << 16, .node = ZYNQMP_PM_DEV_SD_0
     },
     {
         .start = MM_IOU_SLCR + R_IOU_SLCR_IOU_COHERENT_CTRL,
-        .mask = 0xf << 20, .node = PM_DEV_SD_1
+        .mask = 0xf << 20, .node = ZYNQMP_PM_DEV_SD_1
     },
     {
         .start = MM_IOU_SLCR + R_IOU_SLCR_IOU_COHERENT_CTRL,
-        .mask = 0xf << 24, .node = PM_DEV_NAND
+        .mask = 0xf << 24, .node = ZYNQMP_PM_DEV_NAND
     },
     {
         .start = MM_IOU_SLCR + R_IOU_SLCR_IOU_COHERENT_CTRL,
-        .mask = 0xf << 28, .node = PM_DEV_QSPI
+        .mask = 0xf << 28, .node = ZYNQMP_PM_DEV_QSPI
     },
     { .start = MM_IOU_SLCR + R_IOU_SLCR_VIDEO_PSS_CLK_SEL, .hwdom_access = true },
     /* No access to R_IOU_SLCR_IOU_INTERCONNECT_ROUTE at all.  */
-    { .start = MM_IOU_SLCR + R_IOU_SLCR_IOU_RAM_GEM0, .node = PM_DEV_ETH_0 },
-    { .start = MM_IOU_SLCR + R_IOU_SLCR_IOU_RAM_GEM1, .node = PM_DEV_ETH_1 },
-    { .start = MM_IOU_SLCR + R_IOU_SLCR_IOU_RAM_GEM2, .node = PM_DEV_ETH_2 },
-    { .start = MM_IOU_SLCR + R_IOU_SLCR_IOU_RAM_GEM3, .node = PM_DEV_ETH_3 },
-    { .start = MM_IOU_SLCR + R_IOU_SLCR_IOU_RAM_SD0, .node = PM_DEV_SD_0 },
-    { .start = MM_IOU_SLCR + R_IOU_SLCR_IOU_RAM_SD1, .node = PM_DEV_SD_1 },
-    { .start = MM_IOU_SLCR + R_IOU_SLCR_IOU_RAM_CAN0, .node = PM_DEV_CAN_0 },
-    { .start = MM_IOU_SLCR + R_IOU_SLCR_IOU_RAM_CAN1, .node = PM_DEV_CAN_1 },
-    { .start = MM_IOU_SLCR + R_IOU_SLCR_IOU_RAM_LQSPI, .node = PM_DEV_QSPI },
-    { .start = MM_IOU_SLCR + R_IOU_SLCR_IOU_RAM_NAND, .node = PM_DEV_NAND },
+    { .start = MM_IOU_SLCR + R_IOU_SLCR_IOU_RAM_GEM0, .node = ZYNQMP_PM_DEV_ETH_0 },
+    { .start = MM_IOU_SLCR + R_IOU_SLCR_IOU_RAM_GEM1, .node = ZYNQMP_PM_DEV_ETH_1 },
+    { .start = MM_IOU_SLCR + R_IOU_SLCR_IOU_RAM_GEM2, .node = ZYNQMP_PM_DEV_ETH_2 },
+    { .start = MM_IOU_SLCR + R_IOU_SLCR_IOU_RAM_GEM3, .node = ZYNQMP_PM_DEV_ETH_3 },
+    { .start = MM_IOU_SLCR + R_IOU_SLCR_IOU_RAM_SD0, .node = ZYNQMP_PM_DEV_SD_0 },
+    { .start = MM_IOU_SLCR + R_IOU_SLCR_IOU_RAM_SD1, .node = ZYNQMP_PM_DEV_SD_1 },
+    { .start = MM_IOU_SLCR + R_IOU_SLCR_IOU_RAM_CAN0, .node = ZYNQMP_PM_DEV_CAN_0 },
+    { .start = MM_IOU_SLCR + R_IOU_SLCR_IOU_RAM_CAN1, .node = ZYNQMP_PM_DEV_CAN_1 },
+    { .start = MM_IOU_SLCR + R_IOU_SLCR_IOU_RAM_LQSPI, .node = ZYNQMP_PM_DEV_QSPI },
+    { .start = MM_IOU_SLCR + R_IOU_SLCR_IOU_RAM_NAND, .node = ZYNQMP_PM_DEV_NAND },
     {
         .start = MM_PMU_GLOBAL + R_PMU_GLOBAL_PWR_STATE,
         .readonly = true,
@@ -442,94 +442,94 @@ static const struct pm_clock2node {
     enum pm_clock clock;
     enum pm_node_id node;
 } pm_clock_node_map[] = {
-    PM_CLOCK2NODE(PM_CLK_RPLL, PM_DEV_DP),
-    PM_CLOCK2NODE(PM_CLK_VPLL, PM_DEV_DP),
-    PM_CLOCK2NODE(PM_CLK_RPLL_TO_FPD, PM_DEV_DP),
-    PM_CLOCK2NODE(PM_CLK_VPLL_TO_LPD, PM_DEV_DP),
-    PM_CLOCK2NODE(PM_CLK_DP_VIDEO_REF, PM_DEV_DP),
-    PM_CLOCK2NODE(PM_CLK_DP_AUDIO_REF, PM_DEV_DP),
-    PM_CLOCK2NODE(PM_CLK_DP_STC_REF, PM_DEV_DP),
-    PM_CLOCK2NODE(PM_CLK_GDMA_REF, PM_DEV_GDMA),
-    PM_CLOCK2NODE(PM_CLK_DPDMA_REF, PM_DEV_DP),
-    PM_CLOCK2NODE(PM_CLK_SATA_REF, PM_DEV_SATA),
-    PM_CLOCK2NODE(PM_CLK_PCIE_REF, PM_DEV_PCIE),
-    PM_CLOCK2NODE(PM_CLK_GPU_REF, PM_DEV_GPU),
-    PM_CLOCK2NODE(PM_CLK_GPU_PP0_REF, PM_DEV_GPU),
-    PM_CLOCK2NODE(PM_CLK_GPU_PP1_REF, PM_DEV_GPU),
-    PM_CLOCK2NODE(PM_CLK_TOPSW_LSBUS, PM_DEV_DDR),
-    PM_CLOCK2NODE(PM_CLK_LPD_LSBUS, PM_DEV_TTC_0),
-    PM_CLOCK2NODE(PM_CLK_LPD_LSBUS, PM_DEV_TTC_1),
-    PM_CLOCK2NODE(PM_CLK_LPD_LSBUS, PM_DEV_TTC_2),
-    PM_CLOCK2NODE(PM_CLK_LPD_LSBUS, PM_DEV_TTC_3),
-    PM_CLOCK2NODE(PM_CLK_USB0_BUS_REF, PM_DEV_USB_0),
-    PM_CLOCK2NODE(PM_CLK_USB1_BUS_REF, PM_DEV_USB_1),
-    PM_CLOCK2NODE(PM_CLK_USB3_DUAL_REF, PM_DEV_USB_0),
-    PM_CLOCK2NODE(PM_CLK_USB3_DUAL_REF, PM_DEV_USB_1),
-    PM_CLOCK2NODE(PM_CLK_CPU_R5, PM_DEV_RPU),
-    PM_CLOCK2NODE(PM_CLK_CPU_R5_CORE, PM_DEV_RPU),
-    PM_CLOCK2NODE(PM_CLK_CSU_PLL, PM_DEV_PCAP),
-    PM_CLOCK2NODE(PM_CLK_PCAP, PM_DEV_PCAP),
-    PM_CLOCK2NODE(PM_CLK_GEM_TSU_REF, PM_DEV_ETH_0),
-    PM_CLOCK2NODE(PM_CLK_GEM_TSU_REF, PM_DEV_ETH_1),
-    PM_CLOCK2NODE(PM_CLK_GEM_TSU_REF, PM_DEV_ETH_2),
-    PM_CLOCK2NODE(PM_CLK_GEM_TSU_REF, PM_DEV_ETH_3),
-    PM_CLOCK2NODE(PM_CLK_GEM_TSU, PM_DEV_ETH_0),
-    PM_CLOCK2NODE(PM_CLK_GEM_TSU, PM_DEV_ETH_1),
-    PM_CLOCK2NODE(PM_CLK_GEM_TSU, PM_DEV_ETH_2),
-    PM_CLOCK2NODE(PM_CLK_GEM_TSU, PM_DEV_ETH_3),
-    PM_CLOCK2NODE(PM_CLK_GEM0_TX, PM_DEV_ETH_0),
-    PM_CLOCK2NODE(PM_CLK_GEM1_TX, PM_DEV_ETH_1),
-    PM_CLOCK2NODE(PM_CLK_GEM2_TX, PM_DEV_ETH_2),
-    PM_CLOCK2NODE(PM_CLK_GEM3_TX, PM_DEV_ETH_3),
-    PM_CLOCK2NODE(PM_CLK_GEM0_RX, PM_DEV_ETH_0),
-    PM_CLOCK2NODE(PM_CLK_GEM1_RX, PM_DEV_ETH_1),
-    PM_CLOCK2NODE(PM_CLK_GEM2_RX, PM_DEV_ETH_2),
-    PM_CLOCK2NODE(PM_CLK_GEM3_RX, PM_DEV_ETH_3),
-    PM_CLOCK2NODE(PM_CLK_QSPI_REF, PM_DEV_QSPI),
-    PM_CLOCK2NODE(PM_CLK_SDIO0_REF, PM_DEV_SD_0),
-    PM_CLOCK2NODE(PM_CLK_SDIO1_REF, PM_DEV_SD_1),
-    PM_CLOCK2NODE(PM_CLK_UART0_REF, PM_DEV_UART_0),
-    PM_CLOCK2NODE(PM_CLK_UART1_REF, PM_DEV_UART_1),
-    PM_CLOCK2NODE(PM_CLK_SPI0_REF, PM_DEV_SPI_0),
-    PM_CLOCK2NODE(PM_CLK_SPI1_REF, PM_DEV_SPI_1),
-    PM_CLOCK2NODE(PM_CLK_NAND_REF, PM_DEV_NAND),
-    PM_CLOCK2NODE(PM_CLK_I2C0_REF, PM_DEV_I2C_0),
-    PM_CLOCK2NODE(PM_CLK_I2C1_REF, PM_DEV_I2C_1),
-    PM_CLOCK2NODE(PM_CLK_CAN0_REF, PM_DEV_CAN_0),
-    PM_CLOCK2NODE(PM_CLK_CAN1_REF, PM_DEV_CAN_1),
-    PM_CLOCK2NODE(PM_CLK_CAN0, PM_DEV_CAN_0),
-    PM_CLOCK2NODE(PM_CLK_CAN1, PM_DEV_CAN_1),
-    PM_CLOCK2NODE(PM_CLK_DLL_REF, PM_DEV_SD_0),
-    PM_CLOCK2NODE(PM_CLK_DLL_REF, PM_DEV_SD_1),
-    PM_CLOCK2NODE(PM_CLK_ADMA_REF, PM_DEV_ADMA),
-    PM_CLOCK2NODE(PM_CLK_AMS_REF, PM_DEV_LPD),
-    PM_CLOCK2NODE(PM_CLK_PL0_REF, PM_DEV_PL),
-    PM_CLOCK2NODE(PM_CLK_PL1_REF, PM_DEV_PL),
-    PM_CLOCK2NODE(PM_CLK_PL2_REF, PM_DEV_PL),
-    PM_CLOCK2NODE(PM_CLK_PL3_REF, PM_DEV_PL),
-    PM_CLOCK2NODE(PM_CLK_IOPLL_INT, PM_DEV_PL),
-    PM_CLOCK2NODE(PM_CLK_IOPLL_PRE_SRC, PM_DEV_PL),
-    PM_CLOCK2NODE(PM_CLK_IOPLL_INT_MUX, PM_DEV_PL),
-    PM_CLOCK2NODE(PM_CLK_IOPLL_POST_SRC, PM_DEV_PL),
-    PM_CLOCK2NODE(PM_CLK_RPLL_INT, PM_DEV_DP),
-    PM_CLOCK2NODE(PM_CLK_RPLL_PRE_SRC, PM_DEV_DP),
-    PM_CLOCK2NODE(PM_CLK_RPLL_INT_MUX, PM_DEV_DP),
-    PM_CLOCK2NODE(PM_CLK_RPLL_POST_SRC, PM_DEV_DP),
-    PM_CLOCK2NODE(PM_CLK_VPLL_INT, PM_DEV_DP),
-    PM_CLOCK2NODE(PM_CLK_VPLL_PRE_SRC, PM_DEV_DP),
-    PM_CLOCK2NODE(PM_CLK_VPLL_INT_MUX, PM_DEV_DP),
-    PM_CLOCK2NODE(PM_CLK_VPLL_POST_SRC, PM_DEV_DP),
-    PM_CLOCK2NODE(PM_CLK_CAN0_MIO, PM_DEV_CAN_0),
-    PM_CLOCK2NODE(PM_CLK_CAN1_MIO, PM_DEV_CAN_1),
-    PM_CLOCK2NODE(PM_CLK_GEM0_REF, PM_DEV_ETH_0),
-    PM_CLOCK2NODE(PM_CLK_GEM1_REF, PM_DEV_ETH_1),
-    PM_CLOCK2NODE(PM_CLK_GEM2_REF, PM_DEV_ETH_2),
-    PM_CLOCK2NODE(PM_CLK_GEM3_REF, PM_DEV_ETH_3),
-    PM_CLOCK2NODE(PM_CLK_GEM0_REF_UNGATED, PM_DEV_ETH_0),
-    PM_CLOCK2NODE(PM_CLK_GEM1_REF_UNGATED, PM_DEV_ETH_1),
-    PM_CLOCK2NODE(PM_CLK_GEM2_REF_UNGATED, PM_DEV_ETH_2),
-    PM_CLOCK2NODE(PM_CLK_GEM3_REF_UNGATED, PM_DEV_ETH_3),
-    PM_CLOCK2NODE(PM_CLK_LPD_WDT, PM_DEV_SWDT_1),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_RPLL, ZYNQMP_PM_DEV_DP),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_VPLL, ZYNQMP_PM_DEV_DP),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_RPLL_TO_FPD, ZYNQMP_PM_DEV_DP),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_VPLL_TO_LPD, ZYNQMP_PM_DEV_DP),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_DP_VIDEO_REF, ZYNQMP_PM_DEV_DP),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_DP_AUDIO_REF, ZYNQMP_PM_DEV_DP),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_DP_STC_REF, ZYNQMP_PM_DEV_DP),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_GDMA_REF, ZYNQMP_PM_DEV_GDMA),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_DPDMA_REF, ZYNQMP_PM_DEV_DP),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_SATA_REF, ZYNQMP_PM_DEV_SATA),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_PCIE_REF, ZYNQMP_PM_DEV_PCIE),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_GPU_REF, ZYNQMP_PM_DEV_GPU),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_GPU_PP0_REF, ZYNQMP_PM_DEV_GPU),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_GPU_PP1_REF, ZYNQMP_PM_DEV_GPU),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_TOPSW_LSBUS, ZYNQMP_PM_DEV_DDR),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_LPD_LSBUS, ZYNQMP_PM_DEV_TTC_0),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_LPD_LSBUS, ZYNQMP_PM_DEV_TTC_1),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_LPD_LSBUS, ZYNQMP_PM_DEV_TTC_2),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_LPD_LSBUS, ZYNQMP_PM_DEV_TTC_3),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_USB0_BUS_REF, ZYNQMP_PM_DEV_USB_0),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_USB1_BUS_REF, ZYNQMP_PM_DEV_USB_1),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_USB3_DUAL_REF, ZYNQMP_PM_DEV_USB_0),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_USB3_DUAL_REF, ZYNQMP_PM_DEV_USB_1),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_CPU_R5, ZYNQMP_PM_DEV_RPU),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_CPU_R5_CORE, ZYNQMP_PM_DEV_RPU),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_CSU_PLL, ZYNQMP_PM_DEV_PCAP),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_PCAP, ZYNQMP_PM_DEV_PCAP),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_GEM_TSU_REF, ZYNQMP_PM_DEV_ETH_0),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_GEM_TSU_REF, ZYNQMP_PM_DEV_ETH_1),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_GEM_TSU_REF, ZYNQMP_PM_DEV_ETH_2),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_GEM_TSU_REF, ZYNQMP_PM_DEV_ETH_3),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_GEM_TSU, ZYNQMP_PM_DEV_ETH_0),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_GEM_TSU, ZYNQMP_PM_DEV_ETH_1),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_GEM_TSU, ZYNQMP_PM_DEV_ETH_2),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_GEM_TSU, ZYNQMP_PM_DEV_ETH_3),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_GEM0_TX, ZYNQMP_PM_DEV_ETH_0),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_GEM1_TX, ZYNQMP_PM_DEV_ETH_1),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_GEM2_TX, ZYNQMP_PM_DEV_ETH_2),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_GEM3_TX, ZYNQMP_PM_DEV_ETH_3),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_GEM0_RX, ZYNQMP_PM_DEV_ETH_0),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_GEM1_RX, ZYNQMP_PM_DEV_ETH_1),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_GEM2_RX, ZYNQMP_PM_DEV_ETH_2),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_GEM3_RX, ZYNQMP_PM_DEV_ETH_3),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_QSPI_REF, ZYNQMP_PM_DEV_QSPI),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_SDIO0_REF, ZYNQMP_PM_DEV_SD_0),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_SDIO1_REF, ZYNQMP_PM_DEV_SD_1),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_UART0_REF, ZYNQMP_PM_DEV_UART_0),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_UART1_REF, ZYNQMP_PM_DEV_UART_1),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_SPI0_REF, ZYNQMP_PM_DEV_SPI_0),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_SPI1_REF, ZYNQMP_PM_DEV_SPI_1),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_NAND_REF, ZYNQMP_PM_DEV_NAND),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_I2C0_REF, ZYNQMP_PM_DEV_I2C_0),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_I2C1_REF, ZYNQMP_PM_DEV_I2C_1),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_CAN0_REF, ZYNQMP_PM_DEV_CAN_0),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_CAN1_REF, ZYNQMP_PM_DEV_CAN_1),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_CAN0, ZYNQMP_PM_DEV_CAN_0),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_CAN1, ZYNQMP_PM_DEV_CAN_1),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_DLL_REF, ZYNQMP_PM_DEV_SD_0),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_DLL_REF, ZYNQMP_PM_DEV_SD_1),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_ADMA_REF, ZYNQMP_PM_DEV_ADMA),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_AMS_REF, ZYNQMP_PM_DEV_LPD),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_PL0_REF, ZYNQMP_PM_DEV_PL),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_PL1_REF, ZYNQMP_PM_DEV_PL),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_PL2_REF, ZYNQMP_PM_DEV_PL),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_PL3_REF, ZYNQMP_PM_DEV_PL),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_IOPLL_INT, ZYNQMP_PM_DEV_PL),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_IOPLL_PRE_SRC, ZYNQMP_PM_DEV_PL),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_IOPLL_INT_MUX, ZYNQMP_PM_DEV_PL),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_IOPLL_POST_SRC, ZYNQMP_PM_DEV_PL),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_RPLL_INT, ZYNQMP_PM_DEV_DP),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_RPLL_PRE_SRC, ZYNQMP_PM_DEV_DP),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_RPLL_INT_MUX, ZYNQMP_PM_DEV_DP),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_RPLL_POST_SRC, ZYNQMP_PM_DEV_DP),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_VPLL_INT, ZYNQMP_PM_DEV_DP),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_VPLL_PRE_SRC, ZYNQMP_PM_DEV_DP),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_VPLL_INT_MUX, ZYNQMP_PM_DEV_DP),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_VPLL_POST_SRC, ZYNQMP_PM_DEV_DP),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_CAN0_MIO, ZYNQMP_PM_DEV_CAN_0),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_CAN1_MIO, ZYNQMP_PM_DEV_CAN_1),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_GEM0_REF, ZYNQMP_PM_DEV_ETH_0),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_GEM1_REF, ZYNQMP_PM_DEV_ETH_1),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_GEM2_REF, ZYNQMP_PM_DEV_ETH_2),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_GEM3_REF, ZYNQMP_PM_DEV_ETH_3),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_GEM0_REF_UNGATED, ZYNQMP_PM_DEV_ETH_0),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_GEM1_REF_UNGATED, ZYNQMP_PM_DEV_ETH_1),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_GEM2_REF_UNGATED, ZYNQMP_PM_DEV_ETH_2),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_GEM3_REF_UNGATED, ZYNQMP_PM_DEV_ETH_3),
+    PM_CLOCK2NODE(ZYNQMP_PM_CLK_LPD_WDT, ZYNQMP_PM_DEV_SWDT_1),
 };
 
 static bool pm_check_access(const struct pm_access *acl, struct domain *d, int idx)
@@ -552,8 +552,8 @@ static bool domain_has_node_access(struct domain *d, enum pm_node_id node)
     if ( node < 0 || node >= ARRAY_SIZE(pm_node_access) )
         return false;
 
-    /* PM_DEV_UNKNOWN is treated as a wildcard.  */
-    if ( node == PM_DEV_UNKNOWN )
+    /* ZYNQMP_PM_DEV_UNKNOWN is treated as a wildcard.  */
+    if ( node == ZYNQMP_PM_DEV_UNKNOWN )
         return true;
 
     return pm_check_access(pm_node_access, d, node);
@@ -573,7 +573,7 @@ static bool domain_has_reset_access(struct domain *d, enum pm_reset rst)
 /* Check if a clock id is valid */
 static bool clock_id_is_valid(enum pm_clock clk_id)
 {
-    if ( clk_id < 0 || clk_id >= PM_CLK_END )
+    if ( clk_id < 0 || clk_id >= ZYNQMP_PM_CLK_END )
         return false;
 
     return true;
@@ -828,7 +828,7 @@ bool zynqmp_eemi(struct cpu_user_regs *regs)
 
     case EEMI_FID(PM_PLL_GET_PARAMETER):
     case EEMI_FID(PM_PLL_GET_MODE):
-        if ( nodeid < PM_DEV_APLL || nodeid > PM_DEV_IOPLL )
+        if ( nodeid < ZYNQMP_PM_DEV_APLL || nodeid > ZYNQMP_PM_DEV_IOPLL )
         {
             gprintk(XENLOG_WARNING, "zynqmp-pm: fn=%u Invalid pll node %u\n",
                     pm_fn, nodeid);
@@ -840,7 +840,7 @@ bool zynqmp_eemi(struct cpu_user_regs *regs)
 
     case PM_PLL_SET_PARAMETER:
     case PM_PLL_SET_MODE:
-        if ( nodeid < PM_DEV_APLL || nodeid > PM_DEV_IOPLL )
+        if ( nodeid < ZYNQMP_PM_DEV_APLL || nodeid > ZYNQMP_PM_DEV_IOPLL )
         {
             gprintk(XENLOG_WARNING, "zynqmp-pm: fn=%u Invalid pll node %u\n",
                     pm_fn, nodeid);
