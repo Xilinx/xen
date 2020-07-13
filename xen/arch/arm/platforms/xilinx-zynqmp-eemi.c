@@ -523,15 +523,6 @@ static const struct pm_clk2node pm_clock_node_map[] = {
     PM_CLK2NODE(ZYNQMP_PM_CLK_LPD_WDT, ZYNQMP_PM_DEV_SWDT_1),
 };
 
-/* Check if a domain has access to a node.  */
-static bool domain_has_node_access(struct domain *d, uint32_t node)
-{
-    if ( node < 0 || node >= ARRAY_SIZE(pm_node_access) )
-        return false;
-
-    return pm_check_access(pm_node_access, d, node);
-}
-
 /* Check if a domain has access to a reset line.  */
 static bool domain_has_reset_access(struct domain *d, uint32_t rst)
 {
@@ -567,7 +558,9 @@ static bool domain_has_clock_access(struct domain *d, uint32_t clk_id)
     {
         if ( pm_clock_node_map[i].clk_idx == clk_id )
         {
-            if ( !domain_has_node_access(d, pm_clock_node_map[i].dev_idx) )
+            if ( !domain_has_node_access(d, pm_clock_node_map[i].dev_idx,
+                                         pm_node_access,
+                                         ARRAY_SIZE(pm_node_access)) )
                 return false;
 
             access = true;
@@ -625,7 +618,9 @@ static bool domain_mediate_mmio_access(struct domain *d,
         /* Unlimited access is represented by a zero mask.  */
         ASSERT( pm_mmio_access[i].mask != 0xFFFFFFFF );
 
-        r = domain_has_node_access(d, pm_mmio_access[i].node);
+        r = domain_has_node_access(d, pm_mmio_access[i].node,
+                                   pm_node_access,
+                                   ARRAY_SIZE(pm_node_access));
         if ( r ) {
             /* We've got access to this reg (or parts of it).  */
             ret = true;
@@ -666,27 +661,6 @@ bool zynqmp_eemi(struct cpu_user_regs *regs)
 
     switch ( fid )
     {
-    case EEMI_FID(PM_GET_NODE_STATUS):
-    /* API for PUs.  */
-    case EEMI_FID(PM_REQ_SUSPEND):
-    case EEMI_FID(PM_FORCE_POWERDOWN):
-    case EEMI_FID(PM_ABORT_SUSPEND):
-    case EEMI_FID(PM_REQ_WAKEUP):
-    case EEMI_FID(PM_SET_WAKEUP_SOURCE):
-    /* API for slaves.  */
-    case EEMI_FID(PM_REQ_NODE):
-    case EEMI_FID(PM_RELEASE_NODE):
-    case EEMI_FID(PM_SET_REQUIREMENT):
-    case EEMI_FID(PM_SET_MAX_LATENCY):
-        if ( !domain_has_node_access(current->domain, nodeid) )
-        {
-            gprintk(XENLOG_WARNING,
-                    "zynqmp-pm: fn=%u No access to node %u\n", pm_fn, nodeid);
-            ret = XST_PM_NO_ACCESS;
-            goto done;
-        }
-        goto forward_to_fw;
-
     case EEMI_FID(PM_RESET_ASSERT):
     case EEMI_FID(PM_RESET_GET_STATUS):
         if ( !domain_has_reset_access(current->domain, nodeid) )
@@ -772,7 +746,9 @@ bool zynqmp_eemi(struct cpu_user_regs *regs)
             ret = XST_PM_INVALID_PARAM;
             goto done;
         }
-        if ( !domain_has_node_access(current->domain, nodeid) )
+        if ( !domain_has_node_access(current->domain, nodeid,
+                                     pm_node_access,
+                                     ARRAY_SIZE(pm_node_access)) )
         {
             gprintk(XENLOG_WARNING, "zynqmp-pm: fn=%u No access to pll=%u\n",
                     pm_fn, nodeid);
@@ -783,7 +759,8 @@ bool zynqmp_eemi(struct cpu_user_regs *regs)
 
 
     default:
-        return xilinx_eemi(regs, fid, nodeid, pm_fn);
+        return xilinx_eemi(regs, fid, nodeid, pm_fn, pm_node_access,
+                           ARRAY_SIZE(pm_node_access));
     }
 
 forward_to_fw:

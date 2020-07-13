@@ -36,9 +36,22 @@ bool pm_check_access(const struct pm_access *acl, struct domain *d, u32 idx)
     return iomem_access_permitted(d, mfn, mfn);
 }
 
+/* Check if a domain has access to a node.  */
+bool domain_has_node_access(struct domain *d, const u32 node,
+                            const struct pm_access *pm_node_access,
+                            const uint32_t table_size)
+{
+    if ( node >= table_size )
+        return false;
+
+    return pm_check_access(pm_node_access, d, node);
+}
+
 bool xilinx_eemi(struct cpu_user_regs *regs, const uint32_t fid,
                  uint32_t nodeid,
-                 uint32_t pm_fn)
+                 uint32_t pm_fn,
+                 const struct pm_access *pm_node_access,
+                 const uint32_t pm_node_access_size)
 {
     struct arm_smccc_res res;
     enum pm_ret_status ret;
@@ -65,6 +78,27 @@ bool xilinx_eemi(struct cpu_user_regs *regs, const uint32_t fid,
     case EEMI_FID(PM_GET_CHIPID):
         goto forward_to_fw;
 
+    case EEMI_FID(PM_GET_NODE_STATUS):
+    /* API for PUs.  */
+    case EEMI_FID(PM_REQ_SUSPEND):
+    case EEMI_FID(PM_FORCE_POWERDOWN):
+    case EEMI_FID(PM_ABORT_SUSPEND):
+    case EEMI_FID(PM_REQ_WAKEUP):
+    case EEMI_FID(PM_SET_WAKEUP_SOURCE):
+    /* API for slaves.  */
+    case EEMI_FID(PM_REQ_NODE):
+    case EEMI_FID(PM_RELEASE_NODE):
+    case EEMI_FID(PM_SET_REQUIREMENT):
+    case EEMI_FID(PM_SET_MAX_LATENCY):
+        if ( !domain_has_node_access(current->domain,
+                                     nodeid, pm_node_access,
+                                     pm_node_access_size) )
+        {
+            printk("xilinx-pm: fn=0x%04x No access to node 0x%08x\n", pm_fn, nodeid);
+            ret = XST_PM_NO_ACCESS;
+            goto done;
+        }
+        goto forward_to_fw;
 
     /* Exclusive to the hardware domain.  */
     case EEMI_FID(PM_INIT):
