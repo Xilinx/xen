@@ -135,7 +135,8 @@ bool xilinx_eemi(struct cpu_user_regs *regs, const uint32_t fid,
                  const struct pm_access *pm_node_access,
                  const uint32_t pm_node_access_size,
                  const struct pm_access *pm_rst_access,
-                 const uint32_t pm_rst_access_size);
+                 const uint32_t pm_rst_access_size,
+                 const uint32_t clk_end);
 
 struct pm_clk2node
 {
@@ -150,5 +151,8 @@ bool pm_check_access(const struct pm_access *acl, struct domain *d, u32 idx);
 bool domain_has_node_access(struct domain *d, const u32 node,
                             const struct pm_access *pm_node_access,
                             const uint32_t table_size);
+
+/* Check if a clock id is valid */
+bool clock_id_is_valid(u32 clk_id, u32 clk_end);
 
 #endif /* __ASM_ARM_PLATFORMS_XILINX_EEMI_H */

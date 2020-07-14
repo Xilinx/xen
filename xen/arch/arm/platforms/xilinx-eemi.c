@@ -22,6 +22,15 @@
 #include <asm/smccc.h>
 #include <asm/platforms/xilinx-eemi.h>
 
+/* Check if a clock id is valid */
+bool clock_id_is_valid(u32 clk_id, u32 clk_end)
+{
+    if ( clk_id > clk_end )
+        return false;
+
+    return true;
+}
+
 bool pm_check_access(const struct pm_access *acl, struct domain *d, u32 idx)
 {
     unsigned long mfn;
@@ -53,7 +62,8 @@ bool xilinx_eemi(struct cpu_user_regs *regs, const uint32_t fid,
                  const struct pm_access *pm_node_access,
                  const uint32_t pm_node_access_size,
                  const struct pm_access *pm_rst_access,
-                 const uint32_t pm_rst_access_size)
+                 const uint32_t pm_rst_access_size,
+                 const uint32_t clk_end)
 {
     struct arm_smccc_res res;
     enum pm_ret_status ret;
@@ -79,6 +89,19 @@ bool xilinx_eemi(struct cpu_user_regs *regs, const uint32_t fid,
     case EEMI_FID(PM_GET_API_VERSION):
     case EEMI_FID(PM_GET_CHIPID):
         goto forward_to_fw;
+
+    case EEMI_FID(PM_CLOCK_GETSTATE):
+    case EEMI_FID(PM_CLOCK_GETDIVIDER):
+    case EEMI_FID(PM_CLOCK_GETPARENT):
+        if ( !clock_id_is_valid(nodeid, clk_end) )
+        {
+            gprintk(XENLOG_WARNING, "xilinx-pm: fn=%u Invalid clock=%u\n",
+                    pm_fn, nodeid);
+            ret = XST_PM_INVALID_PARAM;
+            goto done;
+        }
+        else
+            goto forward_to_fw;
 
     case EEMI_FID(PM_GET_NODE_STATUS):
     /* API for PUs.  */
