@@ -305,18 +305,6 @@ static const struct pm_clk2node pm_clk_node_map[] = {
 #define PM_CLK_SBCL_MASK    (0x3F << 20)    /* Clock subclass mask */
 #define PM_CLK_SBCL_PLL     (0x01 << 20)    /* PLL subclass value */
 
-
-/* Check if a domain has access to a reset line.  */
-static bool domain_has_reset_access(struct domain *d, u32 rst)
-{
-    u32 rst_idx = PM_NODE_IDX(rst);
-
-    if ( rst_idx >= ARRAY_SIZE(pm_rst_access) )
-        return false;
-
-    return pm_check_access(pm_rst_access, d, rst_idx);
-}
-
 /* Check if a clock id is valid */
 static bool clock_id_is_valid(u32 clk_id)
 {
@@ -376,15 +364,6 @@ bool versal_eemi(struct cpu_user_regs *regs)
 
     switch (fid)
     {
-    case EEMI_FID(PM_RESET_ASSERT):
-    case EEMI_FID(PM_RESET_GET_STATUS):
-        if ( !domain_has_reset_access(current->domain, nodeid) ) {
-            printk("versal-pm: fn=0x%04x No access to reset 0x%08x\n", pm_fn, nodeid);
-            ret = XST_PM_NO_ACCESS;
-            goto done;
-        }
-        goto forward_to_fw;
-
     /* These calls are safe and always allowed.  */
     case EEMI_FID(PM_FEATURE_CHECK):
         goto forward_to_fw;
@@ -456,7 +435,9 @@ bool versal_eemi(struct cpu_user_regs *regs)
     default:
         return xilinx_eemi(regs, fid, PM_NODE_IDX(nodeid), pm_fn,
                            pm_node_access,
-                           ARRAY_SIZE(pm_node_access));
+                           ARRAY_SIZE(pm_node_access),
+                           pm_rst_access,
+                           ARRAY_SIZE(pm_rst_access));
     }
 
 forward_to_fw:
