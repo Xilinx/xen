@@ -523,17 +523,6 @@ static const struct pm_clk2node pm_clock_node_map[] = {
     PM_CLK2NODE(ZYNQMP_PM_CLK_LPD_WDT, ZYNQMP_PM_DEV_SWDT_1),
 };
 
-/* Check if a domain has access to a reset line.  */
-static bool domain_has_reset_access(struct domain *d, uint32_t rst)
-{
-    int rst_idx = PM_RESET_IDX(rst);
-
-    if ( rst_idx < 0 || rst_idx >= ARRAY_SIZE(pm_reset_access) )
-        return false;
-
-    return pm_check_access(pm_reset_access, d, rst_idx);
-}
-
 /* Check if a clock id is valid */
 static bool clock_id_is_valid(uint32_t clk_id)
 {
@@ -661,17 +650,6 @@ bool zynqmp_eemi(struct cpu_user_regs *regs)
 
     switch ( fid )
     {
-    case EEMI_FID(PM_RESET_ASSERT):
-    case EEMI_FID(PM_RESET_GET_STATUS):
-        if ( !domain_has_reset_access(current->domain, nodeid) )
-        {
-            gprintk(XENLOG_WARNING,
-                    "zynqmp-pm: fn=%u No access to reset %u\n", pm_fn, nodeid);
-            ret = XST_PM_NO_ACCESS;
-            goto done;
-        }
-        goto forward_to_fw;
-
     case ZYNQMP_SIP_SVC_CALL_COUNT:
     case ZYNQMP_SIP_SVC_UID:
     case ZYNQMP_SIP_SVC_VERSION:
@@ -757,10 +735,17 @@ bool zynqmp_eemi(struct cpu_user_regs *regs)
         }
         goto forward_to_fw;
 
+    case PM_RESET_ASSERT:
+    case PM_RESET_GET_STATUS:
+        nodeid = PM_RESET_IDX(nodeid);
+        /* fall through */
 
     default:
-        return xilinx_eemi(regs, fid, nodeid, pm_fn, pm_node_access,
-                           ARRAY_SIZE(pm_node_access));
+        return xilinx_eemi(regs, fid, nodeid, pm_fn,
+                           pm_node_access,
+                           ARRAY_SIZE(pm_node_access),
+                           pm_reset_access,
+                           ARRAY_SIZE(pm_reset_access));
     }
 
 forward_to_fw:

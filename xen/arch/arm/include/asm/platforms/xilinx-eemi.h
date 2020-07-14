@@ -133,7 +133,9 @@ bool xilinx_eemi(struct cpu_user_regs *regs, const uint32_t fid,
                  uint32_t nodeid,
                  uint32_t pm_fn,
                  const struct pm_access *pm_node_access,
-                 const uint32_t pm_node_access_size);
+                 const uint32_t pm_node_access_size,
+                 const struct pm_access *pm_rst_access,
+                 const uint32_t pm_rst_access_size);
 
 struct pm_clk2node
 {

@@ -51,7 +51,9 @@ bool xilinx_eemi(struct cpu_user_regs *regs, const uint32_t fid,
                  uint32_t nodeid,
                  uint32_t pm_fn,
                  const struct pm_access *pm_node_access,
-                 const uint32_t pm_node_access_size)
+                 const uint32_t pm_node_access_size,
+                 const struct pm_access *pm_rst_access,
+                 const uint32_t pm_rst_access_size)
 {
     struct arm_smccc_res res;
     enum pm_ret_status ret;
@@ -118,6 +120,19 @@ bool xilinx_eemi(struct cpu_user_regs *regs, const uint32_t fid,
         if ( !is_hardware_domain(current->domain) )
         {
             gprintk(XENLOG_WARNING, "eemi: fn=%u No access", pm_fn);
+            ret = XST_PM_NO_ACCESS;
+            goto done;
+        }
+        goto forward_to_fw;
+
+    case EEMI_FID(PM_RESET_ASSERT):
+    case EEMI_FID(PM_RESET_GET_STATUS):
+        if ( !domain_has_node_access(current->domain,
+                                     nodeid, pm_rst_access,
+                                     pm_rst_access_size) )
+        {
+            gprintk(XENLOG_WARNING,
+                    "xilinx-pm: fn=%u No access to reset %u\n", pm_fn, nodeid);
             ret = XST_PM_NO_ACCESS;
             goto done;
         }
