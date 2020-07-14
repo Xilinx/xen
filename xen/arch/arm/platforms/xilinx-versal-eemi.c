@@ -305,17 +305,6 @@ static const struct pm_clk2node pm_clk_node_map[] = {
 #define PM_CLK_SBCL_MASK    (0x3F << 20)    /* Clock subclass mask */
 #define PM_CLK_SBCL_PLL     (0x01 << 20)    /* PLL subclass value */
 
-/* Check if a clock id is valid */
-static bool clock_id_is_valid(u32 clk_id)
-{
-    u32 clk_idx = PM_NODE_IDX(clk_id);
-
-    if ( clk_idx > PM_CLK_END_IDX )
-        return false;
-
-    return true;
-}
-
 /* Check if a clock id belongs to pll type */
 static bool clock_id_is_pll(u32 clk_id)
 {
@@ -375,24 +364,12 @@ bool versal_eemi(struct cpu_user_regs *regs)
         ret = XST_PM_NOTSUPPORTED;
         goto done;
 
-    case EEMI_FID(PM_CLOCK_GETSTATE):
-    case EEMI_FID(PM_CLOCK_GETDIVIDER):
-    case EEMI_FID(PM_CLOCK_GETPARENT):
-        if ( !clock_id_is_valid(nodeid) )
-        {
-            gprintk(XENLOG_WARNING, "versal-pm: fn=0x%04x Invalid clock=0x%08x\n",
-                    pm_fn, nodeid);
-            ret = XST_PM_INVALID_PARAM;
-            goto done;
-        }
-        else
-            goto forward_to_fw;
-
     case EEMI_FID(PM_CLOCK_ENABLE):
     case EEMI_FID(PM_CLOCK_DISABLE):
     case EEMI_FID(PM_CLOCK_SETDIVIDER):
     case EEMI_FID(PM_CLOCK_SETPARENT):
-        if ( !clock_id_is_valid(nodeid) )
+        if ( !clock_id_is_valid(PM_NODE_IDX(nodeid),
+                                PM_CLK_END_IDX) )
         {
             gprintk(XENLOG_WARNING, "versal-pm: fn=0x%04x Invalid clock=0x%08x\n",
                     pm_fn, nodeid);
@@ -437,7 +414,8 @@ bool versal_eemi(struct cpu_user_regs *regs)
                            pm_node_access,
                            ARRAY_SIZE(pm_node_access),
                            pm_rst_access,
-                           ARRAY_SIZE(pm_rst_access));
+                           ARRAY_SIZE(pm_rst_access),
+                           PM_CLK_END_IDX);
     }
 
 forward_to_fw:

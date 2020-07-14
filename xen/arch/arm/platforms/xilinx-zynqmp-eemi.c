@@ -523,15 +523,6 @@ static const struct pm_clk2node pm_clock_node_map[] = {
     PM_CLK2NODE(ZYNQMP_PM_CLK_LPD_WDT, ZYNQMP_PM_DEV_SWDT_1),
 };
 
-/* Check if a clock id is valid */
-static bool clock_id_is_valid(uint32_t clk_id)
-{
-    if ( clk_id < 0 || clk_id >= ZYNQMP_PM_CLK_END )
-        return false;
-
-    return true;
-}
-
 /*
  * Check if a domain has access to a clock control.
  * Note: domain has access to clock control if it has access to all the nodes
@@ -670,24 +661,11 @@ bool zynqmp_eemi(struct cpu_user_regs *regs)
         }
         goto forward_to_fw;
 
-    case EEMI_FID(PM_CLOCK_GETSTATE):
-    case EEMI_FID(PM_CLOCK_GETDIVIDER):
-    case EEMI_FID(PM_CLOCK_GETPARENT):
-        if ( !clock_id_is_valid(nodeid) )
-        {
-            gprintk(XENLOG_WARNING, "zynqmp-pm: fn=%u Invalid clock=%u\n",
-                    pm_fn, nodeid);
-            ret = XST_PM_INVALID_PARAM;
-            goto done;
-        }
-        else
-            goto forward_to_fw;
-
     case EEMI_FID(PM_CLOCK_ENABLE):
     case EEMI_FID(PM_CLOCK_DISABLE):
     case EEMI_FID(PM_CLOCK_SETDIVIDER):
     case EEMI_FID(PM_CLOCK_SETPARENT):
-        if ( !clock_id_is_valid(nodeid) )
+        if ( !clock_id_is_valid(nodeid, ZYNQMP_PM_CLK_END) )
         {
             gprintk(XENLOG_WARNING, "zynqmp-pm: fn=%u Invalid clock=%u\n",
                     pm_fn, nodeid);
@@ -745,7 +723,8 @@ bool zynqmp_eemi(struct cpu_user_regs *regs)
                            pm_node_access,
                            ARRAY_SIZE(pm_node_access),
                            pm_reset_access,
-                           ARRAY_SIZE(pm_reset_access));
+                           ARRAY_SIZE(pm_reset_access),
+                           ZYNQMP_PM_CLK_END);
     }
 
 forward_to_fw:
