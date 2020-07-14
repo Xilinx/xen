@@ -314,35 +314,6 @@ static bool clock_id_is_pll(u32 clk_id)
     return false;
 }
 
-/*
- * Check if a domain has access to a clock control.
- * Note: domain has access to clock control if it has access to all the nodes
- * the are driven by the target clock.
- */
-static bool domain_has_clock_access(struct domain *d, u32 clk_id)
-{
-    uint32_t i;
-    bool access = false;
-    clk_id = PM_NODE_IDX(clk_id);
-
-    for ( i = 0; i < ARRAY_SIZE(pm_clk_node_map) &&
-          pm_clk_node_map[i].clk_idx <= clk_id; i++ )
-    {
-        if ( pm_clk_node_map[i].clk_idx == clk_id )
-        {
-            if ( !domain_has_node_access(d,
-                                         PM_NODE_IDX(pm_clk_node_map[i].dev_idx),
-                                         pm_node_access,
-                                         ARRAY_SIZE(pm_node_access)) )
-                return false;
-
-            access = true;
-        }
-    }
-
-    return access;
-}
-
 bool versal_eemi(struct cpu_user_regs *regs)
 {
     struct arm_smccc_res res;
@@ -383,7 +354,11 @@ bool versal_eemi(struct cpu_user_regs *regs)
         {
             goto forward_to_fw;
         }
-        if ( !domain_has_clock_access(current->domain, nodeid) )
+        if ( !domain_has_clock_access(current->domain, PM_NODE_IDX(nodeid),
+                                      pm_node_access,
+                                      ARRAY_SIZE(pm_node_access),
+                                      pm_clk_node_map,
+                                      ARRAY_SIZE(pm_clk_node_map)) )
         {
             gprintk(XENLOG_WARNING, "versal-pm: fn=0x%04x No access to clock=0x%08x\n",
                     pm_fn, nodeid);
