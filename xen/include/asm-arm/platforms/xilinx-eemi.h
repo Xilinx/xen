@@ -155,4 +155,14 @@ bool domain_has_node_access(struct domain *d, const u32 node,
 /* Check if a clock id is valid */
 bool clock_id_is_valid(u32 clk_id, u32 clk_end);
 
+/*
+ * Check if a domain has access to a clock control. * Note: domain has access to clock control if it has access to all the nodes
+ * the are driven by the target clock.
+ */
+bool domain_has_clock_access(struct domain *d, u32 clk_id,
+                 const struct pm_access *pm_node_access,
+                 const uint32_t pm_node_access_size,
+                 const struct pm_clk2node *pm_clk_node_map,
+                 const uint32_t table_size);
+
 #endif /* __ASM_ARM_PLATFORMS_XILINX_EEMI_H */
