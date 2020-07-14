@@ -22,6 +22,37 @@
 #include <asm/smccc.h>
 #include <asm/platforms/xilinx-eemi.h>
 
+/*
+ * Check if a domain has access to a clock control. * Note: domain has access to clock control if it has access to all the nodes
+ * the are driven by the target clock.
+ */
+bool domain_has_clock_access(struct domain *d, u32 clk_id,
+                 const struct pm_access *pm_node_access,
+                 const uint32_t pm_node_access_size,
+                 const struct pm_clk2node *pm_clk_node_map,
+                 const uint32_t table_size)
+{
+   uint32_t i;
+   bool access = false;
+
+   for ( i = 0; i < table_size && pm_clk_node_map[i].clk_idx <= clk_id; i++ )
+   {
+       if ( pm_clk_node_map[i].clk_idx == clk_id )
+       {
+           if ( !domain_has_node_access(d,
+                                        pm_clk_node_map[i].dev_idx,
+                                        pm_node_access,
+                                        pm_node_access_size) )
+               return false;
+
+           access = true;
+       }
+   }
+
+   return access;
+}
+
+
 /* Check if a clock id is valid */
 bool clock_id_is_valid(u32 clk_id, u32 clk_end)
 {

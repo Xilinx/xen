@@ -524,33 +524,6 @@ static const struct pm_clk2node pm_clock_node_map[] = {
 };
 
 /*
- * Check if a domain has access to a clock control.
- * Note: domain has access to clock control if it has access to all the nodes
- * the are driven by the target clock.
- */
-static bool domain_has_clock_access(struct domain *d, uint32_t clk_id)
-{
-    uint32_t i;
-    bool access = false;
-
-    for ( i = 0; i < ARRAY_SIZE(pm_clock_node_map) &&
-          pm_clock_node_map[i].clk_idx <= clk_id; i++ )
-    {
-        if ( pm_clock_node_map[i].clk_idx == clk_id )
-        {
-            if ( !domain_has_node_access(d, pm_clock_node_map[i].dev_idx,
-                                         pm_node_access,
-                                         ARRAY_SIZE(pm_node_access)) )
-                return false;
-
-            access = true;
-        }
-    }
-
-    return access;
-}
-
-/*
  * Check if a given domain has access to perform an indirect
  * MMIO access.
  *
@@ -672,7 +645,12 @@ bool zynqmp_eemi(struct cpu_user_regs *regs)
             ret = XST_PM_INVALID_PARAM;
             goto done;
         }
-        if ( !domain_has_clock_access(current->domain, nodeid) )
+        if ( !domain_has_clock_access(current->domain, nodeid,
+                                      pm_node_access,
+                                      ARRAY_SIZE(pm_node_access),
+                                      pm_clock_node_map,
+                                      ARRAY_SIZE(pm_clock_node_map)) )
+
         {
             gprintk(XENLOG_WARNING, "zynqmp-pm: fn=%u No access to clock=%u\n",
                     pm_fn, nodeid);
