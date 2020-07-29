@@ -671,8 +671,8 @@ bool zynqmp_eemi(struct cpu_user_regs *regs)
         else
             goto forward_to_fw;
 
-    case PM_PLL_SET_PARAMETER:
-    case PM_PLL_SET_MODE:
+    case EEMI_FID(PM_PLL_SET_PARAMETER):
+    case EEMI_FID(PM_PLL_SET_MODE):
         if ( nodeid < ZYNQMP_PM_DEV_APLL || nodeid > ZYNQMP_PM_DEV_IOPLL )
         {
             gprintk(XENLOG_WARNING, "zynqmp-pm: fn=%u Invalid pll node %u\n",
@@ -691,8 +691,8 @@ bool zynqmp_eemi(struct cpu_user_regs *regs)
         }
         goto forward_to_fw;
 
-    case PM_RESET_ASSERT:
-    case PM_RESET_GET_STATUS:
+    case EEMI_FID(PM_RESET_ASSERT):
+    case EEMI_FID(PM_RESET_GET_STATUS):
         nodeid = PM_RESET_IDX(nodeid);
         /* fall through */
 
