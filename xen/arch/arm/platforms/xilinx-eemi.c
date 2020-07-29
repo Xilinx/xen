@@ -23,7 +23,8 @@
 #include <asm/platforms/xilinx-eemi.h>
 
 /*
- * Check if a domain has access to a clock control. * Note: domain has access to clock control if it has access to all the nodes
+ * Check if a domain has access to a clock control.
+ * Note: domain has access to clock control if it has access to all the nodes
  * the are driven by the target clock.
  */
 bool domain_has_clock_access(struct domain *d, u32 clk_id,
