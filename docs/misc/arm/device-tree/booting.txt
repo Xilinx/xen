@@ -162,6 +162,11 @@ with the following properties:
     used, or GUEST_VPL011_SPI+1 if vpl011 is enabled, whichever is
     greater.
 
+- direct-map
+
+    Optional. A boolean to request the memory of the domain to be 1:1
+    mapped.
+
 - #address-cells and #size-cells
 
     Both #address-cells and #size-cells need to be specified because
