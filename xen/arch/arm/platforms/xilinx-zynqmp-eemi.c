@@ -21,7 +21,6 @@
 #include <xen/sched.h>
 #include <asm/smccc.h>
 #include <asm/platforms/xilinx-eemi.h>
-#include <asm/platforms/xilinx-zynqmp-eemi.h>
 #include <asm/platforms/xilinx-zynqmp-mm.h>
 
 /*
@@ -602,7 +601,7 @@ static bool domain_mediate_mmio_access(struct domain *d,
     return ret;
 }
 
-static u32 clock_id_plls[18] = {
+u32 zynqmp_clock_id_plls[18] = {
     ZYNQMP_PM_CLK_RPLL,
     ZYNQMP_PM_CLK_VPLL,
     ZYNQMP_PM_CLK_RPLL_TO_FPD,
@@ -622,18 +621,6 @@ static u32 clock_id_plls[18] = {
     ZYNQMP_PM_CLK_VPLL_POST_SRC,
     ZYNQMP_PM_CLK_END_IDX,
 };
-
-/* Check if a clock id belongs to pll type */
-static bool clock_id_is_pll(u32 clk_id)
-{
-    for ( int i = 0; clock_id_plls[i] != ZYNQMP_PM_CLK_END_IDX; i++ )
-    {
-        if ( clk_id == clock_id_plls[i] )
-            return true;
-    }
-
-    return false;
-}
 
 bool zynqmp_eemi(struct cpu_user_regs *regs)
 {
@@ -662,38 +649,6 @@ bool zynqmp_eemi(struct cpu_user_regs *regs)
                                          nodeid, &mmio_mask) ) {
             printk("eemi: fn=%d No access to MMIO %s %x\n",
                    pm_fn, is_mmio_write ? "write" : "read", nodeid);
-            ret = XST_PM_NO_ACCESS;
-            goto done;
-        }
-        goto forward_to_fw;
-
-    case EEMI_FID(PM_CLOCK_ENABLE):
-    case EEMI_FID(PM_CLOCK_DISABLE):
-    case EEMI_FID(PM_CLOCK_SETDIVIDER):
-    case EEMI_FID(PM_CLOCK_SETPARENT):
-        if ( !clock_id_is_valid(nodeid, ZYNQMP_PM_CLK_END) )
-        {
-            gprintk(XENLOG_WARNING, "zynqmp-pm: fn=%u Invalid clock=%u\n",
-                    pm_fn, nodeid);
-            ret = XST_PM_INVALID_PARAM;
-            goto done;
-        }
-        /*
-         * Allow pll clock nodes to passthrough since there is no device binded to them
-         */
-        if ( clock_id_is_pll(nodeid) )
-        {
-            goto forward_to_fw;
-        }
-        if ( !domain_has_clock_access(current->domain, nodeid,
-                                      pm_node_access,
-                                      ARRAY_SIZE(pm_node_access),
-                                      pm_clock_node_map,
-                                      ARRAY_SIZE(pm_clock_node_map)) )
-
-        {
-            gprintk(XENLOG_WARNING, "zynqmp-pm: fn=%u No access to clock=%u\n",
-                    pm_fn, nodeid);
             ret = XST_PM_NO_ACCESS;
             goto done;
         }
@@ -742,7 +697,9 @@ bool zynqmp_eemi(struct cpu_user_regs *regs)
                            ARRAY_SIZE(pm_node_access),
                            pm_reset_access,
                            ARRAY_SIZE(pm_reset_access),
-                           ZYNQMP_PM_CLK_END);
+                           pm_clock_node_map,
+                           ARRAY_SIZE(pm_clock_node_map),
+                           ZYNQMP_PM_CLK_END_IDX);
     }
 
 forward_to_fw:
