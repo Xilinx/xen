@@ -602,6 +602,39 @@ static bool domain_mediate_mmio_access(struct domain *d,
     return ret;
 }
 
+static u32 clock_id_plls[18] = {
+    ZYNQMP_PM_CLK_RPLL,
+    ZYNQMP_PM_CLK_VPLL,
+    ZYNQMP_PM_CLK_RPLL_TO_FPD,
+    ZYNQMP_PM_CLK_VPLL_TO_LPD,
+    ZYNQMP_PM_CLK_CSU_PLL,
+    ZYNQMP_PM_CLK_IOPLL_INT,
+    ZYNQMP_PM_CLK_IOPLL_PRE_SRC,
+    ZYNQMP_PM_CLK_IOPLL_INT_MUX,
+    ZYNQMP_PM_CLK_IOPLL_POST_SRC,
+    ZYNQMP_PM_CLK_RPLL_INT,
+    ZYNQMP_PM_CLK_RPLL_PRE_SRC,
+    ZYNQMP_PM_CLK_RPLL_INT_MUX,
+    ZYNQMP_PM_CLK_RPLL_POST_SRC,
+    ZYNQMP_PM_CLK_VPLL_INT,
+    ZYNQMP_PM_CLK_VPLL_PRE_SRC,
+    ZYNQMP_PM_CLK_VPLL_INT_MUX,
+    ZYNQMP_PM_CLK_VPLL_POST_SRC,
+    ZYNQMP_PM_CLK_END_IDX,
+};
+
+/* Check if a clock id belongs to pll type */
+static bool clock_id_is_pll(u32 clk_id)
+{
+    for ( int i = 0; clock_id_plls[i] != ZYNQMP_PM_CLK_END_IDX; i++ )
+    {
+        if ( clk_id == clock_id_plls[i] )
+            return true;
+    }
+
+    return false;
+}
+
 bool zynqmp_eemi(struct cpu_user_regs *regs)
 {
     struct arm_smccc_res res;
@@ -644,6 +677,13 @@ bool zynqmp_eemi(struct cpu_user_regs *regs)
                     pm_fn, nodeid);
             ret = XST_PM_INVALID_PARAM;
             goto done;
+        }
+        /*
+         * Allow pll clock nodes to passthrough since there is no device binded to them
+         */
+        if ( clock_id_is_pll(nodeid) )
+        {
+            goto forward_to_fw;
         }
         if ( !domain_has_clock_access(current->domain, nodeid,
                                       pm_node_access,
