@@ -364,7 +364,7 @@ static int __init handle_passthrough_prop(struct kernel_info *kinfo,
     if ( res )
         return res;
 
-    if ( (xen_force || is_domain_direct_mapped(kinfo->d)) &&
+    if ( (xen_force || is_domain_direct_mapped(kinfo->bd.d)) &&
          !dt_device_is_protected(node) )
         return 0;
 
@@ -584,7 +584,7 @@ static int __init domain_handle_dtb_boot_module(struct domain *d,
  * domU passthrough DT nodes whose size we account separately), 4KB are enough
  * for now, but we might have to increase it in the future.
  */
-#define DOMU_DTB_SIZE 4096
+#define DOMU_DTB_SIZE 16384
 static int __init prepare_dtb_domU(struct domain *d, struct kernel_info *kinfo)
 {
     int addrcells, sizecells;
