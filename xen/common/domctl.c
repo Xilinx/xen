@@ -525,7 +525,8 @@ long do_domctl(XEN_GUEST_HANDLE_PARAM(xen_domctl_t) u_domctl)
             rover = dom;
         }
 
-        d = domain_create(dom, &op->u.createdomain, false);
+        op->u.createdomain.flags &= XEN_DOMCTL_CDF_MASK;
+        d = domain_create(dom, &op->u.createdomain);
         if ( IS_ERR(d) )
         {
             ret = PTR_ERR(d);
