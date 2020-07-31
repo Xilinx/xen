@@ -1651,8 +1651,8 @@ static inline unsigned int vgic_v3_max_rdist_count(struct domain *d)
      * However DomU get a constructed memory map, so we can go with
      * the architected single redistributor region.
      */
-    return is_hardware_domain(d) ? vgic_v3_hw.nr_rdist_regions :
-               GUEST_GICV3_RDIST_REGIONS;
+    return is_domain_direct_mapped(d) ? vgic_v3_hw.nr_rdist_regions :
+                GUEST_GICV3_RDIST_REGIONS;
 }
 
 static int vgic_v3_domain_init(struct domain *d)
@@ -1674,10 +1674,10 @@ static int vgic_v3_domain_init(struct domain *d)
     radix_tree_init(&d->arch.vgic.pend_lpi_tree);
 
     /*
-     * Domain 0 gets the hardware address.
-     * Guests get the virtual platform layout.
+     * Direct mapped domains (including Dom0) gets the hardware address.
+     * Other guests get the virtual platform layout.
      */
-    if ( is_hardware_domain(d) )
+    if ( is_domain_direct_mapped(d) )
     {
         unsigned int first_cpu = 0;
 

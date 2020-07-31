@@ -1658,10 +1658,11 @@ static int __init make_gicv3_domU_node(struct kernel_info *kinfo)
 {
     void *fdt = kinfo->fdt;
     int res = 0;
-    __be32 reg[(GUEST_ROOT_ADDRESS_CELLS + GUEST_ROOT_SIZE_CELLS) * 2];
+    __be32 *reg;
     __be32 *cells;
     struct domain *d = kinfo->d;
     char buf[38];
+    unsigned int i, len = 0;
 
     snprintf(buf, sizeof(buf), "interrupt-controller@%"PRIx64,
              vgic_dist_base(&d->arch.vgic));
@@ -1685,27 +1686,40 @@ static int __init make_gicv3_domU_node(struct kernel_info *kinfo)
     if ( res )
         return res;
 
+    len = (GUEST_ROOT_ADDRESS_CELLS + GUEST_ROOT_SIZE_CELLS) *
+          (vgic_rdist_nr(&d->arch.vgic) + 1) * sizeof(__be32);
+    reg = xmalloc_bytes(len);
+    if ( reg == NULL )
+        return -ENOMEM;
+
     cells = &reg[0];
     dt_child_set_range(&cells, GUEST_ROOT_ADDRESS_CELLS, GUEST_ROOT_SIZE_CELLS,
                        vgic_dist_base(&d->arch.vgic), GUEST_GICV3_GICD_SIZE);
-    dt_child_set_range(&cells, GUEST_ROOT_ADDRESS_CELLS, GUEST_ROOT_SIZE_CELLS,
-                       vgic_rdist_base(&d->arch.vgic, 0),
-                       vgic_rdist_size(&d->arch.vgic, 0));
+    for ( i = 0;
+          i < vgic_rdist_nr(&d->arch.vgic);
+          i++, cells += (GUEST_ROOT_ADDRESS_CELLS + GUEST_ROOT_SIZE_CELLS) )
+    {
+        dt_child_set_range(&cells, GUEST_ROOT_ADDRESS_CELLS, GUEST_ROOT_SIZE_CELLS,
+                           vgic_rdist_base(&d->arch.vgic, i),
+                           vgic_rdist_size(&d->arch.vgic, i));
+    }
 
-    res = fdt_property(fdt, "reg", reg, sizeof(reg));
+    res = fdt_property(fdt, "reg", reg, len);
     if (res)
-        return res;
+        goto out;
 
     res = fdt_property_cell(fdt, "linux,phandle", kinfo->phandle_gic);
     if (res)
-        return res;
+        goto out;
 
     res = fdt_property_cell(fdt, "phandle", kinfo->phandle_gic);
     if (res)
-        return res;
+        goto out;
 
     res = fdt_end_node(fdt);
 
+out:
+    xfree(reg);
     return res;
 }
 
