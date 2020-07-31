@@ -291,17 +291,17 @@ static inline paddr_t vgic_dist_base(struct vgic_dist *vgic)
 #ifdef CONFIG_GICV3
 static inline unsigned int vgic_rdist_nr(struct vgic_dist *vgic)
 {
-    return GUEST_GICV3_RDIST_REGIONS;
+    return vgic->nr_regions;
 }
 
 static inline paddr_t vgic_rdist_base(struct vgic_dist *vgic, unsigned int i)
 {
-    return GUEST_GICV3_GICR0_BASE;
+    return vgic->rdist_regions[i].base;
 }
 
 static inline paddr_t vgic_rdist_size(struct vgic_dist *vgic, unsigned int i)
 {
-    return GUEST_GICV3_GICR0_SIZE;
+    return vgic->rdist_regions[i].size;
 }
 #endif
 
