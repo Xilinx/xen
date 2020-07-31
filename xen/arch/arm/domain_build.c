@@ -3190,10 +3190,10 @@ static int __init domain_handle_dtb_bootmodule(struct domain *d,
 }
 
 /*
- * The max size for DT is 2MB. However, the generated DT is small, 4KB
+ * The max size for DT is 2MB. However, the generated DT is small, 16KB
  * are enough for now, but we might have to increase it in the future.
  */
-#define DOMU_DTB_SIZE 4096
+#define DOMU_DTB_SIZE 16384
 static int __init prepare_dtb_domU(struct domain *d, struct kernel_info *kinfo)
 {
     int addrcells, sizecells;
