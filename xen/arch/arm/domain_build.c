@@ -1738,8 +1738,11 @@ static int __init make_vpl011_uart_node(struct kernel_info *kinfo)
     gic_interrupt_t intr;
     __be32 reg[GUEST_ROOT_ADDRESS_CELLS + GUEST_ROOT_SIZE_CELLS];
     __be32 *cells;
+    struct domain *d = kinfo->d;
+    char buf[27];
 
-    res = fdt_begin_node(fdt, "sbsa-uart@"__stringify(GUEST_PL011_BASE));
+    snprintf(buf, sizeof(buf), "sbsa-uart@%"PRIx64, d->arch.vpl011.base_addr);
+    res = fdt_begin_node(fdt, buf);
     if ( res )
         return res;
 
@@ -1749,14 +1752,14 @@ static int __init make_vpl011_uart_node(struct kernel_info *kinfo)
 
     cells = &reg[0];
     dt_child_set_range(&cells, GUEST_ROOT_ADDRESS_CELLS,
-                       GUEST_ROOT_SIZE_CELLS, GUEST_PL011_BASE,
+                       GUEST_ROOT_SIZE_CELLS, d->arch.vpl011.base_addr,
                        GUEST_PL011_SIZE);
 
     res = fdt_property(fdt, "reg", reg, sizeof(reg));
     if ( res )
         return res;
 
-    set_interrupt(intr, GUEST_VPL011_SPI, 0xf, DT_IRQ_TYPE_LEVEL_HIGH);
+    set_interrupt(intr, d->arch.vpl011.virq, 0xf, DT_IRQ_TYPE_LEVEL_HIGH);
 
     res = fdt_property(fdt, "interrupts", intr, sizeof (intr));
     if ( res )
@@ -2455,6 +2458,9 @@ static int __init construct_domU(struct domain *d,
     else
         allocate_memory_11(d, &kinfo);
 
+    if ( kinfo.vpl011 )
+        rc = domain_vpl011_init(d, NULL);
+
     rc = prepare_dtb_domU(d, &kinfo);
     if ( rc < 0 )
         return rc;
@@ -2462,9 +2468,6 @@ static int __init construct_domU(struct domain *d,
     rc = construct_domain(d, &kinfo);
     if ( rc < 0 )
         return rc;
-
-    if ( kinfo.vpl011 )
-        rc = domain_vpl011_init(d, NULL);
 
     return rc;
 }
@@ -2510,7 +2513,19 @@ void __init create_domUs(void)
 
         if ( !dt_property_read_u32(node, "nr_spis", &d_cfg.arch.nr_spis) )
         {
+            unsigned int vpl011_virq = GUEST_VPL011_SPI;
             d_cfg.arch.nr_spis = gic_number_lines() - 32;
+
+            /*
+             * The VPL011 virq is GUEST_VPL011_SPI, unless direct-map in
+             * set, in which case we'll try to match the hardware.
+             *
+             * Typically, d->arch.vpl011.virq has the vpl011 irq number
+             * but at this point of the boot sequence it is not
+             * initialized yet.
+             */
+            if ( direct_map && serial_irq(SERHND_DTUART) > 0 )
+                vpl011_virq = serial_irq(SERHND_DTUART);
 
             /*
              * vpl011 uses one emulated SPI. If vpl011 is requested, make
@@ -2518,7 +2533,7 @@ void __init create_domUs(void)
              */
             if ( dt_property_read_bool(node, "vpl011") )
                 d_cfg.arch.nr_spis = MAX(d_cfg.arch.nr_spis,
-                                         GUEST_VPL011_SPI - 32 + 1);
+                                         vpl011_virq - 32 + 1);
         }
 
         d_cfg.arch.colors.max_colors = 0;
