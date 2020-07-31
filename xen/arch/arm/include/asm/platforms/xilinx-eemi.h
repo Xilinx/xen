@@ -1,6 +1,9 @@
 #ifndef __ASM_ARM_PLATFORMS_XILINX_EEMI_H
 #define __ASM_ARM_PLATFORMS_XILINX_EEMI_H
 
+#include <asm/platforms/xilinx-versal-eemi.h>
+#include <asm/platforms/xilinx-zynqmp-eemi.h>
+
 /**
  * Get EEMI PM Function ID
  */
@@ -129,6 +132,12 @@ struct pm_access
     bool hwdom_access;    /* HW domain gets access regardless. */
 };
 
+struct pm_clk2node
+{
+    uint32_t clk_idx;
+    uint32_t dev_idx;
+};
+
 bool xilinx_eemi(struct cpu_user_regs *regs, const uint32_t fid,
                  uint32_t nodeid,
                  uint32_t pm_fn,
@@ -136,13 +145,10 @@ bool xilinx_eemi(struct cpu_user_regs *regs, const uint32_t fid,
                  const uint32_t pm_node_access_size,
                  const struct pm_access *pm_rst_access,
                  const uint32_t pm_rst_access_size,
+                 const struct pm_clk2node *pm_clock_node_map,
+                 const uint32_t pm_clock_node_map_size,
                  const uint32_t clk_end);
 
-struct pm_clk2node
-{
-    uint32_t clk_idx;
-    uint32_t dev_idx;
-};
 #define PM_CLK2NODE(clk, dev)   { .clk_idx = clk, .dev_idx = dev }
 
 bool pm_check_access(const struct pm_access *acl, struct domain *d, u32 idx);
