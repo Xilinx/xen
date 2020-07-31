@@ -280,12 +280,12 @@ enum gic_sgi_mode;
 
 static inline paddr_t vgic_cpu_base(struct vgic_dist *vgic)
 {
-    return GUEST_GICD_BASE;
+    return vgic->cbase;
 }
 
 static inline paddr_t vgic_dist_base(struct vgic_dist *vgic)
 {
-    return GUEST_GICD_BASE;
+    return vgic->dbase;
 }
 
 #ifdef CONFIG_GICV3

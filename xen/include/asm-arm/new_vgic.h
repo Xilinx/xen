@@ -188,12 +188,12 @@ struct vgic_cpu {
 
 static inline paddr_t vgic_cpu_base(struct vgic_dist *vgic)
 {
-    return GUEST_GICC_BASE;
+    return vgic->vgic_cpu_base;
 } 
 
 static inline paddr_t vgic_dist_base(struct vgic_dist *vgic)
 {
-    return GUEST_GICD_BASE;
+    return vgic->vgic_dist_base;
 }
 
 static inline unsigned int vgic_rdist_nr(struct vgic_dist *vgic)
