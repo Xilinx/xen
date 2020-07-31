@@ -66,6 +66,10 @@ void unmap_vcpu_info(struct vcpu *v);
 #define _XEN_DOMCTL_INTERNAL_ispriv         16
 #define XEN_DOMCTL_INTERNAL_ispriv          (1U<<_XEN_DOMCTL_INTERNAL_ispriv)
 
+/* this flag is ARM specific */
+#define _XEN_DOMCTL_INTERNAL_directmap      17
+#define XEN_DOMCTL_INTERNAL_directmap       (1U<<_XEN_DOMCTL_INTERNAL_directmap)
+
 int arch_domain_create(struct domain *d,
                        struct xen_domctl_createdomain *config);
 
