@@ -327,7 +327,7 @@
 #define ZYNQMP_PM_CLK_GEM2_REF_UNGATED 110
 #define ZYNQMP_PM_CLK_GEM3_REF_UNGATED 111
 #define ZYNQMP_PM_CLK_LPD_WDT 112
-#define ZYNQMP_PM_CLK_END 113
+#define ZYNQMP_PM_CLK_END_IDX 113
 
 extern bool zynqmp_eemi(struct cpu_user_regs *regs);
 
