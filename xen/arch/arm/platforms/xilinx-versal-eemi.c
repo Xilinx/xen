@@ -21,7 +21,6 @@
 #include <xen/sched.h>
 #include <asm/smccc.h>
 #include <asm/platforms/xilinx-eemi.h>
-#include <asm/platforms/xilinx-versal-eemi.h>
 #include <asm/platforms/xilinx-versal-mm.h>
 
 
@@ -300,19 +299,7 @@ static const struct pm_clk2node pm_clk_node_map[] = {
 };
 
 /* Last clock node index */
-#define PM_CLK_END_IDX  PM_NODE_IDX(VERSAL_PM_CLK_XRAM_APB)
-
-#define PM_CLK_SBCL_MASK    (0x3F << 20)    /* Clock subclass mask */
-#define PM_CLK_SBCL_PLL     (0x01 << 20)    /* PLL subclass value */
-
-/* Check if a clock id belongs to pll type */
-static bool clock_id_is_pll(u32 clk_id)
-{
-    if ( ( clk_id & PM_CLK_SBCL_MASK ) == PM_CLK_SBCL_PLL )
-        return true;
-
-    return false;
-}
+#define VERSAL_PM_CLK_END_IDX  PM_NODE_IDX(VERSAL_PM_CLK_XRAM_APB)
 
 bool versal_eemi(struct cpu_user_regs *regs)
 {
@@ -335,37 +322,6 @@ bool versal_eemi(struct cpu_user_regs *regs)
         ret = XST_PM_NOTSUPPORTED;
         goto done;
 
-    case EEMI_FID(PM_CLOCK_ENABLE):
-    case EEMI_FID(PM_CLOCK_DISABLE):
-    case EEMI_FID(PM_CLOCK_SETDIVIDER):
-    case EEMI_FID(PM_CLOCK_SETPARENT):
-        if ( !clock_id_is_valid(PM_NODE_IDX(nodeid),
-                                PM_CLK_END_IDX) )
-        {
-            gprintk(XENLOG_WARNING, "versal-pm: fn=0x%04x Invalid clock=0x%08x\n",
-                    pm_fn, nodeid);
-            ret = XST_PM_INVALID_PARAM;
-            goto done;
-        }
-        /*
-         * Allow pll clock nodes to passthrough since there is no device binded to them
-         */
-        if ( clock_id_is_pll(nodeid) )
-        {
-            goto forward_to_fw;
-        }
-        if ( !domain_has_clock_access(current->domain, PM_NODE_IDX(nodeid),
-                                      pm_node_access,
-                                      ARRAY_SIZE(pm_node_access),
-                                      pm_clk_node_map,
-                                      ARRAY_SIZE(pm_clk_node_map)) )
-        {
-            gprintk(XENLOG_WARNING, "versal-pm: fn=0x%04x No access to clock=0x%08x\n",
-                    pm_fn, nodeid);
-            ret = XST_PM_NO_ACCESS;
-            goto done;
-        }
-        goto forward_to_fw;
 
     case EEMI_FID(PM_PLL_GET_PARAMETER):
     case EEMI_FID(PM_PLL_GET_MODE):
@@ -390,7 +346,9 @@ bool versal_eemi(struct cpu_user_regs *regs)
                            ARRAY_SIZE(pm_node_access),
                            pm_rst_access,
                            ARRAY_SIZE(pm_rst_access),
-                           PM_CLK_END_IDX);
+                           pm_clk_node_map,
+                           ARRAY_SIZE(pm_clk_node_map),
+                           VERSAL_PM_CLK_END_IDX);
     }
 
 forward_to_fw:

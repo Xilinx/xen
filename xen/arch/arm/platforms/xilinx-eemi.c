@@ -88,6 +88,30 @@ bool domain_has_node_access(struct domain *d, const u32 node,
     return pm_check_access(pm_node_access, d, node);
 }
 
+/* Check if a clock id belongs to pll type */
+static bool clock_id_is_pll(u32 clk_id, u32 clk_end)
+{
+    /* ZynqMP */
+    if ( clk_end == ZYNQMP_PM_CLK_END_IDX )
+    {
+        for ( int i = 0;
+              ZYNQMP_PM_CLK_END_IDX != zynqmp_clock_id_plls[i];
+              i++ )
+        {
+            if ( clk_id == zynqmp_clock_id_plls[i] )
+                return true;
+        }
+    }
+    /* Versal */
+    else
+    {
+        if ( (clk_id & VERSAL_PM_CLK_SBCL_MASK ) == VERSAL_PM_CLK_SBCL_PLL )
+            return true;
+    }
+
+    return false;
+}
+
 bool xilinx_eemi(struct cpu_user_regs *regs, const uint32_t fid,
                  uint32_t nodeid,
                  uint32_t pm_fn,
@@ -95,6 +119,8 @@ bool xilinx_eemi(struct cpu_user_regs *regs, const uint32_t fid,
                  const uint32_t pm_node_access_size,
                  const struct pm_access *pm_rst_access,
                  const uint32_t pm_rst_access_size,
+                 const struct pm_clk2node *pm_clock_node_map,
+                 const uint32_t pm_clock_node_map_size,
                  const uint32_t clk_end)
 {
     struct arm_smccc_res res;
@@ -175,6 +201,38 @@ bool xilinx_eemi(struct cpu_user_regs *regs, const uint32_t fid,
         if ( !is_hardware_domain(current->domain) )
         {
             gprintk(XENLOG_WARNING, "eemi: fn=%u No access", pm_fn);
+            ret = XST_PM_NO_ACCESS;
+            goto done;
+        }
+        goto forward_to_fw;
+
+    case EEMI_FID(PM_CLOCK_ENABLE):
+    case EEMI_FID(PM_CLOCK_DISABLE):
+    case EEMI_FID(PM_CLOCK_SETDIVIDER):
+    case EEMI_FID(PM_CLOCK_SETPARENT):
+        if ( !clock_id_is_valid(nodeid, clk_end) )
+        {
+            gprintk(XENLOG_WARNING, "xilinx-pm: fn=%u Invalid clock=%u\n",
+                    pm_fn, nodeid);
+            ret = XST_PM_INVALID_PARAM;
+            goto done;
+        }
+        /*
+         * Allow pll clock nodes to passthrough since there is no device binded to them
+         */
+        if ( clock_id_is_pll(nodeid, clk_end) )
+        {
+            goto forward_to_fw;
+        }
+        if ( !domain_has_clock_access(current->domain, nodeid,
+                                      pm_node_access,
+                                      pm_node_access_size,
+                                      pm_clock_node_map,
+                                      pm_clock_node_map_size) )
+
+        {
+            gprintk(XENLOG_WARNING, "xilinx-pm: fn=%u No access to clock=%u\n",
+                    pm_fn, nodeid);
             ret = XST_PM_NO_ACCESS;
             goto done;
         }

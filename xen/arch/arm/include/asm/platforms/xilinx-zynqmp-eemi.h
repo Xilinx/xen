@@ -329,6 +329,8 @@
 #define ZYNQMP_PM_CLK_LPD_WDT 112
 #define ZYNQMP_PM_CLK_END_IDX 113
 
+extern u32 zynqmp_clock_id_plls[18];
+
 extern bool zynqmp_eemi(struct cpu_user_regs *regs);
 
 #endif /* __ASM_ARM_PLATFORMS_ZYNQMP_H */
