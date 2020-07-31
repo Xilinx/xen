@@ -186,6 +186,30 @@ struct vgic_cpu {
     uint32_t num_id_bits;
 };
 
+static inline paddr_t vgic_cpu_base(struct vgic_dist *vgic)
+{
+    return GUEST_GICC_BASE;
+} 
+
+static inline paddr_t vgic_dist_base(struct vgic_dist *vgic)
+{
+    return GUEST_GICD_BASE;
+}
+
+static inline unsigned int vgic_rdist_nr(struct vgic_dist *vgic)
+{
+    return 0;
+}
+
+static inline paddr_t vgic_rdist_base(struct vgic_dist *vgic, unsigned int i)
+{
+    return INVALID_PADDR;
+}
+
+static inline paddr_t vgic_rdist_size(struct vgic_dist *vgic, unsigned int i)
+{
+    return 0;
+}
 #endif /* __ASM_ARM_NEW_VGIC_H */
 
 /*

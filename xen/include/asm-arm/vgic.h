@@ -277,6 +277,32 @@ enum gic_sgi_mode;
  */
 #define REG_RANK_INDEX(b, n, s) ((((n) >> s) & ((b)-1)) % 32)
 
+static inline paddr_t vgic_cpu_base(struct vgic_dist *vgic)
+{
+    return GUEST_GICD_BASE;
+}
+
+static inline paddr_t vgic_dist_base(struct vgic_dist *vgic)
+{
+    return GUEST_GICD_BASE;
+}
+
+#ifdef CONFIG_GICV3
+static inline unsigned int vgic_rdist_nr(struct vgic_dist *vgic)
+{
+    return GUEST_GICV3_RDIST_REGIONS;
+}
+
+static inline paddr_t vgic_rdist_base(struct vgic_dist *vgic, unsigned int i)
+{
+    return GUEST_GICV3_GICR0_BASE;
+}
+
+static inline paddr_t vgic_rdist_size(struct vgic_dist *vgic, unsigned int i)
+{
+    return GUEST_GICV3_GICR0_SIZE;
+}
+#endif
 
 extern struct vcpu *vgic_get_target_vcpu(struct vcpu *v, unsigned int virq);
 extern void vgic_remove_irq_from_queues(struct vcpu *v, struct pending_irq *p);
