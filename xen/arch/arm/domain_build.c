@@ -2529,7 +2529,7 @@ void __init create_domUs(void)
             }
         }
 
-        d = domain_create(++max_init_domid, &d_cfg, false);
+        d = domain_create(++max_init_domid, &d_cfg);
         if ( IS_ERR(d) )
             panic("Error creating domain %s\n", dt_node_name(node));
 

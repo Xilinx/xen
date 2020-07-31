@@ -72,6 +72,9 @@ struct xen_domctl_createdomain {
 /* Max XEN_DOMCTL_CDF_* constant.  Used for ABI checking. */
 #define XEN_DOMCTL_CDF_MAX XEN_DOMCTL_CDF_iommu
 
+/* Flags from (1U<<16) to (1U<<31) are reserved for internal usage */
+#define XEN_DOMCTL_CDF_MASK           (0xffff)
+
     uint32_t flags;
 
 #define _XEN_DOMCTL_IOMMU_no_sharept  0
