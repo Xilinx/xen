@@ -750,9 +750,11 @@ static struct domain *__init create_dom0(const module_t *image,
 
     if ( iommu_enabled )
         dom0_cfg.flags |= XEN_DOMCTL_CDF_iommu;
+    if ( !pv_shim )
+        dom0_cfg.flags |= XEN_DOMCTL_INTERNAL_ispriv;
 
     /* Create initial domain 0. */
-    d = domain_create(get_initial_domain_id(), &dom0_cfg, !pv_shim);
+    d = domain_create(get_initial_domain_id(), &dom0_cfg);
     if ( IS_ERR(d) || (alloc_dom0_vcpu0(d) == NULL) )
         panic("Error creating domain 0\n");
 
