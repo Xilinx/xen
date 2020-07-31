@@ -1,0 +1,37 @@
+Request Device Assignment without IOMMU support
+===============================================
+
+WARNING: it is not secure to assign a device without IOMMU protection. A
+domU can program the device to do DMA on its behalf, gaining access to
+the whole system. Another security measure should be employed, such as
+programming a MPU.
+
+
+This document assumes one of the following:
+
+- the IOMMU is absent from the system
+
+- the IOMMU is disabled, e.g. status = "disabled" under the smmu node in
+  device tree
+
+- the device to be assigned is not protected by the IOMMU, e.g. no
+  iommus property is present for the device in device tree
+
+
+To assign the device to a dom0less domU anyway, follow these steps:
+
+1) Add the usual xen,reg and xen,path property to the domU DTB snippet:
+
+    ethernet: ethernet@ff0e0000 {
+        compatible = "cdns,zynqmp-gem";
+        xen,path = "/amba/ethernet@ff0e0000";
+        xen,reg = <0x0 0xff0e0000 0x1000 0x0 0xff0e0000>;
+
+
+2) Request 1:1 memory mapping for the dom0less domain
+
+Add a "direct-map" property under the appropriate /chosen/domU node. If
+you are using imagebuilder, you can add to boot.source something like
+the following line:
+
+    fdt set /chosen/domU0 direct-map <0x1>
