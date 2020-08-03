@@ -622,6 +622,12 @@ u32 zynqmp_clock_id_plls[18] = {
     ZYNQMP_PM_CLK_END_IDX,
 };
 
+static inline bool pll_in_bounds(u32 nodeid)
+{
+    return ( (nodeid >= ZYNQMP_PM_DEV_APLL) &&
+             (nodeid <= ZYNQMP_PM_DEV_IOPLL) );
+}
+
 bool zynqmp_eemi(struct cpu_user_regs *regs)
 {
     struct arm_smccc_res res;
@@ -656,7 +662,7 @@ bool zynqmp_eemi(struct cpu_user_regs *regs)
 
     case EEMI_FID(PM_PLL_GET_PARAMETER):
     case EEMI_FID(PM_PLL_GET_MODE):
-        if ( nodeid < ZYNQMP_PM_DEV_APLL || nodeid > ZYNQMP_PM_DEV_IOPLL )
+        if ( !pll_in_bounds(nodeid) )
         {
             gprintk(XENLOG_WARNING, "zynqmp-pm: fn=%u Invalid pll node %u\n",
                     pm_fn, nodeid);
@@ -668,7 +674,7 @@ bool zynqmp_eemi(struct cpu_user_regs *regs)
 
     case EEMI_FID(PM_PLL_SET_PARAMETER):
     case EEMI_FID(PM_PLL_SET_MODE):
-        if ( nodeid < ZYNQMP_PM_DEV_APLL || nodeid > ZYNQMP_PM_DEV_IOPLL )
+        if ( !pll_in_bounds(nodeid) )
         {
             gprintk(XENLOG_WARNING, "zynqmp-pm: fn=%u Invalid pll node %u\n",
                     pm_fn, nodeid);
