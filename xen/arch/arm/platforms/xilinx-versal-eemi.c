@@ -298,12 +298,6 @@ static const struct pm_clk2node pm_clk_node_map[] = {
     PM_CLK2NODE(PM_NODE_IDX(VERSAL_PM_CLK_USB3_DUAL_REF), PM_NODE_IDX(VERSAL_PM_DEV_USB_0)),
 };
 
-/* bound check to match ZynqMP EEMI handling */
-static inline bool pll_in_bounds(u32 nodeid)
-{
-    return nodeid & 0x8000000U;
-}
-
 /* Last clock node index */
 #define VERSAL_PM_CLK_END_IDX  PM_NODE_IDX(VERSAL_PM_CLK_XRAM_APB)
 
@@ -327,39 +321,6 @@ bool versal_eemi(struct cpu_user_regs *regs)
         /* TBD */
         ret = XST_PM_NOTSUPPORTED;
         goto done;
-
-
-    case EEMI_FID(PM_PLL_GET_PARAMETER):
-    case EEMI_FID(PM_PLL_GET_MODE):
-        if ( !pll_in_bounds(nodeid) )
-        {
-            gprintk(XENLOG_WARNING, "versal-pm: fn=%u Invalid pll node %u\n",
-                    pm_fn, nodeid);
-            ret = XST_PM_INVALID_PARAM;
-            goto done;
-        }
-        else
-            goto forward_to_fw;
-
-    case EEMI_FID(PM_PLL_SET_PARAMETER):
-    case EEMI_FID(PM_PLL_SET_MODE):
-        if ( !pll_in_bounds(nodeid) )
-        {
-            gprintk(XENLOG_WARNING, "versal-pm: fn=%u Invalid pll node %u\n",
-                    pm_fn, nodeid);
-            ret = XST_PM_INVALID_PARAM;
-            goto done;
-        }
-        if ( !domain_has_node_access(current->domain, PM_NODE_IDX(nodeid),
-                                     pm_node_access,
-                                     ARRAY_SIZE(pm_node_access)) )
-        {
-            gprintk(XENLOG_WARNING, "versal-pm: fn=0x%04x No access to pll=0x%08x\n",
-                    pm_fn, nodeid);
-            ret = XST_PM_NO_ACCESS;
-            goto done;
-        }
-        goto forward_to_fw;
 
     default:
         return xilinx_eemi(regs, fid, PM_NODE_IDX(nodeid), pm_fn,
