@@ -622,12 +622,6 @@ u32 zynqmp_clock_id_plls[18] = {
     ZYNQMP_PM_CLK_END_IDX,
 };
 
-static inline bool pll_in_bounds(u32 nodeid)
-{
-    return ( (nodeid >= ZYNQMP_PM_DEV_APLL) &&
-             (nodeid <= ZYNQMP_PM_DEV_IOPLL) );
-}
-
 bool zynqmp_eemi(struct cpu_user_regs *regs)
 {
     struct arm_smccc_res res;
@@ -655,38 +649,6 @@ bool zynqmp_eemi(struct cpu_user_regs *regs)
                                          nodeid, &mmio_mask) ) {
             printk("eemi: fn=%d No access to MMIO %s %x\n",
                    pm_fn, is_mmio_write ? "write" : "read", nodeid);
-            ret = XST_PM_NO_ACCESS;
-            goto done;
-        }
-        goto forward_to_fw;
-
-    case EEMI_FID(PM_PLL_GET_PARAMETER):
-    case EEMI_FID(PM_PLL_GET_MODE):
-        if ( !pll_in_bounds(nodeid) )
-        {
-            gprintk(XENLOG_WARNING, "zynqmp-pm: fn=%u Invalid pll node %u\n",
-                    pm_fn, nodeid);
-            ret = XST_PM_INVALID_PARAM;
-            goto done;
-        }
-        else
-            goto forward_to_fw;
-
-    case EEMI_FID(PM_PLL_SET_PARAMETER):
-    case EEMI_FID(PM_PLL_SET_MODE):
-        if ( !pll_in_bounds(nodeid) )
-        {
-            gprintk(XENLOG_WARNING, "zynqmp-pm: fn=%u Invalid pll node %u\n",
-                    pm_fn, nodeid);
-            ret = XST_PM_INVALID_PARAM;
-            goto done;
-        }
-        if ( !domain_has_node_access(current->domain, nodeid,
-                                     pm_node_access,
-                                     ARRAY_SIZE(pm_node_access)) )
-        {
-            gprintk(XENLOG_WARNING, "zynqmp-pm: fn=%u No access to pll=%u\n",
-                    pm_fn, nodeid);
             ret = XST_PM_NO_ACCESS;
             goto done;
         }

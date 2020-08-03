@@ -4,9 +4,6 @@
 /* Main PM Mediator entry.  */
 extern bool versal_eemi(struct cpu_user_regs *regs);
 
-#define VERSAL_PM_CLK_SBCL_MASK    (0x3F << 20)    /* Clock subclass mask */
-#define VERSAL_PM_CLK_SBCL_PLL     (0x01 << 20)    /* PLL subclass value */
-
 /* Power Nodes */
 #define VERSAL_PM_POWER_PMC                (0x4208001U)
 #define VERSAL_PM_POWER_LPD                (0x4210002U)
