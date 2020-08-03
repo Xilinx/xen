@@ -88,6 +88,28 @@ bool domain_has_node_access(struct domain *d, const u32 node,
     return pm_check_access(pm_node_access, d, node);
 }
 
+#define VERSAL_PM_CLKNODE_PLL_MASK (0x80 << 20)
+#define VERSAL_PM_CLK_SBCL_MASK    (0x3F << 20)    /* Clock subclass mask */
+#define VERSAL_PM_CLK_SBCL_PLL     (0x01 << 20)    /* PLL subclass value */
+
+static bool pll_in_bounds(u32 nodeid, u32 clk_end)
+{
+    /* ZynqMP */
+    if ( clk_end == ZYNQMP_PM_CLK_END_IDX )
+    {
+        return ( (nodeid >= ZYNQMP_PM_DEV_APLL) &&
+                 (nodeid <= ZYNQMP_PM_DEV_IOPLL) );
+    }
+    /* Versal */
+    else
+    {
+        /* Check if node is PM clock node for PLL */
+        return nodeid & VERSAL_PM_CLKNODE_PLL_MASK;
+    }
+
+    return false;
+}
+
 /* Check if a clock id belongs to pll type */
 static bool clock_id_is_pll(u32 clk_id, u32 clk_end)
 {
@@ -201,6 +223,38 @@ bool xilinx_eemi(struct cpu_user_regs *regs, const uint32_t fid,
         if ( !is_hardware_domain(current->domain) )
         {
             gprintk(XENLOG_WARNING, "eemi: fn=%u No access", pm_fn);
+            ret = XST_PM_NO_ACCESS;
+            goto done;
+        }
+        goto forward_to_fw;
+
+    case EEMI_FID(PM_PLL_GET_PARAMETER):
+    case EEMI_FID(PM_PLL_GET_MODE):
+        if ( !pll_in_bounds(get_user_reg(regs, 1), clk_end) )
+        {
+            gprintk(XENLOG_WARNING, "xilinx-pm: fn=%u Invalid pll node %u\n",
+                    pm_fn, nodeid);
+            ret = XST_PM_INVALID_PARAM;
+            goto done;
+        }
+        else
+            goto forward_to_fw;
+
+    case EEMI_FID(PM_PLL_SET_PARAMETER):
+    case EEMI_FID(PM_PLL_SET_MODE):
+        if ( !pll_in_bounds(get_user_reg(regs, 1), clk_end) )
+        {
+            gprintk(XENLOG_WARNING, "xilinx-pm: fn=%u Invalid pll node %u\n",
+                    pm_fn, nodeid);
+            ret = XST_PM_INVALID_PARAM;
+            goto done;
+        }
+        if ( !domain_has_node_access(current->domain, nodeid,
+                                     pm_node_access,
+                                     pm_node_access_size) )
+        {
+            gprintk(XENLOG_WARNING, "xilinx-pm: fn=%u No access to pll=%u\n",
+                    pm_fn, nodeid);
             ret = XST_PM_NO_ACCESS;
             goto done;
         }
