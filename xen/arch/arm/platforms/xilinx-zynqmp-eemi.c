@@ -325,6 +325,22 @@ static const struct {
     { .start = MM_CRL_APB + R_CRL_PL1_THR_CNT, .hwdom_access = true },
     { .start = MM_CRL_APB + R_CRL_PL2_THR_CNT, .hwdom_access = true },
     { .start = MM_CRL_APB + R_CRL_PL3_THR_CNT, .hwdom_access = true },
+    {
+      .start = MM_CRL_APB + R_CRL_GEM0_REF_CTRL,
+      .hwdom_access = false, .node = ZYNQMP_PM_DEV_ETH_0,
+    },
+    {
+      .start = MM_CRL_APB + R_CRL_GEM1_REF_CTRL,
+      .hwdom_access = false, .node = ZYNQMP_PM_DEV_ETH_1,
+    },
+    {
+      .start = MM_CRL_APB + R_CRL_GEM2_REF_CTRL,
+      .hwdom_access = false, .node = ZYNQMP_PM_DEV_ETH_2,
+    },
+    {
+      .start = MM_CRL_APB + R_CRL_GEM3_REF_CTRL,
+      .hwdom_access = false, .node = ZYNQMP_PM_DEV_ETH_3,
+    },
     /* MIOs are controlled by the hardware domain.  */
     {
         .start = MM_IOU_SLCR + R_IOU_SLCR_MIO_PIN_0,
