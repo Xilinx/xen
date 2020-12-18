@@ -27,6 +27,9 @@
 #include <xen/errno.h>
 #include <public/domctl.h>
 #include <public/hvm/ioreq.h>
+#ifdef CONFIG_ACPI
+#include <asm/acpi.h>
+#endif
 #include <asm/device.h>
 
 TYPE_SAFE(uint64_t, dfn);
@@ -215,7 +218,8 @@ int iommu_dt_domain_init(struct domain *d);
 int iommu_release_dt_devices(struct domain *d);
 
 /*
- * Helper to add master device to the IOMMU using generic IOMMU DT bindings.
+ * Helpers to add master device to the IOMMU using generic (PCI-)IOMMU
+ * DT bindings.
  *
  * Return values:
  *  0 : device is protected by an IOMMU
@@ -224,6 +228,7 @@ int iommu_release_dt_devices(struct domain *d);
  *      (IOMMU is not enabled/present or device is not connected to it).
  */
 int iommu_add_dt_device(struct dt_device_node *np);
+int iommu_add_dt_pci_sideband_ids(struct pci_dev *pdev);
 
 int iommu_do_dt_domctl(struct xen_domctl *domctl, struct domain *d,
                        XEN_GUEST_HANDLE_PARAM(xen_domctl_t) u_domctl);
@@ -240,7 +245,24 @@ int iommu_remove_dt_device(struct dt_device_node *np);
 
 #define NO_IOMMU    1
 
+#else /* !HAS_DEVICE_TREE */
+static inline int iommu_add_dt_pci_sideband_ids(struct pci_dev *pdev)
+{
+    return -ENOSYS;
+}
 #endif /* HAS_DEVICE_TREE */
+
+static inline int iommu_add_pci_sideband_ids(struct pci_dev *pdev)
+{
+    int ret = -ENOSYS;
+
+#ifdef CONFIG_ACPI
+    if ( acpi_disabled )
+#endif
+        ret = iommu_add_dt_pci_sideband_ids(pdev);
+
+    return ret;
+}
 
 struct page_info;
 
