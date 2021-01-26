@@ -140,6 +140,13 @@ int iommu_add_dt_device(struct dt_device_node *np)
     if ( !ops )
         return -EINVAL;
 
+	/*
+	 * This is needed in case a device has both the iommus property and
+	 * also apperars in the mmu-masters list.
+	 */
+    if ( dt_device_is_protected(np) )
+        return 0;
+
     if ( dev_iommu_fwspec_get(dev) )
         return -EEXIST;
 
