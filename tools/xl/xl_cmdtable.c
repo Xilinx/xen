@@ -19,6 +19,19 @@
 #include "xl.h"
 
 struct cmd_spec cmd_table[] = {
+    { "fpga-add",
+      &main_fpga_add, 1, 1,
+      "Add a PL block",
+      "<.dtbo>"
+      "-h print this help\n"
+    },
+    { "fpga-del",
+      &main_fpga_del, 1, 1,
+      "Remove a PL block",
+      "<full_node_path>"
+      "-h print this help\n"
+    },
+
     { "create",
       &main_create, 1, 1,
       "Create a domain from config file <filename>",
