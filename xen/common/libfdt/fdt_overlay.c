@@ -9,6 +9,7 @@
 #include <fdt.h>
 #include <libfdt.h>
 
+#include <xen/lib.h>
 #include "libfdt_internal.h"
 
 /**
@@ -446,7 +447,8 @@ static int overlay_fixup_phandle(void *fdt, void *fdto, int symbols_off,
 		const char *fixup_str = value;
 		uint32_t path_len, name_len;
 		uint32_t fixup_len;
-		char *sep, *endptr;
+		char *sep;
+		const char *endptr;
 		int poffset, ret;
 
 		fixup_end = memchr(value, '\0', len);
@@ -476,7 +478,7 @@ static int overlay_fixup_phandle(void *fdt, void *fdto, int symbols_off,
 		if (!name_len)
 			return -FDT_ERR_BADOVERLAY;
 
-		poffset = strtoul(sep + 1, &endptr, 10);
+		poffset = simple_strtoull(sep + 1, &endptr, 10);
 		if ((*endptr != '\0') || (endptr <= (sep + 1)))
 			return -FDT_ERR_BADOVERLAY;
 

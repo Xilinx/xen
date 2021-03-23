@@ -53,6 +53,41 @@
 
 #include "libfdt_internal.h"
 
+/*
+ * Minimal sanity check for a read-only tree. fdt_ro_probe_() checks
+ * that the given buffer contains what appears to be a flattened
+ * device tree with sane information in its header.
+ */
+int32_t fdt_ro_probe_(const void *fdt)
+{
+	uint32_t totalsize = fdt_totalsize(fdt);
+
+	if (can_assume(VALID_DTB))
+		return totalsize;
+
+	if (fdt_magic(fdt) == FDT_MAGIC) {
+		/* Complete tree */
+		if (!can_assume(LATEST)) {
+			if (fdt_version(fdt) < FDT_FIRST_SUPPORTED_VERSION)
+				return -FDT_ERR_BADVERSION;
+			if (fdt_last_comp_version(fdt) >
+					FDT_LAST_SUPPORTED_VERSION)
+				return -FDT_ERR_BADVERSION;
+		}
+	} else if (fdt_magic(fdt) == FDT_SW_MAGIC) {
+		/* Unfinished sequential-write blob */
+		if (!can_assume(VALID_INPUT) && fdt_size_dt_struct(fdt) == 0)
+			return -FDT_ERR_BADSTATE;
+	} else {
+		return -FDT_ERR_BADMAGIC;
+	}
+
+	if (totalsize < INT32_MAX)
+		return totalsize;
+	else
+		return -FDT_ERR_TRUNCATED;
+}
+
 int fdt_check_header(const void *fdt)
 {
 	if (fdt_magic(fdt) == FDT_MAGIC) {
