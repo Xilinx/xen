@@ -281,6 +281,16 @@ struct dt_device_node *dt_find_node_by_path(const char *path)
     return np;
 }
 
+void dt_print_node_names(struct dt_device_node *dt)
+{
+    struct dt_device_node *np;
+
+    dt_for_each_device_node(dt, np)
+        dt_dprintk("Node name: %s Full name %s\n", np->name, np->full_name);
+
+    return;
+}
+
 int dt_find_node_by_gpath(XEN_GUEST_HANDLE(char) u_path, uint32_t u_plen,
                           struct dt_device_node **node)
 {
