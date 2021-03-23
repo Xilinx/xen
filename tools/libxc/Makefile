@@ -14,6 +14,7 @@ CTRL_SRCS-y       += xc_altp2m.c
 CTRL_SRCS-y       += xc_core.c
 CTRL_SRCS-$(CONFIG_X86) += xc_core_x86.c
 CTRL_SRCS-$(CONFIG_ARM) += xc_core_arm.c
+CTRL_SRCS-$(CONFIG_ARM) += xc_fpga.c
 CTRL_SRCS-y       += xc_cpupool.c
 CTRL_SRCS-y       += xc_domain.c
 CTRL_SRCS-y       += xc_evtchn.c
