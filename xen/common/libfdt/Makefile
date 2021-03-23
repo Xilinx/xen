@@ -1,7 +1,6 @@
 include Makefile.libfdt
 
 SECTIONS := text data $(SPECIAL_DATA_SECTIONS)
-OBJCOPYFLAGS := $(foreach s,$(SECTIONS),--rename-section .$(s)=.init.$(s))
 
 obj-y += libfdt.o
 nocov-y += libfdt.o
