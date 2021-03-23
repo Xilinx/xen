@@ -2303,6 +2303,11 @@ int libxl_device_pci_destroy(libxl_ctx *ctx, uint32_t domid,
 libxl_device_pci *libxl_device_pci_list(libxl_ctx *ctx, uint32_t domid,
                                         int *num);
 
+/* FPGA device add. */
+int libxl_add_fpga_node(libxl_ctx *ctx, void *pfdt, int pfdt_size);
+/* FPGA device remove. */
+int libxl_del_fpga_node(libxl_ctx *ctx, char *full_dt_node_path);
+
 /*
  * Turns the current process into a backend device service daemon
  * for a driver domain.
