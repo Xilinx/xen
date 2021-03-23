@@ -145,6 +145,7 @@ LIBXL_OBJS = flexarray.o libxl.o libxl_create.o libxl_dm.o libxl_pci.o \
 LIBXL_OBJS += libxl_genid.o
 LIBXL_OBJS += _libxl_types.o libxl_flask.o _libxl_types_internal.o
 
+LIBXL_OBJS += libxl_fpga.o
 LIBXL_TESTS += timedereg
 LIBXL_TESTS_PROGS = $(LIBXL_TESTS) fdderegrace
 LIBXL_TESTS_INSIDE = $(LIBXL_TESTS) fdevent
