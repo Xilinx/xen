@@ -56,7 +56,7 @@ static uint32_t overlay_get_target_phandle(const void *fdto, int fragment)
  *      the targeted node offset in the base device tree
  *      Negative error code on error
  */
-static int overlay_get_target(const void *fdt, const void *fdto,
+int overlay_get_target(const void *fdt, const void *fdto,
 			      int fragment, char const **pathp)
 {
 	uint32_t phandle;
