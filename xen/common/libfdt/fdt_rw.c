@@ -65,6 +65,30 @@ static int _fdt_blocks_misordered(const void *fdt,
 		    (fdt_off_dt_strings(fdt) + fdt_size_dt_strings(fdt)));
 }
 
+static int fdt_rw_probe_(void *fdt)
+{
+	if (can_assume(VALID_DTB))
+		return 0;
+	FDT_RO_PROBE(fdt);
+
+	if (!can_assume(LATEST) && fdt_version(fdt) < 17)
+		return -FDT_ERR_BADVERSION;
+	if (_fdt_blocks_misordered(fdt, sizeof(struct fdt_reserve_entry),
+				   fdt_size_dt_struct(fdt)))
+		return -FDT_ERR_BADLAYOUT;
+	if (!can_assume(LATEST) && fdt_version(fdt) > 17)
+		fdt_set_version(fdt, 17);
+
+	return 0;
+}
+
+#define FDT_RW_PROBE(fdt) \
+	{ \
+		int err_; \
+		if ((err_ = fdt_rw_probe_(fdt)) != 0) \
+			return err_; \
+	}
+
 static int _fdt_rw_check_header(void *fdt)
 {
 	FDT_CHECK_HEADER(fdt);
@@ -133,6 +157,14 @@ static int _fdt_splice_struct(void *fdt, void *p,
 	return 0;
 }
 
+/* Must only be used to roll back in case of error */
+static void fdt_del_last_string_(void *fdt, const char *s)
+{
+	int newlen = strlen(s) + 1;
+
+	fdt_set_size_dt_strings(fdt, fdt_size_dt_strings(fdt) - newlen);
+}
+
 static int _fdt_splice_string(void *fdt, int newlen)
 {
 	void *p = (char *)fdt
@@ -146,13 +178,25 @@ static int _fdt_splice_string(void *fdt, int newlen)
 	return 0;
 }
 
-static int _fdt_find_add_string(void *fdt, const char *s)
+/**
+ * New _fdt_find_add_string() - Find or allocate a string
+ *
+ * @fdt: pointer to the device tree to check/adjust
+ * @s: string to find/add
+ * @allocated: Set to 0 if the string was found, 1 if not found and so
+ *  allocated. Ignored if can_assume(NO_ROLLBACK)
+ * @return offset of string in the string table (whether found or added)
+ */
+static int _fdt_find_add_string(void *fdt, const char *s, int *allocated)
 {
 	char *strtab = (char *)fdt + fdt_off_dt_strings(fdt);
 	const char *p;
 	char *new;
 	int len = strlen(s) + 1;
 	int err;
+
+	if (!can_assume(NO_ROLLBACK))
+		*allocated = 0;
 
 	p = _fdt_find_string(strtab, fdt_size_dt_strings(fdt), s);
 	if (p)
@@ -163,6 +207,9 @@ static int _fdt_find_add_string(void *fdt, const char *s)
 	err = _fdt_splice_string(fdt, len);
 	if (err)
 		return err;
+
+	if (!can_assume(NO_ROLLBACK))
+		*allocated = 1;
 
 	memcpy(new, s, len);
 	return (new - strtab);
@@ -226,11 +273,12 @@ static int _fdt_add_property(void *fdt, int nodeoffset, const char *name,
 	int nextoffset;
 	int namestroff;
 	int err;
+	int allocated;
 
 	if ((nextoffset = _fdt_check_node_offset(fdt, nodeoffset)) < 0)
 		return nextoffset;
 
-	namestroff = _fdt_find_add_string(fdt, name);
+	namestroff = _fdt_find_add_string(fdt, name, &allocated);
 	if (namestroff < 0)
 		return namestroff;
 
@@ -238,8 +286,12 @@ static int _fdt_add_property(void *fdt, int nodeoffset, const char *name,
 	proplen = sizeof(**prop) + FDT_TAGALIGN(len);
 
 	err = _fdt_splice_struct(fdt, *prop, 0, proplen);
-	if (err)
+	if (err) {
+		/* Delete the string if we failed to add it */
+		if (!can_assume(NO_ROLLBACK) && allocated)
+			fdt_del_last_string_(fdt, name);
 		return err;
+	}
 
 	(*prop)->tag = cpu_to_fdt32(FDT_PROP);
 	(*prop)->nameoff = cpu_to_fdt32(namestroff);
@@ -270,13 +322,13 @@ int fdt_set_name(void *fdt, int nodeoffset, const char *name)
 	return 0;
 }
 
-int fdt_setprop(void *fdt, int nodeoffset, const char *name,
-		const void *val, int len)
+int fdt_setprop_placeholder(void *fdt, int nodeoffset, const char *name,
+				int len, void **prop_data)
 {
 	struct fdt_property *prop;
 	int err;
 
-	FDT_RW_CHECK_HEADER(fdt);
+	FDT_RW_PROBE(fdt);
 
 	err = _fdt_resize_property(fdt, nodeoffset, name, len, &prop);
 	if (err == -FDT_ERR_NOTFOUND)
@@ -284,7 +336,22 @@ int fdt_setprop(void *fdt, int nodeoffset, const char *name,
 	if (err)
 		return err;
 
-	memcpy(prop->data, val, len);
+	*prop_data = prop->data;
+	return 0;
+}
+
+int fdt_setprop(void *fdt, int nodeoffset, const char *name,
+		const void *val, int len)
+{
+	void *prop_data;
+	int err;
+
+	err = fdt_setprop_placeholder(fdt, nodeoffset, name, len, &prop_data);
+	if (err)
+		return err;
+
+	if (len)
+		memcpy(prop_data, val, len);
 	return 0;
 }
 
