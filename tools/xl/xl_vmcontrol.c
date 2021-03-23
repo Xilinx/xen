@@ -1262,6 +1262,57 @@ int main_create(int argc, char **argv)
     return 0;
 }
 
+int main_fpga_add(int argc, char **argv)
+{
+    const char *fpga_config_file = argv[1];
+    void *pfdt = NULL;
+    int rc;
+    int pfdt_size = 0;
+
+    if (fpga_config_file) {
+        rc = libxl_read_file_contents(ctx, fpga_config_file,
+                                      &pfdt, &pfdt_size);
+
+        if (rc) {
+            fprintf(stderr, "failed to read the fpga-partial device file %s\n",
+                    fpga_config_file);
+            free(pfdt);
+            return ERROR_FAIL;
+        }
+    } else {
+        fprintf(stderr, "FPGA config file is not provided\n");
+        return ERROR_FAIL;
+    }
+
+    rc = libxl_add_fpga_node(ctx, pfdt, pfdt_size);
+    if (rc)
+        fprintf(stderr, "Adding FPGA node failed\n");
+
+    free(pfdt);
+    return rc;
+}
+
+int main_fpga_del(int argc, char **argv)
+{
+    char *full_dt_node_path = argv[1];
+    int rc = 0;
+
+    if (full_dt_node_path) {
+        rc = libxl_del_fpga_node(ctx, full_dt_node_path);
+
+        fprintf(stdout, "fpga-del called for device = %s\n", full_dt_node_path);
+
+        if (rc)
+            fprintf(stderr, "Removing FPGA node failed\n");
+
+    } else {
+        fprintf(stderr, "No device node path provided\n");
+        return ERROR_FAIL;
+    }
+
+    return rc;
+}
+
 /*
  * Local variables:
  * mode: C
