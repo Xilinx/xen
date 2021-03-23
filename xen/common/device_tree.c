@@ -297,6 +297,54 @@ void dt_print_node_names(struct dt_device_node *dt)
     return;
 }
 
+int fpga_del_node(struct dt_device_node *device_node)
+{
+    struct dt_device_node *np;
+    struct dt_device_node *parent_node;
+    struct dt_device_node *current_node;
+
+    parent_node = device_node->parent;
+    current_node = parent_node;
+    if ( parent_node == NULL )
+    {
+        dt_dprintk("%s's parent node not found\n", device_node->name);
+        return -EFAULT;
+    }
+
+    np = parent_node->child;
+    if ( np == NULL )
+    {
+        dt_dprintk("parent node %s's not found\n", parent_node->name);
+        return -EFAULT;
+    }
+
+    /* If node to be removed is only child node or first child. */
+    if ( np->name == device_node->name )
+    {
+        current_node->allnext = np->next;
+        return 0;
+    }
+
+    for ( np = parent_node->child; np->sibling != NULL; np = np->sibling )
+    {
+        current_node = np;
+        if ( np->sibling->name == device_node->name )
+        {
+            /* Found the node. Now we remove it. */
+            current_node->allnext = np->allnext->allnext;
+
+            if ( np->sibling->sibling )
+                current_node->sibling = np->sibling->sibling;
+            else
+                current_node->sibling = NULL;
+
+            break;
+        }
+    }
+
+    return 0;
+}
+
 int dt_find_node_by_gpath(XEN_GUEST_HANDLE(char) u_path, uint32_t u_plen,
                           struct dt_device_node **node)
 {

@@ -1140,6 +1140,12 @@ struct xen_domctl_vuart_op {
                                  */
 };
 
+/* XEN_DOMCTL_fpga_del. */
+struct xen_domctl_fpga_del_dt {
+    XEN_GUEST_HANDLE_64(char) full_dt_node_path;
+    uint32_t size;
+};
+
 struct xen_domctl {
     uint32_t cmd;
 #define XEN_DOMCTL_createdomain                   1
@@ -1224,6 +1230,7 @@ struct xen_domctl {
 #define XEN_DOMCTL_vuart_op                      81
 #define XEN_DOMCTL_get_cpu_policy                82
 #define XEN_DOMCTL_set_cpu_policy                83
+#define XEN_DOMCTL_delfpga                      85
 #define XEN_DOMCTL_gdbsx_guestmemio            1000
 #define XEN_DOMCTL_gdbsx_pausevcpu             1001
 #define XEN_DOMCTL_gdbsx_unpausevcpu           1002
@@ -1284,6 +1291,7 @@ struct xen_domctl {
         struct xen_domctl_monitor_op        monitor_op;
         struct xen_domctl_psr_alloc         psr_alloc;
         struct xen_domctl_vuart_op          vuart_op;
+        struct xen_domctl_fpga_del_dt       fpga_del_dt;
         uint8_t                             pad[128];
     } u;
 };

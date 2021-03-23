@@ -9,11 +9,34 @@
 #include <xen/hypercall.h>
 #include <xen/iocap.h>
 #include <xen/lib.h>
+#include <xen/list.h>
 #include <xen/mm.h>
 #include <xen/sched.h>
 #include <xen/types.h>
 #include <xsm/xsm.h>
 #include <public/domctl.h>
+#include <xen/xmalloc.h>
+#include <xen/device_tree.h>
+#include <asm/domain_build.h>
+
+/*
+ * overlay_node_track describes information about added nodes through dtbo.
+ * @dt_host_new: Pointer to the updated dt_host_new unflattened 'updated fdt'.
+ * @node_fullname: Store the name of nodes.
+ * @entry: List pointer.
+ */
+struct overlay_track {
+    struct list_head entry;
+    struct dt_device_node *dt_host_new;
+    /*
+     * TODO: We keep max nodes to 10 in an overlay. But for now we will be
+     * adding one node only.
+     */
+    char *node_fullname;
+};
+
+static LIST_HEAD(overlay_tracker);
+static DEFINE_SPINLOCK(overlay_lock);
 
 void arch_get_domain_info(const struct domain *d,
                           struct xen_domctl_getdomaininfo *info)
@@ -42,6 +65,127 @@ static int handle_vuart_init(struct domain *d,
     if ( !rc )
         vuart_op->evtchn = info.evtchn;
 
+    return rc;
+}
+
+/*
+ * First finds the device node to remove. Check if the device is being used by
+ * any dom and finally remove it from dt_host. IOMMU is already being taken care
+ * while destroying the domain.
+ */
+static long handle_del_fpga_nodes(char *full_dt_node_path)
+{
+    struct domain *d = hardware_domain;
+    int rc = 0;
+    uint32_t ret = 0;
+    struct dt_device_node *fpga_device;
+    struct overlay_track *entry, *temp;
+    unsigned int naddr;
+    unsigned int i, nirq;
+    struct dt_raw_irq rirq;
+    u64 addr, size;
+
+    fpga_device = dt_find_node_by_path(full_dt_node_path);
+
+    if ( fpga_device == NULL )
+    {
+        printk(XENLOG_G_ERR "Device %s is not present in the tree\n",
+               full_dt_node_path);
+        return -EINVAL;
+    }
+
+    ret = dt_device_used_by(fpga_device);
+
+    if ( ret != 0 && ret != DOMID_IO )
+    {
+        printk(XENLOG_G_ERR "Cannot remove the device as it is being used by"
+               "domain %d\n", ret);
+        return -EPERM;
+    }
+
+    spin_lock(&overlay_lock);
+
+    nirq = dt_number_of_irq(fpga_device);
+
+    /* Remove IRQ permission */
+    for ( i = 0; i < nirq; i++ )
+    {
+        rc = dt_device_get_raw_irq(fpga_device, i, &rirq);
+        if ( rc )
+        {
+            printk(XENLOG_ERR "Unable to retrieve irq %u for %s\n",
+                   i, dt_node_full_name(fpga_device));
+            goto out;
+        }
+
+        rc = platform_get_irq(fpga_device, i);
+        if ( rc < 0 )
+        {
+            printk(XENLOG_ERR "Unable to get irq %u for %s\n",
+                   i, dt_node_full_name(fpga_device));
+            goto out;
+        }
+
+        rc = irq_deny_access(d, rc);
+        if ( rc )
+        {
+            printk(XENLOG_ERR "unable to revoke access for irq %u for %s\n",
+                   i, dt_node_full_name(fpga_device));
+            goto out;
+        }
+    }
+
+    rc = iommu_remove_dt_device(fpga_device);
+    if ( rc )
+        goto out;
+
+    naddr = dt_number_of_address(fpga_device);
+
+    /* Remove mmio access. */
+    for ( i = 0; i < naddr; i++ )
+    {
+        rc = dt_device_get_address(fpga_device, i, &addr, &size);
+        if ( rc )
+        {
+            printk(XENLOG_ERR "Unable to retrieve address %u for %s\n",
+                   i, dt_node_full_name(fpga_device));
+            goto out;
+        }
+
+        rc = iomem_deny_access(d, paddr_to_pfn(addr),
+                               paddr_to_pfn(PAGE_ALIGN(addr + size - 1)));
+        if ( rc )
+        {
+            printk(XENLOG_ERR "Unable to remove dom%d access to"
+                    " 0x%"PRIx64" - 0x%"PRIx64"\n",
+                    d->domain_id,
+                    addr & PAGE_MASK, PAGE_ALIGN(addr + size) - 1);
+            goto out;
+        }
+    }
+
+    rc = fpga_del_node(fpga_device);
+    if ( rc )
+        goto out;
+
+    list_for_each_entry_safe( entry, temp, &overlay_tracker, entry )
+    {
+        if ( (strcmp(full_dt_node_path, entry->node_fullname) == 0) )
+        {
+            list_del(&entry->entry);
+            xfree(entry->node_fullname);
+            xfree(entry->dt_host_new);
+            xfree(entry);
+            goto out;
+        }
+    }
+
+    printk(XENLOG_G_ERR "Cannot find the node in tracker. Memory will not"
+           "be freed\n");
+    rc = -ENOENT;
+
+out:
+    spin_unlock(&overlay_lock);
     return rc;
 }
 
@@ -177,6 +321,40 @@ long arch_do_domctl(struct xen_domctl *domctl, struct domain *d,
 
         return rc;
     }
+
+    case XEN_DOMCTL_delfpga:
+    {
+        char *full_dt_node_path;
+        int rc;
+
+        if ( domctl->u.fpga_del_dt.size > 0 )
+            full_dt_node_path = xmalloc_bytes(domctl->u.fpga_del_dt.size);
+        else
+            return -EINVAL;
+
+        if ( full_dt_node_path == NULL )
+            return -ENOMEM;
+
+        rc = copy_from_guest(full_dt_node_path,
+                             domctl->u.fpga_del_dt.full_dt_node_path,
+                             domctl->u.fpga_del_dt.size);
+        if ( rc )
+        {
+            gprintk(XENLOG_ERR, "copy from guest failed\n");
+            xfree(full_dt_node_path);
+
+            return -EFAULT;
+        }
+
+        full_dt_node_path[domctl->u.fpga_del_dt.size - 1] = '\0';
+
+        rc = handle_del_fpga_nodes(full_dt_node_path);
+
+        xfree(full_dt_node_path);
+
+        return rc;
+    }
+
     default:
     {
         int rc;
