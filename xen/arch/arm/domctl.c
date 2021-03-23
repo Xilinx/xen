@@ -15,6 +15,8 @@
 #include <xen/types.h>
 #include <xsm/xsm.h>
 #include <public/domctl.h>
+/* Included for FPGA dt add. */
+#include <xen/libfdt/libfdt.h>
 #include <xen/xmalloc.h>
 #include <xen/device_tree.h>
 #include <asm/domain_build.h>
@@ -66,6 +68,61 @@ static int handle_vuart_init(struct domain *d,
         vuart_op->evtchn = info.evtchn;
 
     return rc;
+}
+
+static int check_pfdt(void *pfdt, uint32_t pfdt_size)
+{
+    if ( fdt_totalsize(pfdt) != pfdt_size )
+    {
+        printk(XENLOG_ERR "Partial FDT is not a valid Flat Device Tree\n");
+        return -EFAULT;
+    }
+
+    if ( fdt_check_header(pfdt) )
+    {
+        printk(XENLOG_ERR "Partial FDT is not a valid Flat Device Tree\n");
+        return -EFAULT;
+    }
+
+    return 0;
+}
+
+static void overlay_get_node_info(void *fdto, char *node_full_path)
+{
+    int fragment;
+
+    /*
+     * Handle overlay nodes. But for now we are just handling one node.
+     */
+    fdt_for_each_subnode(fragment, fdto, 0)
+    {
+        int target;
+        int overlay;
+        int subnode;
+        const char *target_path;
+
+        target = overlay_get_target(device_tree_flattened, fdto, fragment,
+                                    &target_path);
+        overlay = fdt_subnode_offset(fdto, fragment, "__overlay__");
+
+        fdt_for_each_subnode(subnode, fdto, overlay)
+        {
+            const char *node_name = fdt_get_name(fdto, subnode, NULL);
+            int node_name_len = strlen(node_name);
+            int target_path_len = strlen(target_path);
+
+            memcpy(node_full_path, target_path, target_path_len);
+
+            node_full_path[target_path_len] = '/';
+
+            memcpy(node_full_path + target_path_len + 1, node_name,
+                   node_name_len);
+
+            node_full_path[target_path_len + 1 + node_name_len] = '\0';
+
+            return;
+        }
+    }
 }
 
 /*
@@ -186,6 +243,173 @@ static long handle_del_fpga_nodes(char *full_dt_node_path)
 
 out:
     spin_unlock(&overlay_lock);
+    return rc;
+}
+
+/*
+ * Adds only one device node at a time under target node.
+ * We use dt_host_new to unflatten the updated device_tree_flattened. This is
+ * done to avoid the removal of device_tree generation, iomem regions mapping to
+ * DOM0 done by handle_node().
+ */
+static long handle_add_fpga_overlay(void *pfdt, uint32_t pfdt_size)
+{
+    int rc = 0;
+    struct dt_device_node *fpga_node;
+    char node_full_path[128];
+    void *fdt = xmalloc_bytes(fdt_totalsize(device_tree_flattened));
+    struct dt_device_node *dt_host_new;
+    struct domain *d = hardware_domain;
+    struct overlay_track *tr = NULL;
+    int node_full_path_namelen;
+    unsigned int naddr;
+    unsigned int i;
+    u64 addr, size;
+
+    if ( fdt == NULL )
+        return ENOMEM;
+
+    spin_lock(&overlay_lock);
+
+    memcpy(fdt, device_tree_flattened, fdt_totalsize(device_tree_flattened));
+
+    rc = check_pfdt(pfdt, pfdt_size);
+    if ( rc )
+        goto err;
+
+    overlay_get_node_info(pfdt, node_full_path);
+
+    rc = fdt_overlay_apply(fdt, pfdt);
+    if ( rc )
+    {
+        printk(XENLOG_ERR "Adding overlay node %s failed with error %d\n",
+               node_full_path, rc);
+        goto err;
+    }
+
+    /* Check if node already exists in dt_host. */
+    fpga_node = dt_find_node_by_path(node_full_path);
+    if ( fpga_node != NULL )
+    {
+        printk(XENLOG_ERR "node %s exists in device tree\n", node_full_path);
+        rc = -EINVAL;
+        goto err;
+    }
+
+    /* Unflatten the fdt into a new dt_host. */
+    unflatten_device_tree(fdt, &dt_host_new);
+
+    /* Find the newly added node in dt_host_new by it's full path. */
+    fpga_node = _dt_find_node_by_path(dt_host_new, node_full_path);
+    if ( fpga_node == NULL )
+    {
+        dt_dprintk("%s node not found\n", node_full_path);
+        rc = -EFAULT;
+        xfree(dt_host_new);
+        goto err;
+    }
+
+    /* Just keep the node we intend to add. Remove every other node in list. */
+    fpga_node->allnext = NULL;
+    fpga_node->sibling = NULL;
+
+    /* Add the node to dt_host. */
+    rc = fpga_add_node(fpga_node, fpga_node->parent->full_name);
+    if ( rc )
+    {
+        /* Node not added in dt_host. Safe to free dt_host_new. */
+        xfree(dt_host_new);
+        goto err;
+    }
+
+    /* Get the node from dt_host and add interrupt and IOMMUs. */
+    fpga_node = dt_find_node_by_path(fpga_node->full_name);
+    if ( fpga_node == NULL )
+    {
+        /* Sanity check. But code will never come in this loop. */
+        printk(XENLOG_ERR "Cannot find %s node under updated dt_host\n",
+               fpga_node->name);
+        goto remove_node;
+    }
+
+    /* First let's handle the interrupts. */
+    rc = handle_device_interrupts(d, fpga_node, false);
+    if ( rc )
+    {
+        printk(XENLOG_G_ERR "Interrupt failed\n");
+        goto remove_node;
+    }
+
+    /* Add device to IOMMUs */
+    rc = iommu_add_dt_device(fpga_node);
+    if ( rc < 0 )
+    {
+        printk(XENLOG_G_ERR "Failed to add %s to the IOMMU\n",
+               dt_node_full_name(fpga_node));
+        goto remove_node;
+    }
+
+    /* Set permissions. */
+    naddr = dt_number_of_address(fpga_node);
+
+    dt_dprintk("%s passthrough = %d naddr = %u\n",
+               dt_node_full_name(fpga_node), false, naddr);
+
+    /* Give permission and map MMIOs */
+    for ( i = 0; i < naddr; i++ )
+    {
+        struct map_range_data mr_data = { .d = d, .p2mt = p2m_mmio_direct_c };
+        rc = dt_device_get_address(fpga_node, i, &addr, &size);
+        if ( rc )
+        {
+            printk(XENLOG_ERR "Unable to retrieve address %u for %s\n",
+                   i, dt_node_full_name(fpga_node));
+            goto remove_node;
+        }
+
+        rc = map_range_to_domain(fpga_node, addr, size, &mr_data);
+        if ( rc )
+            goto remove_node;
+    }
+
+    /* This will happen if everything above goes right. */
+    tr = xzalloc(struct overlay_track);
+    tr->dt_host_new = dt_host_new;
+    node_full_path_namelen = strlen(node_full_path);
+    tr->node_fullname = xmalloc_bytes(node_full_path_namelen + 1);
+
+    if ( tr->node_fullname == NULL )
+    {
+        rc = -ENOMEM;
+        goto remove_node;
+    }
+
+    memcpy(tr->node_fullname, node_full_path, node_full_path_namelen);
+    tr->node_fullname[node_full_path_namelen] = '\0';
+
+    INIT_LIST_HEAD(&tr->entry);
+    list_add_tail(&tr->entry, &overlay_tracker);
+
+err:
+    spin_unlock(&overlay_lock);
+    xfree(fdt);
+    return rc;
+
+/*
+ * Failure case. We need to remove the node, free tracker(if tr exists) and
+ * dt_host_new. As the tracker is not in list yet so it doesn't get freed in
+ * handle_del_fpga_nodes() and due to that dt_host_new will not get freed so we
+ * we free tracker and dt_host_new here.
+ */
+remove_node:
+    spin_unlock(&overlay_lock);
+    handle_del_fpga_nodes(node_full_path);
+    xfree(dt_host_new);
+
+    if ( tr )
+        xfree(tr);
+
+    xfree(fdt);
     return rc;
 }
 
@@ -318,6 +542,36 @@ long arch_do_domctl(struct xen_domctl *domctl, struct domain *d,
 
         if ( !rc )
             rc = copy_to_guest(u_domctl, domctl, 1);
+
+        return rc;
+    }
+
+    case XEN_DOMCTL_addfpga:
+    {
+        void *pfdt;
+        int rc;
+
+        if ( domctl->u.fpga_add_dt.pfdt_size > 0 )
+            pfdt = xmalloc_bytes(domctl->u.fpga_add_dt.pfdt_size);
+        else
+            return -EINVAL;
+
+        if ( pfdt == NULL )
+            return -ENOMEM;
+
+        rc = copy_from_guest(pfdt, domctl->u.fpga_add_dt.pfdt,
+                             domctl->u.fpga_add_dt.pfdt_size);
+        if ( rc )
+        {
+            gprintk(XENLOG_ERR, "copy from guest failed\n");
+            xfree(pfdt);
+
+            return -EFAULT;
+        }
+
+        rc = handle_add_fpga_overlay(pfdt, domctl->u.fpga_add_dt.pfdt_size);
+
+        xfree(pfdt);
 
         return rc;
     }

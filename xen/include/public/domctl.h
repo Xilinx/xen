@@ -1140,6 +1140,12 @@ struct xen_domctl_vuart_op {
                                  */
 };
 
+/* XEN_DOMCTL_fpga_add. */
+struct xen_domctl_fpga_add_dt {
+    XEN_GUEST_HANDLE_64(void) pfdt;
+    uint32_t pfdt_size;  /* Partial dtb size. */
+};
+
 /* XEN_DOMCTL_fpga_del. */
 struct xen_domctl_fpga_del_dt {
     XEN_GUEST_HANDLE_64(char) full_dt_node_path;
@@ -1230,6 +1236,7 @@ struct xen_domctl {
 #define XEN_DOMCTL_vuart_op                      81
 #define XEN_DOMCTL_get_cpu_policy                82
 #define XEN_DOMCTL_set_cpu_policy                83
+#define XEN_DOMCTL_addfpga                      84
 #define XEN_DOMCTL_delfpga                      85
 #define XEN_DOMCTL_gdbsx_guestmemio            1000
 #define XEN_DOMCTL_gdbsx_pausevcpu             1001
@@ -1291,6 +1298,7 @@ struct xen_domctl {
         struct xen_domctl_monitor_op        monitor_op;
         struct xen_domctl_psr_alloc         psr_alloc;
         struct xen_domctl_vuart_op          vuart_op;
+        struct xen_domctl_fpga_add_dt       fpga_add_dt;
         struct xen_domctl_fpga_del_dt       fpga_del_dt;
         uint8_t                             pad[128];
     } u;
