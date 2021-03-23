@@ -1737,4 +1737,6 @@ int fdt_overlay_apply(void *fdt, void *fdto);
 
 const char *fdt_strerror(int errval);
 
+int overlay_get_target(const void *fdt, const void *fdto, int fragment,
+                       char const **pathp);
 #endif /* _LIBFDT_H */
