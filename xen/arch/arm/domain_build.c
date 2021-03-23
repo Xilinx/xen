@@ -47,12 +47,6 @@ static int __init parse_dom0_mem(const char *s)
 }
 custom_param("dom0_mem", parse_dom0_mem);
 
-struct map_range_data
-{
-    struct domain *d;
-    p2m_type_t p2mt;
-};
-
 /* Override macros from asm/page.h to make them work with mfn_t */
 #undef virt_to_mfn
 #define virt_to_mfn(va) _mfn(__virt_to_mfn(va))
@@ -1144,8 +1138,8 @@ int __init make_chosen_node(const struct kernel_info *kinfo)
     return res;
 }
 
-int __init map_irq_to_domain(struct domain *d, unsigned int irq,
-                             bool need_mapping, const char *devname)
+int map_irq_to_domain(struct domain *d, unsigned int irq,
+                      bool need_mapping, const char *devname)
 {
     int res;
 
@@ -1210,9 +1204,9 @@ static int __init map_dt_irq_to_domain(const struct dt_device_node *dev,
     return 0;
 }
 
-static int __init map_range_to_domain(const struct dt_device_node *dev,
-                                      u64 addr, u64 len,
-                                      void *data)
+int map_range_to_domain(const struct dt_device_node *dev,
+                        u64 addr, u64 len,
+                        void *data)
 {
     struct map_range_data *mr_data = data;
     struct domain *d = mr_data->d;
@@ -1291,9 +1285,8 @@ static int __init map_device_children(struct domain *d,
  *   < 0 error
  *   0   success
  */
-static int __init handle_device_interrupts(struct domain *d,
-                                           struct dt_device_node *dev,
-                                           bool need_mapping)
+int handle_device_interrupts(struct domain *d, struct dt_device_node *dev,
+                             bool need_mapping)
 {
     unsigned int i, nirq;
     int res;
