@@ -484,6 +484,7 @@ int dt_find_node_by_gpath(XEN_GUEST_HANDLE(char) u_path, uint32_t u_plen,
  * Prints all node names.
  */
 void dt_print_node_names(struct dt_device_node *dt);
+int fpga_add_node(struct dt_device_node *fpga_node, const char *parent_node);
 int fpga_del_node(struct dt_device_node *device_node);
 
 /**

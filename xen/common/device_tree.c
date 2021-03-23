@@ -297,6 +297,59 @@ void dt_print_node_names(struct dt_device_node *dt)
     return;
 }
 
+int fpga_add_node(struct dt_device_node *fpga_node,
+                  const char *parent_node_path)
+{
+    struct dt_device_node *parent_node;
+    struct dt_device_node *np;
+    struct dt_device_node *next_node;
+    struct dt_device_node *new_node;
+
+    parent_node = dt_find_node_by_path(parent_node_path);
+
+    new_node = fpga_node;
+    if ( new_node == NULL )
+        return -EINVAL;
+
+    if ( parent_node == NULL )
+    {
+        dt_dprintk("Node not found. Partial dtb will not be added");
+        return -EINVAL;
+    }
+
+    /*
+     * If node is found. We can attach the fpga_node as a child of the
+     * parent node.
+     */
+
+    for ( np = parent_node->child; np->sibling != NULL; np = np->sibling )
+    {
+    }
+
+    /*
+     * Before attaching also check if the parent node of fpga_node is also
+     * same named as parent.
+     */
+    next_node = np->allnext;
+
+    new_node->parent = parent_node;
+    np->sibling = new_node;
+    np->allnext = new_node;
+
+    /*
+     * Reach at the end of fpga_node.
+     * TODO: Remove this loop as we are just adding one node for now.
+     */
+    for ( np = new_node; np->allnext != NULL; np = np->allnext )
+    {
+    }
+
+    /* Now plug next_node at the end of fpga_node. */
+    np->allnext = next_node;
+
+    return 0;
+}
+
 int fpga_del_node(struct dt_device_node *device_node)
 {
     struct dt_device_node *np;
