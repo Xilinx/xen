@@ -10,6 +10,8 @@ obj-y += entry.o
 obj-y += head.o
 ifneq ($(CONFIG_HAS_MPU),y)
 obj-y += head_mmu.o
+else
+obj-y += head_mpu.o
 endif
 obj-y += insn.o
 obj-$(CONFIG_LIVEPATCH) += livepatch.o

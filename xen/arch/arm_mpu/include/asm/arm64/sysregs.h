@@ -458,6 +458,95 @@
 #define ZCR_ELx_LEN_SIZE             9
 #define ZCR_ELx_LEN_MASK             0x1ff
 
+/* System registers for AArch64 with PMSA */
+#ifdef CONFIG_HAS_MPU
+
+/* EL1 MPU Protection Region Base Address Register encode */
+#define PRBAR_EL1   S3_0_C6_C8_0
+#define PRBAR1_EL1  S3_0_C6_C8_4
+#define PRBAR2_EL1  S3_0_C6_C9_0
+#define PRBAR3_EL1  S3_0_C6_C9_4
+#define PRBAR4_EL1  S3_0_C6_C10_0
+#define PRBAR5_EL1  S3_0_C6_C10_4
+#define PRBAR6_EL1  S3_0_C6_C11_0
+#define PRBAR7_EL1  S3_0_C6_C11_4
+#define PRBAR8_EL1  S3_0_C6_C12_0
+#define PRBAR9_EL1  S3_0_C6_C12_4
+#define PRBAR10_EL1 S3_0_C6_C13_0
+#define PRBAR11_EL1 S3_0_C6_C13_4
+#define PRBAR12_EL1 S3_0_C6_C14_0
+#define PRBAR13_EL1 S3_0_C6_C14_4
+#define PRBAR14_EL1 S3_0_C6_C15_0
+#define PRBAR15_EL1 S3_0_C6_C15_4
+
+/* EL1 MPU Protection Region Limit Address Register encode */
+#define PRLAR_EL1   S3_0_C6_C8_1
+#define PRLAR1_EL1  S3_0_C6_C8_5
+#define PRLAR2_EL1  S3_0_C6_C9_1
+#define PRLAR3_EL1  S3_0_C6_C9_5
+#define PRLAR4_EL1  S3_0_C6_C10_1
+#define PRLAR5_EL1  S3_0_C6_C10_5
+#define PRLAR6_EL1  S3_0_C6_C11_1
+#define PRLAR7_EL1  S3_0_C6_C11_5
+#define PRLAR8_EL1  S3_0_C6_C12_1
+#define PRLAR9_EL1  S3_0_C6_C12_5
+#define PRLAR10_EL1 S3_0_C6_C13_1
+#define PRLAR11_EL1 S3_0_C6_C13_5
+#define PRLAR12_EL1 S3_0_C6_C14_1
+#define PRLAR13_EL1 S3_0_C6_C14_5
+#define PRLAR14_EL1 S3_0_C6_C15_1
+#define PRLAR15_EL1 S3_0_C6_C15_5
+
+/* EL2 MPU Protection Region Base Address Register encode */
+#define PRBAR_EL2   S3_4_C6_C8_0
+#define PRBAR1_EL2  S3_4_C6_C8_4
+#define PRBAR2_EL2  S3_4_C6_C9_0
+#define PRBAR3_EL2  S3_4_C6_C9_4
+#define PRBAR4_EL2  S3_4_C6_C10_0
+#define PRBAR5_EL2  S3_4_C6_C10_4
+#define PRBAR6_EL2  S3_4_C6_C11_0
+#define PRBAR7_EL2  S3_4_C6_C11_4
+#define PRBAR8_EL2  S3_4_C6_C12_0
+#define PRBAR9_EL2  S3_4_C6_C12_4
+#define PRBAR10_EL2 S3_4_C6_C13_0
+#define PRBAR11_EL2 S3_4_C6_C13_4
+#define PRBAR12_EL2 S3_4_C6_C14_0
+#define PRBAR13_EL2 S3_4_C6_C14_4
+#define PRBAR14_EL2 S3_4_C6_C15_0
+#define PRBAR15_EL2 S3_4_C6_C15_4
+
+/* EL2 MPU Protection Region Limit Address Register encode */
+#define PRLAR_EL2   S3_4_C6_C8_1
+#define PRLAR1_EL2  S3_4_C6_C8_5
+#define PRLAR2_EL2  S3_4_C6_C9_1
+#define PRLAR3_EL2  S3_4_C6_C9_5
+#define PRLAR4_EL2  S3_4_C6_C10_1
+#define PRLAR5_EL2  S3_4_C6_C10_5
+#define PRLAR6_EL2  S3_4_C6_C11_1
+#define PRLAR7_EL2  S3_4_C6_C11_5
+#define PRLAR8_EL2  S3_4_C6_C12_1
+#define PRLAR9_EL2  S3_4_C6_C12_5
+#define PRLAR10_EL2 S3_4_C6_C13_1
+#define PRLAR11_EL2 S3_4_C6_C13_5
+#define PRLAR12_EL2 S3_4_C6_C14_1
+#define PRLAR13_EL2 S3_4_C6_C14_5
+#define PRLAR14_EL2 S3_4_C6_C15_1
+#define PRLAR15_EL2 S3_4_C6_C15_5
+
+/* MPU Protection Region Enable Register encode */
+#define PRENR_EL1 S3_0_C6_C1_1
+#define PRENR_EL2 S3_4_C6_C1_1
+
+/* MPU Protection Region Selection Register encode */
+#define PRSELR_EL1 S3_0_C6_C2_1
+#define PRSELR_EL2 S3_4_C6_C2_1
+
+/* MPU Type registers encode */
+#define MPUIR_EL1 S3_0_C0_C0_4
+#define MPUIR_EL2 S3_4_C0_C0_4
+
+#endif
+
 /* Access to system registers */
 
 #define WRITE_SYSREG64(v, name) do {                    \

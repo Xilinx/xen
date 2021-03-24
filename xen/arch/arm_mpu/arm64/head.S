@@ -79,12 +79,12 @@
  * ---------------------------
  *
  * The requirements are:
- *   MMU = off, D-cache = off, I-cache = on or off,
+ *   MMU/MPU = off, D-cache = off, I-cache = on or off,
  *   x0 = physical address to the FDT blob.
  *
  * This must be the very first address in the loaded image.
  * It should be linked at XEN_VIRT_START, and loaded at any
- * 4K-aligned address.  All of text+data+bss must fit in 2MB,
+ * 4K-aligned address. All of text+data+bss must fit in 2MB,
  * or the initial pagetable code below will need adjustment.
  */
 
@@ -249,7 +249,12 @@ real_start_efi:
 
         bl    check_cpu_mode
         bl    cpu_init
-        bl    create_page_tables
+
+        /*
+         * Create boot memory management data, pagetable for MMU systems
+         * and protection regions for MPU systems.
+         */
+        bl    prepare_early_mappings
         bl    enable_mmu
 
         /* We are still in the 1:1 mapping. Jump to the runtime Virtual Address. */
@@ -307,7 +312,7 @@ GLOBAL(init_secondary)
 #endif
         bl    check_cpu_mode
         bl    cpu_init
-        bl    create_page_tables
+        bl    prepare_early_mappings
         bl    enable_mmu
 
         /* We are still in the 1:1 mapping. Jump to the runtime Virtual Address. */

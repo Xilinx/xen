@@ -123,7 +123,7 @@
  *
  * Clobbers x0 - x4
  */
-ENTRY(create_page_tables)
+ENTRY(prepare_early_mappings)
         /* Prepare the page-tables for mapping Xen */
         ldr   x0, =XEN_VIRT_START
         create_table_entry boot_pgtable, boot_first, x0, 0, x1, x2, x3
@@ -208,7 +208,7 @@ virtphys_clash:
         /* Identity map clashes with boot_third, which we cannot handle yet */
         PRINT("- Unable to build boot page tables - virt and phys addresses clash. -\r\n")
         b     fail
-ENDPROC(create_page_tables)
+ENDPROC(prepare_early_mappings)
 
 /*
  * Turn on the Data Cache and the MMU. The function will return on the 1:1
