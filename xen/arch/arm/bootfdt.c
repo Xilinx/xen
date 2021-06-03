@@ -91,10 +91,23 @@ static int __init device_tree_get_meminfo(const void *fdt, int node,
 
     for ( i = 0; i < banks && mem->nr_banks < NR_MEM_BANKS; i++ )
     {
+        int j, cont;
+
         device_tree_get_reg(&cell, address_cells, size_cells, &start, &size);
         /* Some DT may describe empty bank, ignore them */
         if ( !size )
             continue;
+
+        for ( j = 0, cont = 0; j < mem->nr_banks; j++ )
+        {
+            if ( mem->bank[j].start == start && mem->bank[j].size == size )
+            {
+                cont = 1;
+            }
+        }
+        if ( cont )
+            continue;
+
         mem->bank[mem->nr_banks].start = start;
         mem->bank[mem->nr_banks].size = size;
         mem->bank[mem->nr_banks].xen_domain = xen_domain;
