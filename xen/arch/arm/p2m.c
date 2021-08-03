@@ -1812,7 +1812,6 @@ void p2m_set_way_flush(struct vcpu *v, struct cpu_user_regs *regs,
     {
         gprintk(XENLOG_ERR,
                 "The cache should be flushed by VA rather than by set/way.\n");
-        inject_undef_exception(regs, hsr);
         return;
     }
 

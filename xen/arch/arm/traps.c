@@ -94,11 +94,15 @@ static int __init parse_vwfi(const char *s)
 }
 custom_param("vwfi", parse_vwfi);
 
+static bool trap_setway = true;
+boolean_param("trap_setway", trap_setway);
+
 register_t get_default_hcr_flags(void)
 {
     return  (HCR_PTW|HCR_BSU_INNER|HCR_AMO|HCR_IMO|HCR_FMO|HCR_VM|
              (vwfi != NATIVE ? (HCR_TWI|HCR_TWE) : 0) |
-             HCR_TSC|HCR_TAC|HCR_SWIO|HCR_TIDCP|HCR_FB|HCR_TSW);
+             HCR_TSC|HCR_TAC|HCR_SWIO|HCR_TIDCP|HCR_FB|
+             (trap_setway ? HCR_TSW : 0));
 }
 
 static enum {

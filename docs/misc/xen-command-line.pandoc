@@ -2455,6 +2455,22 @@ vwfi to `native` reduces irq latency significantly. It can also lead to
 suboptimal scheduling decisions, but only when the system is
 oversubscribed (i.e., in total there are more vCPUs than pCPUs).
 
+### trap_setway (arm)
+> `= <boolean>`
+
+> Default: `true`
+
+Set/Way cache maintenance instructions don't work properly in a
+virtualizaed environment. By default, Xen traps Set/Way instructions and
+attempts to convert them into modern "dc icvac" flushing instructions.
+However, Xen's technique doesn't work for guests with IOMMU enabled and
+the pagetable shared between IOMMU and MMU.
+
+Instead, if you know it is safe, you can allow a guest to perform
+Set/Way cache maintenance instructions natively (avoid trapping into Xen).
+
+You can do that by setting trap_setway=false.
+
 ### watchdog (x86)
 > `= force | <boolean>`
 
