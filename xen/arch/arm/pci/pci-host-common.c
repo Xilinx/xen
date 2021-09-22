@@ -266,7 +266,7 @@ int pci_host_common_probe(struct dt_device_node *dev,
     }
     bridge->segment = domain;
     pci_add_host_bridge(bridge);
-
+    pci_add_segment(bridge->segment);
     pci_set_msi_base(bridge);
 
     return 0;

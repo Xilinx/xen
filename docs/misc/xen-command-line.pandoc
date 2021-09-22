@@ -2044,6 +2044,13 @@ This option can be specified more than once (up to 8 times at present).
 
 Flag to enable or disable support for PCI passthrough
 
+### pci-scan (arm)
+> `= <boolean>`
+
+> Default: `false`
+
+Flag to enable or disable Xen PCI scan at boot.
+
 ### pcid (x86)
 > `= <boolean> | xpti=<bool>`
 
