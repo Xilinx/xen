@@ -68,6 +68,9 @@ int evtchn_close(struct domain *d1, int port1, bool guest);
 /* Free an event channel. */
 void evtchn_free(struct domain *d, struct evtchn *chn);
 
+/* Create a new event channel port. Only used for dom0less initialization  */
+struct evtchn *_evtchn_alloc_unbound(struct domain *d, domid_t remote_dom);
+
 /* Allocate a specific event channel port. */
 int evtchn_allocate_port(struct domain *d, unsigned int port);
 

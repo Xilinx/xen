@@ -18,6 +18,7 @@
 
 #include <xen/init.h>
 #include <xen/lib.h>
+#include <xen/err.h>
 #include <xen/errno.h>
 #include <xen/sched.h>
 #include <xen/irq.h>
@@ -284,11 +285,32 @@ void evtchn_free(struct domain *d, struct evtchn *chn)
     xsm_evtchn_close_post(chn);
 }
 
-static int evtchn_alloc_unbound(evtchn_alloc_unbound_t *alloc)
+struct evtchn *_evtchn_alloc_unbound(struct domain *d, domid_t remote_dom)
 {
     struct evtchn *chn;
+    int port;
+
+    if ( (port = get_free_port(d)) < 0 )
+        return ERR_PTR(port);
+    chn = evtchn_from_port(d, port);
+
+    evtchn_write_lock(chn);
+
+    chn->state = ECS_UNBOUND;
+    if ( (chn->u.unbound.remote_domid = remote_dom) == DOMID_SELF )
+        chn->u.unbound.remote_domid = current->domain->domain_id;
+    evtchn_port_init(d, chn);
+
+    evtchn_write_unlock(chn);
+
+    return chn;
+}
+
+static int evtchn_alloc_unbound(evtchn_alloc_unbound_t *alloc)
+{
+    struct evtchn *chn = NULL;
     struct domain *d;
-    int            port, rc;
+    int            rc;
     domid_t        dom = alloc->dom;
 
     d = rcu_lock_domain_by_any_id(dom);
@@ -297,27 +319,22 @@ static int evtchn_alloc_unbound(evtchn_alloc_unbound_t *alloc)
 
     spin_lock(&d->event_lock);
 
-    if ( (port = get_free_port(d)) < 0 )
-        ERROR_EXIT_DOM(port, d);
-    chn = evtchn_from_port(d, port);
+    chn = _evtchn_alloc_unbound(d, alloc->remote_dom);
+    if ( IS_ERR(chn) )
+    {
+        rc = PTR_ERR(chn);
+        ERROR_EXIT_DOM(rc, d);
+    }
 
     rc = xsm_evtchn_unbound(XSM_TARGET, d, chn, alloc->remote_dom);
     if ( rc )
         goto out;
 
-    evtchn_write_lock(chn);
-
-    chn->state = ECS_UNBOUND;
-    if ( (chn->u.unbound.remote_domid = alloc->remote_dom) == DOMID_SELF )
-        chn->u.unbound.remote_domid = current->domain->domain_id;
-    evtchn_port_init(d, chn);
-
-    evtchn_write_unlock(chn);
-
-    alloc->port = port;
+    alloc->port = chn->port;
 
  out:
-    check_free_port(d, port);
+    if ( chn != NULL )
+        check_free_port(d, chn->port);
     spin_unlock(&d->event_lock);
     rcu_unlock_domain(d);
 
