@@ -28,6 +28,7 @@
 #include <asm/cpufeature.h>
 #include <asm/domain_build.h>
 #include <asm/coloring.h>
+#include <xen/event.h>
 
 #include <xen/irq.h>
 #include <xen/grant_table.h>
@@ -2570,6 +2571,8 @@ static int __init prepare_dtb_domU(struct domain *d, struct kernel_info *kinfo)
     int ret;
 
     kinfo->phandle_gic = GUEST_PHANDLE_GIC;
+    kinfo->gnttab_start = GUEST_GNTTAB_BASE;
+    kinfo->gnttab_size = GUEST_GNTTAB_SIZE;
 
     addrcells = GUEST_ROOT_ADDRESS_CELLS;
     sizecells = GUEST_ROOT_SIZE_CELLS;
@@ -2643,6 +2646,10 @@ static int __init prepare_dtb_domU(struct domain *d, struct kernel_info *kinfo)
         if ( ret )
             goto err;
     }
+
+    ret = make_hypervisor_node(d, kinfo, addrcells, sizecells);
+    if ( ret )
+        goto err;
 
     ret = fdt_end_node(kinfo->fdt);
     if ( ret < 0 )
@@ -2910,6 +2917,22 @@ static int __init construct_domain(struct domain *d, struct kernel_info *kinfo)
     return 0;
 }
 
+static int alloc_xenstore_evtchn(struct domain *d)
+{
+    struct evtchn *chn;
+    
+    chn = _evtchn_alloc_unbound(d, hardware_domain->domain_id);
+    if ( !chn )
+    {
+        printk("Failed allocating event channel for domain\n");
+        return -ENOMEM;
+    }
+
+    d->arch.hvm.params[HVM_PARAM_STORE_EVTCHN] = chn->port;
+
+    return 0;
+}
+
 static int __init construct_domU(struct domain *d,
                                  const struct dt_device_node *node)
 {
@@ -2960,6 +2983,9 @@ static int __init construct_domU(struct domain *d,
     if ( kinfo.vpl011 )
         rc = domain_vpl011_init(d, NULL);
 
+    rc = alloc_xenstore_evtchn(d);
+    if ( rc < 0 )
+        return rc;
     return rc;
 }
 
@@ -3044,6 +3070,7 @@ void __init create_domUs(void)
             panic("Error creating domain %s\n", dt_node_name(node));
 
         d->is_console = true;
+        d->arch.is_dom0less = true;
 
         if ( construct_domU(d, node) != 0 )
             panic("Could not set up domain %s\n", dt_node_name(node));
