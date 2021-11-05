@@ -226,7 +226,8 @@ bool xs_transaction_end(struct xs_handle *h, xs_transaction_t t,
 bool xs_introduce_domain(struct xs_handle *h,
 			 unsigned int domid,
 			 unsigned long mfn,
-                         unsigned int eventchn); 
+			 unsigned int eventchn,
+			 bool late_init);
 
 /* Set the target of a domain
  * This tells the store daemon that a domain is targetting another one, so

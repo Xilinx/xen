@@ -678,7 +678,7 @@ static PyObject *xspy_introduce_domain(XsHandle *self, PyObject *args)
         return NULL;
 
     Py_BEGIN_ALLOW_THREADS
-    result = xs_introduce_domain(xh, dom, page, port);
+    result = xs_introduce_domain(xh, dom, page, port, false);
     Py_END_ALLOW_THREADS
 
     return none(result);

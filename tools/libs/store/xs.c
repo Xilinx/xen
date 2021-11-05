@@ -1089,16 +1089,18 @@ bool xs_transaction_end(struct xs_handle *h, xs_transaction_t t,
  */
 bool xs_introduce_domain(struct xs_handle *h,
 			 unsigned int domid, unsigned long mfn,
-			 unsigned int eventchn)
+			 unsigned int eventchn, bool late_init)
 {
 	char domid_str[MAX_STRLEN(domid)];
 	char mfn_str[MAX_STRLEN(mfn)];
 	char eventchn_str[MAX_STRLEN(eventchn)];
-	struct iovec iov[3];
+	char late_init_str[MAX_STRLEN(late_init)];
+	struct iovec iov[4];
 
 	snprintf(domid_str, sizeof(domid_str), "%u", domid);
 	snprintf(mfn_str, sizeof(mfn_str), "%lu", mfn);
 	snprintf(eventchn_str, sizeof(eventchn_str), "%u", eventchn);
+	snprintf(late_init_str, sizeof(late_init_str), "%u", late_init);
 
 	iov[0].iov_base = domid_str;
 	iov[0].iov_len = strlen(domid_str) + 1;
@@ -1106,6 +1108,8 @@ bool xs_introduce_domain(struct xs_handle *h,
 	iov[1].iov_len = strlen(mfn_str) + 1;
 	iov[2].iov_base = eventchn_str;
 	iov[2].iov_len = strlen(eventchn_str) + 1;
+	iov[3].iov_base = late_init_str;
+	iov[3].iov_len = strlen(late_init_str) + 1;
 
 	return xs_bool(xs_talkv(h, XBT_NULL, XS_INTRODUCE, iov,
 				ARRAY_SIZE(iov), NULL));
