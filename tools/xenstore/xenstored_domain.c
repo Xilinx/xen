@@ -429,7 +429,7 @@ static void domain_conn_reset(struct domain *domain)
 
 static struct domain *introduce_domain(const void *ctx,
 				       unsigned int domid,
-				       evtchn_port_t port, bool restore)
+				       evtchn_port_t port, bool restore, bool late_init)
 {
 	struct domain *domain;
 	int rc;
@@ -461,6 +461,9 @@ static struct domain *introduce_domain(const void *ctx,
 		/* Now domain belongs to its connection. */
 		talloc_steal(domain->conn, domain);
 
+		if (late_init)
+			xenevtchn_notify(xce_handle, domain->port);
+
 		if (!is_master_domain && !restore)
 			fire_watches(NULL, ctx, "@introduceDomain", NULL,
 				     false, NULL);
@@ -479,9 +482,10 @@ static struct domain *introduce_domain(const void *ctx,
 int do_introduce(struct connection *conn, struct buffered_data *in)
 {
 	struct domain *domain;
-	char *vec[3];
+	char *vec[4];
 	unsigned int domid;
 	evtchn_port_t port;
+	bool late_init;
 
 	if (get_strings(in, vec, ARRAY_SIZE(vec)) < ARRAY_SIZE(vec))
 		return EINVAL;
@@ -489,12 +493,13 @@ int do_introduce(struct connection *conn, struct buffered_data *in)
 	domid = atoi(vec[0]);
 	/* Ignore the gfn, we don't need it. */
 	port = atoi(vec[2]);
+	late_init = atoi(vec[3]);
 
 	/* Sanity check args. */
 	if (port <= 0)
 		return EINVAL;
 
-	domain = introduce_domain(in, domid, port, false);
+	domain = introduce_domain(in, domid, port, false, late_init);
 	if (!domain)
 		return errno;
 
@@ -723,7 +728,7 @@ void dom0_init(void)
 	if (port == -1)
 		barf_perror("Failed to initialize dom0 port");
 
-	dom0 = introduce_domain(NULL, xenbus_master_domid(), port, false);
+	dom0 = introduce_domain(NULL, xenbus_master_domid(), port, false, false);
 	if (!dom0)
 		barf_perror("Failed to initialize dom0");
 
@@ -1292,7 +1297,7 @@ void read_state_connection(const void *ctx, const void *state)
 #endif
 	} else {
 		domain = introduce_domain(ctx, sc->spec.ring.domid,
-					  sc->spec.ring.evtchn, true);
+					  sc->spec.ring.evtchn, true, false);
 		if (!domain)
 			barf("domain allocation error");
 
