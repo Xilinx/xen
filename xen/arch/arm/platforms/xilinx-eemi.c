@@ -168,6 +168,7 @@ bool xilinx_eemi(struct cpu_user_regs *regs, const uint32_t fid,
     case EEMI_FID(PM_GET_TRUSTZONE_VERSION):
     case EEMI_FID(PM_GET_API_VERSION):
     case EEMI_FID(PM_GET_CHIPID):
+    case EEMI_FID(PM_QUERY_DATA):
         goto forward_to_fw;
 
     case EEMI_FID(PM_CLOCK_GETSTATE):
@@ -218,13 +219,35 @@ bool xilinx_eemi(struct cpu_user_regs *regs, const uint32_t fid,
     case EEMI_FID(PM_PINCTRL_GET_FUNCTION):
     case EEMI_FID(PM_PINCTRL_CONFIG_PARAM_GET):
     case EEMI_FID(PM_PINCTRL_CONFIG_PARAM_SET):
-    case EEMI_FID(PM_IOCTL):
-    case EEMI_FID(PM_QUERY_DATA):
         if ( !is_hardware_domain(current->domain) )
         {
             gprintk(XENLOG_WARNING, "eemi: fn=%u No access", pm_fn);
             ret = XST_PM_NO_ACCESS;
             goto done;
+        }
+        goto forward_to_fw;
+
+    /*
+     * Based on the zynqmp_pmufw/src/pm_core.c, PM_IOCTL is implemented only
+     * for Versal, not ZynqMP. However, linux on ZynqMP still issues PM_IOCTL.
+     * As it is harmless, we have allowed it to go to the firmware. The return
+     * payload of the firmware is ignored by linux.
+     */
+    case EEMI_FID(PM_IOCTL):
+        if ( !is_hardware_domain(current->domain) )
+        {
+            enum pm_ioctl_id id = get_user_reg(regs, 1) >> 32;
+
+            /*
+             * This is allowed for domU as it tries to fetch some pll values
+             * to configure the clocks.
+             */
+            if ( id != IOCTL_GET_PLL_FRAC_MODE )
+            {
+                gprintk(XENLOG_WARNING, "eemi: fn=%u No access", pm_fn);
+                ret = XST_PM_NO_ACCESS;
+                goto done;
+            }
         }
         goto forward_to_fw;
 
