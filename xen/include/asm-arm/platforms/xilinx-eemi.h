@@ -94,6 +94,10 @@ enum pm_api_id {
     PM_API_MAX
 };
 
+enum pm_ioctl_id {
+    IOCTL_GET_PLL_FRAC_MODE = 9,
+};
+
 /**
  * @XST_PM_SUCCESS:		Success
  * @XST_PM_ARGS:		illegal arguments provided (deprecated)
