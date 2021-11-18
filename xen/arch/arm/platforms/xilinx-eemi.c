@@ -242,9 +242,25 @@ bool xilinx_eemi(struct cpu_user_regs *regs, const uint32_t fid,
              * This is allowed for domU as it tries to fetch some pll values
              * to configure the clocks.
              */
-            if ( id != IOCTL_GET_PLL_FRAC_MODE )
+            if ( id == IOCTL_GET_PLL_FRAC_MODE )
             {
-                gprintk(XENLOG_WARNING, "eemi: fn=%u No access", pm_fn);
+                goto forward_to_fw;
+            }
+            /*
+             * This is allowed as domU tries to set them for configuring
+             * mmc device. We check if domU has access to the mmc node.
+             */
+            else if ( ((id == IOCTL_SET_SD_TAPDELAY) ||
+                       (id == IOCTL_SD_DLL_RESET)) &&
+                      domain_has_node_access(current->domain, nodeid,
+                                             pm_node_access,
+                                             pm_node_access_size) )
+            {
+                goto forward_to_fw;
+            }
+            else
+            {
+                gprintk(XENLOG_WARNING, "eemi: fn=%u No access id = %d ", pm_fn, id);
                 ret = XST_PM_NO_ACCESS;
                 goto done;
             }
