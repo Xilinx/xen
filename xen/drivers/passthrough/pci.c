@@ -1669,6 +1669,22 @@ void __init assign_hwdom_pci_devices(void)
     pcidevs_unlock();
 }
 
+int pci_assign_device(struct domain *d, u16 seg, u8 bus, u8 devfn, u32 flag)
+{
+    int ret;
+
+    pcidevs_lock();
+
+    ret = device_assigned(seg, bus, devfn);
+
+    if ( !ret )
+        ret = assign_device(d, seg, bus, devfn, flag);
+
+    pcidevs_unlock();
+
+    return ret;
+}
+
 static int iommu_get_device_group(
     struct domain *d, u16 seg, u8 bus, u8 devfn,
     XEN_GUEST_HANDLE_64(uint32) buf, int max_sdevs)
