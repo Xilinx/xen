@@ -95,6 +95,8 @@ enum pm_api_id {
 };
 
 enum pm_ioctl_id {
+    IOCTL_SD_DLL_RESET = 6,
+    IOCTL_SET_SD_TAPDELAY = 7,
     IOCTL_GET_PLL_FRAC_MODE = 9,
 };
 
