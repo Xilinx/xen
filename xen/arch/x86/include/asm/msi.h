@@ -148,27 +148,6 @@ int msi_free_irq(struct msi_desc *entry);
  */
 #define NR_HP_RESERVED_VECTORS 	20
 
-#define msi_control_reg(base)		((base) + PCI_MSI_FLAGS)
-#define msi_lower_address_reg(base)	((base) + PCI_MSI_ADDRESS_LO)
-#define msi_upper_address_reg(base)	((base) + PCI_MSI_ADDRESS_HI)
-#define msi_data_reg(base, is64bit)	\
-	((base) + ((is64bit) ? PCI_MSI_DATA_64 : PCI_MSI_DATA_32))
-#define msi_mask_bits_reg(base, is64bit) \
-	((base) + PCI_MSI_MASK_BIT - ((is64bit) ? 0 : 4))
-#define msi_pending_bits_reg(base, is64bit) \
-	((base) + PCI_MSI_MASK_BIT + ((is64bit) ? 4 : 0))
-#define multi_msi_capable(control) \
-	(1U << MASK_EXTR(control, PCI_MSI_FLAGS_QMASK))
-#define multi_msi_enable(control, num) \
-	((control) |= MASK_INSR(fls(num) - 1, PCI_MSI_FLAGS_QSIZE))
-#define is_64bit_address(control)	(!!((control) & PCI_MSI_FLAGS_64BIT))
-#define is_mask_bit_support(control)	(!!((control) & PCI_MSI_FLAGS_MASKBIT))
-
-#define msix_control_reg(base)		((base) + PCI_MSIX_FLAGS)
-#define msix_table_offset_reg(base)	((base) + PCI_MSIX_TABLE)
-#define msix_pba_offset_reg(base)	((base) + PCI_MSIX_PBA)
-#define msix_table_size(control) 	(((control) & PCI_MSIX_FLAGS_QSIZE) + 1)
-
 /*
  * MSI Defined Data Structures
  */

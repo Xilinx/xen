@@ -1137,4 +1137,142 @@ int vpci_msix_arch_print(const struct vpci_msix *msix)
 
     return 0;
 }
+
+int vpci_make_msix_hole(const struct pci_dev *pdev)
+{
+    struct domain *d = pdev->domain;
+    unsigned int i;
+
+    if ( !pdev->vpci->msix )
+        return 0;
+
+    /* Make sure there's a hole for the MSIX table/PBA in the p2m. */
+    for ( i = 0; i < ARRAY_SIZE(pdev->vpci->msix->tables); i++ )
+    {
+        unsigned long start = PFN_DOWN(vmsix_table_addr(pdev->vpci, i));
+        unsigned long end = PFN_DOWN(vmsix_table_addr(pdev->vpci, i) +
+                                     vmsix_table_size(pdev->vpci, i) - 1);
+
+        for ( ; start <= end; start++ )
+        {
+            p2m_type_t t;
+            mfn_t mfn = get_gfn_query(d, start, &t);
+
+            switch ( t )
+            {
+            case p2m_mmio_dm:
+            case p2m_invalid:
+                break;
+            case p2m_mmio_direct:
+                if ( mfn_x(mfn) == start )
+                {
+                    p2m_remove_identity_entry(d, start);
+                    break;
+                }
+                /* fallthrough. */
+            default:
+                put_gfn(d, start);
+                gprintk(XENLOG_WARNING,
+                        "%pp: existing mapping (mfn: %" PRI_mfn
+                        "type: %d) at %#lx clobbers MSIX MMIO area\n",
+                        &pdev->sbdf, mfn_x(mfn), t, start);
+                return -EEXIST;
+            }
+            put_gfn(d, start);
+        }
+    }
+
+    if ( is_hardware_domain(d) )
+    {
+        /*
+         * For dom0 only: remove any hypervisor mappings of the MSIX or PBA
+         * related areas, as dom0 is capable of moving the position of the BARs
+         * in the host address space.
+         *
+         * We rely on being called with the vPCI lock held once the domain is
+         * running, so the maps are not in use.
+         */
+        for ( i = 0; i < ARRAY_SIZE(pdev->vpci->msix->table); i++ )
+            if ( pdev->vpci->msix->table[i] )
+            {
+                /* If there are any maps, the domain must be running. */
+                ASSERT(spin_is_locked(&pdev->vpci->lock));
+                iounmap(pdev->vpci->msix->table[i]);
+                pdev->vpci->msix->table[i] = NULL;
+            }
+    }
+
+    return 0;
+}
+
+struct vpci_msix *vpci_msix_find(const struct domain *d, unsigned long addr)
+{
+    struct vpci_msix *msix;
+
+    ASSERT_PDEV_LIST_IS_READ_LOCKED(d);
+
+    list_for_each_entry ( msix, &d->arch.hvm.msix_tables, next )
+    {
+        const struct vpci_bar *bars = msix->pdev->vpci->header.bars;
+        unsigned int i;
+
+        for ( i = 0; i < ARRAY_SIZE(msix->tables); i++ )
+            if ( bars[msix->tables[i] & PCI_MSIX_BIRMASK].enabled &&
+                 VMSIX_ADDR_SAME_PAGE(addr, msix->pdev->vpci, i) )
+                return msix;
+    }
+
+    return NULL;
+}
+
+static int cf_check x86_msix_accept(struct vcpu *v, unsigned long addr)
+{
+    int rc;
+
+    read_lock(&v->domain->pci_lock);
+    rc = !!vpci_msix_find(v->domain, addr);
+    read_unlock(&v->domain->pci_lock);
+
+    return rc;
+}
+
+static int cf_check x86_msix_write(struct vcpu *v, unsigned long addr,
+    unsigned int len, unsigned long data)
+{
+    struct domain *d = v->domain;
+    struct vpci_msix *msix;
+
+    read_lock(&d->pci_lock);
+    msix = vpci_msix_find(d, addr);
+    read_unlock(&d->pci_lock);
+
+    return vpci_msix_write(msix, addr, len, data);
+}
+
+static int cf_check x86_msix_read(struct vcpu *v, unsigned long addr,
+    unsigned int len, unsigned long *data)
+{
+    struct domain *d = v->domain;
+    struct vpci_msix *msix;
+
+    read_lock(&d->pci_lock);
+    msix = vpci_msix_find(d, addr);
+    read_unlock(&d->pci_lock);
+
+    return vpci_msix_read(msix, addr, len, data);
+}
+
+static const struct hvm_mmio_ops vpci_msix_table_ops = {
+    .check = x86_msix_accept,
+    .read = x86_msix_read,
+    .write = x86_msix_write,
+};
+
+void vpci_msix_arch_register(struct vpci_msix *msix, struct domain *d)
+{
+    if ( list_empty(&d->arch.hvm.msix_tables) )
+        register_mmio_handler(d, &vpci_msix_table_ops);
+
+    list_add(&msix->next, &d->arch.hvm.msix_tables);
+}
 #endif /* CONFIG_HAS_VPCI */
