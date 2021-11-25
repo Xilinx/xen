@@ -1008,6 +1008,64 @@ int gicv3_its_make_hwdom_dt_nodes(const struct domain *d,
     return res;
 }
 
+int __init gicv3_its_make_emulated_dt_node(void *fdt)
+{
+    const uint64_t its_base = GUEST_GICV3_ITS_BASE;
+    const uint64_t its_size = GUEST_GICV3_ITS_SIZE;
+    __be32 reg[GUEST_ROOT_ADDRESS_CELLS + GUEST_ROOT_SIZE_CELLS];
+    __be32 *cells;
+    char buf[21]; /* its@ + max 16 char address + '\0' */
+    int res;
+
+    /* Create correct properties for ITS node on the gicv3 node */
+    res = fdt_property_cell(fdt, "#address-cells", 2);
+    if ( res )
+        return res;
+
+    res = fdt_property_cell(fdt, "#size-cells", 2);
+    if ( res )
+        return res;
+
+    res = fdt_property(fdt, "ranges", NULL, 0);
+    if ( res )
+        return res;
+
+    snprintf(buf, sizeof(buf), "its@%"PRIx64, its_base);
+    dt_dprintk("Create emulated its node\n");
+    res = fdt_begin_node(fdt, buf);
+    if ( res )
+        return res;
+
+    res = fdt_property_string(fdt, "compatible", "arm,gic-v3-its");
+    if ( res )
+        return res;
+
+    res = fdt_property(fdt, "msi-controller", NULL, 0);
+    if ( res )
+        return res;
+
+    res = fdt_property_cell(fdt, "#msi-cells", 1);
+    if ( res )
+        return res;
+
+    /* Create reg property */
+    cells = &reg[0];
+    dt_child_set_range(&cells, GUEST_ROOT_ADDRESS_CELLS, GUEST_ROOT_SIZE_CELLS,
+                       its_base, its_size);
+
+    res = fdt_property(fdt, "reg", reg, sizeof(reg));
+    if ( res )
+        return res;
+
+    res = fdt_property_cell(fdt, "phandle", GUEST_PHANDLE_ITS);
+    if ( res )
+        return res;
+
+    res = fdt_end_node(fdt);
+
+    return res;
+}
+
 /* Common function for adding to host_its_list */
 static void add_to_host_its_list(paddr_t addr, paddr_t size,
                                  const struct dt_device_node *node)
