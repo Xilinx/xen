@@ -1377,6 +1377,7 @@ static void do_debug_trap(struct cpu_user_regs *regs, unsigned int code)
         break;
     case 0xfd:
         printk("DOM%d: Reached %"PRIvaddr"\n", domid, regs->pc);
+        regs->r0 = domid;
         break;
     case 0xfe:
         printk("%c", (char)(get_user_reg(regs, 0) & 0xff));
