@@ -83,6 +83,7 @@ enum pm_api_id {
     PM_CLOCK_GETRATE,
     PM_CLOCK_SETPARENT,
     PM_CLOCK_GETPARENT,
+    PM_FPGA_READ = 46,
     /* PLL control API functions */
     PM_PLL_SET_PARAMETER = 48,
     PM_PLL_GET_PARAMETER,
