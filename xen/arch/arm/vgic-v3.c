@@ -1725,14 +1725,7 @@ static int vgic_v3_domain_init(struct domain *d)
         d->arch.vgic.rdist_regions[0].size = GUEST_GICV3_GICR0_SIZE;
         d->arch.vgic.rdist_regions[0].first_cpu = 0;
 
-        /*
-         * TODO: only SPIs for now, adjust this when guests need LPIs.
-         * Please note that this value just describes the bits required
-         * in the stream interface, which is of no real concern for our
-         * emulation. So we just go with "10" here to cover all eventual
-         * SPIs (even if the guest implements less).
-         */
-        d->arch.vgic.intid_bits = 10;
+        d->arch.vgic.intid_bits = vgic_v3_hw.intid_bits;
     }
 
     ret = vgic_v3_its_init_domain(d);
