@@ -403,11 +403,7 @@ void asmlinkage __init start_xen(unsigned long fdt_paddr)
 
     tasklet_subsys_init();
 
-    if ( xsm_dt_init() != 1 )
-        warning_add("WARNING: SILO mode is not enabled.\n"
-                    "It has implications on the security of the system,\n"
-                    "unless the communications have been forbidden between\n"
-                    "untrusted domains.\n");
+    (void)xsm_dt_init();
 
     init_maintenance_interrupt();
     init_timer_interrupt();
