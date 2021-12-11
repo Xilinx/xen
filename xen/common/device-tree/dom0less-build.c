@@ -266,7 +266,7 @@ static inline int __init domU_assign_pci_device(struct domain *d,
 static int __init handle_passthrough_prop(struct kernel_info *kinfo,
                                           const struct fdt_property *xen_reg,
                                           const struct fdt_property *xen_path,
-                                          bool xen_force,
+                                          bool xen_force, bool cacheable,
                                           uint32_t address_cells,
                                           uint32_t size_cells)
 {
@@ -317,7 +317,7 @@ static int __init handle_passthrough_prop(struct kernel_info *kinfo,
                                gaddr_to_gfn(gstart),
                                PFN_DOWN(size),
                                maddr_to_mfn(mstart),
-                               p2m_mmio_direct_dev);
+                               cacheable ? p2m_mmio_direct_c : p2m_mmio_direct_dev);
         if ( res < 0 )
         {
             printk(XENLOG_ERR
@@ -380,7 +380,7 @@ static int __init handle_prop_pfdt(struct kernel_info *kinfo,
     int propoff, nameoff, res;
     const struct fdt_property *prop, *xen_reg = NULL, *xen_path = NULL;
     const char *name;
-    bool found, xen_force = false;
+    bool found, xen_force = false, cacheable = false;
 
     for ( propoff = fdt_first_property_offset(pfdt, nodeoff);
           propoff >= 0;
@@ -398,6 +398,12 @@ static int __init handle_prop_pfdt(struct kernel_info *kinfo,
             if ( dt_prop_cmp("xen,reg", name) == 0 )
             {
                 xen_reg = prop;
+                found = true;
+            }
+            else if ( dt_prop_cmp("xen,reg-cacheable", name) == 0 )
+            {
+                xen_reg = prop;
+                cacheable = true;
                 found = true;
             }
             else if ( dt_prop_cmp("xen,path", name) == 0 )
@@ -432,7 +438,7 @@ static int __init handle_prop_pfdt(struct kernel_info *kinfo,
     if ( xen_reg != NULL && (xen_path != NULL || xen_force) )
     {
         res = handle_passthrough_prop(kinfo, xen_reg, xen_path, xen_force,
-                                      address_cells, size_cells);
+                                      cacheable, address_cells, size_cells);
         if ( res < 0 )
         {
             printk(XENLOG_ERR "Failed to assign device to %pd\n", kinfo->bd.d);

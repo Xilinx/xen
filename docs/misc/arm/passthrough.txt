@@ -88,7 +88,7 @@ The partial device tree for dom0-less guests should have the following
 properties for each node corresponding to a physical device to assign to
 the guest:
 
-- xen,reg
+- xen,reg or xen,reg-cacheable 
 
   The xen,reg property is an array of:
 
@@ -100,6 +100,9 @@ the guest:
   #address-cells, the size of `size' is determined by #size-cells, of
   the partial device tree.
   The memory will be mapped as device memory in the guest (Device-nGnRE).
+
+  xen,reg-cacheable follows the same format as xen,reg but the memory
+  will be mapped as normal cacheable memory in the guest.
 
 - xen,path
 
