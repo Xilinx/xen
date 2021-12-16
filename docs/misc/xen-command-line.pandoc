@@ -2049,7 +2049,9 @@ Flag to enable or disable support for PCI passthrough
 
 > Default: `false`
 
-Flag to enable or disable Xen PCI scan at boot.
+Flag to enable or disable Xen PCI scan at boot. When the flag is enabled, the
+hardware domain cannot have access to the real PCI bus, it will see the bus
+emulated by Xen.
 
 ### pcid (x86)
 > `= <boolean> | xpti=<bool>`
