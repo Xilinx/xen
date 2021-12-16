@@ -482,6 +482,10 @@ void asmlinkage __init start_xen(unsigned long fdt_paddr)
         alloc_static_evtchn();
     }
 
+#ifdef CONFIG_HAS_PCI
+    assign_hwdom_pci_devices();
+#endif
+
     /*
      * This needs to be called **before** heap_init_late() so modules
      * will be scrubbed (unless suppressed).
