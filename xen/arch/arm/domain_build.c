@@ -2992,6 +2992,8 @@ static int __init construct_domU(struct domain *d,
     rc = alloc_xenstore_evtchn(d);
     if ( rc < 0 )
         return rc;
+
+    d->arch.hvm.params[HVM_PARAM_STORE_PFN] = ~0ULL;
     return rc;
 }
 
