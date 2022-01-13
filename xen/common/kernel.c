@@ -550,8 +550,6 @@ DO(xen_version)(int cmd, XEN_GUEST_HANDLE_PARAM(void) arg)
             if ( is_hardware_domain(d) )
                 fi.submap |= 1U << XENFEAT_dom0;
 #ifdef CONFIG_ARM
-            if ( d->arch.is_dom0less )
-                fi.submap |= (1U << XENFEAT_xenstore_late_init);
             fi.submap |= (1U << XENFEAT_ARM_SMCCC_supported);
 #endif
 #ifdef CONFIG_X86

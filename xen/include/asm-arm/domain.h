@@ -89,8 +89,6 @@ struct arch_domain
 #ifdef CONFIG_TEE
     void *tee;
 #endif
-    /* Is this guest a dom0less domain? */
-    bool is_dom0less;
 }  __cacheline_aligned;
 
 struct arch_vcpu

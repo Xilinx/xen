@@ -128,11 +128,6 @@
 #define XENFEAT_not_direct_mapped         16
 #define XENFEAT_direct_mapped             17
 
-/*
- * arm dom0less domains initialize xenstore late after boot.
- */
-#define XENFEAT_xenstore_late_init 18
-
 #define XENFEAT_NR_SUBMAPS 1
 
 #endif /* __XEN_PUBLIC_FEATURES_H__ */
