@@ -2653,9 +2653,12 @@ static int __init prepare_dtb_domU(struct domain *d, struct kernel_info *kinfo)
             goto err;
     }
 
-    ret = make_hypervisor_node(d, kinfo, addrcells, sizecells);
-    if ( ret )
-        goto err;
+    if ( kinfo->dom0less_enhanced )
+    {
+        ret = make_hypervisor_node(d, kinfo, addrcells, sizecells);
+        if ( ret )
+            goto err;
+    }
 
     ret = fdt_end_node(kinfo->fdt);
     if ( ret < 0 )
@@ -2943,6 +2946,7 @@ static int __init construct_domU(struct domain *d,
                                  const struct dt_device_node *node)
 {
     struct kernel_info kinfo = {};
+    const char *dom0less_enhanced;
     int rc;
     u64 mem;
 
@@ -2957,6 +2961,12 @@ static int __init construct_domU(struct domain *d,
     printk("*** LOADING DOMU cpus=%u memory=%"PRIx64"KB ***\n", d->max_vcpus, mem);
 
     kinfo.vpl011 = dt_property_read_bool(node, "vpl011");
+
+    rc = dt_property_read_string(node, "xen,enhanced", &dom0less_enhanced);
+    if ( rc == -EILSEQ ||
+         rc == -ENODATA ||
+         (rc == 0 && !strcmp(dom0less_enhanced, "enabled")) )
+        kinfo.dom0less_enhanced = true;
 
     if ( vcpu_create(d, 0) == NULL )
         return -ENOMEM;
@@ -2989,11 +2999,14 @@ static int __init construct_domU(struct domain *d,
     if ( kinfo.vpl011 )
         rc = domain_vpl011_init(d, NULL);
 
-    rc = alloc_xenstore_evtchn(d);
-    if ( rc < 0 )
-        return rc;
+    if ( kinfo.dom0less_enhanced )
+    {
+        rc = alloc_xenstore_evtchn(d);
+        if ( rc < 0 )
+            return rc;
 
-    d->arch.hvm.params[HVM_PARAM_STORE_PFN] = ~0ULL;
+        d->arch.hvm.params[HVM_PARAM_STORE_PFN] = ~0ULL;
+    }
     return rc;
 }
 
@@ -3110,6 +3123,7 @@ static int __init construct_dom0(struct domain *d)
 
     kinfo.unassigned_mem = dom0_mem;
     kinfo.d = d;
+    kinfo.dom0less_enhanced = true;
 
     rc = kernel_probe(&kinfo, NULL);
     if ( rc < 0 )

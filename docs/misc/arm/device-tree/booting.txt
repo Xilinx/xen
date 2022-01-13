@@ -180,6 +180,24 @@ with the following properties:
     used, or GUEST_VPL011_SPI+1 if vpl011 is enabled, whichever is
     greater.
 
+- xen,enhanced
+
+    A string property. Possible property values are:
+
+    - "enabled" (or missing property value)
+    Xen PV interfaces, including grant-table and xenstore, will be
+    enabled for the VM.
+
+    - "disabled"
+    Xen PV interfaces are disabled.
+
+    If the xen,enhanced property is present with no value, it defaults
+    to "enabled". If the xen,enhanced property is not present, PV
+    interfaces are disabled.
+
+    In the future other possible property values might be added to
+    enable only selected interfaces.
+
 - #address-cells and #size-cells
 
     Both #address-cells and #size-cells need to be specified because
