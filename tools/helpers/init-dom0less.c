@@ -16,11 +16,16 @@
 #define XENSTORE_PFN_OFFSET 1
 #define STR_MAX_LENGTH 64
 
-static int alloc_magic_pages(struct xc_dom_image *dom)
+static int alloc_magic_pages(libxl_dominfo *info, struct xc_dom_image *dom)
 {
     int rc, i;
     const xen_pfn_t base = GUEST_MAGIC_BASE >> XC_PAGE_SHIFT;
     xen_pfn_t p2m[NR_MAGIC_PAGES];
+
+    rc = xc_domain_setmaxmem(dom->xch, dom->guest_domid,
+                             info->max_memkb + NR_MAGIC_PAGES * 4);
+    if (rc < 0)
+        return rc;
 
     for (i = 0; i < NR_MAGIC_PAGES; i++)
         p2m[i] = base + i;
@@ -187,7 +192,7 @@ static int init_domain(struct xs_handle *xsh, libxl_dominfo *info)
 
     /* Alloc magic pages */
     printf("Allocating magic pages\n");
-    if (alloc_magic_pages(&dom) != 0) {
+    if (alloc_magic_pages(info, &dom) != 0) {
         printf("Error on alloc magic pages\n");
         return 1;
     }
