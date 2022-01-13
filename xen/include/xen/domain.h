@@ -31,6 +31,8 @@ void arch_get_domain_info(const struct domain *d,
 /* CDF_* constant. Internal flags for domain creation. */
 /* Is this a privileged domain? */
 #define CDF_privileged           (1U << 0)
+/* Should domain memory be directly mapped? */
+#define CDF_directmap            (1U << 1)
 
 /*
  * Arch-specifics.
@@ -65,7 +67,8 @@ int map_vcpu_info(struct vcpu *v, unsigned long gfn, unsigned offset);
 void unmap_vcpu_info(struct vcpu *v);
 
 int arch_domain_create(struct domain *d,
-                       struct xen_domctl_createdomain *config);
+                       struct xen_domctl_createdomain *config,
+                       const unsigned int flags);
 
 void arch_domain_destroy(struct domain *d);
 
