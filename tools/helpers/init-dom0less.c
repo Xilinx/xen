@@ -210,7 +210,7 @@ static int init_domain(struct xs_handle *xsh, libxl_dominfo *info)
     printf("Introducing domain\n");
     xs_introduce_domain(xsh, info->domid,
             (GUEST_MAGIC_BASE >> XC_PAGE_SHIFT) + XENSTORE_PFN_OFFSET,
-            dom.xenstore_evtchn, true);
+            dom.xenstore_evtchn);
     return 0;
 }
 

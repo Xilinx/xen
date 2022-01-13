@@ -499,8 +499,7 @@ retry_transaction:
     if (!xs_transaction_end(ctx->xsh, t, 0))
         if (errno == EAGAIN)
             goto retry_transaction;
-    xs_introduce_domain(ctx->xsh, domid, state->store_mfn, state->store_port,
-                        false);
+    xs_introduce_domain(ctx->xsh, domid, state->store_mfn, state->store_port);
     free(vm_path);
     return 0;
 }
