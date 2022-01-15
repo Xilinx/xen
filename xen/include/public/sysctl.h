@@ -1069,6 +1069,7 @@ typedef struct xen_sysctl_cpu_policy xen_sysctl_cpu_policy_t;
 DEFINE_XEN_GUEST_HANDLE(xen_sysctl_cpu_policy_t);
 #endif
 
+#define XEN_SYSCTL_DT_OVERLAY_ADD                   1
 #define XEN_SYSCTL_DT_OVERLAY_REMOVE                2
 
 /*

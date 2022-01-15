@@ -82,6 +82,64 @@ static int dt_overlay_remove_node(struct dt_device_node *device_node)
     return 0;
 }
 
+static int dt_overlay_add_node(struct dt_device_node *device_node,
+                  const char *parent_node_path)
+{
+    struct dt_device_node *parent_node;
+    struct dt_device_node *np;
+    struct dt_device_node *next_node;
+    struct dt_device_node *new_node;
+
+    parent_node = dt_find_node_by_path(parent_node_path);
+
+    new_node = device_node;
+
+    if ( new_node == NULL )
+        return -EINVAL;
+
+    if ( parent_node == NULL )
+    {
+        dt_dprintk("Node not found. Partial dtb will not be added");
+        return -EINVAL;
+    }
+
+    /*
+     * If node is found. We can attach the device_node as a child of the
+     * parent node.
+     */
+
+    /* If parent has no child. */
+    if ( parent_node->child == NULL )
+    {
+        next_node = parent_node->allnext;
+        new_node->parent = parent_node;
+        parent_node->allnext = new_node;
+        parent_node->child = new_node;
+        /* Now plug next_node at the end of device_node. */
+        new_node->allnext = next_node;
+    } else {
+        /* If parent has at least one child node. */
+
+        /*
+         *  Iterate to the last child node of parent.
+         */
+        for ( np = parent_node->child; np->sibling != NULL; np = np->sibling )
+        {
+        }
+
+        next_node = np->allnext;
+        new_node->parent = parent_node;
+        np->sibling = new_node;
+        np->allnext = new_node;
+        /* Now plug next_node at the end of device_node. */
+        new_node->sibling = next_node;
+        new_node->allnext = next_node;
+        np->sibling->sibling = NULL;
+    }
+
+    return 0;
+}
+
 /* Basic sanity check for the dtbo tool stack provided to Xen. */
 static int check_overlay_fdt(const void *overlay_fdt, uint32_t overlay_fdt_size)
 {
@@ -369,6 +427,267 @@ out:
     return rc;
 }
 
+/*
+ * Adds device tree nodes under target node.
+ * We use dt_host_new to unflatten the updated device_tree_flattened. This is
+ * done to avoid the removal of device_tree generation, iomem regions mapping to
+ * hardware domain done by handle_node().
+ */
+static long handle_add_overlay_nodes(void *overlay_fdt,
+                                     uint32_t overlay_fdt_size)
+{
+    int rc = 0;
+    struct dt_device_node *overlay_node;
+    char **nodes_full_path = NULL;
+    int **nodes_irq = NULL;
+    int *node_num_irq = NULL;
+    void *fdt = NULL;
+    struct dt_device_node *dt_host_new = NULL;
+    struct domain *d = hardware_domain;
+    struct overlay_track *tr = NULL;
+    unsigned int naddr;
+    unsigned int num_irq;
+    unsigned int i, j, k;
+    unsigned int num_overlay_nodes;
+    u64 addr, size;
+
+    fdt = xmalloc_bytes(fdt_totalsize(device_tree_flattened));
+    if ( fdt == NULL )
+        return -ENOMEM;
+
+    num_overlay_nodes = overlay_node_count(overlay_fdt);
+    if ( num_overlay_nodes == 0 )
+    {
+        xfree(fdt);
+        return -ENOMEM;
+    }
+
+    spin_lock(&overlay_lock);
+
+    memcpy(fdt, device_tree_flattened, fdt_totalsize(device_tree_flattened));
+
+    rc = check_overlay_fdt(overlay_fdt, overlay_fdt_size);
+    if ( rc )
+    {
+        xfree(fdt);
+        return rc;
+    }
+
+    /*
+     * overlay_get_nodes_info is called to get the node information from dtbo.
+     * This is done before fdt_overlay_apply() because the overlay apply will
+     * erase the magic of overlay_fdt.
+     */
+    rc = overlay_get_nodes_info(overlay_fdt, &nodes_full_path,
+                                num_overlay_nodes);
+    if ( rc )
+    {
+        printk(XENLOG_ERR "Getting nodes information failed with error %d\n",
+               rc);
+        goto err;
+    }
+
+    nodes_irq = xmalloc_bytes(num_overlay_nodes * sizeof(int *));
+
+    if ( nodes_irq == NULL )
+    {
+        rc = -ENOMEM;
+        goto err;
+    }
+    memset(nodes_irq, 0x0, num_overlay_nodes * sizeof(int *));
+
+    node_num_irq = xmalloc_bytes(num_overlay_nodes * sizeof(int));
+    if ( node_num_irq == NULL )
+    {
+        rc = -ENOMEM;
+        goto err;
+    }
+    memset(node_num_irq, 0x0, num_overlay_nodes * sizeof(int));
+
+    rc = fdt_overlay_apply(fdt, overlay_fdt);
+    if ( rc )
+    {
+        printk(XENLOG_ERR "Adding overlay node failed with error %d\n", rc);
+        goto err;
+    }
+
+    for ( j = 0; j < num_overlay_nodes; j++ )
+    {
+        /* Check if any of the node already exists in dt_host. */
+        overlay_node = dt_find_node_by_path(nodes_full_path[j]);
+        if ( overlay_node != NULL )
+        {
+            printk(XENLOG_ERR "node %s exists in device tree\n",
+                   nodes_full_path[j]);
+            rc = -EINVAL;
+            goto err;
+        }
+    }
+
+    /* Unflatten the fdt into a new dt_host. */
+    unflatten_device_tree(fdt, &dt_host_new);
+
+    for ( j = 0; j < num_overlay_nodes; j++ )
+    {
+        dt_dprintk("Adding node: %s\n", nodes_full_path[j]);
+
+        /* Find the newly added node in dt_host_new by it's full path. */
+        overlay_node = _dt_find_node_by_path(dt_host_new, nodes_full_path[j]);
+        if ( overlay_node == NULL )
+        {
+            dt_dprintk("%s node not found\n", nodes_full_path[j]);
+            rc = -EFAULT;
+            goto remove_node;
+        }
+
+        /* Add the node to dt_host. */
+        rc = dt_overlay_add_node(overlay_node, overlay_node->parent->full_name);
+        if ( rc )
+        {
+            /* Node not added in dt_host. */
+            goto remove_node;
+        }
+
+        overlay_node = dt_find_node_by_path(overlay_node->full_name);
+        if ( overlay_node == NULL )
+        {
+            /* Sanity check. But code will never come here. */
+            printk(XENLOG_ERR "Cannot find %s node under updated dt_host\n",
+                   overlay_node->name);
+            goto remove_node;
+        }
+
+        /* First let's handle the interrupts. */
+        rc = handle_device_interrupts(d, overlay_node, false);
+        if ( rc )
+        {
+            printk(XENLOG_ERR "Interrupt failed\n");
+            goto remove_node;
+        }
+
+        /* Store IRQs for each node. */
+        num_irq = dt_number_of_irq(overlay_node);
+        node_num_irq[j] = num_irq;
+        nodes_irq[j] = xmalloc_bytes(num_irq * sizeof(int));
+        if ( nodes_irq[j] == NULL )
+        {
+            rc = -ENOMEM;
+            goto remove_node;
+        }
+
+        for ( k = 0; k < num_irq; k++ )
+        {
+             nodes_irq[j][k] = platform_get_irq(overlay_node, k);
+        }
+
+        /* Add device to IOMMUs */
+        rc = iommu_add_dt_device(overlay_node);
+        if ( rc < 0 )
+        {
+            printk(XENLOG_ERR "Failed to add %s to the IOMMU\n",
+                   dt_node_full_name(overlay_node));
+            goto remove_node;
+        }
+
+        /* Set permissions. */
+        naddr = dt_number_of_address(overlay_node);
+
+        dt_dprintk("%s passthrough = %d naddr = %u\n",
+                   dt_node_full_name(overlay_node), false, naddr);
+
+        /* Give permission for map MMIOs */
+        for ( i = 0; i < naddr; i++ )
+        {
+            struct map_range_data mr_data = { .d = d,
+                                              .p2mt = p2m_mmio_direct_c,
+                                              .skip_mapping = true };
+            rc = dt_device_get_address(overlay_node, i, &addr, &size);
+            if ( rc )
+            {
+                printk(XENLOG_ERR "Unable to retrieve address %u for %s\n",
+                       i, dt_node_full_name(overlay_node));
+                goto remove_node;
+            }
+
+            rc = map_range_to_domain(overlay_node, addr, size, &mr_data);
+            if ( rc )
+                goto remove_node;
+        }
+    }
+
+    /* This will happen if everything above goes right. */
+    tr = xzalloc(struct overlay_track);
+    if ( tr == NULL )
+    {
+        rc = -ENOMEM;
+        goto remove_node;
+    }
+
+    tr->dt_host_new = dt_host_new;
+    tr->fdt = fdt;
+    tr->nodes_fullname = nodes_full_path;
+    tr->num_nodes = num_overlay_nodes;
+    tr->nodes_irq = nodes_irq;
+    tr->node_num_irq = node_num_irq;
+
+    if ( tr->nodes_fullname == NULL )
+    {
+        rc = -ENOMEM;
+        goto remove_node;
+    }
+
+    INIT_LIST_HEAD(&tr->entry);
+    list_add_tail(&tr->entry, &overlay_tracker);
+
+    spin_unlock(&overlay_lock);
+    return rc;
+
+/*
+ * Failure case. We need to remove the nodes, free tracker(if tr exists) and
+ * dt_host_new.
+ */
+remove_node:
+    rc = remove_nodes(nodes_full_path, nodes_irq, node_num_irq, j);
+
+    if ( rc )
+    {
+        printk(XENLOG_ERR "Removing node failed\n");
+        spin_unlock(&overlay_lock);
+        return rc;
+    }
+
+err:
+    spin_unlock(&overlay_lock);
+
+    xfree(dt_host_new);
+    xfree(fdt);
+
+    if ( nodes_full_path != NULL )
+    {
+        for ( i = 0; i < num_overlay_nodes && nodes_full_path[i] != NULL; i++ )
+        {
+            xfree(nodes_full_path[i]);
+        }
+        xfree(nodes_full_path);
+    }
+
+    if ( nodes_irq != NULL )
+    {
+        for ( i = 0; i < num_overlay_nodes && nodes_irq[i] != NULL; i++ )
+        {
+            xfree(nodes_irq[i]);
+        }
+        xfree(nodes_irq);
+    }
+
+    if ( node_num_irq )
+        xfree(node_num_irq);
+
+    xfree(tr);
+
+    return rc;
+}
+
 long dt_sysctl(struct xen_sysctl *op)
 {
     long ret = 0;
@@ -396,6 +715,11 @@ long dt_sysctl(struct xen_sysctl *op)
 
     switch ( op->u.dt_overlay.overlay_op )
     {
+    case XEN_SYSCTL_DT_OVERLAY_ADD:
+        ret = handle_add_overlay_nodes(overlay_fdt,
+                                       op->u.dt_overlay.overlay_fdt_size);
+        break;
+
     case XEN_SYSCTL_DT_OVERLAY_REMOVE:
         ret = check_overlay_fdt(overlay_fdt,
                                 op->u.dt_overlay.overlay_fdt_size);
