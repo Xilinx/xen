@@ -20,6 +20,12 @@
 #include "xl.h"
 
 const struct cmd_spec cmd_table[] = {
+    { "overlay",
+      &main_dt_overlay, 1, 1,
+      "Add/Remove a device tree overlay",
+      "add/remove <.dtbo>"
+      "-h print this help\n"
+    },
     { "create",
       &main_create, 1, 1,
       "Create a domain from config file <filename>",
