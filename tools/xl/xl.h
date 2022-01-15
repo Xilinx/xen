@@ -98,6 +98,9 @@ struct save_file_header {
 
 #define SAVEFILE_BYTEORDER_VALUE ((uint32_t)0x01020304UL)
 
+#define XL_DT_OVERLAY_ADD                   1
+#define XL_DT_OVERLAY_REMOVE                2
+
 void save_domain_core_begin(uint32_t domid,
                             int preserve_domid,
                             const char *override_config_file,
@@ -140,6 +143,7 @@ int main_shutdown(int argc, char **argv);
 int main_reboot(int argc, char **argv);
 int main_list(int argc, char **argv);
 int main_vm_list(int argc, char **argv);
+int main_dt_overlay(int argc, char **argv);
 int main_create(int argc, char **argv);
 int main_config_update(int argc, char **argv);
 int main_button_press(int argc, char **argv);
