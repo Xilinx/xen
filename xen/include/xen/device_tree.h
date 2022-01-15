@@ -544,6 +544,15 @@ struct dt_device_node *dt_find_node_by_alias(const char *alias);
  */
 struct dt_device_node *dt_find_node_by_path(const char *path);
 
+/**
+ * _dt_find_node_by_path - Find a node matching a full DT path
+ * @dt_node: The device tree to search
+ * @path: The full path to match
+ *
+ * Returns a node pointer.
+ */
+struct dt_device_node *_dt_find_node_by_path(struct dt_device_node *dt,
+                                             const char *path);
 
 /**
  * dt_find_node_by_gpath - Same as dt_find_node_by_path but retrieve the

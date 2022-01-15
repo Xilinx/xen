@@ -358,15 +358,21 @@ struct dt_device_node *dt_find_node_by_type(struct dt_device_node *from,
     return np;
 }
 
-struct dt_device_node *dt_find_node_by_path(const char *path)
+struct dt_device_node *_dt_find_node_by_path(struct dt_device_node *dt,
+                                             const char *path)
 {
     struct dt_device_node *np;
 
-    dt_for_each_device_node(dt_host, np)
+    dt_for_each_device_node(dt, np)
         if ( np->full_name && (dt_node_cmp(np->full_name, path) == 0) )
             break;
 
     return np;
+}
+
+struct dt_device_node *dt_find_node_by_path(const char *path)
+{
+    return _dt_find_node_by_path(dt_host, path);
 }
 
 int dt_find_node_by_gpath(XEN_GUEST_HANDLE(char) u_path, uint32_t u_plen,
