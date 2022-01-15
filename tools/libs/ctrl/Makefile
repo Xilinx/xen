@@ -3,6 +3,7 @@ include $(XEN_ROOT)/tools/Rules.mk
 
 SRCS-y       += xc_altp2m.c
 SRCS-y       += xc_cpupool.c
+SRCS-y       += xc_overlay.c
 SRCS-y       += xc_domain.c
 SRCS-y       += xc_evtchn.c
 SRCS-y       += xc_gnttab.c
