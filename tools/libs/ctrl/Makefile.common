@@ -1,5 +1,6 @@
 OBJS-y       += xc_altp2m.o
 OBJS-y       += xc_cpupool.o
+OBJS-y       += xc_overlay.o
 OBJS-y       += xc_domain.o
 OBJS-y       += xc_evtchn.o
 OBJS-y       += xc_gnttab.o
