@@ -29,6 +29,10 @@
 #include <xen/livepatch.h>
 #include <xen/coverage.h>
 
+#ifdef CONFIG_OVERLAY_DTB
+#include <xen/dt_overlay.h>
+#endif
+
 long do_sysctl(XEN_GUEST_HANDLE_PARAM(xen_sysctl_t) u_sysctl)
 {
     long ret = 0;
@@ -481,6 +485,12 @@ long do_sysctl(XEN_GUEST_HANDLE_PARAM(xen_sysctl_t) u_sysctl)
         if ( ret != -ENOSYS && ret != -EOPNOTSUPP )
             copyback = 1;
         break;
+
+#ifdef CONFIG_OVERLAY_DTB
+    case XEN_SYSCTL_overlay:
+        ret = dt_sysctl(op);
+        break;
+#endif
 
     default:
         ret = arch_do_sysctl(op, u_sysctl);
