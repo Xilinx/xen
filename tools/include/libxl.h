@@ -2424,6 +2424,9 @@ libxl_device_pci *libxl_device_pci_list(libxl_ctx *ctx, uint32_t domid,
                                         int *num);
 void libxl_device_pci_list_free(libxl_device_pci* list, int num);
 
+int libxl_dt_overlay(libxl_ctx *ctx, void *overlay,
+                     int overlay_size, uint8_t op);
+
 /*
  * Turns the current process into a backend device service daemon
  * for a driver domain.
