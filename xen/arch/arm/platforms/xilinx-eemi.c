@@ -34,7 +34,7 @@ bool domain_has_clock_access(struct domain *d, u32 clk_id,
                  const uint32_t table_size)
 {
    uint32_t i;
-   bool access = false;
+   bool access = is_hardware_domain(d);
 
    for ( i = 0; i < table_size && pm_clk_node_map[i].clk_idx <= clk_id; i++ )
    {
