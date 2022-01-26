@@ -3073,8 +3073,6 @@ static int __init prepare_dtb_domU(struct domain *d, struct kernel_info *kinfo)
     int ret;
 
     kinfo->phandle_gic = GUEST_PHANDLE_GIC;
-    kinfo->gnttab_start = GUEST_GNTTAB_BASE;
-    kinfo->gnttab_size = GUEST_GNTTAB_SIZE;
 
     addrcells = GUEST_ROOT_ADDRESS_CELLS;
     sizecells = GUEST_ROOT_SIZE_CELLS;
@@ -3471,8 +3469,16 @@ static void __init find_gnttab_region(struct domain *d,
      * Only use the text section as it's always present and will contain
      * enough space for a large grant table
      */
-    kinfo->gnttab_start = __pa(_stext);
-    kinfo->gnttab_size = gnttab_dom0_frames() << PAGE_SHIFT;
+    if ( is_domain_direct_mapped(d) )
+    {
+        kinfo->gnttab_start = __pa(_stext);
+        kinfo->gnttab_size = gnttab_dom0_frames() << PAGE_SHIFT;
+    }
+    else
+    {
+        kinfo->gnttab_start = GUEST_GNTTAB_BASE;
+        kinfo->gnttab_size = GUEST_GNTTAB_SIZE;
+    }
 
 #ifdef CONFIG_ARM_32
     /*
@@ -3675,6 +3681,7 @@ static int __init construct_domU(struct domain *d,
         allocate_static_memory(d, &kinfo, node);
     else
         assign_static_memory_11(d, &kinfo, node);
+    find_gnttab_region(d, &kinfo);
 
 #ifdef CONFIG_STATIC_SHM
     rc = process_shm(d, &kinfo, node);
