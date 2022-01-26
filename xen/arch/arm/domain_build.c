@@ -2343,8 +2343,16 @@ static void __init find_gnttab_region(struct domain *d,
      * Only use the text section as it's always present and will contain
      * enough space for a large grant table
      */
-    kinfo->gnttab_start = __pa(_stext);
-    kinfo->gnttab_size = gnttab_dom0_frames() << PAGE_SHIFT;
+    if ( domain_use_host_layout(d) )
+    {
+        kinfo->gnttab_start = __pa(_stext);
+        kinfo->gnttab_size = gnttab_dom0_frames() << PAGE_SHIFT;
+    }
+    else
+    {
+        kinfo->gnttab_start = GUEST_GNTTAB_BASE;
+        kinfo->gnttab_size = GUEST_GNTTAB_SIZE;
+    }
 
 #ifdef CONFIG_ARM_32
     /*

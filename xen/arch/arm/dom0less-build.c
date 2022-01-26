@@ -894,8 +894,6 @@ static int __init prepare_dtb_domU(struct domain *d, struct kernel_info *kinfo)
     int ret, fdt_size = DOMU_DTB_SIZE;
 
     kinfo->phandle_gic = GUEST_PHANDLE_GIC;
-    kinfo->gnttab_start = GUEST_GNTTAB_BASE;
-    kinfo->gnttab_size = GUEST_GNTTAB_SIZE;
 
     addrcells = GUEST_ROOT_ADDRESS_CELLS;
     sizecells = GUEST_ROOT_SIZE_CELLS;
