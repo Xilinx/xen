@@ -1462,8 +1462,123 @@ static uint32_t get_num_pages(struct xs_handle *xs, const char *xs_path)
     return num_pages;
 }
 
+static bool write_overlay_operation(struct xs_handle *xs, char *operation,
+                               char *path)
+{
+    xs_transaction_t xs_trans = XBT_NULL;
+    char buf[128];
+    char ref[64];
+
+retry_transaction:
+    xs_trans = xs_transaction_start(xs);
+    if (!xs_trans)
+        return false;
+
+    snprintf(ref, sizeof(ref), "%s", operation);
+    snprintf(buf, sizeof(buf), "%s/overlay-operation", path);
+
+    if (!xs_write(xs, xs_trans, buf, ref, strlen(ref)))
+        return false;
+
+    if (!xs_transaction_end(xs, xs_trans, 0)) {
+        if (errno == EAGAIN)
+            goto retry_transaction;
+        else
+            return false;
+    }
+
+    return true;
+}
+
+static bool write_overlay_name(struct xs_handle *xs, char *name,
+                               char *path)
+{
+    xs_transaction_t xs_trans = XBT_NULL;
+    char buf[128];
+    char ref[64];
+
+retry_transaction:
+    xs_trans = xs_transaction_start(xs);
+    if (!xs_trans)
+        return false;
+
+    snprintf(ref, sizeof(ref), "%s", name);
+    snprintf(buf, sizeof(buf), "%s/overlay-name", path);
+
+    if (!xs_write(xs, xs_trans, buf, ref, strlen(ref)))
+        return false;
+
+    if (!xs_transaction_end(xs, xs_trans, 0)) {
+        if (errno == EAGAIN)
+            goto retry_transaction;
+        else
+            return false;
+    }
+
+    return true;
+}
+
+static bool write_overlay_type(struct xs_handle *xs, char *type,
+                               char *path)
+{
+    xs_transaction_t xs_trans = XBT_NULL;
+    char buf[128];
+    char ref[64];
+
+retry_transaction:
+    xs_trans = xs_transaction_start(xs);
+    if (!xs_trans)
+        return false;
+
+    snprintf(ref, sizeof(ref), "%s", type);
+    snprintf(buf, sizeof(buf), "%s/overlay-type", path);
+
+    if (!xs_write(xs, xs_trans, buf, ref, strlen(ref)))
+        return false;
+
+    if (!xs_transaction_end(xs, xs_trans, 0)) {
+        if (errno == EAGAIN)
+            goto retry_transaction;
+        else
+            return false;
+    }
+
+    return true;
+}
+
+static bool write_overlay_partial(struct xs_handle *xs, bool is_partial,
+                                  char *path)
+{
+    xs_transaction_t xs_trans = XBT_NULL;
+    char buf[128];
+    char ref[4];
+
+retry_transaction:
+    xs_trans = xs_transaction_start(xs);
+    if (!xs_trans)
+        return false;
+
+    snprintf(ref, sizeof(ref), "%d", is_partial);
+    snprintf(buf, sizeof(buf), "%s/overlay-partial", path);
+
+    if (!xs_write(xs, xs_trans, buf, ref, strlen(ref)))
+        return false;
+
+    if (!xs_transaction_end(xs, xs_trans, 0)) {
+        if (errno == EAGAIN)
+            goto retry_transaction;
+        else
+            return false;
+    }
+
+    return true;
+}
+
+
 static int share_overlay_with_domu(void *overlay_dt_domU, int overlay_dt_size,
-                                   int domain_id)
+                                   int domain_id, char *overlay_ops,
+                                   char *overlay_name,
+                                   char *overlay_type, bool is_overlay_partial)
 {
     struct xs_handle *xs = NULL;
     char *path = NULL;
@@ -1570,6 +1685,34 @@ static int share_overlay_with_domu(void *overlay_dt_domU, int overlay_dt_size,
         goto out;
     }
 
+    /* write overlay ops */
+    if (!write_overlay_operation(xs, overlay_ops, path)) {
+        err = ERROR_FAIL;
+        fprintf(stderr,"Writing overlay_ops ready failed\n");
+        goto out;
+    }
+
+    /* Write the overlay-name. */
+    if (!write_overlay_name(xs, overlay_name, path)) {
+        err = ERROR_FAIL;
+        fprintf(stderr,"Writing overlay_name ready failed\n");
+        goto out;
+    }
+
+    /* Write the overlay-type. */
+    if (!write_overlay_type(xs, overlay_type, path)) {
+        err = ERROR_FAIL;
+        fprintf(stderr,"Writing overlay_type ready failed\n");
+        goto out;
+    }
+
+    /* Write the overlay-partial. */
+    if (!write_overlay_partial(xs, is_overlay_partial, path)) {
+        err = ERROR_FAIL;
+        fprintf(stderr,"Writing overlay_partial ready failed\n");
+        goto out;
+    }
+
     /* Write the status "done". */
     if (!write_status(xs, "done", sender_status_path)) {
         fprintf(stderr,"Writing status DONE failed\n");
@@ -1605,13 +1748,16 @@ int main_dt_overlay(int argc, char **argv)
     bool domain_mapping = false;
     uint8_t op;
     int overlay_dtb_size = 0;
+    char *overlay_name = "overlay";
+    char *overlay_type = "normal";
+    bool is_overlay_partial = false;
 
     if (argc < 3) {
         fprintf(stderr, "Not enough arguments\n");
         return ERROR_FAIL;
     }
 
-    if (argc > 5) {
+    if (argc > 7) {
         fprintf(stderr, "Too many arguments\n");
         return ERROR_FAIL;
     }
@@ -1619,17 +1765,22 @@ int main_dt_overlay(int argc, char **argv)
     overlay_ops = argv[1];
     overlay_config_file = argv[2];
 
-    if (!strcmp(argv[argc - 1], "-e"))
-        auto_mode = false;
-
-    if (argc == 4 || !auto_mode) {
+    if (argc == 4 ) {
         domain_id = find_domain(argv[argc-1]);
         domain_mapping = true;
-    }
-
-    if (argc == 5 || !auto_mode) {
-        domain_id = find_domain(argv[argc-2]);
+    } else if (argc == 5 && !strcmp(argv[4], "-e")) {
+        domain_id = find_domain(argv[3]);
+        auto_mode = false;
         domain_mapping = true;
+    } else if (argc == 7) {
+        domain_id = find_domain(argv[3]);
+        domain_mapping = true;
+        overlay_name = argv[4];
+        overlay_type = argv[5];
+        is_overlay_partial = atoi(argv[6]);
+    } else {
+        fprintf(stderr, "Invalid arguments\n");
+        return ERROR_FAIL;
     }
 
     /* User didn't prove any overlay operation. */
@@ -1672,7 +1823,18 @@ int main_dt_overlay(int argc, char **argv)
     if (domain_id && auto_mode && (op == LIBXL_DT_OVERLAY_ADD)) {
 
         rc = share_overlay_with_domu(overlay_dtb, overlay_dtb_size,
-                                     domain_id);
+                                     domain_id, "add", overlay_name,
+                                     overlay_type, is_overlay_partial);
+        if (rc)
+            goto out;
+    }
+
+    if (domain_id && auto_mode && (op == LIBXL_DT_OVERLAY_REMOVE)) {
+
+        rc = share_overlay_with_domu(overlay_dtb, overlay_dtb_size,
+                                     domain_id, "remove", overlay_name,
+                                     overlay_type, is_overlay_partial);
+
         if (rc)
             goto out;
     }
