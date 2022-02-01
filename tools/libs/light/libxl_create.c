@@ -685,6 +685,11 @@ int libxl__domain_make(libxl__gc *gc, libxl_domain_config *d_config,
         /* Ultimately, handle is an array of 16 uint8_t, same as uuid */
         libxl_uuid_copy(ctx, (libxl_uuid *)&create.handle, &info->uuid);
 
+        /*
+         * Always enable iommu for supporting dynamic assignment of nodes
+         * using device tree overlay.
+         */
+        create.flags |= XEN_DOMCTL_CDF_iommu;
         ret = libxl__arch_domain_prepare_config(gc, d_config, &create);
         if (ret < 0) {
             LOGED(ERROR, *domid, "fail to get domain config");
