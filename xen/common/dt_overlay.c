@@ -245,18 +245,22 @@ static int overlay_get_nodes_info(const void *fdto, char ***nodes_full_path,
 
 /* Remove nodes from dt_host. */
 static int remove_nodes(char **full_dt_node_path, int **nodes_irq,
-                        int *node_num_irq, unsigned int num_nodes)
+                        int *node_num_irq, unsigned int num_nodes,
+                        struct domain *d)
 {
-    struct domain *d = hardware_domain;
-    int rc = 0;
+    int rc = 0, irq = 0;
     struct dt_device_node *overlay_node;
     unsigned int naddr;
     unsigned int i, j, nirq;
     u64 addr, size;
     domid_t domid = 0;
+    bool domain_mapping = (d != NULL);
 
     for ( j = 0; j < num_nodes; j++ )
     {
+        p2m_type_t t;
+        mfn_t mfn;
+
         dt_dprintk("Finding node %s in the dt_host\n", full_dt_node_path[j]);
 
         overlay_node = dt_find_node_by_path(full_dt_node_path[j]);
@@ -268,39 +272,124 @@ static int remove_nodes(char **full_dt_node_path, int **nodes_irq,
             return -EINVAL;
         }
 
-        domid = dt_device_used_by(overlay_node);
-
-        dt_dprintk("Checking if node %s is used by any domain\n",
-                   full_dt_node_path[j]);
-
-        /*
-         * TODO: Below check will changed when node assigning to running VM will
-         * be introduced.
-         */
-        if ( domid != 0 && domid != DOMID_IO )
+        if ( d )
         {
-            printk(XENLOG_ERR "Device %s as it is being used by domain %d. Removing nodes failed\n",
-                   full_dt_node_path[j], domid);
-            return -EINVAL;
+            rc = dt_device_get_address(overlay_node, 0, &addr, &size);
+            if ( rc )
+            {
+                printk(XENLOG_ERR "Unable to retrieve address for %s\n",
+                       dt_node_full_name(overlay_node));
+                return rc;
+            }
+
+            mfn = p2m_lookup(d, gaddr_to_gfn(addr), &t);
+            if ( mfn_x(mfn) == 0 || mfn_x(mfn) == ~0UL )
+                return -EINVAL;
+        }
+        else
+        {
+            domid = dt_device_used_by(overlay_node);
+            /*
+             * We also check if device is assigned to DOMID_IO as when a domain
+             * is destroyed device is assigned to DOMID_IO or for the case when
+             * device was never mapped to a running domain.
+             */
+            if ( domid != 0 && domid != DOMID_IO )
+            {
+                printk(XENLOG_ERR "Device is not assigned to %d. Device is assigned to %d.\n",
+                       DOMID_IO, domid);
+                return -EINVAL;
+
+            }
+            /*
+             * Device is assigned to hardware domain.
+             */
+            d = hardware_domain;
+
+            rc = dt_device_get_address(overlay_node, 0, &addr, &size);
+            if ( rc )
+            {
+                printk(XENLOG_ERR "Unable to retrieve address for %s\n",
+                       dt_node_full_name(overlay_node));
+                return rc;
+            }
+            mfn = p2m_lookup(hardware_domain, gaddr_to_gfn(addr), &t);
+
+            if ( !(mfn_x(mfn) == 0 || mfn_x(mfn) == ~0UL) )
+                return -EINVAL;
         }
 
-        dt_dprintk("Removing node: %s\n", full_dt_node_path[j]);
+        /*
+         * TODO: Better comment here?
+         * We need to rely on user to close/rmmod all Linux driver level stuff
+         * which domain might be using the device else Linux driver might crash.
+         */
+        dt_dprintk("Removing the node %s\n", full_dt_node_path[j]);
 
         nirq = node_num_irq[j];
 
         /* Remove IRQ permission */
         for ( i = 0; i < nirq; i++ )
         {
-            rc = nodes_irq[j][i];
+            irq = nodes_irq[j][i];
+            dt_dprintk("Revoking access for IRQ %d\n", irq);
+
+            /*
+             * Handle invalid use cases 1:
+             * Where user assigned the nodes to dom0 along with their irq/iommu
+             * mappings but now just wants to remove the nodes entry from Xen device
+             * device tree without unmapping the irq/iommu.
+             */
+            if ( !domain_mapping && vgic_get_hw_irq_desc(d, NULL, irq) )
+            {
+                printk(XENLOG_ERR "Removing node from device tree without releasing it's IRQ/IOMMU is not allowed\n");
+                return -EINVAL;
+            }
+
+            /*
+             * IRQ should always have access unless there are duplication of
+             * of irqs in device tree. There are few cases of xen device tree
+             * where there are duplicate interrupts for the same node.
+             */
+            if (!irq_access_permitted(d, irq))
+                continue;
             /*
              * TODO: We don't handle shared IRQs for now. So, it is assumed that
              * the IRQs was not shared with another domain.
              */
-            rc = irq_deny_access(d, rc);
+            rc = irq_deny_access(d, irq);
             if ( rc )
             {
                 printk(XENLOG_ERR "unable to revoke access for irq %u for %s\n",
                        i, dt_node_full_name(overlay_node));
+                return rc;
+            }
+
+            if ( domain_mapping )
+            {
+                rc = release_guest_irq(d, irq);
+                if ( rc )
+                {
+                    printk(XENLOG_ERR "unable to release irq %d for %s\n",
+                           irq, dt_node_full_name(overlay_node));
+                    return rc;
+                }
+            }
+        }
+
+        /*
+         * Handle invalid case 2's iommu part i.e. if iommu exists then only
+         * unmap else nothing to done here.
+         */
+        if ( domain_mapping && !list_empty(&overlay_node->domain_list) )
+        {
+            rc = iommu_deassign_dt_device(d, overlay_node);
+
+            /* Above can return -EINVAL if device is not protected. */
+            if ( rc && rc != -EINVAL )
+            {
+                printk(XENLOG_ERR "Deassigning %s from domain %d failed\n",
+                       dt_node_full_name(overlay_node), d->domain_id);
                 return rc;
             }
         }
@@ -332,6 +421,11 @@ static int remove_nodes(char **full_dt_node_path, int **nodes_irq,
                         addr & PAGE_MASK, PAGE_ALIGN(addr + size) - 1);
                 return rc;
             }
+
+            rc = unmap_mmio_regions(d, gaddr_to_gfn(addr), PFN_UP(size),
+                                    maddr_to_mfn(addr));
+            if ( rc )
+                return rc;
         }
 
         rc = dt_overlay_remove_node(overlay_node);
@@ -348,7 +442,8 @@ static int remove_nodes(char **full_dt_node_path, int **nodes_irq,
  * while destroying the domain.
  */
 static long handle_remove_overlay_nodes(char **full_dt_nodes_path,
-                                        unsigned int num_nodes)
+                                        unsigned int num_nodes,
+                                        struct domain *d)
 {
     int rc = 0;
     struct overlay_track *entry, *temp, *track;
@@ -397,7 +492,7 @@ static long handle_remove_overlay_nodes(char **full_dt_nodes_path,
     }
 
     rc = remove_nodes(full_dt_nodes_path, entry->nodes_irq, entry->node_num_irq,
-                      num_nodes);
+                      num_nodes, d);
 
     if ( rc )
     {
@@ -434,7 +529,8 @@ out:
  * hardware domain done by handle_node().
  */
 static long handle_add_overlay_nodes(void *overlay_fdt,
-                                     uint32_t overlay_fdt_size)
+                                     uint32_t overlay_fdt_size,
+                                     struct  domain *d)
 {
     int rc = 0;
     struct dt_device_node *overlay_node;
@@ -443,13 +539,20 @@ static long handle_add_overlay_nodes(void *overlay_fdt,
     int *node_num_irq = NULL;
     void *fdt = NULL;
     struct dt_device_node *dt_host_new = NULL;
-    struct domain *d = hardware_domain;
     struct overlay_track *tr = NULL;
     unsigned int naddr;
     unsigned int num_irq;
     unsigned int i, j, k;
     unsigned int num_overlay_nodes;
     u64 addr, size;
+    bool domain_mapping = (d != NULL);
+
+    /*
+     * If domain is NULL, then we add the devices into hardware domain and skip
+     * IRQs/IOMMUs mapping.
+     */
+    if ( d == NULL )
+        d = hardware_domain;
 
     fdt = xmalloc_bytes(fdt_totalsize(device_tree_flattened));
     if ( fdt == NULL )
@@ -558,7 +661,7 @@ static long handle_add_overlay_nodes(void *overlay_fdt,
         }
 
         /* First let's handle the interrupts. */
-        rc = handle_device_interrupts(d, overlay_node, false);
+        rc = handle_device_interrupts(d, overlay_node, domain_mapping);
         if ( rc )
         {
             printk(XENLOG_ERR "Interrupt failed\n");
@@ -589,6 +692,19 @@ static long handle_add_overlay_nodes(void *overlay_fdt,
             goto remove_node;
         }
 
+        if ( dt_device_is_protected(overlay_node) && domain_mapping )
+        {
+            dt_dprintk("%s setup iommu\n", dt_node_full_name(overlay_node));
+            rc = iommu_assign_dt_device(d, overlay_node);
+            if ( rc )
+            {
+                printk(XENLOG_G_ERR "XEN_DOMCTL_assign_dt_device: assign \"%s\""
+                       " to dom%u failed (%d)\n",
+                       dt_node_full_name(overlay_node), d->domain_id, rc);
+                goto remove_node;
+            }
+        }
+
         /* Set permissions. */
         naddr = dt_number_of_address(overlay_node);
 
@@ -600,7 +716,7 @@ static long handle_add_overlay_nodes(void *overlay_fdt,
         {
             struct map_range_data mr_data = { .d = d,
                                               .p2mt = p2m_mmio_direct_c,
-                                              .skip_mapping = true };
+                                              .skip_mapping = !domain_mapping };
             rc = dt_device_get_address(overlay_node, i, &addr, &size);
             if ( rc )
             {
@@ -647,7 +763,7 @@ static long handle_add_overlay_nodes(void *overlay_fdt,
  * dt_host_new.
  */
 remove_node:
-    rc = remove_nodes(nodes_full_path, nodes_irq, node_num_irq, j);
+    rc = remove_nodes(nodes_full_path, nodes_irq, node_num_irq, j, d);
 
     if ( rc )
     {
@@ -694,6 +810,7 @@ long dt_sysctl(struct xen_sysctl *op)
     void *overlay_fdt;
     char **nodes_full_path = NULL;
     unsigned int num_overlay_nodes = 0;
+    struct domain *d = NULL;
 
     if ( op->u.dt_overlay.overlay_fdt_size <= 0 )
         return -EINVAL;
@@ -713,11 +830,21 @@ long dt_sysctl(struct xen_sysctl *op)
         return -EFAULT;
     }
 
+    /*
+     * If domain_mapping == false, domain_id can be ignored as we don't need to
+     * map resource to any domain.
+     *
+     * If domain_mapping == true, domain_id, get the target domain for the
+     * mapping.
+     */
+    if ( op->u.dt_overlay.domain_mapping )
+        d = rcu_lock_domain_by_id(op->u.dt_overlay.domain_id);
+
     switch ( op->u.dt_overlay.overlay_op )
     {
     case XEN_SYSCTL_DT_OVERLAY_ADD:
         ret = handle_add_overlay_nodes(overlay_fdt,
-                                       op->u.dt_overlay.overlay_fdt_size);
+                                       op->u.dt_overlay.overlay_fdt_size, d);
         break;
 
     case XEN_SYSCTL_DT_OVERLAY_REMOVE:
@@ -741,8 +868,8 @@ long dt_sysctl(struct xen_sysctl *op)
         if ( ret )
              break;
 
-        ret = handle_remove_overlay_nodes(nodes_full_path,
-                                          num_overlay_nodes);
+        ret = handle_remove_overlay_nodes(nodes_full_path, num_overlay_nodes,
+                                          d);
         break;
 
     default:
@@ -758,6 +885,9 @@ long dt_sysctl(struct xen_sysctl *op)
         }
         xfree(nodes_full_path);
     }
+
+    if ( op->u.dt_overlay.domain_mapping )
+        rcu_unlock_domain(d);
 
     return ret;
 }

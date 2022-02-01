@@ -1070,6 +1070,8 @@ struct xen_sysctl_dt_overlay {
     XEN_GUEST_HANDLE_64(void) overlay_fdt;
     uint32_t overlay_fdt_size;  /* Overlay dtb size. */
     uint8_t overlay_op; /* Add or remove. */
+    bool domain_mapping;
+    uint32_t domain_id;
 };
 
 struct xen_sysctl {
