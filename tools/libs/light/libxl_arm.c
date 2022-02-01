@@ -69,7 +69,8 @@ int libxl__arch_domain_prepare_config(libxl__gc *gc,
 
     LOG(DEBUG, "Configure the domain");
 
-    config->arch.nr_spis = nr_spis;
+    /* gic_number_lines() is 192 for Xilinx ZynqMP. min nr_spis = 192 - 32. */
+    config->arch.nr_spis = MAX(nr_spis, 160);
     LOG(DEBUG, " - Allocate %u SPIs", nr_spis);
 
     switch (d_config->b_info.arch_arm.gic_version) {
