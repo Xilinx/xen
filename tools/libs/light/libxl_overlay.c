@@ -42,8 +42,9 @@ static int check_overlay_fdt(libxl__gc *gc, void *fdt, size_t size)
     return 0;
 }
 
-int libxl_dt_overlay(libxl_ctx *ctx, void *overlay_dt, int overlay_dt_size,
-                     uint8_t op)
+int libxl_dt_overlay(libxl_ctx *ctx, uint32_t domid, void *overlay_dt,
+                     int overlay_dt_size, uint8_t op, bool auto_mode,
+                     bool domain_mapping)
 {
     int rc = 0;
     GC_INIT(ctx);
@@ -54,11 +55,25 @@ int libxl_dt_overlay(libxl_ctx *ctx, void *overlay_dt, int overlay_dt_size,
     } else
         LOG(DEBUG, "Overlay DTB check passed\n");
 
-    /* We don't need to do  xc_interface_open here. */
-    rc = xc_dt_overlay(ctx->xch, overlay_dt, overlay_dt_size, op);
+    /* Check if user entered a valid domain id. */
+    rc = libxl_domain_info(CTX, NULL, domid);
+    if (rc == ERROR_DOMAIN_NOTFOUND) {
+        LOGD(ERROR, domid, "Non-existant domain.");
+        return ERROR_FAIL;
+    }
 
-    if (rc)
-        LOG(ERROR, "%s: Adding/Removing overlay dtb failed.\n", __func__);
+    /* We don't need to do  xc_interface_open here. */
+    rc = xc_dt_overlay(ctx->xch, domid, overlay_dt, overlay_dt_size, op,
+                       domain_mapping);
+
+    if (rc) {
+        LOG(ERROR, "domain%d: Adding/Removing overlay dtb failed.\n", domid);
+        rc = ERROR_FAIL;
+        goto out;
+    }
+
+out:
+    GC_FREE;
 
     return rc;
 }
