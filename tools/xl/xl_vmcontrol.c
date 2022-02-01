@@ -16,6 +16,7 @@
 #include <inttypes.h>
 #include <limits.h>
 #include <stdlib.h>
+#include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/utsname.h>
@@ -29,6 +30,8 @@
 #include "xl.h"
 #include "xl_utils.h"
 #include "xl_parse.h"
+#include <xenstore.h>
+#include <xengnttab.h>
 
 static int fd_lock = -1;
 
@@ -1265,6 +1268,335 @@ int main_create(int argc, char **argv)
     return 0;
 }
 
+static int copy_overlay_to_domU(uint32_t domain_id, void *overlay_dt_domU,
+                                uint32_t overlay_dt_size, uint32_t *grant_ref,
+                                uint32_t num_pages)
+{
+    void *buffer = NULL;
+    xengnttab_handle *gnttab = xengnttab_open(NULL, 0);
+
+    if (!gnttab) {
+        fprintf(stderr,"opening gnttab failed for domain %d\n", domain_id);
+        return -1;
+    }
+
+    buffer = xengnttab_map_domain_grant_refs(gnttab, num_pages, domain_id,
+                                             grant_ref, PROT_READ|PROT_WRITE);
+
+    if (buffer == NULL) {
+        fprintf(stderr, "Getting the buffer failed for grant_refs\n");
+
+        return -1;
+    }
+
+    /* buffer is contiguous allocated. */
+    memcpy(buffer, overlay_dt_domU, overlay_dt_size);
+
+    xengnttab_unmap(gnttab, buffer, num_pages);
+
+    return 0;
+}
+
+static bool wait_for_status(struct xs_handle *xs, int fd, char *status_path,
+                            const char *status)
+{
+    unsigned int num_strings;
+    char *buf = NULL;
+    char **vec = NULL;
+    bool ret = false;
+    unsigned int len;
+    int rc = 0;
+    fd_set set;
+
+    while (1)
+    {
+        FD_ZERO(&set);
+        FD_SET(fd, &set);
+
+        rc = select(fd + 1, &set, NULL, NULL, NULL);
+        /* Poll for data: Blocking. */
+        if (rc <= 0)
+            break;
+
+        if (FD_ISSET(fd, &set)) {
+            /*
+             * num_strings will be set to the number of elements in vec
+             * (2 - the watched path and the overlay_watch)
+             */
+            vec = xs_read_watch(xs, &num_strings);
+            if (!vec) {
+                break;
+            }
+
+            /* do a read. */
+            buf = xs_read(xs, XBT_NULL, status_path, &len);
+            if (buf) {
+                if (!strcmp(buf, status)) {
+                    ret = true;
+                    break;
+                }
+            }
+        }
+    }
+
+    free(vec);
+    free(buf);
+
+    return ret;
+}
+
+static bool write_overlay_size(struct xs_handle *xs, uint32_t overlay_size,
+                               char *path)
+{
+    xs_transaction_t xs_trans = XBT_NULL;
+    char buf[128];
+    char ref[16];
+
+retry_transaction:
+    xs_trans = xs_transaction_start(xs);
+    if (!xs_trans)
+        return false;
+
+    snprintf(ref, sizeof(ref), "%u", overlay_size);
+    snprintf(buf, sizeof(buf), "%s/overlay-size", path);
+
+    if (!xs_write(xs, xs_trans, buf, ref, strlen(ref)))
+        return false;
+
+    if (!xs_transaction_end(xs, xs_trans, 0)) {
+        if (errno == EAGAIN)
+            goto retry_transaction;
+        else
+            return false;
+    }
+
+    return true;
+}
+
+static bool write_status(struct xs_handle *xs, char *status, char *status_path)
+{
+    xs_transaction_t xs_trans = XBT_NULL;
+
+retry_transaction:
+    xs_trans = xs_transaction_start(xs);
+    if (!xs_trans)
+        return false;
+
+    if (!xs_write(xs, xs_trans, status_path, status, strlen(status)))
+        return false;
+
+    if (!xs_transaction_end(xs, xs_trans, 0)) {
+        if (errno == EAGAIN)
+            goto retry_transaction;
+        else
+            return false;
+    }
+
+    return true;
+}
+
+static uint32_t *get_page_ref(struct xs_handle *xs, const char *xs_path,
+                              uint32_t num_pages)
+{
+    char buf[128];
+    uint32_t *ref = NULL;
+    char *data;
+    char temp[16] = { };
+    unsigned int len;
+    int i = 0;
+    int j = 0;
+    int start_ind = 0;
+
+    snprintf(buf, sizeof(buf), "%s/page-ref", xs_path);
+
+    /* do a read. */
+    data = xs_read(xs, XBT_NULL, buf, &len);
+
+    if (data) {
+        /* Caller will free this. */
+        ref = (uint32_t *)calloc(num_pages, sizeof(uint32_t));
+
+        for (i = 0; data[i] != '\0'; i++) {
+            if (data[i] == ',') {
+                /* Next page_ref data. */
+                memset(temp, '\0', sizeof(temp));
+
+                /* Copy the data between previous ',' to current. */
+                memcpy(temp, &data[start_ind], i - start_ind);
+
+                /* Convert to int. */
+                ref[j] = atoi(temp);
+                start_ind = i + 1;
+                j++;
+            }
+
+            if (j == num_pages)
+                break;
+        }
+    }
+
+    if (j != num_pages) {
+        fprintf(stderr, "Number of page_refs are not equal to num_pages\n");
+        free(ref);
+        ref = NULL;
+    }
+
+    free(data);
+    return ref;
+}
+
+static uint32_t get_num_pages(struct xs_handle *xs, const char *xs_path)
+{
+    char buf[128];
+    char *ref;
+    unsigned int len;
+    uint32_t num_pages = 0;
+
+    snprintf(buf, sizeof(buf), "%s/num-pages", xs_path);
+
+    /* do a read. */
+    ref = xs_read(xs, XBT_NULL, buf, &len);
+
+    if (ref)
+        num_pages = atoi(ref);
+
+    free(ref);
+
+    return num_pages;
+}
+
+static int share_overlay_with_domu(void *overlay_dt_domU, int overlay_dt_size,
+                                   int domain_id)
+{
+    struct xs_handle *xs = NULL;
+    char *path = NULL;
+    char receiver_status_path[64] = { };
+    char sender_status_path[64] = { };
+    int fd = 0;
+    int err;
+    uint32_t num_pages= 1;
+    uint32_t *page_ref = NULL;
+
+    /* XS_watch part. */
+    /* Open a connection to the xenstore. */
+    xs = xs_open(0);
+    if (xs == NULL) {
+        fprintf(stderr, "Deamon open for domain%d failed\n", domain_id);
+        err = ERROR_FAIL;
+        goto out;
+    }
+
+    /* Get the local domain path */
+    path = xs_get_domain_path(xs, domain_id);
+    if (path == NULL) {
+        fprintf(stderr, "Getting domain%d path failed\n", domain_id);
+        err = ERROR_FAIL;
+        goto out;
+    }
+
+    /* Make space for our node on the path */
+    path = realloc(path, strlen(path) + strlen("/data/overlay") + 1);
+    if (path == NULL) {
+        fprintf(stderr, "Path allocation failed\n");
+        err = ERROR_NOMEM;
+        goto out;
+    }
+
+    strcat(path, "/data/overlay");
+    strcpy(receiver_status_path, path);
+    strcat(receiver_status_path, "/receiver-status");
+
+    /*
+     * Watch a node for changes (poll on fd to detect).
+     * When the node (or any child) changes, fd will become readable.
+     */
+    err = xs_watch(xs, receiver_status_path, "overlay_watch");
+    if (!err) {
+        fprintf(stderr, "Creating watch failed\n");
+        err = ERROR_FAIL;
+        goto out;
+    }
+
+    /*
+     * We are notified of read availability on the watch via the
+     * file descriptor.
+     */
+    fd = xs_fileno(xs);
+
+    /* Wait for "waiting" status from other domain. */
+    if (!wait_for_status(xs, fd, receiver_status_path, "waiting")) {
+        err = ERROR_NOT_READY;
+        goto out;
+    }
+
+    /* Share the dtb size with domain. */
+    if (!write_overlay_size(xs, overlay_dt_size, path)) {
+        err = ERROR_FAIL;
+        fprintf(stderr,"Writing page ref failed\n");
+        goto out;
+    }
+
+    strcpy(sender_status_path, path);
+    strcat(sender_status_path, "/sender-status");
+
+    /* Write the status "ready". */
+    if (!write_status(xs, "ready", sender_status_path)) {
+        err = ERROR_FAIL;
+        fprintf(stderr,"Writing status ready failed\n");
+        goto out;
+    }
+
+    /* Wait for "page_ref" status from other domain. */
+    if (!wait_for_status(xs, fd, receiver_status_path, "page_ref")) {
+        err = ERROR_NOT_READY;
+        goto out;
+    }
+
+    num_pages = get_num_pages(xs, path);
+    if (num_pages == 0) {
+        fprintf(stderr, "no pages allocated\n");
+        err = ERROR_FAIL;
+        goto out;
+    }
+
+    page_ref = get_page_ref(xs, path, num_pages);
+    if (page_ref == NULL) {
+        fprintf(stderr,"page ref is null.\n");
+        err = ERROR_FAIL;
+        goto out;
+    }
+
+    if (copy_overlay_to_domU(domain_id, overlay_dt_domU, overlay_dt_size,
+                             page_ref, num_pages)) {
+        fprintf(stderr,"Copy overlay failed\n");
+        err = ERROR_FAIL;
+        goto out;
+    }
+
+    /* Write the status "done". */
+    if (!write_status(xs, "done", sender_status_path)) {
+        fprintf(stderr,"Writing status DONE failed\n");
+        err = ERROR_FAIL;
+        goto out;
+    }
+
+/* Cleanup */
+out:
+    if (xs) {
+        close(fd);
+        xs_unwatch(xs, path, "overlay_watch");
+        xs_close(xs);
+    }
+
+    if (path)
+        free(path);
+
+    if (page_ref)
+        free(page_ref);
+
+    return err;
+}
+
 int main_dt_overlay(int argc, char **argv)
 {
     const char *overlay_ops;
@@ -1335,10 +1667,23 @@ int main_dt_overlay(int argc, char **argv)
 
     rc = libxl_dt_overlay(ctx, domain_id, overlay_dtb, overlay_dtb_size, op,
                           auto_mode, domain_mapping);
-    if (rc)
+    if (rc) {
         fprintf(stderr, "Overlay operation failed\n");
+        goto out;
+    }
 
-    free(overlay_dtb);
+    if (domain_id && auto_mode && (op == LIBXL_DT_OVERLAY_ADD)) {
+
+        rc = share_overlay_with_domu(overlay_dtb, overlay_dtb_size,
+                                     domain_id);
+        if (rc)
+            goto out;
+    }
+
+out:
+    if (overlay_dtb)
+        free(overlay_dtb);
+
     return rc;
 }
 /*
