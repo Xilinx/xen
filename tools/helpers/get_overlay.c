@@ -71,6 +71,33 @@ retry_transaction:
     if (!xs_set_permissions(xs, xs_trans, buf, perms, 2))
         goto fail_xs_transaction;
 
+    /* Create overlay-name node. */
+    snprintf(ref, sizeof(ref), "%s", "overlay_node");
+    snprintf(buf, sizeof(buf), "%s/overlay-name", xs_base);
+
+    if (!xs_write(xs, xs_trans, buf, ref, strlen(ref)))
+        goto fail_xs_transaction;
+    if (!xs_set_permissions(xs, xs_trans, buf, perms, 2))
+        goto fail_xs_transaction;
+
+    /* Create overlay-type node. */
+    snprintf(ref, sizeof(ref), "%s", "type");
+    snprintf(buf, sizeof(buf), "%s/overlay-type", xs_base);
+
+    if (!xs_write(xs, xs_trans, buf, ref, strlen(ref)))
+        goto fail_xs_transaction;
+    if (!xs_set_permissions(xs, xs_trans, buf, perms, 2))
+        goto fail_xs_transaction;
+
+    /* Create overlay-partial node. */
+    snprintf(ref, sizeof(ref), "%d", 0);
+    snprintf(buf, sizeof(buf), "%s/overlay-partial", xs_base);
+
+    if (!xs_write(xs, xs_trans, buf, ref, strlen(ref)))
+        goto fail_xs_transaction;
+    if (!xs_set_permissions(xs, xs_trans, buf, perms, 2))
+        goto fail_xs_transaction;
+
     if (!xs_transaction_end(xs, xs_trans, 0)) {
         if (errno == EAGAIN)
             goto retry_transaction;
@@ -174,7 +201,7 @@ static bool wait_for_status(struct xs_handle *xs, int fd, char *status_path,
 }
 
 static bool write_page_ref(struct xs_handle *xs, uint32_t *page_ref,
-                           size_t num_pages, char *path)
+                           size_t num_pages, const char *path)
 {
     xs_transaction_t xs_trans = XBT_NULL;
     char buf[128];
@@ -249,12 +276,68 @@ retry_transaction:
     return true;
 }
 
+static char *get_overlay_ops(struct xs_handle *xs, const char *xs_path)
+{
+    char buf[128];
+    char *ref = NULL;
+    unsigned int len;
+
+    snprintf(buf, sizeof(buf), "%s/overlay-operation", xs_path);
+
+    ref = xs_read(xs, XBT_NULL, buf, &len);
+
+    return ref;
+}
+static char *get_overlay_name(struct xs_handle *xs, const char *xs_path)
+{
+    char buf[128];
+    char *ref = NULL;
+    unsigned int len;
+
+    snprintf(buf, sizeof(buf), "%s/overlay-name", xs_path);
+
+    ref = xs_read(xs, XBT_NULL, buf, &len);
+
+    return ref;
+}
+
+static char *get_overlay_type(struct xs_handle *xs, const char *xs_path)
+{
+    char buf[128];
+    char *ref = NULL;
+    unsigned int len;
+
+    snprintf(buf, sizeof(buf), "%s/overlay-type", xs_path);
+
+    ref = xs_read(xs, XBT_NULL, buf, &len);
+
+    return ref;
+}
+
+static bool get_overlay_partial(struct xs_handle *xs, const char *xs_path)
+{
+    char buf[128];
+    char *ref = NULL;
+    unsigned int len;
+
+    snprintf(buf, sizeof(buf), "%s/overlay-partial", xs_path);
+
+    ref = xs_read(xs, XBT_NULL, buf, &len);
+
+    if (ref) {
+        free(ref);
+        return atoi(ref);
+    }
+
+    return false;
+}
+
 int main(int argc, char **argv)
 {
     void *buffer = NULL;
     int domain ;
     uint32_t *page_refs = NULL;
-    FILE *fptr;
+    FILE *fptr = NULL;
     int dtbo_size = 0;
     const char *path = "data/overlay";
     char receiver_status_path[64] = { };
@@ -263,7 +346,11 @@ int main(int argc, char **argv)
     int rc = 0;
     int fd = 0;
     uint32_t num_pages = 0;
-    xengntshr_handle *gntshr;
+    xengntshr_handle *gntshr = NULL;
+    char *overlay_ops = NULL;
+    char *name = NULL;
+    char *type = NULL;
+    bool is_partial = false;
 
     if (argc < 2) {
        fprintf(stderr,"Please enter domain_id.\n");
@@ -357,16 +444,33 @@ int main(int argc, char **argv)
         goto out;
     }
 
-    if ((fptr = fopen("overlay.dtbo","wb")) == NULL) {
-        fprintf(stderr,"Error! opening file");
+    overlay_ops = get_overlay_ops(xs, path);
+    name = get_overlay_name(xs, path);
+    type = get_overlay_type(xs, path);
+    is_partial = get_overlay_partial(xs, path);
+
+    if (overlay_ops == NULL || name == NULL || type == NULL)
         goto out;
+
+    printf("%s %s %s", overlay_ops, name, type);
+    if (is_partial)
+        printf(" %d", is_partial);
+
+    printf("\n");
+
+    if (!strcmp(overlay_ops, "add")) {
+
+        if ((fptr = fopen("overlay.dtbo","wb")) == NULL) {
+            fprintf(stderr,"Error! opening file");
+            goto out;
+        }
+
+        printf("Writing to file overlay.dtbo.\n");
+
+        fwrite(buffer, dtbo_size, 1, fptr);
+
+        printf("Done writing to file overlay.dtbo \n");
     }
-
-    printf("Writing to file overlay.dtbo.\n");
-
-    fwrite(buffer, dtbo_size, 1, fptr);
-
-    printf("Done writing to file overlay.dtbo \n");
 
 out:
     if (fptr)
@@ -374,6 +478,15 @@ out:
 
     if (page_refs)
         free(page_refs);
+
+    if (overlay_ops)
+        free(overlay_ops);
+
+    if (name)
+        free(name);
+
+    if (type)
+        free(type);
 
     if (xs) {
         close(fd);
