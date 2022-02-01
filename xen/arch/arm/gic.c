@@ -149,8 +149,10 @@ int gic_route_irq_to_guest(struct domain *d, unsigned int virq,
      * back to the physical IRQ. To prevent get unsync, restrict the
      * routing to when the Domain is been created.
      */
+#ifndef CONFIG_OVERLAY_DTB
     if ( d->creation_finished )
         return -EBUSY;
+#endif
 
     ret = vgic_connect_hw_irq(d, NULL, virq, desc, true);
     if ( ret )
@@ -180,8 +182,10 @@ int gic_remove_irq_from_guest(struct domain *d, unsigned int virq,
      * Removing an interrupt while the domain is running may have
      * undesirable effect on the vGIC emulation.
      */
+#ifndef CONFIG_OVERLAY_DTB
     if ( !d->is_dying )
         return -EBUSY;
+#endif
 
     desc->handler->shutdown(desc);
 
