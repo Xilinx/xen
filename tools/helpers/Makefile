@@ -12,6 +12,7 @@ PROGS += init-xenstore-domain
 endif
 ifeq ($(CONFIG_ARM),y)
 PROGS += init-dom0less
+PROGS += get_overlay
 endif
 endif
 
@@ -35,6 +36,9 @@ $(INIT_DOM0LESS_OBJS): CFLAGS += $(CFLAGS_libxenlight)
 $(INIT_DOM0LESS_OBJS): CFLAGS += $(CFLAGS_libxenctrl)
 $(INIT_DOM0LESS_OBJS): CFLAGS += $(CFLAGS_libxenevtchn)
 
+SHARE_OVERLAY_OBJS = get_overlay.o
+$(SHARE_OVERLAY_OBJS): CFLAGS += $(CFLAGS_libxengnttab) $(CFLAGS_libxenstore) $(CFLAGS_libxenctrl)
+
 .PHONY: all
 all: $(PROGS)
 
@@ -48,6 +52,10 @@ init-xenstore-domain: $(INIT_XENSTORE_DOMAIN_OBJS)
 
 init-dom0less: $(INIT_DOM0LESS_OBJS)
 	$(CC) $(LDFLAGS) -o $@ $(INIT_DOM0LESS_OBJS) $(LDLIBS_libxenctrl) $(LDLIBS_libxenevtchn) $(LDLIBS_libxentoollog) $(LDLIBS_libxenstore) $(LDLIBS_libxenlight) $(LDLIBS_libxenguest)  $(APPEND_LDFLAGS)
+
+get_overlay: $(SHARE_OVERLAY_OBJS)
+	$(CC) $(LDFLAGS) -o $@ $< $(LDLIBS_libxenvchan) $(LDLIBS_libxenstore) $(LDLIBS_libxenctrl) $(LDLIBS_libxengnttab) $(APPEND_LDFLAGS)
+
 
 .PHONY: install
 install: all
