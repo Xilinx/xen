@@ -23,8 +23,8 @@
 #include <xen/hvm/hvm_op.h>
 #include <libfdt.h>
 
-int xc_dt_overlay(xc_interface *xch, void *overlay_fdt, int overlay_fdt_size,
-                  uint8_t op)
+int xc_dt_overlay(xc_interface *xch, uint32_t domid, void *overlay_fdt,
+                  int overlay_fdt_size, uint8_t op, bool domain_mapping)
 {
     int err;
     DECLARE_SYSCTL;
@@ -36,8 +36,10 @@ int xc_dt_overlay(xc_interface *xch, void *overlay_fdt, int overlay_fdt_size,
         goto err;
 
     sysctl.cmd = XEN_SYSCTL_overlay;
+    sysctl.u.dt_overlay.domain_id = domid;
     sysctl.u.dt_overlay.overlay_op= op;
     sysctl.u.dt_overlay.overlay_fdt_size = overlay_fdt_size;
+    sysctl.u.dt_overlay.domain_mapping = domain_mapping;
 
     set_xen_guest_handle(sysctl.u.dt_overlay.overlay_fdt, overlay_fdt);
 
