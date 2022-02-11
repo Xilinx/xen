@@ -284,11 +284,11 @@ bool vpci_ecam_read(pci_sbdf_t sbdf, unsigned int reg, unsigned int len,
 
 void vpci_msix_arch_register(struct vpci_msix *msix, struct domain *d);
 
-int vpci_msix_write(struct vpci_msix *msix, unsigned long addr,
-                    unsigned int len, unsigned long data);
+bool vpci_msix_write(struct vpci_msix *msix, unsigned long addr,
+                     unsigned int len, unsigned long data);
 
-int vpci_msix_read(struct vpci_msix *msix, unsigned long addr,
-                   unsigned int len, unsigned long *data);
+bool vpci_msix_read(struct vpci_msix *msix, unsigned long addr,
+                    unsigned int len, unsigned long *data);
 
 #endif /* __XEN__ */
 

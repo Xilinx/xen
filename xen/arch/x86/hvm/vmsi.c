@@ -1246,7 +1246,10 @@ static int cf_check x86_msix_write(struct vcpu *v, unsigned long addr,
     msix = vpci_msix_find(d, addr);
     read_unlock(&d->pci_lock);
 
-    return vpci_msix_write(msix, addr, len, data);
+    if( !vpci_msix_write(msix, addr, len, data) )
+        return X86EMUL_RETRY;
+
+    return X86EMUL_OKAY;
 }
 
 static int cf_check x86_msix_read(struct vcpu *v, unsigned long addr,
@@ -1259,7 +1262,10 @@ static int cf_check x86_msix_read(struct vcpu *v, unsigned long addr,
     msix = vpci_msix_find(d, addr);
     read_unlock(&d->pci_lock);
 
-    return vpci_msix_read(msix, addr, len, data);
+    if ( !vpci_msix_read(msix, addr, len, data) )
+        return X86EMUL_RETRY;
+
+    return X86EMUL_OKAY;
 }
 
 static const struct hvm_mmio_ops vpci_msix_table_ops = {
