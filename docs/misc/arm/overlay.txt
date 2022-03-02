@@ -1,0 +1,172 @@
+# Device Tree Overlays support in Xen
+
+Xen now supports dynamic device assignment to running domains i.e.
+adding/removing nodes (using .dtbo) in Xen device tree, and assigning
+them to a running domain with given $domid.
+
+Xen supports two modes of operation: normal mode and expert mode for
+assigning nodes to domU. More on this below. 
+
+Dynamic node assignment works in following ways:
+
+1. Xen tools check the dtbo given and parse all other user provided arguments
+2. Xen tools pass the dtbo to Xen hypervisor via hypercall.
+3. Xen hypervisor applies the dtbo to Xen device tree and assign the
+   dbto's node resources to the user-provided $domid.
+4. For normal mode,  Xen tools share the modified dtbo with domU. domU needs
+   to run get_overlay.sh to get the dtbo from dom0 and apply the
+   overlay. get_overlay.sh uses get_overlay application for data transfer
+   between dom0 and domU.
+
+
+# Overlay Sharing protocol based on Xenstore
+
+The overlay sharing protocol with domU works in the following ways:
+
+1. get_overlay creates Xenstore path data/overlay and creates the
+   following nodes under data/overlay path:
+       a. receiver-status
+       b. sender-status
+       c. overlay-size
+       d. overlay-name
+       e. overlay-type
+       f. overlay-partial
+   and write "waiting" on receiver-status and "not_ready" to sender_status.
+
+2. libxl waits for "waiting" status on receiver-status, then writes
+   "overlay-size" with dtbo size and "ready" on "sender-status".
+
+3. get_overlay waits for "sender-status" to "ready", then allocates the
+   pages, next it shares the pages with dom0 (the page-ref num) by creating
+   page-ref node under /data/overlay and finally writes "page-refs" to
+   "receiver_status".
+
+4. libxl waits for "receiver-status" to become "page-refs" and copies
+   the data to buffer allocated with page_refs. libxl also writes the
+   "overlay-name", "overlay-type", and "overlay-partial" nodes with
+   user-provided information.  Lastly, libxl writes "done" to
+   "sender-status".
+
+6. get_overlay waits for "sender-status" to be "done".
+
+7. get_overlay copies the data and writes it to file.
+
+8. Finally, get_overlay unshares the pages with dom0.
+
+Note: get_overlay application needs two drivers xen_gntdev and xen_gntalloc in
+Linux. These can be loaded using modprobe xen_gntalloc and modprobe xen_gntdev.
+
+
+# Examples
+
+Here are a few examples on how to use it.
+
+## Dom0 device add
+
+For assigning a device tree overlay to dom0, enter the following:
+
+    (dom0) xl overly add overlay.dtbo 0
+
+This will allocate the devices mentioned in overlay.dtbo to Xen device
+tree and will assign these devices to dom0.
+
+Next, if the user wants to add the same device tree overlay to dom0
+Linux, execute the following:
+
+    (dom0) mkdir -p /sys/kernel/config/device-tree/overlays/new_overlay
+    (dom0) cat overlay.dtbo > /sys/kernel/config/device-tree/overlays/new_overlay/dtbo
+
+Finally if needed, the relevant Linux kernel drive can be loaded using:
+
+    (dom0) modprobe module_name.ko
+
+
+## Dom0 device remove
+
+For removing the device from dom0, do the following:
+
+    (dom0) xl overlay remove overlay.dtbo
+
+NOTE: The user is expected to unload any Linux kernel modules which
+might be accessing the devices in overlay.dtbo. Removing devices without
+unloading the modules might result in a crash.
+
+The following is an incorrect sequence:
+
+    (dom0) xl overlay add overlay.dtbo 0
+    (dom0) xl overlay remove overlay.dtbo
+
+The last command only removed the nodes from the Xen dtb but it did not
+deassigning irq/iommus from dom0. This will result in unhandled
+behavior. The correct sequence is to deassign the nodes from dom0:
+
+    (dom0) xl overlay remove overlay.dtbo 0
+
+
+## DomU device add/remove
+
+There are two modes supported for domU use cases: expert mode and normal
+mode.
+
+
+### Expert mode
+
+All the nodes in dtbo will be assigned to a domain; the user will need
+to prepare the dtb for the domU. User will also need to modprobe the
+relevant drivers.
+
+Example for domU device add:
+
+    (dom0) xl overlay add overlay.dtbo $domid
+    (dom0) xl console $domid  # to access $domid console
+
+Next, if the user needs to modify/prepare the overlay.dtbo suitable for
+the domU:
+
+    (domU) mkdir -p /sys/kernel/config/device-tree/overlays/new_overlay
+    (domU) cat overlay_linux.dtbo > /sys/kernel/config/device-tree/overlays/new_overlay/dtbo
+
+Finally, if needed, the relevant Linux kernel drive can be probed:
+
+    (domU) modprobe module_name.ko
+
+Example for domU overlay remove:
+
+    (dom0) xl overlay remove overlay.dtbo $domid
+
+
+### Normal mode
+
+Libxl modifies the dtbo suitable for the domU. Currently, it does basic
+modifications like updating "target-path" and "interrupt-parent" to make
+them compatible with the domU device tree. Please note that this might
+not work for nodes which need more complex adjustments. The user needs
+to make any required changes for complex overlays and modprobe the
+required Linux modules.
+
+For normal mode, the user is also required to input below three parameters:
+
+a. overlay_node: the name
+b. overlay_type: whether the nodes are fpga nodes or normal nodes
+c. partial or full overlay type: only needed for fpga overlays
+
+Example for domU overlay add:
+
+    (dom0) xl overlay add overlay.dtbo $domid overlay_node_name overlay_type is_partial
+    (dom0) xl console $domid  # go to $domid console
+    (domU) ./usr/lib/xen/bin/get_overlay.sh
+
+Finally if needed, the relevant Linux kernel drive can be loaded:
+
+    (domU) modprobe module_name.ko
+
+Example for domU overlay remove:
+
+    (dom0) xl overlay remove overlay.dtbo $domid overlay_node_name overlay_type is_partial
+
+The get_overlay.sh script automates the following:
+
+a. gets the modified overlay.dtbo from dom0 using Xenstore transactions
+b. applies overlay.dtbo to the domU Linux device tree depending on what
+   type of overlay it is
+c. removes the overlay nodes from device tree when the user requests it
