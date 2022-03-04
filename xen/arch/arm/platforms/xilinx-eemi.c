@@ -134,6 +134,24 @@ static bool clock_id_is_pll(u32 clk_id, u32 clk_end)
     return false;
 }
 
+static bool is_clock_enabled(struct cpu_user_regs *regs)
+{
+    struct arm_smccc_res res1;
+
+    arm_smccc_1_1_smc(EEMI_FID(PM_CLOCK_GETSTATE),
+            get_user_reg(regs, 1),
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            &res1);
+    if ( (res1.a0 & 0xfff) != XST_PM_SUCCESS )
+        return false;
+    return !!(res1.a0 >> 32);
+}
+
 bool xilinx_eemi(struct cpu_user_regs *regs, const uint32_t fid,
                  uint32_t nodeid,
                  uint32_t pm_fn,
@@ -300,6 +318,18 @@ bool xilinx_eemi(struct cpu_user_regs *regs, const uint32_t fid,
         goto forward_to_fw;
 
     case EEMI_FID(PM_CLOCK_ENABLE):
+        /*
+         * First, check if the Clock is already enabled.
+         *
+         * Certain critical clocks are already enabled but the guest
+         * might still request to enable them again, even if they are
+         * related to devices they are not visible from the guest.
+         */
+        if ( is_clock_enabled(regs) )
+        {
+            ret = XST_PM_SUCCESS;
+            goto done;
+        }
     case EEMI_FID(PM_CLOCK_DISABLE):
     case EEMI_FID(PM_CLOCK_SETDIVIDER):
     case EEMI_FID(PM_CLOCK_SETPARENT):
