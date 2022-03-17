@@ -252,10 +252,17 @@ bool xilinx_eemi(struct cpu_user_regs *regs, const uint32_t fid,
      * payload of the firmware is ignored by linux.
      */
     case EEMI_FID(PM_IOCTL):
+    {
+        enum pm_ioctl_id id = get_user_reg(regs, 1) >> 32;
+
+        if ( id == IOCTL_REGISTER_SGI )
+        {
+            ret = XST_PM_NOTSUPPORTED;
+            goto done;
+        }
+
         if ( !is_hardware_domain(current->domain) )
         {
-            enum pm_ioctl_id id = get_user_reg(regs, 1) >> 32;
-
             /*
              * This is allowed for domU as it tries to fetch some pll values
              * to configure the clocks.
@@ -284,6 +291,7 @@ bool xilinx_eemi(struct cpu_user_regs *regs, const uint32_t fid,
             }
         }
         goto forward_to_fw;
+    }
 
     case EEMI_FID(PM_PLL_GET_PARAMETER):
     case EEMI_FID(PM_PLL_GET_MODE):
@@ -382,6 +390,10 @@ bool xilinx_eemi(struct cpu_user_regs *regs, const uint32_t fid,
     /* These calls are never allowed.  */
     case EEMI_FID(PM_SYSTEM_SHUTDOWN):
         ret = XST_PM_NO_ACCESS;
+        goto done;
+
+    case EEMI_FID(TF_A_PM_REGISTER_SGI):
+        ret = XST_PM_NOTSUPPORTED;
         goto done;
 
     case IPI_MAILBOX_FID(IPI_MAILBOX_OPEN):
