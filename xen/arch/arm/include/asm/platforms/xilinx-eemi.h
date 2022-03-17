@@ -19,6 +19,10 @@
                                                 ARM_SMCCC_CONV_32,   \
                                                 ARM_SMCCC_OWNER_SIP, \
                                                 fid)
+
+/* From linux kernel to set SGI in TF-A */
+#define TF_A_PM_REGISTER_SGI 0xa04
+
 enum ipi_api_id {
     IPI_MAILBOX_OPEN = 0x1000,
     IPI_MAILBOX_RELEASE,
@@ -99,6 +103,7 @@ enum pm_ioctl_id {
     IOCTL_SD_DLL_RESET = 6,
     IOCTL_SET_SD_TAPDELAY = 7,
     IOCTL_GET_PLL_FRAC_MODE = 9,
+    IOCTL_REGISTER_SGI = 25,
 };
 
 /**
