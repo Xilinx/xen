@@ -179,6 +179,17 @@ config TEE
 	  This option enables generic TEE mediators support. It allows guests
 	  to access real TEE via one of TEE mediators implemented in XEN.
 
+config XEN_START_ADDRESS
+	hex "Xen start address: keep default to use platform defined address"
+	default 0xFFFFFFFF
+	depends on HAS_MPU
+	help
+	  This option allows to set the customized address at which Xen will be
+	  linked on MPU systems. This address must be aligned to a page size.
+	  Use 0xFFFFFFFF as the default value to indicate that user hasn't
+	  customized this address, and Xen use use the default value that has
+	  been defined in platform files.
+
 source "arch/arm/tee/Kconfig"
 
 config STATIC_SHM
