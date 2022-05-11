@@ -172,8 +172,10 @@ efi_head:
         .byte   0x52
         .byte   0x4d
         .byte   0x64
-        .long   pe_header - efi_head        /* Offset to the PE header. */
-
+#ifndef CONFIG_ARM_EFI
+        .long   0                    /* 0 means no PE header. */
+#else
+        .long   pe_header - efi_head /* Offset to the PE header. */
         /*
          * Add the PE/COFF header to the file.  The address of this header
          * is at offset 0x3c in the file, and is part of Linux "Image"
@@ -279,6 +281,8 @@ section_table:
         .short  0                /* NumberOfLineNumbers  (0 for executables) */
         .long   0xe0500020       /* Characteristics (section flags) */
         .align  5
+#endif /* CONFIG_ARM_EFI */
+
 real_start:
         /* BSS should be zeroed when booting without EFI */
         mov   x26, #0                /* x26 := skip_zero_bss */

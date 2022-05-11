@@ -7,7 +7,7 @@ config ARM_64
 	def_bool y
 	depends on !ARM_32
 	select 64BIT
-	select ARM_EFI
+	select ARM_EFI if !HAS_MPU
 	select HAS_FAST_MULTIPLY
 	select HAS_CACHE_COLORING
 
