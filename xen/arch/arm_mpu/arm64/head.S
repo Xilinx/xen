@@ -255,7 +255,8 @@ real_start_efi:
          * and protection regions for MPU systems.
          */
         bl    prepare_early_mappings
-        bl    enable_mmu
+        /* Turn on MMU or MPU */
+        bl    enable_mm
 
         /* We are still in the 1:1 mapping. Jump to the runtime Virtual Address. */
         ldr   x0, =primary_switched
@@ -313,7 +314,7 @@ GLOBAL(init_secondary)
         bl    check_cpu_mode
         bl    cpu_init
         bl    prepare_early_mappings
-        bl    enable_mmu
+        bl    enable_mm
 
         /* We are still in the 1:1 mapping. Jump to the runtime Virtual Address. */
         ldr   x0, =secondary_switched

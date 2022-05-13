@@ -68,3 +68,38 @@ ENTRY(prepare_early_mappings)
 
     ret
 ENDPROC(prepare_early_mappings)
+
+/*
+ * Enable EL2 MPU and data cache. Because we will disable cache
+ * with MPU at the same time, in accordance with that, we have
+ * to enable cache with MPU at the same time in this function.
+ * When MPU is disabled, the MPU background attributes will
+ * be used. On some platform, the background will treat all
+ * memory as IO memory. The access to IO memory will bypass
+ * the cache, even you have enabled the C bit in SCTLR.
+ * To avoid this implicit behavior, we disable cache with MPU
+ * explicitly to tell user that when MPU is disabled, the memory
+ * access is uncacheable.
+ */
+ENTRY(enable_mm)
+    mrs   x0, SCTLR_EL2
+    mov   x1, #(SCTLR_Axx_ELx_M | SCTLR_Axx_ELx_C)
+    /* Enable EL2 MPU and D-cache */
+    orr   x0, x0, x1
+    dsb   sy
+    msr   SCTLR_EL2, x0
+    isb
+    ret
+ENDPROC(enable_mm)
+
+/* Disable MPU system, including data cache. */
+ENTRY(disable_mm)
+    mrs   x0, SCTLR_EL2
+    mov   x1, #~(SCTLR_Axx_ELx_M | SCTLR_Axx_ELx_C)
+    /* Disable EL2 MPU and D-cache */
+    and   x0, x0, x1
+    dsb   sy
+    msr   SCTLR_EL2, x0
+    isb
+    ret
+ENDPROC(disable_mm)

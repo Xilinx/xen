@@ -217,7 +217,7 @@ ENDPROC(prepare_early_mappings)
  *
  * Clobbers x0 - x3
  */
-ENTRY(enable_mmu)
+ENTRY(enable_mm)
         PRINT("- Turning on paging -\r\n")
 
         /*
@@ -239,7 +239,7 @@ ENTRY(enable_mmu)
         msr   SCTLR_EL2, x0          /* now paging is enabled */
         isb                          /* Now, flush the icache */
         ret
-ENDPROC(enable_mmu)
+ENDPROC(enable_mm)
 
 /*
  * Remove the 1:1 map from the page-tables. It is not easy to keep track
