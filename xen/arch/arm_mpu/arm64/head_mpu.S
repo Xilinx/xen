@@ -20,12 +20,19 @@
 /*
  * In boot stage, we will use 1 MPU region:
  * Region#0: Normal memory for Xen text + data + bss (2MB)
+ * Region#1: Device memory for EARLY UART, size is defined
+ *           by platform's EARLY_UART_SIZE
  */
 #define BOOT_NORMAL_REGION_IDX  0x0
+#define BOOT_DEVICE_REGION_IDX  0x1
 
 /* MPU normal memory attributes. */
 #define PRBAR_NORMAL_MEM        0x30    /* SH=11 AP=00 XN=00 */
 #define PRLAR_NORMAL_MEM        0x0f    /* NS=0 ATTR=111 EN=1 */
+
+/* MPU device memory attributes. */
+#define PRBAR_DEVICE_MEM        0x20    /* SH=10 AP=00 XN=00 */
+#define PRLAR_DEVICE_MEM        0x09    /* NS=0 ATTR=100 EN=1 */
 
 .macro write_pr, sel, prbar, prlar
     msr   PRSELR_EL2, \sel
@@ -68,6 +75,48 @@ ENTRY(prepare_early_mappings)
 
     ret
 ENDPROC(prepare_early_mappings)
+
+/*
+ * In MMU system, setup_fixmap is used for Xen to map some essential data
+ * or devices in boot-time. In order to be consistent with MMU system, we
+ * inherit the function name for MPU system.
+ * setup_fixmap of MPU system will:
+ * - Map the early UART to MPU protection region when earlyprintk is
+ *   enabled (The PRINT can't be used after turning on MPU but before
+ *   setup_fixmap).
+ *
+ * Clobbers x0 - x3
+ */
+ENTRY(setup_fixmap)
+#ifdef CONFIG_EARLY_PRINTK
+    /* Map early uart to MPU device region for early printk. */
+    mov x0, #BOOT_DEVICE_REGION_IDX
+    ldr x1, =CONFIG_EARLY_UART_BASE_ADDRESS
+    and x1, x1, #MPU_REGION_MASK
+    mov x3, #PRBAR_DEVICE_MEM
+    orr x1, x1, x3
+
+    ldr x2, =CONFIG_EARLY_UART_BASE_ADDRESS
+    ldr x3, =(CONFIG_EARLY_UART_BASE_ADDRESS + EARLY_UART_SIZE - 1)
+    add x2, x2, x3
+    and x2, x2, #MPU_REGION_MASK
+    mov x3, #PRLAR_DEVICE_MEM
+    orr x2, x2, x3
+
+    /*
+     * Write to MPU protection region:
+     * x0 for pr_sel, x1 for prbar x2 for prlar
+     */
+    write_pr x0, x1, x2
+#endif
+
+    ret
+ENDPROC(setup_fixmap)
+
+/* Stub of remove_identity_mapping for MPU systems */
+ENTRY(remove_identity_mapping)
+    ret
+ENDPROC(remove_identity_mapping)
 
 /*
  * Enable EL2 MPU and data cache. Because we will disable cache
