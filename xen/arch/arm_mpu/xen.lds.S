@@ -26,6 +26,12 @@ PHDRS
   note PT_NOTE ;
 #endif
 }
+
+/*
+ * Update the labels like _stext, _erodata and etc, these
+ * modifications may affect the symbol to physical address
+ * convert helpers in asm/kernel.h for Arm MPU systems.
+ */
 SECTIONS
 {
   . = XEN_VIRT_START;
@@ -83,6 +89,13 @@ SECTIONS
   _erodata = .;                /* End of read-only data */
 
   . = ALIGN(PAGE_SIZE);
+/*
+ * Currently, we can't support __ro_after_init for MPU system,
+ * so we have to treat __ro_after_init section as data section.
+ */ 
+#ifdef CONFIG_HAS_MPU
+  __data_begin = .; 
+#endif
   .data.ro_after_init : {
       __ro_after_init_start = .;
       *(.data.ro_after_init)
@@ -90,6 +103,9 @@ SECTIONS
       __ro_after_init_end = .;
   } : text
 
+#ifndef CONFIG_HAS_MPU
+  __data_begin = .; 
+#endif
   .data.read_mostly : {
        /* Exception table */
        __start___ex_table = .;
@@ -156,6 +172,7 @@ SECTIONS
        *(.altinstr_replacement)
   } :text
   . = ALIGN(PAGE_SIZE);
+  __init_data_begin = .;            /* Init data */
   .init.data : {
        *(.init.rodata)
        *(.init.rodata.*)

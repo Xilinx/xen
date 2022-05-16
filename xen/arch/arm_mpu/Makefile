@@ -39,6 +39,8 @@ obj-y += mem_access.o
 obj-y += mm.o
 ifneq ($(CONFIG_HAS_MPU), y)
 obj-y += mm_mmu.o
+else
+obj-y += mm_mpu.o
 endif
 obj-y += monitor.o
 obj-y += p2m.o

@@ -9,6 +9,25 @@
 #include <xen/device_tree.h>
 #include <asm/setup.h>
 
+extern const char __data_begin[];
+extern const char __init_begin[], __init_end[];
+extern const char __init_data_begin[];
+extern const char _sinitdata[], _einitdata[];
+extern const char __bss_start[], __bss_end[];
+
+#define get_kernel_text_start()     __pa(_stext)
+#define get_kernel_text_end()       __pa(_etext)
+#define get_kernel_rodata_start()   __pa(_srodata)
+#define get_kernel_rodata_end()     __pa(_erodata)
+#define get_kernel_data_start()     __pa(__data_begin)
+#define get_kernel_data_end()       __pa(__init_begin)
+#define get_kernel_inittext_start() __pa(_sinittext)
+#define get_kernel_inittext_end()   __pa(_einittext)
+#define get_kernel_initdata_start() __pa(__init_data_begin)
+#define get_kernel_initdata_end()   __pa(__init_end)
+#define get_kernel_bss_start()      __pa(__bss_start)
+#define get_kernel_bss_end()        __pa(__bss_end)
+
 /*
  * List of possible features for dom0less domUs
  *

@@ -20,6 +20,11 @@
 #ifndef __ARCH_ARM_MM_MPU__
 #define __ARCH_ARM_MM_MPU__
 
+#include <asm/arm64/mpu.h>
+
+/* MPU-related varaible */
+extern unsigned long nr_xen_mpumap;
+
 static inline paddr_t __virt_to_maddr(vaddr_t va)
 {
     return (paddr_t)va;
