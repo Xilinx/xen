@@ -4,7 +4,7 @@
 #define frame_table ((struct page_info *)FRAMETABLE_VIRT_START)
 
 /* Boot-time pagetable setup */
-extern void setup_pagetables(unsigned long boot_phys_offset, paddr_t xen_paddr);
+extern void setup_mm_data(unsigned long boot_phys_offset, paddr_t xen_paddr);
 /* Allocate and initialise pagetables for a secondary CPU. Sets init_ttbr to the
  * new page table */
 extern int init_secondary_pagetables(int cpu);

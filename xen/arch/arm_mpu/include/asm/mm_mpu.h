@@ -25,6 +25,15 @@
 /* MPU-related varaible */
 extern unsigned long nr_xen_mpumap;
 
+/* Boot-time MPU protection region configuration setup */
+extern void setup_protection_regions(void);
+#define setup_mm_data(x,y) setup_protection_regions()
+
+/* MPU-related functionality */
+extern void enable_mm(void);
+extern void disable_mm(void);
+extern void set_boot_mpumap(u64 len, pr_t *table);
+
 static inline paddr_t __virt_to_maddr(vaddr_t va)
 {
     return (paddr_t)va;

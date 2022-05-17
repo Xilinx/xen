@@ -122,6 +122,21 @@ static inline pr_t pr_of_xenaddr(paddr_t baddr, paddr_t eaddr, unsigned attr)
 }
 
 /*
+ * After boot, Xen memory mapping should not contain mapping that are
+ * both writable and executable.
+ *
+ * This should be called on each CPU to enforce the policy like MMU
+ * system. But the different is that, for MPU systems, EL2 stage 1
+ * PMSAv8-64 attributes will not be cached by TLB (ARM DDI 0600A.c
+ * D1.6.2 TLB maintenance instructions). So this MPU version function
+ * does not need Xen local TLB flush.
+ */
+static void xen_mpu_enforce_wnx(void)
+{
+    WRITE_SYSREG(READ_SYSREG(SCTLR_EL2) | SCTLR_Axx_ELx_WXN, SCTLR_EL2);
+}
+
+/*
  * At boot-time, there are only two MPU memory regions defined: normal memory
  * and device memory, which are now insecure and coarse-grained.
  * Split Xen kernel into six sections based on memory attributes. Since
@@ -202,4 +217,41 @@ static void __init map_xen_to_protection_regions(void)
 #endif
 
     nr_xen_mpumap = next_xen_mpumap_index;
+}
+
+void __init setup_protection_regions()
+{
+    map_xen_to_protection_regions();
+
+    /*
+     * MPU must be disabled to switch to new mpu memory region configuration.
+     * Once the MPU is disabled, cache should also be disabled, because if MPU
+     * is disabled, some system will treat the memory access as the IO memory
+     * access. The cache data should be flushed to RAM before disabling MPU.
+     */
+    clean_dcache_va_range((void *)&next_xen_mpumap_index,
+                          sizeof(unsigned long));
+    clean_dcache_va_range((void *)(pr_t *)boot_mpumap,
+                          sizeof(pr_t) * next_xen_mpumap_index);
+
+    /*
+     * Since it is the MPU protection region which holds the XEN kernel that
+     * needs updating.
+     * The whole MPU system must be disabled for the update.
+     */
+    disable_mm();
+
+    /*
+     * Set new MPU memory region configuration.
+     * To avoid the mismatch between nr_xen_mpumap and nr_xen_mpumap
+     * after the relocation of some MPU regions later, here
+     * next_xen_mpumap_index is used.
+     * To avoid unexpected unaligment access fault during MPU disabled,
+     * set_boot_mpumap shall be written in assembly code.
+     */
+    set_boot_mpumap(next_xen_mpumap_index, (pr_t *)boot_mpumap);
+
+    enable_mm();
+
+    xen_mpu_enforce_wnx();
 }

@@ -152,3 +152,22 @@ ENTRY(disable_mm)
     isb
     ret
 ENDPROC(disable_mm)
+
+/*
+ * Iterate MPU memory region configuration, #mpu_table, to properly
+ * set according MPU protection region registers.
+ *
+ * x0: len refers to table length.
+ * x1: mpu_table. Every entry(pr_t) takes up 16 bytes, the previous 8 bytes
+ * shall be stored in prbar register, and the latter 8 are for prlar register.
+ */
+ENTRY(set_boot_mpumap)
+    mov   x2, xzr               /* table index */
+1:  ldr   x3, [x1], #8          /* x3: prbar */
+    ldr   x4, [x1], #8          /* x4: prlar */
+    write_pr x2, x3, x4
+    add   x2, x2, #1            /* table index ++ */
+    cmp   x2, x0
+    b.lt  1b
+    ret
+ENDPROC(set_boot_mpumap)

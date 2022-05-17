@@ -488,7 +488,7 @@ void __init remove_coloring_mappings(void) {}
  *   mapping.
  * - Update TTBR0_EL2 with the new root page table address.
  */
-void __init setup_pagetables(unsigned long boot_phys_offset, paddr_t xen_paddr)
+void __init setup_mm_data(unsigned long boot_phys_offset, paddr_t xen_paddr)
 {
     uint64_t ttbr;
     lpae_t pte, *p;

@@ -1103,7 +1103,7 @@ void __init start_xen(unsigned long boot_phys_offset,
         xen_bootmodule->start = get_xen_paddr(xen_bootmodule->size);
     }
 
-    setup_pagetables(boot_phys_offset, xen_bootmodule->start);
+    setup_mm_data(boot_phys_offset, xen_bootmodule->start);
     device_tree_flattened = early_fdt_map(fdt_paddr);
 
     setup_mm();
