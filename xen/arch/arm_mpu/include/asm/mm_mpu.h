@@ -22,6 +22,8 @@
 
 #include <asm/arm64/mpu.h>
 
+extern bool heap_parsed;
+
 /* Helper to access MPU protection region */
 extern void access_protection_region(bool read, pr_t *pr_read,
                                      const pr_t *pr_write, u64 sel);
@@ -30,6 +32,8 @@ extern unsigned long nr_xen_mpumap;
 
 /* Boot-time MPU protection region configuration setup */
 extern void setup_protection_regions(void);
+extern void setup_staticheap_mappings(void);
+
 #define setup_mm_data(x,y) setup_protection_regions()
 
 /* MPU-related functionality */

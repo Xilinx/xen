@@ -457,3 +457,36 @@ void __init setup_protection_regions()
 
     xen_mpu_enforce_wnx();
 }
+
+/* In MPU system, Xen heap must be statically allocated. */
+void __init setup_directmap_mappings(unsigned long base_mfn,
+                                     unsigned long nr_mfns)
+{
+    /* No directmap mapping on MPU system */
+    BUG();
+}
+
+void __init setup_staticheap_mappings(void)
+{
+    unsigned int bank = 0;
+
+    for ( ; bank < bootinfo.reserved_mem.nr_banks; bank++ )
+    {
+        if ( bootinfo.reserved_mem.bank[bank].type == MEMBANK_STATIC_HEAP )
+        {
+            paddr_t bank_start = round_pgup(
+                                 bootinfo.reserved_mem.bank[bank].start);
+            paddr_t bank_size = bootinfo.reserved_mem.bank[bank].size;
+            paddr_t bank_end = round_pgdown(bank_start + bank_size);
+
+            boot_mpumap[next_xen_mpumap_index] = pr_of_xenaddr(bank_start,
+                                                 bank_end - 1, MT_NORMAL);
+            access_protection_region(false, NULL,
+                                     (const pr_t*)(&boot_mpumap[next_xen_mpumap_index]),
+                                     next_xen_mpumap_index);
+            set_bit(next_xen_mpumap_index, xen_mpumap_mask);
+            next_xen_mpumap_index++;
+            nr_xen_mpumap++;
+        }
+    }
+}
