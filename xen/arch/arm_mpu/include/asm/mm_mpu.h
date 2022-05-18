@@ -22,6 +22,9 @@
 
 #include <asm/arm64/mpu.h>
 
+/* Helper to access MPU protection region */
+extern void access_protection_region(bool read, pr_t *pr_read,
+                                     const pr_t *pr_write, u64 sel);
 /* MPU-related varaible */
 extern unsigned long nr_xen_mpumap;
 

@@ -19,7 +19,10 @@
  */
 
 #include <xen/init.h>
+#include <xen/libfdt/libfdt.h>
 #include <xen/mm.h>
+#include <xen/sched.h>
+#include <xen/sizes.h>
 #include <asm/kernel.h>
 
 /*
@@ -48,6 +51,159 @@ unsigned long next_xen_mpumap_index = 0UL;
  * Be aware that AArch64-v8R supports at most 256 MPU protection regions.
  */
 static DECLARE_BITMAP(xen_mpumap_mask, MAX_MPU_PROTECTION_REGIONS);
+
+/* Write a protection region */
+#define WRITE_PROTECTION_REGION(sel, pr, prbar, prlar) ({               \
+    uint64_t _sel = sel;                                                \
+    const pr_t *_pr = pr;                                               \
+    asm volatile(                                                       \
+        "msr "__stringify(PRSELR_EL2)", %0;" /* Selects the region */   \
+        "dsb sy;"                                                       \
+        "msr "__stringify(prbar)", %1;" /* Write PRBAR<n>_EL2 */        \
+        "msr "__stringify(prlar)", %2;" /* Write PRLAR<n>_EL2 */        \
+        "dsb sy;"                                                       \
+        : : "r" (_sel), "r" (_pr->base.bits), "r" (_pr->limit.bits));   \
+})
+
+/* Read a protection region */
+#define READ_PROTECTION_REGION(sel, prbar, prlar) ({                    \
+    uint64_t _sel = sel;                                                \
+    pr_t _pr;                                                           \
+    asm volatile(                                                       \
+        "msr "__stringify(PRSELR_EL2)", %2;" /* Selects the region */   \
+        "dsb sy;"                                                       \
+        "mrs %0, "__stringify(prbar)";" /* Read PRBAR<n>_EL2 */         \
+        "mrs %1, "__stringify(prlar)";" /* Read PRLAR<n>_EL2 */         \
+        "dsb sy;"                                                       \
+        : "=r" (_pr.base.bits), "=r" (_pr.limit.bits) : "r" (_sel));    \
+    _pr;                                                                \
+})
+
+/*
+ * Access MPU protection region, including both read/write operations.
+ * AArch64-v8R at most supports 256 MPU protection regions.
+ * As explained from section G1.3.18 of the reference manual for AArch64-v8R,
+ * PRBAR<n>_ELx and PRLAR<n>_ELx provides access to the MPU region
+ * determined by the 4 most significant bit written on PRSELR_ELx.REGION and
+ * the <n> number from 1 to 15, when n == 0 then PRBAR_ELx should be used.
+ * So for example to access regions from 16 to 31 (0b10000 to 0b11111):
+ * - Set PRSELR_ELx to 0b10000
+ * - Region 16 configuration is accessible through PRBAR_ELx and PRLAR_ELx
+ * - Region 17 configuration is accessible through PRBAR1_ELx and PRLAR1_ELx
+ * - Region 18 configuration is accessible through PRBAR2_ELx and PRLAR2_ELx
+ * - ...
+ * - Region 31 configuration is accessible through PRBAR15_ELx and PRLAR15_ELx
+ *
+ * @read: if it is read operation.
+ * @pr_read: mpu protection region returned by read op.
+ * @pr_write: mpu protection region passed through write op.
+ * @sel: mpu protection region selector
+ */
+void access_protection_region(bool read, pr_t *pr_read,
+                              const pr_t *pr_write, u64 sel)
+{
+    switch ( sel & 0xf )
+    {
+    case 0:
+        if ( read )
+            *pr_read = READ_PROTECTION_REGION(sel, PRBAR0_EL2, PRLAR0_EL2);
+        else
+            WRITE_PROTECTION_REGION(sel, pr_write, PRBAR0_EL2, PRLAR0_EL2);
+        break;
+    case 1:
+        if ( read )
+            *pr_read = READ_PROTECTION_REGION(sel, PRBAR1_EL2, PRLAR1_EL2);
+        else
+            WRITE_PROTECTION_REGION(sel, pr_write, PRBAR1_EL2, PRLAR1_EL2);
+        break;
+    case 2:
+        if ( read )
+            *pr_read = READ_PROTECTION_REGION(sel, PRBAR2_EL2, PRLAR2_EL2);
+        else
+            WRITE_PROTECTION_REGION(sel, pr_write, PRBAR2_EL2, PRLAR2_EL2);
+        break;
+    case 3:
+        if ( read )
+            *pr_read = READ_PROTECTION_REGION(sel, PRBAR3_EL2, PRLAR3_EL2);
+        else
+            WRITE_PROTECTION_REGION(sel, pr_write, PRBAR3_EL2, PRLAR3_EL2);
+        break;
+    case 4:
+        if ( read )
+            *pr_read = READ_PROTECTION_REGION(sel, PRBAR4_EL2, PRLAR4_EL2);
+        else
+            WRITE_PROTECTION_REGION(sel, pr_write, PRBAR4_EL2, PRLAR4_EL2);
+        break;
+    case 5:
+        if ( read )
+            *pr_read = READ_PROTECTION_REGION(sel, PRBAR5_EL2, PRLAR5_EL2);
+        else
+            WRITE_PROTECTION_REGION(sel, pr_write, PRBAR5_EL2, PRLAR5_EL2);
+        break;
+    case 6:
+        if ( read )
+            *pr_read = READ_PROTECTION_REGION(sel, PRBAR6_EL2, PRLAR6_EL2);
+        else
+            WRITE_PROTECTION_REGION(sel, pr_write, PRBAR6_EL2, PRLAR6_EL2);
+        break;
+    case 7:
+        if ( read )
+            *pr_read = READ_PROTECTION_REGION(sel, PRBAR7_EL2, PRLAR7_EL2);
+        else
+            WRITE_PROTECTION_REGION(sel, pr_write, PRBAR7_EL2, PRLAR7_EL2);
+        break;
+    case 8:
+        if ( read )
+            *pr_read = READ_PROTECTION_REGION(sel, PRBAR8_EL2, PRLAR8_EL2);
+        else
+            WRITE_PROTECTION_REGION(sel, pr_write, PRBAR8_EL2, PRLAR8_EL2);
+        break;
+    case 9:
+        if ( read )
+            *pr_read = READ_PROTECTION_REGION(sel, PRBAR9_EL2, PRLAR9_EL2);
+        else
+            WRITE_PROTECTION_REGION(sel, pr_write, PRBAR9_EL2, PRLAR9_EL2);
+        break;
+    case 10:
+        if ( read )
+            *pr_read = READ_PROTECTION_REGION(sel, PRBAR10_EL2, PRLAR10_EL2);
+        else
+            WRITE_PROTECTION_REGION(sel, pr_write, PRBAR10_EL2, PRLAR10_EL2);
+        break;
+    case 11:
+        if ( read )
+            *pr_read = READ_PROTECTION_REGION(sel, PRBAR11_EL2, PRLAR11_EL2);
+        else
+            WRITE_PROTECTION_REGION(sel, pr_write, PRBAR11_EL2, PRLAR11_EL2);
+        break;
+    case 12:
+        if ( read )
+            *pr_read = READ_PROTECTION_REGION(sel, PRBAR12_EL2, PRLAR12_EL2);
+        else
+            WRITE_PROTECTION_REGION(sel, pr_write, PRBAR12_EL2, PRLAR12_EL2);
+        break;
+    case 13:
+        if ( read )
+            *pr_read = READ_PROTECTION_REGION(sel, PRBAR13_EL2, PRLAR13_EL2);
+        else
+            WRITE_PROTECTION_REGION(sel, pr_write, PRBAR13_EL2, PRLAR13_EL2);
+        break;
+    case 14:
+        if ( read )
+            *pr_read = READ_PROTECTION_REGION(sel, PRBAR14_EL2, PRLAR14_EL2);
+        else
+            WRITE_PROTECTION_REGION(sel, pr_write, PRBAR14_EL2, PRLAR14_EL2);
+        break;
+    case 15:
+        if ( read )
+            *pr_read = READ_PROTECTION_REGION(sel, PRBAR15_EL2, PRLAR15_EL2);
+        else
+            WRITE_PROTECTION_REGION(sel, pr_write, PRBAR15_EL2, PRLAR15_EL2);
+        break;
+    }
+
+    return;
+}
 
 /*
  * Standard entry that will be used to build Xen's own MPU memory region
@@ -119,6 +275,52 @@ static inline pr_t pr_of_xenaddr(paddr_t baddr, paddr_t eaddr, unsigned attr)
     pr_set_limit(&region, eaddr);
 
     return region;
+}
+
+
+void * __init early_fdt_map(paddr_t fdt_paddr)
+{
+    void *fdt_virt;
+    uint32_t size;
+    paddr_t fdt_end;
+
+    /*
+     * For MPU systems, the physical FDT address must meet two alignment
+     * requirements:
+     * 1. At least 8 bytes so that we always access the magic and size
+     *    fields of the FDT header after mapping the first chunk.
+     * 2. Meet the requirement of MPU region address alignment (64 bytes).
+     */
+    BUILD_BUG_ON( MIN_FDT_ALIGN < 8 || MPU_REGION_ALIGN % MIN_FDT_ALIGN );
+    if ( !fdt_paddr || fdt_paddr % MPU_REGION_ALIGN )
+        return NULL;
+
+    /*
+     * Map FDT with one new MPU protection region of MAX_FDT_SIZE.
+     * After that, we can do some magic check.
+     */
+    fdt_end = round_pgup(fdt_paddr + MAX_FDT_SIZE) - 1;
+    boot_mpumap[next_xen_mpumap_index] = pr_of_xenaddr(fdt_paddr, fdt_end,
+                                                       MT_NORMAL);
+    boot_mpumap[next_xen_mpumap_index].base.reg.ap = AP_RO_EL2;
+    access_protection_region(false, NULL,
+                             (const pr_t*)(&boot_mpumap[next_xen_mpumap_index]),
+                             next_xen_mpumap_index);
+    set_bit(next_xen_mpumap_index, xen_mpumap_mask);
+    next_xen_mpumap_index++;
+    nr_xen_mpumap++;
+
+    /* VA == PA */
+    fdt_virt = (void *)fdt_paddr;
+
+    if ( fdt_magic(fdt_virt) != FDT_MAGIC )
+        return NULL;
+
+    size = fdt_totalsize(fdt_virt);
+    if ( size > MAX_FDT_SIZE )
+        return NULL;
+
+    return fdt_virt;
 }
 
 /*

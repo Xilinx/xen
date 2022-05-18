@@ -545,7 +545,19 @@
 #define MPUIR_EL1 S3_0_C0_C0_4
 #define MPUIR_EL2 S3_4_C0_C0_4
 
-#endif
+/* Macro identifying the EL1 MPU region 0 base pointed by PRBAR_EL1 */
+#define PRBAR0_EL1 PRBAR_EL1
+
+/* Macro identifying the EL1 MPU region 0 limit pointed by PRLAR_EL1 */
+#define PRLAR0_EL1 PRLAR_EL1
+
+/* Macro identifying the EL2 MPU region 0 base pointed by PRBAR_EL2 */
+#define PRBAR0_EL2 PRBAR_EL2
+
+/* Macro identifying the EL2 MPU region 0 limit pointed by PRLAR_EL2 */
+#define PRLAR0_EL2 PRLAR_EL2
+
+#endif /* CONFIG_HAS_MPU */
 
 /* Access to system registers */
 
