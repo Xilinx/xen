@@ -52,6 +52,8 @@ unsigned long next_xen_mpumap_index = 0UL;
  */
 static DECLARE_BITMAP(xen_mpumap_mask, MAX_MPU_PROTECTION_REGIONS);
 
+struct page_info* frame_table;
+
 /* Write a protection region */
 #define WRITE_PROTECTION_REGION(sel, pr, prbar, prlar) ({               \
     uint64_t _sel = sel;                                                \
@@ -456,6 +458,25 @@ void __init setup_protection_regions()
     enable_mm();
 
     xen_mpu_enforce_wnx();
+}
+
+void __init setup_frametable_mappings(paddr_t ps, paddr_t pe)
+{
+    mfn_t base_mfn;
+    unsigned long nr_pdxs = mfn_to_pdx(mfn_add(maddr_to_mfn(pe), -1)) -
+                            mfn_to_pdx(maddr_to_mfn(ps)) + 1;
+    unsigned long frametable_size = nr_pdxs * sizeof(struct page_info);
+
+    /* Calculate base pdx from physical start address */
+    frametable_base_pdx = mfn_to_pdx(maddr_to_mfn(ps));
+    frametable_size = ROUNDUP(frametable_size, PAGE_SIZE);
+    base_mfn = alloc_boot_pages(frametable_size >> PAGE_SHIFT, 1);
+    /* VA == PA */
+    frame_table = (struct page_info*)(mfn_x(base_mfn) << PAGE_SHIFT);
+
+    memset(&frame_table[0], 0, nr_pdxs * sizeof(struct page_info));
+    memset(&frame_table[nr_pdxs], -1,
+           frametable_size - (nr_pdxs * sizeof(struct page_info)));
 }
 
 /* In MPU system, Xen heap must be statically allocated. */

@@ -24,6 +24,9 @@
 
 #define HYPERVISOR_VIRT_START  XEN_VIRT_START
 
+#define FRAMETABLE_SIZE        GB(32)
+#define FRAMETABLE_NR          (FRAMETABLE_SIZE / sizeof(*frame_table))
+
 #define FIXMAP_ADDR(n)         (_AT(paddr_t, n) & (PAGE_MASK))
 
 #endif /* __ARM_CONFIG_MPU_H__ */

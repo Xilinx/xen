@@ -22,6 +22,7 @@
 
 #include <asm/arm64/mpu.h>
 
+extern struct page_info* frame_table;
 extern bool heap_parsed;
 
 /* Helper to access MPU protection region */
@@ -51,6 +52,20 @@ static inline void *maddr_to_virt(paddr_t ma)
 {
     /* In MPU system, VA == PA. */
     return (void *)ma;
+}
+
+/*
+ * In MPU system, VA == PA. Convert between Xen-heap liner addresses
+ * to page-info structures.
+ */
+static inline struct page_info *virt_to_page(const void *v)
+{
+    unsigned long va = (unsigned long)v;
+    unsigned long pdx;
+
+    pdx = mfn_to_pdx(_mfn(va >> PAGE_SHIFT));
+
+    return frame_table + pdx - frametable_base_pdx;
 }
 
 #endif /* __ARCH_ARM_MM_MPU__ */
