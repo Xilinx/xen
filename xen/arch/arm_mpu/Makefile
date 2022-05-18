@@ -51,6 +51,11 @@ obj-y += physdev.o
 obj-y += processor.o
 obj-y += psci.o
 obj-y += setup.o
+ifneq ($(CONFIG_HAS_MPU), y)
+obj-y += setup_mmu.o
+else
+obj-y += setup_mpu.o
+endif
 obj-y += shutdown.o
 obj-y += smp.o
 obj-y += smpboot.o

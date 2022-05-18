@@ -169,6 +169,11 @@ int handle_device_interrupts(struct domain *d, struct dt_device_node *dev,
 int map_range_to_domain(const struct dt_device_node *dev,
                         u64 addr, u64 len, void *data);
 
+extern void setup_mm(void);
+extern void init_pdx(void);
+extern void populate_boot_allocator(void);
+extern void init_staticmem_pages(void);
+
 extern const char __ro_after_init_start[], __ro_after_init_end[];
 
 #endif
