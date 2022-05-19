@@ -173,16 +173,22 @@ static void __init kernel_zimage_load(struct kernel_info *info)
     printk("Loading zImage from %"PRIpaddr" to %"PRIpaddr"-%"PRIpaddr"\n",
            paddr, load_addr, load_addr + len);
 
-    kernel = ioremap_wc(paddr, len);
-    if ( !kernel )
-        panic("Unable to map the hwdom kernel\n");
+    if ( !IS_ENABLED(CONFIG_HAS_MPU) )
+    {
+        kernel = ioremap_wc(paddr, len);
+        if ( !kernel )
+            panic("Unable to map the hwdom kernel\n");
+    }
+    else
+        kernel = maddr_to_virt(paddr);
 
     rc = copy_to_guest_phys_flush_dcache(info->d, load_addr,
                                          kernel, len);
     if ( rc != 0 )
         panic("Unable to copy the kernel in the hwdom memory\n");
 
-    iounmap(kernel);
+    if ( !IS_ENABLED(CONFIG_HAS_MPU) )
+        iounmap(kernel);
 }
 
 /*

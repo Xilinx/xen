@@ -297,6 +297,100 @@ static inline pr_t pr_of_xenaddr(paddr_t baddr, paddr_t eaddr, unsigned attr)
     return region;
 }
 
+static pr_t *get_mpu_region(paddr_t addr, size_t len)
+{
+    unsigned int i = 0;
+    paddr_t start, end;
+
+    for ( ; i < next_xen_mpumap_index; i++ )
+    {
+        start = pr_get_base(&xen_mpumap[i]);
+        end = pr_get_limit(&xen_mpumap[i]);
+
+        if ( start <= addr && addr+len-1 <= end)
+            break;
+    }
+
+    if ( i == next_xen_mpumap_index )
+        return NULL;
+    return &xen_mpumap[i];
+}
+
+static bool is_mpu_attribute_match(pr_t *pr, unsigned attributes)
+{
+    bool ret = false;
+
+    switch (attributes)
+    {
+    case PAGE_HYPERVISOR:
+        /* PAGE_HYPERVISOR: MT_NORMAL|_PAGE_PRESENT|_PAGE_XN */
+        if ( pr->base.reg.xn == XN_ENABLED && region_is_valid(pr)
+             && pr->limit.reg.ai == MT_NORMAL )
+            ret = true;
+        else
+            printk("pr->limit.reg.ai(%d) != MT_NORMAL(%d)\n",
+                   pr->limit.reg.ai, MT_NORMAL);
+        break;
+    case PAGE_HYPERVISOR_NOCACHE:
+        /* PAGE_HYPERVISOR_NOCACHE: _PAGE_XN|_PAGE_PRESENT|MT_DEVICE_nGnRE */
+        if ( pr->base.reg.xn == XN_ENABLED && region_is_valid(pr)
+             && pr->limit.reg.ai == MT_DEVICE_nGnRE )
+            ret = true;
+        else
+            printk("pr->limit.reg.ai(%d) != MT_DEVICE_nGnRE(%d)\n",
+                   pr->limit.reg.ai, MT_DEVICE_nGnRE);
+        break;
+    case PAGE_HYPERVISOR_WC:
+        /* PAGE_HYPERVISOR_WC: _PAGE_XN|_PAGE_PRESENT|MT_NORMAL_NC */
+        if ( pr->base.reg.xn == XN_ENABLED && region_is_valid(pr)
+             && pr->limit.reg.ai == MT_NORMAL_NC )
+            ret = true;
+        else
+            printk("pr->limit.reg.ai(%d) != MT_NORMAL_NC(%d)\n",
+                   pr->limit.reg.ai, MT_NORMAL_NC);
+        break;
+    default:
+        printk(XENLOG_ERR
+               "Unrecognized attributes %04x.\n", attributes);
+        break;
+    }
+
+    return ret;
+}
+
+/*
+ * In MPU System, device memory shall be statically configured in
+ * the very beginning, no ioremap needed.
+ * But for compatibility, here prints ingoing physical address.
+ */
+void *ioremap_attr(paddr_t pa, size_t len, unsigned int attributes)
+{
+    pr_t *pr;
+
+    pr = get_mpu_region(pa, len);
+    if ( pr == NULL )
+    {
+        printk(XENLOG_ERR
+               "IOREMAP: %#"PRIpaddr" has not been mapped in MPU!\n", pa);
+        /*
+         * Trigger ASSERTION to notify users that the caller IOREMAP
+         * is not suitbale for it in MPU system.
+         */
+        ASSERT(0);
+        return NULL;
+    }
+
+    if ( !is_mpu_attribute_match(pr, attributes) )
+    {
+        printk(XENLOG_ERR
+               "IOREMAP: %#"PRIpaddr" attributes mis-matched!\n", pa);
+        ASSERT(0);
+        return NULL;
+    }
+
+    return (void *)pa;
+}
+
 void disable_mpu_region_from_index(unsigned int index)
 {
     pr_t pr = {};

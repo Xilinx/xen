@@ -3498,16 +3498,22 @@ static void __init initrd_load(struct kernel_info *kinfo)
     if ( res )
         panic("Cannot fix up \"linux,initrd-end\" property\n");
 
-    initrd = ioremap_wc(paddr, len);
-    if ( !initrd )
-        panic("Unable to map the hwdom initrd\n");
+    if ( !IS_ENABLED(CONFIG_HAS_MPU) )
+    {
+        initrd = ioremap_wc(paddr, len);
+        if ( !initrd )
+            panic("Unable to map the hwdom initrd\n");
+    }
+    else
+        initrd = maddr_to_virt(paddr);
 
     res = copy_to_guest_phys_flush_dcache(kinfo->d, load_addr,
                                           initrd, len);
     if ( res != 0 )
         panic("Unable to copy the initrd in the hwdom memory\n");
 
-    iounmap(initrd);
+    if ( !IS_ENABLED(CONFIG_HAS_MPU) )
+        iounmap(initrd);
 }
 
 /*

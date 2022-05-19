@@ -112,6 +112,11 @@ typedef struct {
     (uint64_t)((_pr->limit.reg.base << MPU_REGION_SHIFT) | 0x3f); \
 })
 
+static inline bool region_is_valid(pr_t *region)
+{
+    return region->limit.reg.en;
+}
+
 #endif /* __ASSEMBLY__ */
 
 #endif /* __ARM64_MPU_H__ */
