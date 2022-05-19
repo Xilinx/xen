@@ -49,6 +49,11 @@ static inline unsigned int virt_to_fix(vaddr_t vaddr)
 
 #else
 
+/* Stub for mapping a 4k page in a fixmap entry */
+#define set_fixmap(map, mfn, attributes) do {} while ( 0 )
+/* Stub for removeing a mapping from a fixmap entry */
+#define clear_fixmap(map)                do {} while ( 0 )
+
 /*
  * FIXMAP_ADDR will trim physical address to PAGE alignment.
  * This will return an offset which is similar to MMU version
@@ -67,6 +72,9 @@ static inline unsigned int virt_to_fix(vaddr_t vaddr)
 #ifdef CONFIG_EARLY_UART_BASE_ADDRESS
 #define FIXMAP_CONSOLE         CONFIG_EARLY_UART_BASE_ADDRESS
 #endif
+
+/* We do not need FIXMAP_MISC for MPU system */
+#define FIXMAP_MISC            0
 
 #endif /* CONFIG_HAS_MPU */
 

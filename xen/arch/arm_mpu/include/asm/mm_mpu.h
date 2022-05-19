@@ -29,7 +29,9 @@ extern bool heap_parsed;
 extern void access_protection_region(bool read, pr_t *pr_read,
                                      const pr_t *pr_write, u64 sel);
 /* MPU-related varaible */
+extern pr_t *xen_mpumap;
 extern unsigned long nr_xen_mpumap;
+extern unsigned long max_xen_mpumap;
 
 /* Boot-time MPU protection region configuration setup */
 extern void setup_protection_regions(void);
@@ -41,6 +43,8 @@ extern void setup_staticheap_mappings(void);
 extern void enable_mm(void);
 extern void disable_mm(void);
 extern void set_boot_mpumap(u64 len, pr_t *table);
+extern pr_t *alloc_mpumap(void);
+extern void update_mm(void);
 
 static inline paddr_t __virt_to_maddr(vaddr_t va)
 {

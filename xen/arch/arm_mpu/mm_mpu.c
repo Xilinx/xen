@@ -52,6 +52,12 @@ unsigned long next_xen_mpumap_index = 0UL;
  */
 static DECLARE_BITMAP(xen_mpumap_mask, MAX_MPU_PROTECTION_REGIONS);
 
+/* Maximum number of supported MPU protection regions by the EL2 MPU. */
+unsigned long max_xen_mpumap;
+
+/* Xen stage 1 MPU memory region configuration. */
+pr_t *xen_mpumap;
+
 struct page_info* frame_table;
 
 /* Write a protection region */
@@ -510,4 +516,51 @@ void __init setup_staticheap_mappings(void)
             nr_xen_mpumap++;
         }
     }
+}
+
+/* Standard entry to dynamically allocate Xen MPU memory region map. */
+pr_t *alloc_mpumap(void)
+{
+    pr_t *map;
+
+    /*
+     * One pr_t structure takes 16 bytes, even with maximum supported MPU
+     * protection regions, 256, the whole EL2 MPU map at most takes up
+     * 4KB(one page-size).
+     */
+    map = alloc_xenheap_pages(0, 0);
+    if ( map == NULL )
+        return NULL;
+
+    clear_page(map);
+    return map;
+}
+
+/*
+ * Relocate Xen MPU map in XEN heap based on the maximum supported
+ * MPU protection regions in EL2, which is read from MPUIR_EL2 register.
+ */
+static int __init relocate_xen_mpumap(void)
+{
+    /*
+     * MPUIR_EL2 identifies the maximum supported MPU protection regions by
+     * the EL2 MPU.
+     */
+    max_xen_mpumap = READ_SYSREG(MPUIR_EL2);
+    ASSERT(max_xen_mpumap <= 256);
+
+    xen_mpumap = alloc_mpumap();
+    if ( !xen_mpumap )
+        return -EINVAL;
+
+    copy_from_paddr(xen_mpumap, (paddr_t)(pr_t *)boot_mpumap,
+                    sizeof(pr_t) * next_xen_mpumap_index);
+
+    return 0;
+}
+
+void __init update_mm(void)
+{
+    if ( relocate_xen_mpumap() )
+        panic("Failed to relocate MPU configuration map from heap!\n");
 }

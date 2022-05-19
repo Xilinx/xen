@@ -13,6 +13,8 @@ extern void mmu_init_secondary_cpu(void);
 /* Non-boot CPUs use this to find the correct pagetables. */
 extern uint64_t init_ttbr;
 
+#define update_mm() do {} while ( 0 )
+
 static inline paddr_t __virt_to_maddr(vaddr_t va)
 {
     uint64_t par = va_to_par(va);

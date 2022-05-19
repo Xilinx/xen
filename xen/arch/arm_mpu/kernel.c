@@ -48,7 +48,10 @@ struct minimal_dtb_header {
  */
 void __init copy_from_paddr(void *dst, paddr_t paddr, unsigned long len)
 {
-    void *src = (void *)FIXMAP_ADDR(FIXMAP_MISC);
+    void *src = (void *)(unsigned long)paddr;
+
+    if ( !IS_ENABLED(CONFIG_HAS_MPU) )
+        src = (void *)FIXMAP_ADDR(FIXMAP_MISC);
 
     while (len) {
         unsigned long l, s;
@@ -64,6 +67,8 @@ void __init copy_from_paddr(void *dst, paddr_t paddr, unsigned long len)
         paddr += l;
         dst += l;
         len -= l;
+        if ( IS_ENABLED(CONFIG_HAS_MPU) )
+            src += l;
     }
 }
 

@@ -782,6 +782,12 @@ void __init start_xen(unsigned long boot_phys_offset,
      */
     system_state = SYS_STATE_boot;
 
+    /*
+     * Some system may have to update the mm afer memory
+     * subsystem has been initialized.
+     */
+    update_mm();
+
     vm_init();
 
     if ( acpi_disabled )
