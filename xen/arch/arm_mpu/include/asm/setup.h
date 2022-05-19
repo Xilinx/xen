@@ -166,6 +166,11 @@ u32 device_tree_get_u32(const void *fdt, int node,
 int handle_device_interrupts(struct domain *d, struct dt_device_node *dev,
                              bool need_mapping);
 
+int device_tree_get_meminfo(const void *fdt, int node,
+                            const char *prop_name,
+                            u32 address_cells, u32 size_cells,
+                            void *data, enum membank_type type);
+
 int map_range_to_domain(const struct dt_device_node *dev,
                         u64 addr, u64 len, void *data);
 
@@ -175,6 +180,31 @@ extern void populate_boot_allocator(void);
 extern void init_staticmem_pages(void);
 
 extern const char __ro_after_init_start[], __ro_after_init_end[];
+
+#ifdef CONFIG_HAS_MPU
+
+/* Index of MPU section info */
+enum mpu_section_info {
+    MSINFO_DEVICE,
+    MSINFO_MAX
+};
+
+struct mpuinfo {
+    struct meminfo sections[MSINFO_MAX];
+};
+
+extern struct mpuinfo mpuinfo;
+
+extern int arch_process_chosen_node(const void *fdt, int node);
+
+#else
+
+static inline int arch_process_chosen_node(const void *fdt, int node)
+{
+    return 0;
+}
+
+#endif /* CONFIG_HAS_MPU */
 
 #endif
 /*

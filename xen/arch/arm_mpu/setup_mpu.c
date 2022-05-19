@@ -19,10 +19,15 @@
  */
 
 #include <xen/init.h>
+#include <xen/libfdt/libfdt.h>
 #include <xen/mm.h>
 #include <xen/pfn.h>
 #include <asm/page.h>
 #include <asm/setup.h>
+
+static const char *mpu_section_info_str[MSINFO_MAX] = {
+    "mpu,device-memory-section",
+};
 
 void __init setup_mm(void)
 {
@@ -60,4 +65,57 @@ void __init setup_mm(void)
     setup_frametable_mappings(ram_start, ram_end);
 
     init_staticmem_pages();
+}
+
+/*
+ * In MPU system, due to limited MPU protection regions and predictable
+ * static behavior, we prefer statically configured system resource
+ * through device tree.
+ * "mpu,boot-module-section": limited boot module section in which guest
+ * boot module section (e.g. kernel image boot module) shall be placed.
+ * "mpu,guest-memory-section": limited guest memory section in which statically
+ * configured guest RAM shall be placed.
+ * "mpu,device-memory-section": limited device memory section in which all
+ * system device shall be included.
+ */
+static int __init process_mpu_section(const void *fdt, int node,
+                                      const char *name, void *data,
+                                      uint32_t address_cells,
+                                      uint32_t size_cells)
+{
+    if ( !fdt_get_property(fdt, node, name, NULL) )
+        return -EINVAL;
+
+    return device_tree_get_meminfo(fdt, node, name, address_cells, size_cells,
+                                   data, MEMBANK_DEFAULT);
+}
+
+int __init arch_process_chosen_node(const void *fdt, int node)
+
+{
+    uint32_t address_cells, size_cells;
+    uint8_t idx;
+    const char *prop_name;
+
+    address_cells = device_tree_get_u32(fdt, node, "#mpu,address-cells", 0);
+    size_cells = device_tree_get_u32(fdt, node, "#mpu,size-cells", 0);
+    if ( (address_cells == 0) || (size_cells == 0) )
+    {
+         printk("Missing \"#mpu,address-cells\" or \"#mpu,size-cells\".\n");
+         return -EINVAL;
+    }
+
+    for ( idx = 0; idx < MSINFO_MAX; idx++ )
+    {
+        prop_name = mpu_section_info_str[idx];
+        printk(XENLOG_DEBUG "Checking for %s in /chosen\n", prop_name);
+        if ( process_mpu_section(fdt, node, prop_name, &mpuinfo.sections[idx],
+                                 address_cells, size_cells) )
+        {
+            printk(XENLOG_ERR "%s not present.\n", prop_name);
+            return -EINVAL;
+        }
+    }
+
+    return 0;
 }

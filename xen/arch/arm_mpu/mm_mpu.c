@@ -60,6 +60,18 @@ pr_t *xen_mpumap;
 
 struct page_info* frame_table;
 
+/*
+ * It stores statically configured system resource, through "mpu,xxx" device
+ * tree property.
+ */
+struct mpuinfo mpuinfo;
+
+/*
+ * Number of MPU protection regions which need to be unmapped when context
+ * switching to guest mode, from idle VCPU in hypervisor mode.
+*/
+unsigned long nr_unmapped_xen_mpumap;
+
 /* Write a protection region */
 #define WRITE_PROTECTION_REGION(sel, pr, prbar, prlar) ({               \
     uint64_t _sel = sel;                                                \
@@ -285,6 +297,143 @@ static inline pr_t pr_of_xenaddr(paddr_t baddr, paddr_t eaddr, unsigned attr)
     return region;
 }
 
+void disable_mpu_region_from_index(unsigned int index)
+{
+    pr_t pr = {};
+
+    /* Read the according MPU memory region based on index. */
+    access_protection_region(true, &pr, NULL, index);
+    if ( !IS_PR_ENABLED(&pr) )
+    {
+        printk(XENLOG_WARNING
+               "mpu: MPU protection region %u is already disabled.\n", index);
+        return;
+    }
+
+    /*
+     * ARM64v8R provides PRENR_EL2 to disable the EL2 MPU Protection
+     * region(0 - 31), but only for the previous 32 ones.
+     */
+    if ( index < MPU_PRENR_BITS )
+    {
+        register_t orig, after;
+
+        orig = READ_SYSREG(PRENR_EL2);
+        /* Set respective bit 0 to disable. */
+        after = orig & (~(1UL << index));
+        WRITE_SYSREG(after, PRENR_EL2);
+    }
+    else
+    {
+        pr.limit.reg.en = 0;
+        access_protection_region(false, NULL, (const pr_t*)&pr, index);
+    }
+}
+
+/*
+ * This helper is only for disabling MPU Protection Region accountable
+ * for XEN itself stage 1 MPU memory region mapping.
+ */
+static int disable_xen_mpu_region(paddr_t s, paddr_t e)
+{
+    unsigned int i = 0;
+
+    /*
+     * Find requested MPU Protection Region based on base and
+     * limit address.
+     */
+    for ( ; i < next_xen_mpumap_index; i++ )
+    {
+        if ( (pr_get_base(&xen_mpumap[i]) == s) &&
+             (pr_get_limit(&xen_mpumap[i]) == e) )
+            break;
+    }
+
+    if ( i == next_xen_mpumap_index )
+    {
+        printk(XENLOG_ERR
+               "mpu: can't find requested MPU Protection Region %#"PRIpaddr"-%#"PRIpaddr".\n",
+               s, e);
+        return -ENOENT;
+    }
+
+    disable_mpu_region_from_index(i);
+
+    /*
+     * Do not forget to clear the according MPU memory region
+     * in xen_mpumap, and also according bitfield in xen_mpumap_mask.
+     */
+    memset(&xen_mpumap[i], 0, sizeof(pr_t));
+    clear_bit(i, xen_mpumap_mask);
+    nr_xen_mpumap--;
+
+    return i;
+}
+
+int destroy_xen_mappings(unsigned long s, unsigned long e)
+{
+    ASSERT(s <= e);
+
+    return disable_xen_mpu_region(s, e);
+}
+
+/*
+ * In MPU system, device memory shall be statically configured through
+ * "mpu,device-memory-section" in device tree.
+ * Instead of providing a MPU protection region each time parsing a device
+ * in the system, this method helps us use as few MPU protection regions as
+ * possible.
+ */
+static void map_device_memory_section(pr_t *mpu, unsigned long *mpu_index)
+{
+    unsigned int i = 0;
+
+    for ( ; i < mpuinfo.sections[MSINFO_DEVICE].nr_banks; i++ )
+    {
+        paddr_t start = round_pgup(
+                        mpuinfo.sections[MSINFO_DEVICE].bank[i].start);
+        paddr_t size = mpuinfo.sections[MSINFO_DEVICE].bank[i].size;
+        paddr_t end = round_pgdown(start + size) - 1;
+
+        ASSERT(*mpu_index < max_xen_mpumap);
+        mpu[*mpu_index] = pr_of_xenaddr(start, end, MT_DEVICE_nGnRE);
+        access_protection_region(false, NULL,
+                                 (const pr_t*)(&mpu[*mpu_index]),
+                                 *mpu_index);
+        (*mpu_index)++;
+    }
+}
+
+/* Map device memory during system boot-up. */
+static void __init map_device_memory_section_on_boot(void)
+{
+    unsigned int i = 0, tail;
+
+#ifdef CONFIG_EARLY_PRINTK
+    /* Destroy device memory mapping at early boot. */
+    destroy_xen_mappings(CONFIG_EARLY_UART_BASE_ADDRESS,
+                         CONFIG_EARLY_UART_BASE_ADDRESS + EARLY_UART_SIZE - 1);
+#endif
+
+    map_device_memory_section(xen_mpumap, &next_xen_mpumap_index);
+
+    /*
+     * Set recording bit in xen_mpumap_mask.
+     * Device memory section need to be reordered to the tail of xen_mpumap
+     * at the end of boot-up.
+     */
+    tail = next_xen_mpumap_index - 1;
+    for ( ; i < mpuinfo.sections[MSINFO_DEVICE].nr_banks; i++ )
+        set_bit(tail - i, xen_mpumap_mask);
+
+    nr_xen_mpumap += mpuinfo.sections[MSINFO_DEVICE].nr_banks;
+
+    /*
+     * Unmap device memory section when context switching from
+     * hypervisor mode of idle VCPU.
+     */
+    nr_unmapped_xen_mpumap += mpuinfo.sections[MSINFO_DEVICE].nr_banks;
+}
 
 void * __init early_fdt_map(paddr_t fdt_paddr)
 {
@@ -563,4 +712,6 @@ void __init update_mm(void)
 {
     if ( relocate_xen_mpumap() )
         panic("Failed to relocate MPU configuration map from heap!\n");
+
+    map_device_memory_section_on_boot();
 }

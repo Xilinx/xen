@@ -10,6 +10,7 @@
 #define MPU_REGION_ALIGN  (_AC(1, UL) << MPU_REGION_SHIFT)
 #define MPU_REGION_MASK   (~(MPU_REGION_ALIGN - 1))
 #define MPUIR_REGION_MASK _AC(0xFF, UL)
+#define MPU_PRENR_BITS    32
 
 /* Access permission attributes. */
 /* Read/Write at EL2, No Access at EL1/EL0. */
@@ -86,6 +87,29 @@ typedef struct {
 #define pr_set_limit(pr, paddr) ({                          \
     pr_t* _pr = pr;                                         \
     _pr->limit.reg.base = (paddr >> MPU_REGION_SHIFT);      \
+})
+
+#define IS_PR_ENABLED(pr) ({                                \
+    pr_t* _pr = pr;                                         \
+    _pr->limit.reg.en;                                      \
+})
+
+/*
+ * Access to get base address of MPU protection region.
+ * The base address shall be zero extended.
+ */
+#define pr_get_base(pr) ({                                  \
+    pr_t* _pr = pr;                                         \
+    (uint64_t)_pr->base.reg.base << MPU_REGION_SHIFT;       \
+})
+
+/*
+ * Access to get limit address of MPU protection region.
+ * The limit address shall be concatenated with 0x3f.
+ */
+#define pr_get_limit(pr) ({                                       \
+    pr_t* _pr = pr;                                               \
+    (uint64_t)((_pr->limit.reg.base << MPU_REGION_SHIFT) | 0x3f); \
 })
 
 #endif /* __ASSEMBLY__ */

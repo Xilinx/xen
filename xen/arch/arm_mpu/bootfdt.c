@@ -62,10 +62,10 @@ void __init device_tree_get_reg(const __be32 **cell, u32 address_cells,
     *size = dt_next_cell(size_cells, cell);
 }
 
-static int __init device_tree_get_meminfo(const void *fdt, int node,
-                                          const char *prop_name,
-                                          u32 address_cells, u32 size_cells,
-                                          void *data, enum membank_type type)
+int __init device_tree_get_meminfo(const void *fdt, int node,
+                                   const char *prop_name,
+                                   u32 address_cells, u32 size_cells,
+                                   void *data, enum membank_type type)
 {
     const struct fdt_property *prop;
     unsigned int i, banks;
@@ -330,6 +330,9 @@ static int __init process_chosen_node(const void *fdt, int node,
 
         bootinfo.static_heap = true;
     }
+
+    if ( arch_process_chosen_node(fdt, node) )
+        return -EINVAL;
 
     printk("Checking for initrd in /chosen\n");
 
