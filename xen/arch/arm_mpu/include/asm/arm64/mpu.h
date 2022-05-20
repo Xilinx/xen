@@ -44,6 +44,15 @@
  */
 #define ARM_DEFAULT_MPU_PROTECTION_REGIONS 16
 
+#define _REGION_XN_BIT      0
+#define _REGION_RO_BIT      1
+#define _REGION_XN          (1U << _REGION_XN_BIT)
+#define _REGION_RO          (1U << _REGION_RO)
+#define REGION_XN_MASK(x)   (((x) >> _REGION_XN_BIT) & 0x1U)
+#define REGION_RO_MASK(x)   (((x) >> _REGION_RO_BIT) & 0x1U)
+
+#define REGION_HYPERVISOR_RW    _REGION_XN
+
 #ifndef __ASSEMBLY__
 
 /* Protection Region Base Address Register */

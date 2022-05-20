@@ -471,6 +471,50 @@ int destroy_xen_mappings(unsigned long s, unsigned long e)
     return disable_xen_mpu_region(s, e);
 }
 
+/* Only support modifying permission on the existing XEN MPU Memory Region. */
+int modify_xen_mappings(unsigned long s, unsigned long e, unsigned int flags)
+{
+    unsigned int i = 0;
+
+    /*
+     * Find requested MPU protection region based on base and
+     * limit address.
+     */
+    for ( ; i < nr_xen_mpumap; i++ )
+    {
+        if ( (pr_get_base(&xen_mpumap[i]) == s) &&
+             (pr_get_limit(&xen_mpumap[i]) == e) )
+            break;
+    }
+
+    if ( i == nr_xen_mpumap )
+    {
+        printk("Error: can't find requested mpu protection region\n");
+        return -ENOENT;
+    }
+
+    if ( region_is_valid(&xen_mpumap[i]) )
+    {
+        /* Set permission */
+        if ( REGION_RO_MASK(flags) )
+            xen_mpumap[i].base.reg.ap = AP_RO_EL2;
+        else
+            xen_mpumap[i].base.reg.ap = AP_RW_EL2;
+
+        if ( REGION_XN_MASK(flags) )
+            xen_mpumap[i].base.reg.xn = XN_ENABLED;
+        else
+            xen_mpumap[i].base.reg.xn = XN_DISABLED;
+
+        access_protection_region(false, NULL,
+                                 (const pr_t*)(&xen_mpumap[i]), (u64)i);
+    }
+    else
+        return -EINVAL;
+
+    return 0;
+}
+
 void __init map_boot_module_section(void)
 {
     unsigned int i = 0;
@@ -833,4 +877,50 @@ void __init update_mm(void)
     map_device_memory_section_on_boot();
 
     map_boot_module_section();
+}
+
+void free_init_memory(void)
+{
+    /* Kernel init text section. */
+    paddr_t init_text = get_kernel_inittext_start();
+    /* In xen.lds.S, section is page-aligned. */
+    paddr_t init_text_end = round_pgup(get_kernel_inittext_end()) - 1;
+
+    /* Kernel init data. */
+    paddr_t init_data = get_kernel_initdata_start();
+    /* In xen.lds.S, section is page-aligned. */
+    paddr_t init_data_end = round_pgup(get_kernel_initdata_end()) - 1;
+
+    unsigned long init_section[4] = {init_text, init_text_end, init_data, init_data_end};
+    unsigned int nr_init = 2;
+    uint32_t insn = AARCH64_BREAK_FAULT;
+    unsigned int i = 0, j = 0;
+
+    /* Change memory attribute of kernel init text section to RW. */
+    modify_xen_mappings(init_text, init_text_end, REGION_HYPERVISOR_RW);
+
+    /*
+     * From now on, init will not be used for execution anymore,
+     * so nuke the instruction cache to remove entries related to init.
+     */
+    invalidate_icache_local();
+
+    /* Remove both two init sections: init code and init data. */
+    for ( ; i < nr_init; i++ )
+    {
+        uint32_t *p;
+        unsigned int nr;
+        int rc;
+
+        i = 2 * i;
+        p = (uint32_t *)init_section[i];
+        nr = ((init_section[i + 1] + 1) - init_section[i]) / sizeof(uint32_t);
+
+        for ( ; j < nr ; j++ )
+            *(p + j) = insn;
+
+        rc = destroy_xen_mappings(init_section[i], init_section[i + 1]);
+        if ( rc < 0 )
+            panic("Unable to remove the init section (rc = %d)\n", rc);
+    }
 }
