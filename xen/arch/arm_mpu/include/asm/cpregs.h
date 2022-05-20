@@ -498,6 +498,17 @@
 #define MVFR2_EL1               MVFR2
 #endif
 
+/* Hypervisor timer registers for Secure/Non-Secure EL2 */
+#ifndef CONFIG_ARM_SECURE_STATE
+#define CNTHPx_TVAL_EL2  CNTHP_TVAL_EL2
+#define CNTHPx_CTL_EL2   CNTHP_CTL_EL2
+#define CNTHPx_CVAL_EL2  CNTHP_CVAL_EL2
+#else
+#define CNTHPx_TVAL_EL2  CNTHPS_TVAL_EL2
+#define CNTHPx_CTL_EL2   CNTHPS_CTL_EL2
+#define CNTHPx_CVAL_EL2  CNTHPS_CVAL_EL2
+#endif
+
 #endif
 /*
  * Local variables:

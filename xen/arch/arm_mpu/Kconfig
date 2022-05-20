@@ -40,6 +40,9 @@ config ACPI
 config ARM_EFI
 	bool
 
+config ARM_SECURE_STATE
+	bool
+
 config GICV3
 	bool "GICv3 driver"
 	depends on !NEW_VGIC

@@ -458,6 +458,30 @@
 #define ZCR_ELx_LEN_SIZE             9
 #define ZCR_ELx_LEN_MASK             0x1ff
 
+#ifdef CONFIG_ARM_SECURE_STATE
+
+/*
+ * The Armv8-R AArch64 architecture always executes code in Secure
+ * state with EL2 as the highest Exception.
+ *
+ * Hypervisor timer registers for Secure EL2.
+ */
+#define CNTHPS_TVAL_EL2 S3_4_C14_C5_0
+#define CNTHPS_CTL_EL2  S3_4_C14_C5_1
+#define CNTHPS_CVAL_EL2 S3_4_C14_C5_2
+#define CNTHPx_TVAL_EL2  CNTHPS_TVAL_EL2
+#define CNTHPx_CTL_EL2   CNTHPS_CTL_EL2
+#define CNTHPx_CVAL_EL2  CNTHPS_CVAL_EL2
+
+#else
+
+/* Hypervisor timer registers for Secure/Non-Secure EL2. */
+#define CNTHPx_TVAL_EL2  CNTHP_TVAL_EL2
+#define CNTHPx_CTL_EL2   CNTHP_CTL_EL2
+#define CNTHPx_CVAL_EL2  CNTHP_CVAL_EL2
+
+#endif /* CONFIG_ARM_SECURE_STATE */
+
 /* System registers for AArch64 with PMSA */
 #ifdef CONFIG_HAS_MPU
 
