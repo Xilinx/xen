@@ -10,7 +10,9 @@ obj-$(CONFIG_HAS_VPCI) += vpci.o
 
 obj-$(CONFIG_HAS_ALTERNATIVE) += alternative.o
 obj-y += bootfdt.init.o
+ifneq ($(CONFIG_HAS_MPU), y)
 obj-y += cpuerrata.o
+endif
 obj-y += cpufeature.o
 obj-y += decode.o
 obj-y += device.o

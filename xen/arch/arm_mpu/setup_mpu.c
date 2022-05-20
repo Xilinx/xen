@@ -119,3 +119,15 @@ int __init arch_process_chosen_node(const void *fdt, int node)
 
     return 0;
 }
+
+/*
+ * CPU errata depends on Xen alternative framework, and alternative
+ * framework depends on VMAP. As VMAP could not be support for MPU
+ * systems, we disable CPU errata for MPU systems currently.
+ *
+ * Stub check_local_cpu_errata to make common code flow unchanged.
+ */
+void check_local_cpu_errata(void)
+{
+
+}

@@ -97,6 +97,7 @@ static inline int cpu_nr_siblings(unsigned int cpu)
 }
 
 /* System capability check for constant cap */
+#ifndef CONFIG_HAS_MPU
 #define cpus_have_const_cap(num) ({                 \
         register_t __ret;                           \
                                                     \
@@ -107,6 +108,9 @@ static inline int cpu_nr_siblings(unsigned int cpu)
                                                     \
         unlikely(__ret);                            \
         })
+#else
+#define cpus_have_const_cap(num) cpus_have_cap(num)
+#endif
 
 static inline void cpus_set_cap(unsigned int num)
 {

@@ -73,4 +73,18 @@ static inline struct page_info *virt_to_page(const void *v)
     return frame_table + pdx - frametable_base_pdx;
 }
 
+/*
+ * We can't support VMAP on MPU systems, these stub-helpres for VMAP
+ * will make building pass only.
+ */
+#define vm_init_type(type, start, end)  do {} while ( 0 )
+#define __vmap(mfn, granularity, nr, align, flags, type) (NULL)
+#define vunmap(va) do {} while ( 0 )
+#define vmalloc(size) (NULL)
+#define vmalloc_xen(size) (NULL)
+#define vfree(va) do {} while ( 0 )
+#define ioremap(pa, len) (NULL)
+#define iounmap(va) do {} while ( 0 )
+#define vm_init() do {} while ( 0 )
+
 #endif /* __ARCH_ARM_MM_MPU__ */

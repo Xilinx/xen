@@ -49,7 +49,9 @@ obj-$(CONFIG_TRACEBUFFER) += trace.o
 obj-y += version.o
 obj-y += virtual_region.o
 obj-y += vm_event.o
+ifneq ($(CONFIG_HAS_MPU), y)
 obj-y += vmap.o
+endif
 obj-y += vsprintf.o
 obj-y += wait.o
 obj-bin-y += warning.init.o
