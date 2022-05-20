@@ -27,7 +27,34 @@
 
 static const char *mpu_section_info_str[MSINFO_MAX] = {
     "mpu,device-memory-section",
+    "mpu,boot-module-section",
 };
+
+void __init discard_initial_modules(void)
+{
+    unsigned int i = 0;
+
+    /*
+     * All boot modules on MPU system. except XEN module, must be located
+     * inside boot module section, which was defined by device tree property
+     * "mpu,boot-module-section".
+     * Disable according MPU protection region, since it will be in
+     * no use after boot.
+     */
+    for ( ; i < mpuinfo.sections[MSINFO_BOOT].nr_banks; i++ )
+    {
+        paddr_t start = round_pgup(
+                        mpuinfo.sections[MSINFO_BOOT].bank[i].start);
+        paddr_t size = mpuinfo.sections[MSINFO_BOOT].bank[i].size;
+        paddr_t end = round_pgdown(start + size) - 1;
+        int rc;
+
+        rc = destroy_xen_mappings(start, end);
+        if ( rc < 0 )
+            panic("Unable to destroy boot module section %"PRIpaddr"-%"PRIpaddr".\n",
+                  start, end);
+    }
+}
 
 void __init setup_mm(void)
 {

@@ -471,6 +471,29 @@ int destroy_xen_mappings(unsigned long s, unsigned long e)
     return disable_xen_mpu_region(s, e);
 }
 
+void __init map_boot_module_section(void)
+{
+    unsigned int i = 0;
+    for ( ; i < mpuinfo.sections[MSINFO_BOOT].nr_banks; i++ )
+    {
+        paddr_t start = round_pgup(
+                        mpuinfo.sections[MSINFO_BOOT].bank[i].start);
+        paddr_t size = mpuinfo.sections[MSINFO_BOOT].bank[i].size;
+        paddr_t end = round_pgdown(start + size) - 1;
+
+        /* Normal memory with only EL2 Read/Write. */
+        ASSERT(next_xen_mpumap_index < max_xen_mpumap);
+        xen_mpumap[next_xen_mpumap_index] = pr_of_xenaddr(start, end,
+                                                          MT_NORMAL);
+        access_protection_region(false, NULL,
+                            (const pr_t*)(&xen_mpumap[next_xen_mpumap_index]),
+                            next_xen_mpumap_index);
+        set_bit(next_xen_mpumap_index, xen_mpumap_mask);
+        next_xen_mpumap_index++;
+        nr_xen_mpumap++;
+    }
+}
+
 /*
  * In MPU system, device memory shall be statically configured through
  * "mpu,device-memory-section" in device tree.
@@ -808,4 +831,6 @@ void __init update_mm(void)
         panic("Failed to relocate MPU configuration map from heap!\n");
 
     map_device_memory_section_on_boot();
+
+    map_boot_module_section();
 }
