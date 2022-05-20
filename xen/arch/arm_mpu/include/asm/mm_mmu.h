@@ -14,6 +14,8 @@ extern void mmu_init_secondary_cpu(void);
 extern uint64_t init_ttbr;
 
 #define update_mm() do {} while ( 0 )
+#define INIT_SECONDARY_MM_DATA(cpu) init_secondary_pagetables(cpu)
+#define MM_INIT_SECONDARY_CPU() mmu_init_secondary_cpu()
 
 static inline paddr_t __virt_to_maddr(vaddr_t va)
 {

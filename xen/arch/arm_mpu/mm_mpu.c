@@ -831,6 +831,22 @@ int reorder_xen_mpumap(void)
     return 0;
 }
 
+int xenmem_add_to_physmap_one(struct domain *d, unsigned int space,
+                              union add_to_physmap_extra extra,
+                              unsigned long idx, gfn_t gfn)
+{
+    return 0;
+}
+
+long arch_memory_op(int op, XEN_GUEST_HANDLE_PARAM(void) arg)
+{
+    return -ENOSYS;
+}
+
+void dump_hyp_walk(vaddr_t addr)
+{
+}
+
 void * __init early_fdt_map(paddr_t fdt_paddr)
 {
     void *fdt_virt;

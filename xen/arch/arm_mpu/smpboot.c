@@ -368,7 +368,7 @@ void start_secondary(void)
      */
     update_system_features(&current_cpu_data);
 
-    mmu_init_secondary_cpu();
+    MM_INIT_SECONDARY_CPU();
 
     gic_init_secondary_cpu();
 
@@ -457,7 +457,7 @@ int __cpu_up(unsigned int cpu)
 
     printk("Bringing up CPU%d\n", cpu);
 
-    rc = init_secondary_pagetables(cpu);
+    rc = INIT_SECONDARY_MM_DATA(cpu);
     if ( rc < 0 )
         return rc;
 

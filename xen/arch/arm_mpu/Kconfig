@@ -43,6 +43,17 @@ config ARM_EFI
 config ARM_SECURE_STATE
 	bool
 
+config ARM_V8R
+	bool "ARMv8-R AArch64 architecture support (UNSUPPORTED)" if UNSUPPORTED
+	default n
+	select HAS_MPU
+	select ARM_SECURE_STATE
+        select STATIC_MEMORY
+	depends on ARM_64
+	help
+	  This option enables Armv8-R profile for Arm64. Enabling this option
+	  results in selecting MPU.
+
 config GICV3
 	bool "GICv3 driver"
 	depends on !NEW_VGIC
@@ -62,6 +73,9 @@ config OVERLAY_DTB
     ---help---
 
     Dynamic addition/removal of Xen device tree nodes using a dtbo.
+
+config HAS_MPU
+	bool
 
 config HVM
         def_bool y

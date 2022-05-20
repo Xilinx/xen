@@ -63,6 +63,9 @@ uint8_t load_mpu_supported_region_el1(void);
 void save_el1_mpu_regions(pr_t *pr);
 void restore_el1_mpu_regions(pr_t *pr);
 
+#define INIT_SECONDARY_MM_DATA(cpu) (0)
+#define MM_INIT_SECONDARY_CPU() do {} while ( 0 )
+
 static inline paddr_t __virt_to_maddr(vaddr_t va)
 {
     return (paddr_t)va;
