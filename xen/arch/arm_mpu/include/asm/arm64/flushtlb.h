@@ -51,6 +51,8 @@ TLB_HELPER(flush_all_guests_tlb_local, alle1);
 /* Flush innershareable TLBs, all VMIDs, non-hypervisor mode */
 TLB_HELPER(flush_all_guests_tlb, alle1is);
 
+#ifndef CONFIG_HAS_MPU
+
 /* Flush all hypervisor mappings from the TLB of the local processor. */
 TLB_HELPER(flush_xen_tlb_local, alle2);
 
@@ -65,6 +67,29 @@ static inline void __flush_xen_tlb_one(vaddr_t va)
 {
     asm volatile("tlbi vae2is, %0;" : : "r" (va>>PAGE_SHIFT) : "memory");
 }
+
+#else
+
+/*
+ * When Xen is running with stage 1 PMSAv8-64 on MPU systems. The EL2 MPU
+ * updates for stage1 PMSAv8-64 will not be cached in TLB entries. So we
+ * don't need any TLB invalidation for Xen itself in EL2. See Arm ARM
+ * Supplement of Armv8-R AArch64 (DDI 0600A), section D1.6.2 TLB maintenance
+ * instructions for more details.
+ */
+static inline void flush_xen_tlb_local(void)
+{
+}
+
+static inline void  __flush_xen_tlb_one_local(vaddr_t va)
+{
+}
+
+static inline void __flush_xen_tlb_one(vaddr_t va)
+{
+}
+
+#endif /* CONFIG_HAS_MPU */
 
 #endif /* __ASM_ARM_ARM64_FLUSHTLB_H__ */
 /*

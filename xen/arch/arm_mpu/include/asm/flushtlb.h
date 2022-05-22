@@ -28,6 +28,7 @@ static inline void page_set_tlbflush_timestamp(struct page_info *page)
 /* Flush specified CPUs' TLBs */
 void arch_flush_tlb_mask(const cpumask_t *mask);
 
+#ifndef CONFIG_HAS_MPU
 /*
  * Flush a range of VA's hypervisor mappings from the TLB of the local
  * processor.
@@ -65,6 +66,27 @@ static inline void flush_xen_tlb_range_va(vaddr_t va,
     dsb(sy); /* Ensure completion of the TLB flush */
     isb();
 }
+
+#else
+
+/*
+ * When Xen is running with stage 1 PMSAv8-64 on MPU systems. The EL2 MPU
+ * updates for stage1 PMSAv8-64 will not be cached in TLB entries. So we
+ * don't need any TLB invalidation for Xen itself in EL2. See Arm ARM
+ * Supplement of Armv8-R AArch64 (DDI 0600A), section D1.6.2 TLB maintenance
+ * instructions for more details.
+ */
+static inline void flush_xen_tlb_range_va_local(vaddr_t va,
+                                                unsigned long size)
+{
+}
+
+static inline void flush_xen_tlb_range_va(vaddr_t va,
+                                          unsigned long size)
+{
+}
+
+#endif /* CONFIG_HAS_MPU */
 
 #endif /* __ASM_ARM_FLUSHTLB_H__ */
 /*
