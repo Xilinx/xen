@@ -1800,6 +1800,21 @@ static int libxl__build_device_model_args_new(libxl__gc *gc,
     for (i = 0; b_info->extra && b_info->extra[i] != NULL; i++)
         flexarray_append(dm_args, b_info->extra[i]);
 
+    /*
+     * swtpm needs to be started at system boot with the following
+     * command line parameters:
+     * swtpm socket --tpmstate dir=/tmp/vtpm2 --ctrl type=unixio,path=/tmp/vtpm2/swtpm-sock
+     *
+     * The socket path needs to correspond to the one passed to QEMU
+     * here.
+     */
+    if (libxl_defbool_val(b_info->tpm)) {
+        flexarray_append(dm_args, "-chardev");
+        flexarray_append(dm_args, "socket,id=chrtpm,path=/tmp/vtpm2/swtpm-sock");
+        flexarray_append(dm_args, "-tpmdev");
+        flexarray_append(dm_args, "emulator,id=tpm0,chardev=chrtpm");
+    }
+
     flexarray_append(dm_args, "-machine");
     switch (b_info->type) {
     case LIBXL_DOMAIN_TYPE_PVH:
@@ -3761,7 +3776,16 @@ int libxl__need_xenpv_qemu(libxl__gc *gc, libxl_domain_config *d_config)
         goto out;
     }
 
-    if (d_config->num_vfbs > 0 || d_config->num_p9s > 0) {
+    /*
+     * On ARM, the xenpv machine can be used for both PV backends and
+     * emulation. The only device emulation supported today is TPM
+     * emulation (in conjunction with SWTPM).
+     *
+     * Here also check for emulated TPM: if enabled xenpv QEMU is
+     * needed.
+     */
+    if (d_config->num_vfbs > 0 || d_config->num_p9s > 0 ||
+        libxl_defbool_val(d_config->b_info.tpm)) {
         ret = 1;
         goto out;
     }
