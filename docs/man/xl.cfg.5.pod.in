@@ -770,6 +770,11 @@ value is optional if this is a guest domain.
 
 =back
 
+=item B<tpm=BOOLEAN>
+
+B<(ARM only)> Specifies whether an B<emulated> TPM is enabled for the
+VM.
+
 =item B<p9=[ "9PFS_SPEC_STRING", "9PFS_SPEC_STRING", ...]>
 
 Creates a Xen 9pfs connection to share a filesystem from the backend to the
