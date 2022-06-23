@@ -43,6 +43,9 @@ int gen_stub_json_config(uint32_t domid, libxl_uuid *uuid)
     if (uuid && !libxl_uuid_is_nil(uuid))
         libxl_uuid_copy(ctx, &dom_config.c_info.uuid, uuid);
 
+    /* Disable emulated TPM support by default */
+    libxl_defbool_setdefault(&dom_config.b_info.tpm, false);
+
     json = libxl_domain_config_to_json(ctx, &dom_config);
     /* libxl-json format requires the string ends with '\0'. Code
      * snippet taken from libxl.

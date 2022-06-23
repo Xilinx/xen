@@ -883,6 +883,7 @@ int libxl__arch_domain_build_info_setdefault(libxl__gc *gc,
     libxl_defbool_setdefault(&b_info->acpi, true);
     libxl_defbool_setdefault(&b_info->arch_x86.msr_relaxed, false);
     libxl_defbool_setdefault(&b_info->trap_unmapped_accesses, false);
+    libxl_defbool_setdefault(&b_info->tpm, false);
 
     if (b_info->type == LIBXL_DOMAIN_TYPE_HVM) {
         /*
