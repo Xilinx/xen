@@ -466,6 +466,10 @@ typedef uint64_t xen_callback_t;
 #define GUEST_VPCI_MEM_ADDR                 xen_mk_ullong(0x23000000)
 #define GUEST_VPCI_MEM_SIZE                 xen_mk_ullong(0x10000000)
 
+/* Guest TPM device */
+#define GUEST_TPM_BASE    xen_mk_ullong(0x0c000000)
+#define GUEST_TPM_SIZE    xen_mk_ullong(0x00005000)
+
 /*
  * 16MB == 4096 pages reserved for guest to use as a region to map its
  * grant table in.
