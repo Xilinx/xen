@@ -20,6 +20,14 @@
                                                 ARM_SMCCC_OWNER_SIP, \
                                                 fid)
 
+/*
+ * Following calls are used for interface between
+ * xen and TF-A. We don't consider these as EEMI calls.
+ * They follow SMC standard but, PLM firmware is unaware
+ * of these calls.
+ */
+#define PM_GET_CALLBACK_DATA 0xa01
+#define PM_GET_TRUSTZONE_VERSION 0xa03
 /* From linux kernel to set SGI in TF-A */
 #define TF_A_PM_REGISTER_SGI 0xa04
 
@@ -95,7 +103,6 @@ enum pm_api_id {
     PM_PLL_GET_MODE,
     /* PM Feature Check */
     PM_FEATURE_CHECK = 63,
-    PM_GET_TRUSTZONE_VERSION = 2563,
     PM_API_MAX
 };
 
