@@ -187,6 +187,8 @@ bool xilinx_eemi(struct cpu_user_regs *regs, const uint32_t fid,
     case EEMI_FID(PM_GET_API_VERSION):
     case EEMI_FID(PM_GET_CHIPID):
     case EEMI_FID(PM_QUERY_DATA):
+    case EEMI_FID(PM_REGISTER_NOTIFIER):
+    case EEMI_FID(PM_GET_CALLBACK_DATA):
         goto forward_to_fw;
 
     case EEMI_FID(PM_CLOCK_GETSTATE):
@@ -390,10 +392,6 @@ bool xilinx_eemi(struct cpu_user_regs *regs, const uint32_t fid,
     /* These calls are never allowed.  */
     case EEMI_FID(PM_SYSTEM_SHUTDOWN):
         ret = XST_PM_NO_ACCESS;
-        goto done;
-
-    case EEMI_FID(TF_A_PM_REGISTER_SGI):
-        ret = XST_PM_NOTSUPPORTED;
         goto done;
 
     case IPI_MAILBOX_FID(IPI_MAILBOX_OPEN):
