@@ -324,6 +324,46 @@ bool versal_eemi(struct cpu_user_regs *regs)
         ret = XST_PM_NOTSUPPORTED;
         goto done;
 
+    /*
+     * Get the guest SGI number appropriately, this assumes it is on the
+     * second register (x1). The third register is to reset SGI.
+     * If it is set to 1, then SGI is unregistered and xen won't
+     * send SGI to that guest VM anymore.
+     */
+    case EEMI_FID(TF_A_PM_REGISTER_SGI):
+    {
+        uint64_t guest_sgi_num = get_user_reg(regs, 1);
+        bool reset_sgi = get_user_reg(regs, 2);
+
+        /* check for invalid SGI */
+        if ( guest_sgi_num >= MAX_SGI_VERSAL )
+        {
+            ret = XST_PM_INVALID_PARAM;
+            goto done;
+        }
+
+        /* reset sgi number if requested */
+        if ( reset_sgi )
+        {
+            current->domain->arch.firmware_sgi = 0;
+            ret = XST_PM_SUCCESS;
+            goto done;
+        }
+
+        /* already registered */
+        if ( current->domain->arch.firmware_sgi != 0 )
+        {
+            ret = XST_PM_DOUBLE_REQ;
+            goto done;
+        }
+
+        /* set relative SGI number */
+        current->domain->arch.firmware_sgi = guest_sgi_num;
+
+        ret = XST_PM_SUCCESS;
+        goto done;
+    }
+
     default:
         return xilinx_eemi(regs, fid, PM_NODE_IDX(nodeid), pm_fn,
                            pm_node_access,

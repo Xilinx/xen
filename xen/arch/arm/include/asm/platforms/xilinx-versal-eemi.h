@@ -4,6 +4,9 @@
 /* Main PM Mediator entry.  */
 extern bool versal_eemi(struct cpu_user_regs *regs);
 
+/* max number of SGI supported on versal platform */
+#define MAX_SGI_VERSAL 32
+
 /* Power Nodes */
 #define VERSAL_PM_POWER_PMC                (0x4208001U)
 #define VERSAL_PM_POWER_LPD                (0x4210002U)

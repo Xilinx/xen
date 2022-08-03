@@ -329,6 +329,9 @@ static void do_static_sgi(struct cpu_user_regs *regs, enum gic_sgi sgi)
         printk("CPU%u: GIC_SGI_TEST received\n", smp_processor_id());
         break;
 #endif
+    case GIC_SGI_FIRMWARE:
+        platform_firmware_sgi();
+        break;
     default:
         panic("Unhandled SGI %d on CPU%d\n", sgi, smp_processor_id());
         break;

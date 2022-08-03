@@ -153,6 +153,12 @@ struct arch_domain
     struct reset_info *reset_info;
 #endif
 
+    /*
+     * for multiple SGI this should be uint32_t and status of each bit
+     * should represent if that SGI number is registered or not.
+     * For now, this variable represents single SGI registration.
+     */
+    uint8_t firmware_sgi;
 }  __cacheline_aligned;
 
 struct arch_vcpu

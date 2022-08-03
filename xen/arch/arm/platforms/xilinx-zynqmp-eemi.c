@@ -673,6 +673,10 @@ bool zynqmp_eemi(struct cpu_user_regs *regs)
         }
         goto forward_to_fw;
 
+    case EEMI_FID(TF_A_PM_REGISTER_SGI):
+        ret = XST_PM_NOTSUPPORTED;
+        goto done;
+
     case EEMI_FID(PM_RESET_ASSERT):
     case EEMI_FID(PM_RESET_GET_STATUS):
         nodeid = PM_RESET_IDX(nodeid);

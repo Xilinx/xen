@@ -288,6 +288,7 @@ enum gic_sgi {
 #ifdef CONFIG_AMD_TESTS
     GIC_SGI_TEST,
 #endif
+    GIC_SGI_FIRMWARE,
     GIC_SGI_STATIC_MAX,
 };
 
