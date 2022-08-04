@@ -410,7 +410,10 @@ bool xilinx_eemi(struct cpu_user_regs *regs, const uint32_t fid,
         goto forward_to_fw;
 
     default:
-        gprintk(XENLOG_WARNING, "xilinx-pm: Unhandled PM Call: %u\n", fid);
+        if ( is_hardware_domain(current->domain) )
+            goto forward_to_fw;
+        gprintk(XENLOG_WARNING, "xilinx-pm: Unhandled PM Call: %u, domid=%u\n",
+                fid, current->domain->domain_id);
         return false;
     }
 
