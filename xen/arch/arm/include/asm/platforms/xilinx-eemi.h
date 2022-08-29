@@ -147,7 +147,7 @@ enum pm_ret_status {
  */
 struct pm_access
 {
-    uint32_t addr;
+    uint64_t addr;
     bool hwdom_access;    /* HW domain gets access regardless. */
 };
 
