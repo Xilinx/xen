@@ -325,6 +325,8 @@ static const struct {
     { .start = MM_CRL_APB + R_CRL_PL1_THR_CNT, .hwdom_access = true },
     { .start = MM_CRL_APB + R_CRL_PL2_THR_CNT, .hwdom_access = true },
     { .start = MM_CRL_APB + R_CRL_PL3_THR_CNT, .hwdom_access = true },
+    { .start = MM_CRL_APB + R_CRL_BOOT_PIN_CTRL, .hwdom_access = false,
+      .mask = 0xf0f, .node = ZYNQMP_PM_DEV_USB_0 },
     {
       .start = MM_CRL_APB + R_CRL_GEM0_REF_CTRL,
       .hwdom_access = false, .node = ZYNQMP_PM_DEV_ETH_0,
