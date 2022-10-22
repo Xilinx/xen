@@ -77,7 +77,8 @@
  *   2M -   4M   Xen text, data, bss
  *   4M -   6M   Fixmap: special-purpose 4K mapping slots
  *   6M -  10M   Early boot mapping of FDT
- *   10M - 12M   Livepatch vmap (if compiled in)
+ *   10M - 12M   Early relocation address (used when relocating Xen)
+ *               and later for livepatch vmap (if compiled in)
  *
  * ARM32 layout:
  *   0  -  12M   <COMMON>
@@ -113,6 +114,7 @@
 #define BOOT_FDT_VIRT_START    _AT(vaddr_t,0x00600000)
 #define BOOT_FDT_VIRT_SIZE     _AT(vaddr_t, MB(4))
 
+#define BOOT_RELOC_VIRT_START  _AT(vaddr_t,0x00a00000)
 #ifdef CONFIG_LIVEPATCH
 #define LIVEPATCH_VMAP_START   _AT(vaddr_t,0x00a00000)
 #define LIVEPATCH_VMAP_SIZE    _AT(vaddr_t, MB(2))
