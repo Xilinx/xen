@@ -38,6 +38,9 @@ int domain_coloring_init(struct domain *d,
 void domain_coloring_free(struct domain *d);
 void domain_dump_coloring_info(struct domain *d);
 
+void prepare_color_domain_config(struct xen_arch_domainconfig *config,
+                                 const char *colors_str);
+
 #else /* !CONFIG_CACHE_COLORING */
 
 static inline bool __init coloring_init(void) { return true; }
@@ -45,6 +48,8 @@ static inline int domain_coloring_init(
     struct domain *d, const struct xen_arch_domainconfig *config) { return 0; }
 static inline void domain_coloring_free(struct domain *d) {}
 static inline void domain_dump_coloring_info(struct domain *d) {}
+static inline void prepare_color_domain_config(
+    struct xen_arch_domainconfig *config, const char *colors_str) {}
 
 #endif /* CONFIG_CACHE_COLORING */
 #endif /* __ASM_ARM_COLORING_H__ */

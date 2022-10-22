@@ -273,8 +273,11 @@ int domain_coloring_init(struct domain *d,
         if ( config->from_guest )
             copy_from_guest(d->arch.colors, config->colors, config->num_colors);
         else
+        {
             memcpy(d->arch.colors, config->colors.p,
                    sizeof(unsigned int) * config->num_colors);
+            xfree(config->colors.p);
+        }
     }
 
     if ( !d->arch.colors )
@@ -303,6 +306,20 @@ void domain_dump_coloring_info(struct domain *d)
 {
     printk("Domain %pd has %u colors: ", d, d->arch.num_colors);
     print_colors(d->arch.colors, d->arch.num_colors);
+}
+
+void prepare_color_domain_config(struct xen_arch_domainconfig *config,
+                                 const char *colors_str)
+{
+    unsigned int num_colors;
+
+    config->colors.p = xzalloc_array(unsigned int, max_colors);
+    if ( !config->colors.p )
+        panic("Unable to allocate cache colors\n");
+
+    if ( parse_color_config(colors_str, config->colors.p, &num_colors) )
+        panic("Error parsing the color configuration\n");
+    config->num_colors = (uint16_t)num_colors;
 }
 
 /*

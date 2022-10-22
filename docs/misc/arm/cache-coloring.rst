@@ -114,6 +114,51 @@ LLC way size (as previously discussed) and Dom0 colors can be set using the
 appropriate command line parameters. See the relevant documentation in
 "docs/misc/xen-command-line.pandoc".
 
+DomUs colors can be set either in the xl configuration file (relative
+documentation at "docs/man/xl.cfg.pod.5.in") or via Device Tree, also for
+Dom0less configurations, as in the following example:
+
+.. raw:: html
+
+    <pre>
+        xen,xen-bootargs = "console=dtuart dtuart=serial0 dom0_mem=1G dom0_max_vcpus=1 sched=null llc-way-size=64K xen-colors=0-1 dom0-colors=2-6";
+        xen,dom0-bootargs "console=hvc0 earlycon=xen earlyprintk=xen root=/dev/ram0"
+
+        dom0 {
+            compatible = "xen,linux-zimage" "xen,multiboot-module";
+            reg = <0x0 0x1000000 0x0 15858176>;
+        };
+
+        dom0-ramdisk {
+            compatible = "xen,linux-initrd" "xen,multiboot-module";
+            reg = <0x0 0x2000000 0x0 20638062>;
+        };
+
+        domU0 {
+            #address-cells = <0x1>;
+            #size-cells = <0x1>;
+            compatible = "xen,domain";
+            memory = <0x0 0x40000>;
+            colors = "4-8,10,11,12";
+            cpus = <0x1>;
+            vpl011 = <0x1>;
+
+            module@2000000 {
+                compatible = "multiboot,kernel", "multiboot,module";
+                reg = <0x2000000 0xffffff>;
+                bootargs = "console=ttyAMA0";
+            };
+
+            module@30000000 {
+                compatible = "multiboot,ramdisk", "multiboot,module";
+                reg = <0x3000000 0xffffff>;
+            };
+        };
+    </pre>
+
+Please refer to the relative documentation in
+"docs/misc/arm/device-tree/booting.txt".
+
 Note that if no color configuration is provided for domains, they fallback to
 the default one, which corresponds simply to all available colors.
 

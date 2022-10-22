@@ -25,6 +25,7 @@
 #include <asm/platform.h>
 #include <asm/psci.h>
 #include <asm/setup.h>
+#include <asm/coloring.h>
 #include <asm/cpufeature.h>
 #include <asm/domain_build.h>
 #include <xen/event.h>
@@ -3728,6 +3729,7 @@ void __init create_domUs(void)
     struct dt_device_node *node;
     const struct dt_device_node *cpupool_node,
                                 *chosen = dt_find_node_by_path("/chosen");
+    const char *colors_str;
 
     BUG_ON(chosen == NULL);
     dt_for_each_child_node(chosen, node)
@@ -3814,6 +3816,17 @@ void __init create_domUs(void)
                 panic("Error getting cpupool id from domain-cpupool (%d)\n",
                       pool_id);
             d_cfg.cpupool_id = pool_id;
+        }
+
+        if ( !dt_property_read_string(node, "colors", &colors_str) )
+        {
+            if ( !IS_ENABLED(CONFIG_CACHE_COLORING) )
+                printk(XENLOG_WARNING
+                       "Property 'colors' found, but coloring is disabled\n");
+            else if ( dt_find_property(node, "xen,static-mem", NULL) )
+                panic("static-mem isn't allowed when coloring is enabled\n");
+            else
+                prepare_color_domain_config(&d_cfg.arch, colors_str);
         }
 
         /*
