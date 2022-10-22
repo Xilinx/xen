@@ -172,6 +172,16 @@ static unsigned int set_default_domain_colors(unsigned int *colors)
     return max_colors;
 }
 
+static void print_colors(unsigned int *colors, unsigned int num_colors)
+{
+    unsigned int i;
+
+    printk("[ ");
+    for ( i = 0; i < num_colors; i++ )
+        printk("%u ", colors[i]);
+    printk("]\n");
+}
+
 static void dump_coloring_info(unsigned char key)
 {
     printk("'%c' pressed -> dumping coloring general info\n", key);
@@ -287,6 +297,12 @@ void domain_coloring_free(struct domain *d)
 {
     if ( !is_hardware_domain(d) )
         xfree(d->arch.colors);
+}
+
+void domain_dump_coloring_info(struct domain *d)
+{
+    printk("Domain %pd has %u colors: ", d, d->arch.num_colors);
+    print_colors(d->arch.colors, d->arch.num_colors);
 }
 
 /*
