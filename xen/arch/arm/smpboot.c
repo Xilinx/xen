@@ -470,8 +470,7 @@ int __cpu_up(unsigned int cpu)
     init_data.cpuid = cpu;
 
     /* Open the gate for this CPU */
-    smp_up_cpu = cpu_logical_map(cpu);
-    clean_dcache(smp_up_cpu);
+    set_value_for_secondary(smp_up_cpu, cpu_logical_map(cpu));
 
     rc = arch_cpu_up(cpu);
 

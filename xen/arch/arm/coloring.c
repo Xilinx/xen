@@ -27,6 +27,7 @@
 #include <xen/keyhandler.h>
 #include <xen/param.h>
 #include <xen/types.h>
+#include <xen/vmap.h>
 
 #include <asm/coloring.h>
 #include <asm/processor.h>
@@ -360,6 +361,43 @@ unsigned int page_to_color(const struct page_info *pg)
 unsigned int get_max_colors(void)
 {
     return max_colors;
+}
+
+mfn_t xen_colored_mfn(mfn_t mfn)
+{
+    paddr_t maddr = mfn_to_maddr(mfn);
+    unsigned int i, color = addr_to_color(maddr);
+
+    for( i = 0; i < xen_num_colors; i++ )
+    {
+        if ( color == xen_colors[i] )
+            return mfn;
+        else if ( color < xen_colors[i] )
+            return maddr_to_mfn(addr_set_color(maddr, xen_colors[i]));
+    }
+
+    /* Jump to next color space (llc_way_size bytes) and use the first color */
+    return maddr_to_mfn(addr_set_color(maddr + llc_way_size, xen_colors[0]));
+}
+
+void *xen_remap_colored(mfn_t xen_mfn, paddr_t xen_size)
+{
+    unsigned int i;
+    void *xenmap;
+    mfn_t *xen_colored_mfns = xmalloc_array(mfn_t, xen_size >> PAGE_SHIFT);
+
+    if ( !xen_colored_mfns )
+        panic("Can't allocate colored MFNs\n");
+
+    for_each_xen_colored_mfn( xen_mfn, i )
+    {
+        xen_colored_mfns[i] = xen_mfn;
+    }
+
+    xenmap = vmap(xen_colored_mfns, xen_size >> PAGE_SHIFT);
+    xfree(xen_colored_mfns);
+
+    return xenmap;
 }
 
 /*

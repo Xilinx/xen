@@ -465,7 +465,7 @@ static void * __init relocate_fdt(paddr_t dtb_paddr, size_t dtb_size)
     return fdt;
 }
 
-#ifdef CONFIG_ARM_32
+#if defined (CONFIG_ARM_32) || (CONFIG_CACHE_COLORING)
 /*
  * Returns the end address of the highest region in the range s..e
  * with required size and alignment that does not conflict with the
@@ -557,7 +557,9 @@ static paddr_t __init consider_modules(paddr_t s, paddr_t e,
     }
     return e;
 }
+#endif
 
+#ifdef CONFIG_ARM_32
 /*
  * Find a contiguous region that fits in the static heap region with
  * required size and alignment, and return the end address of the region
@@ -630,6 +632,62 @@ static paddr_t __init next_module(paddr_t s, paddr_t *end)
     }
     return lowest;
 }
+
+#ifdef CONFIG_CACHE_COLORING
+/**
+ * get_xen_paddr - get physical address to relocate Xen to
+ *
+ * Xen is relocated to as near to the top of RAM as possible and
+ * aligned to a XEN_PADDR_ALIGN boundary.
+ */
+static paddr_t __init get_xen_paddr(uint32_t xen_size)
+{
+    struct meminfo *mi = &bootinfo.mem;
+    paddr_t min_size;
+    paddr_t paddr = 0;
+    int i;
+
+    min_size = (xen_size + (XEN_PADDR_ALIGN-1)) & ~(XEN_PADDR_ALIGN-1);
+
+    /* Find the highest bank with enough space. */
+    for ( i = 0; i < mi->nr_banks; i++ )
+    {
+        const struct membank *bank = &mi->bank[i];
+        paddr_t s, e;
+
+        if ( bank->size >= min_size )
+        {
+            e = consider_modules(bank->start, bank->start + bank->size,
+                                 min_size, XEN_PADDR_ALIGN, 0);
+            if ( !e )
+                continue;
+
+#ifdef CONFIG_ARM_32
+            /* Xen must be under 4GB */
+            if ( e > 0x100000000ULL )
+                e = 0x100000000ULL;
+            if ( e < bank->start )
+                continue;
+#endif
+
+            s = e - min_size;
+
+            if ( s > paddr )
+                paddr = s;
+        }
+    }
+
+    if ( !paddr )
+        panic("Not enough memory to relocate Xen\n");
+
+    printk("Placing Xen at 0x%"PRIpaddr"-0x%"PRIpaddr"\n",
+           paddr, paddr + min_size);
+
+    return paddr;
+}
+#else
+static paddr_t __init get_xen_paddr(uint32_t xen_size) { return 0; }
+#endif
 
 static void __init init_pdx(void)
 {
@@ -1013,8 +1071,6 @@ void __init start_xen(unsigned long boot_phys_offset,
     /* Initialize traps early allow us to get backtrace when an error occurred */
     init_traps();
 
-    setup_pagetables(boot_phys_offset);
-
     smp_clear_cpu_maps();
 
     device_tree_flattened = early_fdt_map(fdt_paddr);
@@ -1040,7 +1096,12 @@ void __init start_xen(unsigned long boot_phys_offset,
     {
         if ( !coloring_init() )
             panic("Xen cache coloring support: setup failed\n");
+        xen_bootmodule->size = XEN_COLOR_MAP_SIZE;
+        xen_bootmodule->start = get_xen_paddr(xen_bootmodule->size);
     }
+
+    setup_pagetables(boot_phys_offset, xen_bootmodule->start);
+    device_tree_flattened = early_fdt_map(fdt_paddr);
 
     setup_mm();
 
@@ -1154,6 +1215,13 @@ void __init start_xen(unsigned long boot_phys_offset,
 
     setup_virt_paging();
 
+    /*
+     * The removal is done earlier than discard_initial_modules beacuse the
+     * livepatch init uses a virtual address equal to BOOT_RELOC_VIRT_START.
+     * Remove coloring mappings to expose a clear state to the livepatch module.
+     */
+    if ( IS_ENABLED(CONFIG_CACHE_COLORING) )
+        remove_coloring_mappings();
     do_initcalls();
 
     /*

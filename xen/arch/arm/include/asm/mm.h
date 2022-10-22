@@ -195,12 +195,26 @@ extern unsigned long total_pages;
 
 #define PDX_GROUP_SHIFT SECOND_SHIFT
 
+#ifdef CONFIG_CACHE_COLORING
+#define virt_to_boot_virt(virt) (virt - XEN_VIRT_START + BOOT_RELOC_VIRT_START)
+#define set_value_for_secondary(var, val)                       \
+    *(typeof(var) *)(virt_to_boot_virt((vaddr_t)&var)) = val;   \
+    clean_dcache(var);
+#else
+#define virt_to_boot_virt(virt) (virt)
+#define set_value_for_secondary(var, val)   \
+    var = val;                              \
+    clean_dcache(var);
+#endif
+
 /* Boot-time pagetable setup */
-extern void setup_pagetables(unsigned long boot_phys_offset);
+extern void setup_pagetables(unsigned long boot_phys_offset, paddr_t xen_paddr);
 /* Map FDT in boot pagetable */
 extern void *early_fdt_map(paddr_t fdt_paddr);
 /* Remove early mappings */
 extern void remove_early_mappings(void);
+/* Remove early coloring mappings */
+extern void remove_coloring_mappings(void);
 /* Allocate and initialise pagetables for a secondary CPU. Sets init_ttbr to the
  * new page table */
 extern int init_secondary_pagetables(int cpu);

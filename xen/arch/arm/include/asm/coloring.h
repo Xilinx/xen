@@ -27,9 +27,30 @@
 #ifdef CONFIG_CACHE_COLORING
 
 #include <xen/init.h>
+#include <xen/lib.h>
 #include <xen/sched.h>
 
 #include <public/arch-arm.h>
+
+/*
+ * Amount of memory that we need to map in order to color Xen. The value
+ * depends on the maximum number of available colors of the hardware. The
+ * memory size is pessimistically calculated assuming only one color is used,
+ * which means that any pages belonging to any other color has to be skipped.
+ */
+#define XEN_COLOR_MAP_SIZE \
+    ROUNDUP((_end - _start) * get_max_colors(), XEN_PADDR_ALIGN)
+
+/**
+ * Iterate over each Xen mfn in the colored space.
+ * @mfn:    the current mfn. The first non colored mfn must be provided as the
+ *          starting point.
+ * @i:      loop index.
+ */
+#define for_each_xen_colored_mfn(mfn, i)        \
+    for ( i = 0, mfn = xen_colored_mfn(mfn);    \
+          i < (_end - _start) >> PAGE_SHIFT;    \
+          i++, mfn = xen_colored_mfn(mfn_add(mfn, 1)) )
 
 struct page_info;
 
@@ -47,7 +68,12 @@ unsigned int page_to_color(const struct page_info *pg);
 
 unsigned int get_max_colors(void);
 
+mfn_t xen_colored_mfn(mfn_t mfn);
+void *xen_remap_colored(mfn_t xen_fn, paddr_t xen_size);
+
 #else /* !CONFIG_CACHE_COLORING */
+
+#define XEN_COLOR_MAP_SIZE (_end - _start)
 
 static inline bool __init coloring_init(void) { return true; }
 static inline int domain_coloring_init(
@@ -56,6 +82,10 @@ static inline void domain_coloring_free(struct domain *d) {}
 static inline void domain_dump_coloring_info(struct domain *d) {}
 static inline void prepare_color_domain_config(
     struct xen_arch_domainconfig *config, const char *colors_str) {}
+static inline void *xen_remap_colored(mfn_t xen_fn, paddr_t xen_size)
+{
+    return NULL;
+}
 
 #endif /* CONFIG_CACHE_COLORING */
 #endif /* __ASM_ARM_COLORING_H__ */

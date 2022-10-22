@@ -210,7 +210,7 @@ SECTIONS
        . = ALIGN(POINTER_ALIGN);
        __bss_end = .;
   } :text
-  _end = . ;
+  _end = ALIGN(PAGE_SIZE);
 
   /* Section for the device tree blob (if any). */
   .dtb : { *(.dtb) } :text
