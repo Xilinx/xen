@@ -31,6 +31,9 @@ config ARCH_MAP_DOMAIN_PAGE
 config HAS_ALTERNATIVE
 	bool
 
+config HAS_CACHE_COLORING
+	bool
+
 config HAS_COMPAT
 	bool
 

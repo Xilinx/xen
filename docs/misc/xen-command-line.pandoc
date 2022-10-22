@@ -903,6 +903,14 @@ Controls for the dom0 IOMMU setup.
 
     Incorrect use of this option may result in a malfunctioning system.
 
+### dom0-colors (arm64)
+> `= List of [ <integer> | <integer>-<integer> ]`
+
+> Default: `All available colors`
+
+Specify dom0 color configuration. If the parameter is not set, all available
+colors are chosen and the user is warned on Xen's serial console.
+
 ### dom0_ioports_disable (x86)
 > `= List of <hex>-<hex>`
 
@@ -1644,6 +1652,24 @@ if left disabled by the BIOS.
 This option is intended for debugging purposes only.  Enable MSR_DEBUGCTL.LBR
 in hypervisor context to be able to dump the Last Interrupt/Exception To/From
 record with other registers.
+
+### llc-way-size (arm64)
+> `= <size>`
+
+> Default: `Obtained from the hardware`
+
+Specify the way size of the Last Level Cache. This parameter is only useful with
+cache coloring support enabled. It is an optional, expert-only parameter and it
+is used to calculate the number of available colors on the platform. It can be
+obtained by dividing the total LLC size by the number of its associative ways.
+By default, the value is automatically computed by probing the hardware, but in
+case of specific needs, it can be manually set. Those include failing probing
+and debugging/testing purposes so that it's possibile to emulate platforms with
+different number of supported colors.
+An important detail to highlight is that the current implementation of the
+cache coloring technique requires the number of colors to be a power of 2, and
+consequently, also the LLC way size must be so. A value that doesn't match this
+requirement is aligned down to the previous power of 2.
 
 ### loglvl
 > `= <level>[/<rate-limited level>]` where level is `none | error | warning | info | debug | all`
