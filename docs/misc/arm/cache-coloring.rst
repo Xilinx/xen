@@ -19,8 +19,8 @@ In order to enable and use it, few steps are needed.
 - If needed, change the amount of memory reserved for the buddy allocator either
   from the Xen configuration file, via the CONFIG_BUDDY_ALLOCATOR_SIZE value,
   or with the command line option. See `Colored allocator and buddy allocator`.
-- Assign colors to domains using the `Color selection format`_ (see
-  `Coloring parameters`_ for more documentation pointers).
+- Assign colors to each memory pool (Xen, Dom0/DomUs) using the
+  `Color selection format`_ for `Coloring parameters`_ configuration.
 
 Background
 **********
@@ -113,8 +113,8 @@ Examples:
 Coloring parameters
 *******************
 
-LLC way size (as previously discussed) and Dom0 colors can be set using the
-appropriate command line parameters. See the relevant documentation in
+LLC way size (as previously discussed), Xen colors and Dom0 colors can be set
+using the appropriate command line parameters. See the relevant documentation in
 "docs/misc/xen-command-line.pandoc".
 
 DomUs colors can be set either in the xl configuration file (relative
