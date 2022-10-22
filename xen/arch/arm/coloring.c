@@ -23,6 +23,7 @@
  */
 #include <xen/bitops.h>
 #include <xen/errno.h>
+#include <xen/guest_access.h>
 #include <xen/keyhandler.h>
 #include <xen/param.h>
 #include <xen/types.h>
@@ -230,6 +231,62 @@ bool __init coloring_init(void)
     register_keyhandler('K', dump_coloring_info, "dump coloring info", 1);
 
     return true;
+}
+
+int domain_coloring_init(struct domain *d,
+                         const struct xen_arch_domainconfig *config)
+{
+    if ( is_domain_direct_mapped(d) )
+    {
+        printk(XENLOG_ERR
+               "Can't enable coloring and directmap at the same time for %pd\n",
+               d);
+        return -EINVAL;
+    }
+
+    if ( is_hardware_domain(d) )
+    {
+        d->arch.colors = dom0_colors;
+        d->arch.num_colors = dom0_num_colors;
+    }
+    else if ( config->num_colors == 0 )
+    {
+        printk(XENLOG_WARNING
+               "Color config not found for %pd. Using default\n", d);
+        d->arch.colors = xzalloc_array(unsigned int, max_colors);
+        d->arch.num_colors = set_default_domain_colors(d->arch.colors);
+    }
+    else
+    {
+        d->arch.colors = xzalloc_array(unsigned int, config->num_colors);
+        d->arch.num_colors = config->num_colors;
+        if ( config->from_guest )
+            copy_from_guest(d->arch.colors, config->colors, config->num_colors);
+        else
+            memcpy(d->arch.colors, config->colors.p,
+                   sizeof(unsigned int) * config->num_colors);
+    }
+
+    if ( !d->arch.colors )
+    {
+        printk(XENLOG_ERR "Colors allocation failed for %pd\n", d);
+        return -ENOMEM;
+    }
+
+    if ( !check_colors(d->arch.colors, d->arch.num_colors) )
+    {
+        printk(XENLOG_ERR "Bad color config for %pd\n", d);
+        domain_coloring_free(d);
+        return -EINVAL;
+    }
+
+    return 0;
+}
+
+void domain_coloring_free(struct domain *d)
+{
+    if ( !is_hardware_domain(d) )
+        xfree(d->arch.colors);
 }
 
 /*

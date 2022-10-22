@@ -27,12 +27,22 @@
 #ifdef CONFIG_CACHE_COLORING
 
 #include <xen/init.h>
+#include <xen/sched.h>
+
+#include <public/arch-arm.h>
 
 bool __init coloring_init(void);
+
+int domain_coloring_init(struct domain *d,
+                         const struct xen_arch_domainconfig *config);
+void domain_coloring_free(struct domain *d);
 
 #else /* !CONFIG_CACHE_COLORING */
 
 static inline bool __init coloring_init(void) { return true; }
+static inline int domain_coloring_init(
+    struct domain *d, const struct xen_arch_domainconfig *config) { return 0; }
+static inline void domain_coloring_free(struct domain *d) {}
 
 #endif /* CONFIG_CACHE_COLORING */
 #endif /* __ASM_ARM_COLORING_H__ */

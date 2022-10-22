@@ -66,6 +66,10 @@ struct arch_domain
 #ifdef CONFIG_ARM_64
     enum domain_type type;
 #endif
+#ifdef CONFIG_CACHE_COLORING
+    unsigned int *colors;
+    unsigned int num_colors;
+#endif
 
     /* Virtual MMU */
     struct p2m_domain p2m;

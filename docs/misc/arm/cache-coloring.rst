@@ -16,7 +16,7 @@ In order to enable and use it, few steps are needed.
   (refer to menuconfig help for value meaning and when it should be changed).
 
         CONFIG_MAX_CACHE_COLORS=<n>
-- Assign colors to Dom0 using the `Color selection format`_ (see
+- Assign colors to domains using the `Color selection format`_ (see
   `Coloring parameters`_ for more documentation pointers).
 
 Background
@@ -114,6 +114,9 @@ LLC way size (as previously discussed) and Dom0 colors can be set using the
 appropriate command line parameters. See the relevant documentation in
 "docs/misc/xen-command-line.pandoc".
 
+Note that if no color configuration is provided for domains, they fallback to
+the default one, which corresponds simply to all available colors.
+
 Known issues and limitations
 ****************************
 
@@ -133,3 +136,12 @@ too) is set to 2^15 = 32768 colors because of some limitation on the domain
 configuration structure size used in domain creation. "uint16_t" is the biggest
 integer type that fit the constraint and 2^15 is the biggest power of 2 it can
 easily represent. This value is big enough for the generic case, though.
+
+
+"xen,static-mem" isn't supported when coloring is enabled
+#########################################################
+
+In the domain configuration, "xen,static-mem" allows memory to be statically
+allocated to the domain. This isn't possibile when cache coloring is enabled,
+because that memory can't be guaranteed to be of the same colors assigned to
+that domain.
