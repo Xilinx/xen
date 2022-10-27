@@ -196,9 +196,22 @@ struct mpuinfo {
 
 extern struct mpuinfo mpuinfo;
 
+extern void arch_init_finialize(void);
+extern bool check_boot_module(bootmodule_kind kind,
+                              paddr_t mod_start, paddr_t mod_size);
 extern int arch_process_chosen_node(const void *fdt, int node);
 
 #else
+
+static inline void arch_init_finialize(void)
+{
+}
+
+static inline bool check_boot_module(bootmodule_kind kind,
+                                     paddr_t mod_start, paddr_t mod_size)
+{
+    return true;
+}
 
 static inline int arch_process_chosen_node(const void *fdt, int node)
 {

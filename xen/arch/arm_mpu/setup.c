@@ -72,6 +72,8 @@ domid_t __read_mostly max_init_domid;
 
 static __used void init_done(void)
 {
+    struct domain *d;
+
     /* Must be done past setting system_state. */
     unregister_init_virtual_region();
 
@@ -92,6 +94,11 @@ static __used void init_done(void)
             panic("Unable to mark the .data.ro_after_init section read-only (rc = %d)\n",
                   rc);
     }
+
+    arch_init_finialize();
+
+    for_each_domain( d )
+        domain_unpause_by_systemcontroller(d);
 
     startup_cpu_idle_loop();
 }
@@ -725,7 +732,6 @@ void __init start_xen(unsigned long boot_phys_offset,
     size_t fdt_size;
     const char *cmdline;
     struct bootmodule *xen_bootmodule;
-    struct domain *d;
     int rc, i;
 
     dcache_line_bytes = read_dcache_line_bytes();
@@ -940,9 +946,6 @@ void __init start_xen(unsigned long boot_phys_offset,
         panic("xsm: unable to switch to SYSTEM_ACTIVE privilege: %d\n", rc);
 
     system_state = SYS_STATE_active;
-
-    for_each_domain( d )
-        domain_unpause_by_systemcontroller(d);
 
     /* Switch on to the dynamically allocated stack for the idle vcpu
      * since the static one we're running on is about to be freed. */

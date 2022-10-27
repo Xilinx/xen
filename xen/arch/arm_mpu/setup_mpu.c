@@ -30,6 +30,81 @@ static const char *mpu_section_info_str[MSINFO_MAX] = {
     "mpu,boot-module-section",
 };
 
+static
+unsigned long initial_module_mask[BITS_TO_LONGS(MAX_MPU_PROTECTION_REGIONS)];
+
+void arch_init_finialize(void)
+{
+    unsigned int i = 0;
+
+    reorder_xen_mpumap();
+    /*
+     * Initialize PER-PCPU runtime XEN MPU memory region configuration(
+     * cpu_mpumap) with reordered xen_mpumap.
+     */
+    for_each_online_cpu( i )
+    {
+        pr_t* new_mpu;
+
+        /* Boot cpu still holds the xen_mpumap. */
+        if ( i == 0 )
+        {
+            per_cpu(cpu_mpumap, 0) = xen_mpumap;
+            per_cpu(nr_cpu_mpumap, 0) = nr_xen_mpumap;
+            continue;
+        }
+
+        new_mpu = alloc_mpumap();
+        if ( !new_mpu )
+            panic("Not enough space to allocate space for CPU%u MPU memory region configuration.\n", i);
+
+        memcpy(new_mpu, xen_mpumap, nr_xen_mpumap * sizeof(pr_t));
+        per_cpu(cpu_mpumap, i) = new_mpu;
+        per_cpu(nr_cpu_mpumap, i) = nr_xen_mpumap;
+    }
+}
+
+/*
+ * In MPU system, due to limited MPU protection regions, we do not let user
+ * scatter guest boot module(e.g. kernel image) wherever they want.
+ *
+ * "mpu,boot-module-section" is requested to define limited boot module
+ * sections, then later all guest boot modules shall be placed inside boot
+ * module sections, including kernel image boot module(BOOTMOD_KERNEL),
+ * device tree passthrough binary(BOOTMOD_GUEST_DTB), ramdisk boot
+ * module(BOOTMOD_RAMDISK).
+ */
+bool __init check_boot_module(bootmodule_kind kind,
+                              paddr_t mod_start, paddr_t mod_size)
+{
+    paddr_t mod_end = (mod_start + mod_size) - 1;
+    unsigned int i = 0;
+
+    /*
+     * Only boot modules of guest kernel image, guest ramdisk,
+     * device assignment binary need to be checked.
+     */
+    if ( kind != BOOTMOD_KERNEL && kind != BOOTMOD_RAMDISK &&
+         kind != BOOTMOD_GUEST_DTB )
+        return true;
+
+    for ( ; i < mpuinfo.sections[MSINFO_BOOT].nr_banks; i++ )
+    {
+        paddr_t section_start = mpuinfo.sections[MSINFO_BOOT].bank[i].start;
+        paddr_t section_size = mpuinfo.sections[MSINFO_BOOT].bank[i].size;
+        paddr_t section_end = section_start + section_size;
+
+        /* guest boot module inclusive */
+        if ( mod_start >= section_start && mod_end <= section_end )
+            return true;
+    }
+
+    printk(XENLOG_ERR
+           "guest boot module address invalid, and it shall be placed inside mpu boot module section\n");
+
+    return false;
+}
+
 void __init discard_initial_modules(void)
 {
     unsigned int i = 0;
@@ -53,6 +128,7 @@ void __init discard_initial_modules(void)
         if ( rc < 0 )
             panic("Unable to destroy boot module section %"PRIpaddr"-%"PRIpaddr".\n",
                   start, end);
+        set_bit(rc, initial_module_mask);
     }
 }
 

@@ -52,6 +52,12 @@ unsigned long next_xen_mpumap_index = 0UL;
  */
 static DECLARE_BITMAP(xen_mpumap_mask, MAX_MPU_PROTECTION_REGIONS);
 
+/*
+ * Using a bitmap here to record these MPU protection regions,
+ * which are needed to be reordered to the tail of xen_mpumap.
+ */
+static DECLARE_BITMAP(reordered_mask, MAX_MPU_PROTECTION_REGIONS);
+
 /* Maximum number of supported MPU protection regions by the EL2 MPU. */
 unsigned long max_xen_mpumap;
 
@@ -71,6 +77,10 @@ struct mpuinfo mpuinfo;
  * switching to guest mode, from idle VCPU in hypervisor mode.
 */
 unsigned long nr_unmapped_xen_mpumap;
+
+/* Per-PCPU runtime Xen itself stage 1 MPU memory region configuration. */
+DEFINE_PER_CPU(pr_t *, cpu_mpumap);
+DEFINE_PER_CPU(unsigned long, nr_cpu_mpumap);
 
 /* Write a protection region */
 #define WRITE_PROTECTION_REGION(sel, pr, prbar, prlar) ({               \
@@ -391,6 +401,19 @@ void *ioremap_attr(paddr_t pa, size_t len, unsigned int attributes)
     return (void *)pa;
 }
 
+static void clear_boot_mpumap(void)
+{
+    /*
+     * Clear the copy of the boot mpu mapping. Each secondary CPU
+     * rebuilds these itself (see head.S).
+     */
+    memset((void *)(boot_mpumap), 0,
+           sizeof(pr_t) * ARM_DEFAULT_MPU_PROTECTION_REGIONS);
+    clean_and_invalidate_dcache_va_range((void *)(boot_mpumap),
+                                         sizeof(pr_t) *
+                                         ARM_DEFAULT_MPU_PROTECTION_REGIONS);
+}
+
 void disable_mpu_region_from_index(unsigned int index)
 {
     pr_t pr = {};
@@ -585,8 +608,10 @@ static void __init map_device_memory_section_on_boot(void)
      */
     tail = next_xen_mpumap_index - 1;
     for ( ; i < mpuinfo.sections[MSINFO_DEVICE].nr_banks; i++ )
+    {
         set_bit(tail - i, xen_mpumap_mask);
-
+        set_bit(tail - i, reordered_mask);
+    }
     nr_xen_mpumap += mpuinfo.sections[MSINFO_DEVICE].nr_banks;
 
     /*
@@ -594,6 +619,112 @@ static void __init map_device_memory_section_on_boot(void)
      * hypervisor mode of idle VCPU.
      */
     nr_unmapped_xen_mpumap += mpuinfo.sections[MSINFO_DEVICE].nr_banks;
+}
+
+void free_mpumap(pr_t *mpu)
+{
+    free_xenheap_page(mpu);
+}
+
+/*
+ * reordered_mpu value needs to be configured by all CPUs.
+ * Set only once by the boot CPU.
+ */
+static pr_t *reordered_mpu;
+static unsigned long reordered_mpu_index = 0;
+
+/*
+ * MPU must be disabled to swap in the new MPU memory region
+ * configuration.
+ * Helper clear_xen_mpumap is to help totally flush the stale
+ * config, through setting zero value to original #next_xen_mpumap_index
+ * MPU protection Region.
+ */
+void reorder_xen_mpumap_one(void *data)
+{
+    disable_mm();
+    clear_xen_mpumap(next_xen_mpumap_index);
+    set_boot_mpumap(reordered_mpu_index, (pr_t *)reordered_mpu);
+    enable_mm();
+
+    /*
+     * When users disable DEBUG option, some compilers' optimization will
+     * use 'ret' in enable_mpu for reorder_xen_mpumap_one directly.
+     * The side affect is that, LR will be populated from stack before
+     * calling enable_mm. But LR had been pushed to stack before
+     * calling disable_mm. In this case, LR push and pop behaviors
+     * handle with different cache state stack, so the data might be corrupt.
+     *
+     * The isb will force compiler to generate a 'ret' for
+     * reorder_xen_mpumap_one, and the LR pop will happen after calling
+     * enable_mpu.
+     */
+    isb();
+}
+
+/*
+ * A few MPU memory regions need unmapping on context switch, so it's
+ * better to put unchaging ones in the front tier of xen_mpumap, and
+ * changing ones, like guest memory section and device memory section in
+ * the rear, for the sake of saving trouble and cost in time sensitive context
+ * switch.
+ */
+int reorder_xen_mpumap(void)
+{
+    unsigned int i, j;
+
+    /* Allocate space for new reordered_mpu. */
+    reordered_mpu = alloc_mpumap();
+    if ( !reordered_mpu )
+        return -ENOMEM;
+
+    /* Firstly, copy the unchaging ones in the front. */
+    for_each_set_bit( i, (const unsigned long *)&xen_mpumap_mask,
+                      MAX_MPU_PROTECTION_REGIONS )
+    {
+        /*
+         * If current one needs to be reordered to the rear,
+         * neglect here.
+         */
+        if ( test_bit(i, reordered_mask) )
+            continue;
+
+        reordered_mpu[reordered_mpu_index++] = xen_mpumap[i];
+    }
+
+    /* Add the ones which need to be reordered in the tail. */
+    for_each_set_bit( j, (const unsigned long *)&reordered_mask,
+                      MAX_MPU_PROTECTION_REGIONS )
+        reordered_mpu[reordered_mpu_index++] = xen_mpumap[j];
+
+    clean_dcache_va_range((void *)&reordered_mpu_index,
+                          sizeof(unsigned long));
+    clean_dcache_va_range((void *)&next_xen_mpumap_index,
+                          sizeof(unsigned long));
+    clean_dcache_va_range((void *)(pr_t *)reordered_mpu,
+                          sizeof(pr_t) * reordered_mpu_index);
+
+    reorder_xen_mpumap_one(NULL);
+
+    /* Now, xen_mpumap acts in a tight way, absolutely no holes in there,
+     * then always next_xen_mpumap_index = nr_xen_mpumap for later on.
+     */
+    next_xen_mpumap_index = nr_xen_mpumap = reordered_mpu_index;
+    free_mpumap(xen_mpumap);
+    xen_mpumap = reordered_mpu;
+
+    printk(XENLOG_DEBUG
+           "Xen Stage 1 MPU memory region mapping in EL2.\n");
+    for ( i = 0; i < nr_xen_mpumap; i++ )
+    {
+        pr_t region;
+        access_protection_region(true, &region, NULL, i);
+        printk(XENLOG_DEBUG
+               "MPU protection region #%u : 0x%"PRIx64" - 0x%"PRIx64".\n",
+               i, pr_get_base(&region), pr_get_limit(&region));
+    }
+
+    return 0;
 }
 
 void * __init early_fdt_map(paddr_t fdt_paddr)
@@ -865,6 +996,8 @@ static int __init relocate_xen_mpumap(void)
 
     copy_from_paddr(xen_mpumap, (paddr_t)(pr_t *)boot_mpumap,
                     sizeof(pr_t) * next_xen_mpumap_index);
+
+    clear_boot_mpumap();
 
     return 0;
 }

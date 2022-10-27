@@ -154,6 +154,21 @@ ENTRY(disable_mm)
 ENDPROC(disable_mm)
 
 /*
+ * Clear stale MPU protection regions before setting new reordered ones.
+ *
+ * x0: len refers to length of stale mpu table
+ */
+ENTRY(clear_xen_mpumap)
+    mov   x1, xzr              /* sel */
+    mov   x2, xzr              /* use zero value to clean up. */
+1:  write_pr x1, x2, x2
+    add   x1, x1, #1
+    cmp   x1, x0
+    b.lt  1b
+    ret
+ENDPROC(clear_xen_mpumap)
+
+/*
  * Iterate MPU memory region configuration, #mpu_table, to properly
  * set according MPU protection region registers.
  *

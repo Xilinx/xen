@@ -20,6 +20,7 @@
 #ifndef __ARCH_ARM_MM_MPU__
 #define __ARCH_ARM_MM_MPU__
 
+#include <xen/percpu.h>
 #include <asm/arm64/mpu.h>
 
 extern struct page_info* frame_table;
@@ -39,6 +40,11 @@ extern void setup_staticheap_mappings(void);
 
 #define setup_mm_data(x,y) setup_protection_regions()
 
+DECLARE_PER_CPU(pr_t *, cpu_mpumap);
+#define THIS_CPU_MPUMAP this_cpu(cpu_mpumap)
+DECLARE_PER_CPU(unsigned long, nr_cpu_mpumap);
+#define THIS_CPU_NR_MPUMAP this_cpu(nr_cpu_mpumap)
+
 /* MPU-related functionality */
 extern void enable_mm(void);
 extern void disable_mm(void);
@@ -47,6 +53,8 @@ extern pr_t *alloc_mpumap(void);
 extern void update_mm(void);
 extern void map_boot_module_section(void);
 extern void disable_mpu_region_from_index(unsigned int index);
+extern int reorder_xen_mpumap(void);
+extern void clear_xen_mpumap(unsigned int len);
 
 static inline paddr_t __virt_to_maddr(vaddr_t va)
 {
