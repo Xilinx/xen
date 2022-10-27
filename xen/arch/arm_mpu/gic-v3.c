@@ -598,6 +598,7 @@ static void __init gicv3_dist_init(void)
 {
     uint32_t type;
     uint64_t affinity;
+    uint64_t cntl;
     unsigned int nr_lines;
     int i;
 
@@ -642,8 +643,18 @@ static void __init gicv3_dist_init(void)
     gicv3_dist_wait_for_rwp();
 
     /* Turn on the distributor */
-    writel_relaxed(GICD_CTL_ENABLE | GICD_CTLR_ARE_NS |
-                GICD_CTLR_ENABLE_G1A | GICD_CTLR_ENABLE_G1, GICD + GICD_CTLR);
+    cntl = GICD_CTL_ENABLE | GICD_CTLR_ARE_NS | GICD_CTLR_ENABLE_G1A
+            | GICD_CTLR_ENABLE_G1;
+    if ( type & GICD_TYPE_SEC )
+    {
+        printk("GICv3: supports two Security states.\n");
+#ifdef CONFIG_ARM_V8R
+        printk("GICv3: Disable two Security states for Armv8-R64.\n");
+        cntl |= GICD_CTLR_DS;
+#endif
+    }
+
+    writel_relaxed(cntl, GICD + GICD_CTLR);
 
     /* Route all global IRQs to this CPU */
     affinity = gicv3_mpidr_to_affinity(smp_processor_id());

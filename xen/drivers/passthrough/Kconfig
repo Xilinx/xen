@@ -2,7 +2,7 @@
 config HAS_PASSTHROUGH
 	bool
 
-if ARM
+if (ARM && !HAS_MPU)
 config ARM_SMMU
 	bool "ARM SMMUv1 and v2 driver"
 	default y
