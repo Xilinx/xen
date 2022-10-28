@@ -187,6 +187,7 @@ extern const char __ro_after_init_start[], __ro_after_init_end[];
 enum mpu_section_info {
     MSINFO_DEVICE,
     MSINFO_BOOT,
+    MSINFO_GUEST,
     MSINFO_MAX
 };
 

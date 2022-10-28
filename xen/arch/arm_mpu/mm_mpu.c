@@ -538,6 +538,64 @@ int modify_xen_mappings(unsigned long s, unsigned long e, unsigned int flags)
     return 0;
 }
 
+/*
+ * Firstly, all domains on MPU system must be statically allocated.
+ * Then, due to limited MPU protection regions, we do not let user scatter
+ * statically-configured guest RAM anywhere they want.
+ * "mpu,guest-memory-section" is requested to describe limited guest memory
+ * sections, and later all statically-configured guest RAM must be placed
+ * inside guest memory section.
+ */
+static void map_guest_memory_section(pr_t* mpu, unsigned long nr_max,
+                                     unsigned long *mpu_index)
+{
+    unsigned int i = 0;
+
+    for ( ; i < mpuinfo.sections[MSINFO_GUEST].nr_banks; i++ )
+    {
+        paddr_t start = round_pgup(
+                        mpuinfo.sections[MSINFO_GUEST].bank[i].start);
+        paddr_t size = mpuinfo.sections[MSINFO_GUEST].bank[i].size;
+        paddr_t end = round_pgdown(start + size) - 1;
+
+        /* Normal memory with only EL2 Read/Write. */
+        ASSERT(*mpu_index < nr_max);
+        mpu[*mpu_index] = pr_of_xenaddr(start, end, MT_NORMAL);
+        access_protection_region(false, NULL,
+                                 (const pr_t*)(&mpu[*mpu_index]),
+                                 *mpu_index);
+        (*mpu_index)++;
+    }
+}
+
+void __init map_guest_memory_section_on_boot(void)
+{
+    unsigned long tail, i = 0;
+
+    map_guest_memory_section(boot_mpumap,
+                             ARM_DEFAULT_MPU_PROTECTION_REGIONS,
+                             &next_xen_mpumap_index);
+
+    /*
+     * Set recording bit in xen_mpumap_mask.
+     * Guest memory section need to be reordered to the tail of xen_mpumap
+     * at the end of boot-up.
+     */
+    tail = next_xen_mpumap_index - 1;
+    for ( ; i < mpuinfo.sections[MSINFO_GUEST].nr_banks; i++ )
+    {
+        set_bit(tail - i, xen_mpumap_mask);
+        set_bit(tail - i, reordered_mask);
+    }
+    nr_xen_mpumap += mpuinfo.sections[MSINFO_GUEST].nr_banks;
+
+    /*
+     * Unmap guest memory section when context switching from
+     * hypervisor mode of idle VCPU.
+     */
+    nr_unmapped_xen_mpumap += mpuinfo.sections[MSINFO_GUEST].nr_banks;
+}
+
 void __init map_boot_module_section(void)
 {
     unsigned int i = 0;

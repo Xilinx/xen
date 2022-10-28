@@ -28,6 +28,7 @@
 static const char *mpu_section_info_str[MSINFO_MAX] = {
     "mpu,device-memory-section",
     "mpu,boot-module-section",
+    "mpu,guest-memory-section",
 };
 
 static
@@ -167,6 +168,8 @@ void __init setup_mm(void)
 
     setup_frametable_mappings(ram_start, ram_end);
 
+    /* Map guest memory section before initialization */
+    map_guest_memory_section_on_boot();
     init_staticmem_pages();
 }
 
