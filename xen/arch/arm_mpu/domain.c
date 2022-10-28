@@ -726,6 +726,10 @@ int arch_domain_create(struct domain *d,
         (rc = domain_coloring_init(d, &config->arch)) )
         goto fail;
 
+#ifdef CONFIG_HAS_MPU
+    d->arch.mpu = flags & CDF_mpu;
+#endif
+
     /* p2m_init relies on some value initialized by the IOMMU subsystem */
     if ( (rc = iommu_domain_init(d, config->iommu_opts)) != 0 )
         goto fail;
@@ -738,7 +742,15 @@ int arch_domain_create(struct domain *d,
         goto fail;
 
     clear_page(d->shared_info);
+
+#ifndef CONFIG_HAS_MPU
+    /*
+     * Shared memory like shared_info is dynamically allocated from heap,
+     * and the granularity of it is smaller than a page, which is too small
+     * to be shared in MPU system due to limited MPU protection regions.
+     */
     share_xen_page_with_guest(virt_to_page(d->shared_info), d, SHARE_rw);
+#endif
 
     switch ( config->arch.gic_version )
     {
@@ -771,6 +783,7 @@ int arch_domain_create(struct domain *d,
     if ( (rc = tee_domain_init(d, config->arch.tee_type)) != 0 )
         goto fail;
 
+#ifndef CONFIG_HAS_MPU
     update_domain_wallclock_time(d);
 
     /*
@@ -785,6 +798,13 @@ int arch_domain_create(struct domain *d,
         if ( !vgic_reserve_virq(d, GUEST_EVTCHN_PPI) )
             BUG();
     }
+#else
+    /*
+     * Since both wallclock and event channel are stored in shared_info,
+     * it is not accessable on MPU system.
+     */
+    d->arch.evtchn_irq = INVALID_IRQ;
+#endif
 
     /*
      * Virtual UART is only used by linux early printk and decompress code.

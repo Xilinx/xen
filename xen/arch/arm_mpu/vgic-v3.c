@@ -1666,6 +1666,9 @@ static int vgic_v3_domain_init(struct domain *d)
 {
     struct vgic_rdist_region *rdist_regions;
     int rdist_count, i, ret;
+#ifdef CONFIG_HAS_MPU
+    paddr_t vgic_mpu_limit = 0UL, vgic_mpu_base = ULONG_MAX;
+#endif
 
     /* Allocate memory for Re-distributor regions */
     rdist_count = vgic_v3_max_rdist_count(d);
@@ -1747,6 +1750,10 @@ static int vgic_v3_domain_init(struct domain *d)
     /* Register mmio handle for the Distributor */
     register_mmio_handler(d, &vgic_distr_mmio_handler, d->arch.vgic.dbase,
                           SZ_64K, NULL);
+#ifdef CONFIG_HAS_MPU
+    vgic_mpu_base = min(vgic_mpu_base, d->arch.vgic.dbase);
+    vgic_mpu_limit = max(vgic_mpu_limit, (d->arch.vgic.dbase + SZ_64K));
+#endif
 
     /*
      * Register mmio handler per contiguous region occupied by the
@@ -1759,7 +1766,25 @@ static int vgic_v3_domain_init(struct domain *d)
 
         register_mmio_handler(d, &vgic_rdistr_mmio_handler,
                               region->base, region->size, region);
+#ifdef CONFIG_HAS_MPU
+    vgic_mpu_base = min(vgic_mpu_base, region->base);
+    vgic_mpu_limit = max(vgic_mpu_limit, (region->base + region->size));
+#endif
     }
+
+#ifdef CONFIG_HAS_MPU
+    ret = map_regions_p2mt(d, gaddr_to_gfn(vgic_mpu_base),
+                          PFN_DOWN(vgic_mpu_limit - vgic_mpu_base),
+                          maddr_to_mfn(vgic_mpu_base),
+                          p2m_dev_rw);
+    if ( ret < 0 )
+    {
+        printk(XENLOG_ERR
+               "Failed to map vgic %"PRIpaddr" - %"PRIpaddr" on the MPU system\n",
+               vgic_mpu_base, (vgic_mpu_limit - 1));
+        return -EFAULT;
+    }
+#endif
 
     d->arch.vgic.ctlr = VGICD_CTLR_DEFAULT;
 

@@ -158,7 +158,9 @@ typedef enum {
     /* The types below are only used to decide the page attribute in the P2M */
     p2m_iommu_map_rw,   /* Read/write iommu mapping */
     p2m_iommu_map_ro,   /* Read-only iommu mapping */
-
+#ifdef CONFIG_HAS_MPU
+    p2m_dev_rw,         /* Device read/write memory */
+#endif
     p2m_max_real_type,  /* Types after this won't be store in the p2m */
 } p2m_type_t;
 
@@ -384,6 +386,22 @@ mfn_t gfn_to_mfn(struct domain *d, gfn_t gfn);
 typedef unsigned int p2m_query_t;
 #define P2M_ALLOC    (1u<<0)   /* Populate PoD and paged-out entries */
 #define P2M_UNSHARE  (1u<<1)   /* Break CoW sharing */
+
+#ifdef CONFIG_HAS_MPU
+struct page_info *p2m_get_region_from_gfns(struct domain *d, gfn_t gfn,
+                                           unsigned long nr_gfns, p2m_type_t *t);
+
+static inline struct page_info *get_region_from_gfns(struct domain *d,
+                                                     unsigned long gfn,
+                                                     unsigned long nr_gfns,
+                                                     p2m_type_t *t)
+{
+    /* TODO: Special case for DOMID_XEN. */
+    ASSERT(d != dom_xen);
+
+    return p2m_get_region_from_gfns(d, _gfn(gfn), nr_gfns, t);
+}
+#endif
 
 struct page_info *p2m_get_page_from_gfn(struct domain *d, gfn_t gfn,
                                         p2m_type_t *t);

@@ -52,6 +52,48 @@ static struct page_info *translate_get_page(copy_info_t info, uint64_t addr,
     return page;
 }
 
+#ifdef CONFIG_HAS_MPU
+static struct page_info *translate_get_region(copy_info_t info, uint64_t addr,
+                                              unsigned int len)
+{
+    p2m_type_t p2mt;
+    struct page_info *page = NULL;
+
+    /* Base address and length shall be correctly aligned to PAGE_SIZE. */
+    ASSERT(!(addr & ~PAGE_MASK) && !(len & ~PAGE_MASK));
+
+    page = get_region_from_gfns(info.gpa.d, paddr_to_pfn(addr), len >> PAGE_SHIFT, &p2mt);
+    if ( !page )
+        return NULL;
+
+    if ( !p2m_is_ram(p2mt) )
+        return NULL;
+
+    return page;
+}
+#endif
+
+static void mem_copy_to_guest(void *buf, void *p, unsigned int size,
+                              unsigned int flags)
+{
+    if ( flags & COPY_to_guest )
+    {
+        /*
+         * buf will be NULL when the caller request to zero the
+         * guest memory.
+         */
+        if ( buf )
+            memcpy(p, buf, size);
+        else
+            memset(p, 0, size);
+    }
+    else
+        memcpy(buf, p, size);
+
+    if ( flags & COPY_flush_dcache )
+        clean_dcache_va_range(p, size);
+}
+
 static unsigned long copy_guest(void *buf, uint64_t addr, unsigned int len,
                                 copy_info_t info, unsigned int flags)
 {
@@ -67,6 +109,36 @@ static unsigned long copy_guest(void *buf, uint64_t addr, unsigned int len,
         unsigned int size = min(len, (unsigned int)PAGE_SIZE - offset);
         struct page_info *page;
 
+#ifdef CONFIG_HAS_MPU
+        /*
+         * On MPU system, due to 1:1 direct-map feature(GFN == MFN), user
+         * could copy into/from guest memory in size of a memory region with
+         * multiple pages.
+         */
+        if ( !offset && (len > PAGE_SIZE) )
+        {
+            size = round_pgdown(len);
+
+            page = translate_get_region(info, addr, size);
+            if ( page == NULL )
+                return len;
+
+            p = __map_domain_page(page);
+
+            mem_copy_to_guest(buf, p, size, flags);
+
+            unmap_domain_page(p);
+
+            for ( unsigned int i = 0; i < (size >> PAGE_SHIFT); i++ )
+                put_page(page + i);
+            len -= size;
+            buf += size;
+            addr += size;
+
+            continue;
+        }
+#endif
+
         page = translate_get_page(info, addr, flags & COPY_linear,
                                   flags & COPY_to_guest);
         if ( page == NULL )
@@ -74,22 +146,8 @@ static unsigned long copy_guest(void *buf, uint64_t addr, unsigned int len,
 
         p = __map_domain_page(page);
         p += offset;
-        if ( flags & COPY_to_guest )
-        {
-            /*
-             * buf will be NULL when the caller request to zero the
-             * guest memory.
-             */
-            if ( buf )
-                memcpy(p, buf, size);
-            else
-                memset(p, 0, size);
-        }
-        else
-            memcpy(buf, p, size);
 
-        if ( flags & COPY_flush_dcache )
-            clean_dcache_va_range(p, size);
+        mem_copy_to_guest(buf, p, size, flags);
 
         unmap_domain_page(p - offset);
         put_page(page);

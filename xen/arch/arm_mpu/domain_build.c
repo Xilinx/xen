@@ -3998,6 +3998,14 @@ void __init create_domUs(void)
 
         if ( iommu_enabled && (IS_ENABLED(CONFIG_OVERLAY_DTB) ||
             dt_find_compatible_node(node, NULL, "multiboot,device-tree")) )
+
+#ifdef CONFIG_HAS_MPU
+        if ( dt_property_read_bool(node, "mpu") )
+            flags |= CDF_mpu;
+#endif
+
+        if ( dt_find_compatible_node(node, NULL, "multiboot,device-tree") &&
+             iommu_enabled )
             d_cfg.flags |= XEN_DOMCTL_CDF_iommu;
 
         if ( !dt_property_read_u32(node, "nr_spis", &d_cfg.arch.nr_spis) )

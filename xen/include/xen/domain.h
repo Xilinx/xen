@@ -44,6 +44,13 @@ void arch_get_domain_info(const struct domain *d,
 
 #define is_domain_using_staticmem(d) ((d)->cdf & CDF_staticmem)
 
+/* If this domain has PMSAv8-64 memory architecture? */
+#ifdef CONFIG_HAS_MPU
+#define CDF_mpu                  (1U << 3)
+#else
+#define CDF_mpu                  0
+#endif
+
 /*
  * Arch-specifics.
  */

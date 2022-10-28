@@ -45,6 +45,15 @@ enum domain_type {
 #define domain_use_host_layout(d) (is_domain_direct_mapped(d) || \
                                    is_hardware_domain(d))
 
+#ifdef CONFIG_HAS_MPU
+#define is_mpu_domain(d) (d)->arch.mpu
+#else
+static inline bool is_mpu_domain(struct domain *d)
+{
+    return false;
+}
+#endif
+
 struct vtimer {
     struct vcpu *v;
     int irq;
@@ -128,6 +137,10 @@ struct arch_domain
      * For now, this variable represents single SGI registration.
      */
     uint8_t firmware_sgi;
+
+#ifdef CONFIG_HAS_MPU
+    bool mpu;
+#endif
 }  __cacheline_aligned;
 
 struct arch_vcpu

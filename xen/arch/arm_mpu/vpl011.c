@@ -716,6 +716,20 @@ int domain_vpl011_init(struct domain *d, struct vpl011_init_info *info)
 
     vpl011->uartfr = TXFE | RXFE;
 
+#ifdef CONFIG_HAS_MPU
+    rc = map_regions_p2mt(d, gaddr_to_gfn(vpl011->base_addr),
+                          PFN_DOWN(GUEST_PL011_SIZE),
+                          maddr_to_mfn(vpl011->base_addr),
+                          p2m_dev_rw);
+    if ( rc < 0 )
+    {
+        printk(XENLOG_ERR
+               "Failed to map vpl011 %"PRIpaddr" on the MPU system\n",
+               vpl011->base_addr);
+        return -EFAULT;
+    }
+#endif
+
     spin_lock_init(&vpl011->lock);
 
     register_mmio_handler(d, &vpl011_mmio_handler,

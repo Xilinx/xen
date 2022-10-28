@@ -243,7 +243,16 @@ static void p2m_set_permission(pr_t *pr, p2m_type_t t, p2m_access_t a)
         BUG();
         break;
 
+    case p2m_dev_rw:
+        pr->base.reg.xn = XN_P2M_ENABLED;
+        pr->base.reg.ap = AP_RW_EL2;
+        break;
+
     case p2m_mmio_direct_dev:
+        pr->base.reg.xn = XN_P2M_ENABLED;
+        pr->base.reg.ap = AP_RW_ALL;
+        break;
+
     case p2m_mmio_direct_nc:
     case p2m_mmio_direct_c:
     case p2m_iommu_map_ro:
@@ -301,6 +310,16 @@ static inline pr_t region_to_p2m_entry(mfn_t smfn, unsigned long nr_mfn,
     case p2m_max_real_type:
         base.reg.sh = LPAE_SH_INNER;
         limit.reg.ai = MT_NORMAL;
+        break;
+
+    case p2m_dev_rw:
+        limit.reg.ai = MT_DEVICE_nGnRE;
+        base.reg.sh = LPAE_SH_OUTER;
+        break;
+
+    case p2m_mmio_direct_dev:
+        limit.reg.ai = MT_DEVICE_nGnRE;
+        base.reg.sh = LPAE_SH_OUTER;
         break;
 
     default:

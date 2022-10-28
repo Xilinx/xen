@@ -911,8 +911,13 @@ static void _show_registers(const struct cpu_user_regs *regs,
         show_registers_32(regs, ctxt, guest_mode, v);
 #endif
     }
+
+#ifndef CONFIG_HAS_MPU
     printk("  VTCR_EL2: %"PRIregister"\n", READ_SYSREG(VTCR_EL2));
     printk(" VTTBR_EL2: %016"PRIx64"\n", ctxt->vttbr_el2);
+#else
+    printk("  VTCR_EL2: %"PRIregister"\n", v->arch.vtcr_el2);
+#endif
     printk("\n");
 
     printk(" SCTLR_EL2: %"PRIregister"\n", READ_SYSREG(SCTLR_EL2));
@@ -1901,6 +1906,30 @@ static void do_trap_stage2_abort_guest(struct cpu_user_regs *regs,
         };
 
         p2m_mem_access_check(gpa, gva, npfec);
+
+        if ( is_data && IS_ENABLED(CONFIG_HAS_MPU) )
+        {
+            info.gpa = gpa;
+            info.dabt = hsr.dabt;
+
+            state = try_handle_mmio(regs, &info);
+
+            switch ( state )
+            {
+            case IO_ABORT:
+                goto inject_abt;
+            case IO_HANDLED:
+                advance_pc(regs, hsr);
+                return;
+            case IO_RETRY:
+                /* Finish later */
+                return;
+            case IO_UNHANDLED:
+                /* IO unhandled, try another way to handle it. */
+                break;
+            }
+        }
+
         /*
          * The only way to get here right now is because of mem_access,
          * thus reinjecting the exception to the guest is never required.
