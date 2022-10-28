@@ -473,6 +473,12 @@
 #define CNTHPx_CTL_EL2   CNTHPS_CTL_EL2
 #define CNTHPx_CVAL_EL2  CNTHPS_CVAL_EL2
 
+/* Virtualization Secure Translation Control Register */
+#define VSTCR_EL2  S3_4_C2_C6_2
+#define VSTCR_EL2_RES1_SHIFT 31
+#define VSTCR_EL2_SA_SHIFT   30
+#define VSTCR_EL2_SC_SHIFT   20
+
 #else
 
 /* Hypervisor timer registers for Secure/Non-Secure EL2. */

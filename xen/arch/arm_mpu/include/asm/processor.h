@@ -404,6 +404,12 @@
 
 #define VTCR_RES1       (_AC(1,UL)<<31)
 
+#ifdef CONFIG_ARM_V8R
+#define VTCR_MSA_VMSA   (_AC(0x1,UL)<<31)
+#define VTCR_MSA_PMSA   ~(_AC(0x1,UL)<<31)
+#define NSA_SEL2        ~(_AC(0x1,UL)<<30)
+#endif
+
 /* HCPTR Hyp. Coprocessor Trap Register */
 #define HCPTR_TAM       ((_AC(1,U)<<30))
 #define HCPTR_TTA       ((_AC(1,U)<<20))        /* Trap trace registers */
@@ -461,6 +467,13 @@
 #ifdef CONFIG_ARM_64
 #define MM64_VMID_8_BITS_SUPPORT    0x0
 #define MM64_VMID_16_BITS_SUPPORT   0x2
+#endif
+
+#ifdef CONFIG_ARM_V8R
+#define MM64_MSA_PMSA_SUPPORT       0xf
+#define MM64_MSA_FRAC_NONE_SUPPORT  0x0
+#define MM64_MSA_FRAC_PMSA_SUPPORT  0x1
+#define MM64_MSA_FRAC_VMSA_SUPPORT  0x2
 #endif
 
 #ifndef __ASSEMBLY__

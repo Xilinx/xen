@@ -33,6 +33,7 @@ extern void access_protection_region(bool read, pr_t *pr_read,
 extern pr_t *xen_mpumap;
 extern unsigned long nr_xen_mpumap;
 extern unsigned long max_xen_mpumap;
+extern uint8_t mpu_regions_count_el1;
 
 /* Boot-time MPU protection region configuration setup */
 extern void setup_protection_regions(void);
@@ -56,6 +57,7 @@ extern void map_boot_module_section(void);
 extern void disable_mpu_region_from_index(unsigned int index);
 extern int reorder_xen_mpumap(void);
 extern void clear_xen_mpumap(unsigned int len);
+uint8_t load_mpu_supported_region_el1(void);
 
 static inline paddr_t __virt_to_maddr(vaddr_t va)
 {

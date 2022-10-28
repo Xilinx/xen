@@ -203,6 +203,10 @@ void p2m_altp2m_check(struct vcpu *v, uint16_t idx)
  */
 void p2m_restrict_ipa_bits(unsigned int ipa_bits);
 
+#ifdef CONFIG_HAS_MPU
+register_t get_default_vtcr_flags(void);
+#endif
+
 /* Second stage paging setup, to be called on all CPUs */
 void setup_virt_paging(void);
 

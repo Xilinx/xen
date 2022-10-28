@@ -82,6 +82,9 @@ unsigned long nr_unmapped_xen_mpumap;
 DEFINE_PER_CPU(pr_t *, cpu_mpumap);
 DEFINE_PER_CPU(unsigned long, nr_cpu_mpumap);
 
+/* Number of EL1 MPU regions supported by the hardware */
+uint8_t __read_mostly mpu_regions_count_el1;
+
 /* Write a protection region */
 #define WRITE_PROTECTION_REGION(sel, pr, prbar, prlar) ({               \
     uint64_t _sel = sel;                                                \
@@ -1114,4 +1117,17 @@ void free_init_memory(void)
         if ( rc < 0 )
             panic("Unable to remove the init section (rc = %d)\n", rc);
     }
+}
+
+/* Loads and returns the number of EL1 MPU supported regions by the hardware */
+uint8_t __init load_mpu_supported_region_el1(void)
+{
+    uint8_t reg_value = (uint8_t)(READ_SYSREG(MPUIR_EL1) & MPUIR_REGION_MASK);
+    /*
+     * Returns the number of supported MPU regions for EL1 from MPUIR_EL1
+     * register and also writes the mpu_regions_count_el1 variable value.
+     */
+    mpu_regions_count_el1 = reg_value;
+
+    return reg_value;
 }
