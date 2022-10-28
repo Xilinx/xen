@@ -25,6 +25,23 @@ extern unsigned int p2m_root_level;
 #define P2M_ROOT_LEVEL 1
 #endif
 
+#define MAX_VMID_8_BIT  (1UL << 8)
+#define MAX_VMID_16_BIT (1UL << 16)
+
+#define INVALID_VMID 0 /* VMID 0 is reserved */
+
+#ifdef CONFIG_ARM_64
+extern unsigned int __read_mostly max_vmid;
+/* VMID is by default 8 bit width on AArch64 */
+#define MAX_VMID       max_vmid
+#else
+/* VMID is always 8 bit width on AArch32 */
+#define MAX_VMID       MAX_VMID_8_BIT
+#endif
+
+extern unsigned long *vmid_mask;
+extern spinlock_t vmid_alloc_lock;
+
 struct domain;
 
 extern void memory_type_changed(struct domain *);
@@ -189,6 +206,10 @@ void p2m_restrict_ipa_bits(unsigned int ipa_bits);
 /* Second stage paging setup, to be called on all CPUs */
 void setup_virt_paging(void);
 
+/* VMID-related common functions. */
+void p2m_vmid_allocator_init(void);
+int p2m_alloc_vmid(struct domain *d);
+
 /* Init the datastructures for later use by the p2m code */
 int p2m_init(struct domain *d);
 
@@ -222,6 +243,8 @@ void p2m_restore_state(struct vcpu *n);
 /* Print debugging/statistial info about a domain's p2m */
 void p2m_dump_info(struct domain *d);
 
+struct page_info *p2m_alloc_page(struct domain *d);
+void p2m_free_page(struct domain *d, struct page_info *pg);
 int p2m_set_allocation(struct domain *d, unsigned long pages, bool *preempted);
 int p2m_teardown_allocation(struct domain *d);
 

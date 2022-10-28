@@ -39,13 +39,14 @@ obj-y += kernel.init.o
 obj-$(CONFIG_LIVEPATCH) += livepatch.o
 obj-y += mem_access.o
 obj-y += mm.o
+obj-y += p2m.o
 ifneq ($(CONFIG_HAS_MPU), y)
 obj-y += mm_mmu.o
+obj-y += p2m_mmu.o
 else
 obj-y += mm_mpu.o
 endif
 obj-y += monitor.o
-obj-y += p2m.o
 obj-y += percpu.o
 obj-y += platform.o
 obj-y += platform_hypercall.o
