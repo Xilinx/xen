@@ -130,6 +130,11 @@ struct p2m_domain {
 
     /* Keeping track on which CPU this p2m was used and for which vCPU */
     uint8_t last_vcpu_ran[NR_CPUS];
+
+#ifdef CONFIG_HAS_MPU
+    /* Number of MPU protection regions in P2M MPU memory mapping table. */
+    unsigned int nr_regions;
+#endif
 };
 
 /*
@@ -153,6 +158,7 @@ typedef enum {
     /* The types below are only used to decide the page attribute in the P2M */
     p2m_iommu_map_rw,   /* Read/write iommu mapping */
     p2m_iommu_map_ro,   /* Read-only iommu mapping */
+
     p2m_max_real_type,  /* Types after this won't be store in the p2m */
 } p2m_type_t;
 

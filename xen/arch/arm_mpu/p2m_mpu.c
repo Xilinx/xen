@@ -26,6 +26,12 @@
 /* VTCR_EL2 value to be configured for the boot CPU. */
 static uint32_t __read_mostly vtcr;
 
+/* Use the p2m type to check whether a region is valid. */
+static inline bool p2m_is_valid(pr_t *region)
+{
+    return region->base.reg.p2m_type != p2m_invalid;
+}
+
 static uint64_t generate_vsctlr(uint16_t vmid)
 {
     return ((uint64_t)vmid << 48);
@@ -47,6 +53,11 @@ int p2m_teardown_allocation(struct domain *d)
     return 0;
 }
 
+void p2m_write_unlock(struct p2m_domain *p2m)
+{
+    write_unlock(&p2m->lock);
+}
+
 void p2m_dump_info(struct domain *d)
 {
 }
@@ -59,6 +70,136 @@ void dump_p2m_lookup(struct domain *d, paddr_t addr)
 {
 }
 
+/*
+ * Get the details of one guest memory range, [gfn, gfn + nr_gfns).
+ *
+ * If the range is present, only the starting MFN(mfn) will be returned
+ * and also p2m type get filled up. Due to GFN == MFN on MPU system, the
+ * whole physical memory range could be deduced, that is, [mfn, mfn + nr_gfns).
+ *
+ * If the range is not present, INVALID_MFN will be returned.
+ *
+ * The parameter valid will contain the value of bit[0] (e.g enable bit)
+ * of the Protection Region Limit Address Register.
+ */
+static mfn_t p2m_get_region(struct p2m_domain *p2m, gfn_t gfn,
+                            unsigned long nr_gfns, p2m_type_t *t, bool *valid)
+{
+    pr_t *table, *region = NULL;
+    p2m_type_t _t;
+    unsigned int i = 0;
+    gfn_t egfn = gfn_add(gfn, nr_gfns);
+    paddr_t base, limit;
+
+    ASSERT(p2m_is_locked(p2m));
+
+    /* Allow t to be NULL. */
+    t = t ?: &_t;
+
+    *t = p2m_invalid;
+
+    if ( valid )
+        *valid = false;
+
+    /*
+     * Check if the ending gfn is higher than the highest the p2m map
+     * currently holds, or the starting gfn lower than the lowest it holds
+     */
+    if ( (gfn_x(egfn) > gfn_x(p2m->max_mapped_gfn)) ||
+         (gfn_x(gfn) < gfn_x(p2m->lowest_mapped_gfn)) )
+        return INVALID_MFN;
+
+    /* Get base and limit address */
+    base = gfn_to_gaddr(gfn);
+    limit = gfn_to_gaddr(egfn) - 1;
+
+    /* MPU P2M table. */
+    table = (pr_t *)page_to_virt(p2m->root);
+    /* The table should always be non-NULL and is always present. */
+    if ( !table )
+        ASSERT_UNREACHABLE();
+
+    /*
+     * Iterate MPU P2M table to find the region which includes this memory
+     * range[base, limit].
+     */
+    for( ; i < p2m->nr_regions; i++ )
+    {
+         region = &table[i];
+         if( (base >= pr_get_base(region)) && (limit <= pr_get_limit(region)) )
+             break;
+    }
+
+    /* Not Found. */
+    if ( i == p2m->nr_regions )
+        return INVALID_MFN;
+
+    if ( p2m_is_valid(region) )
+    {
+        *t = region->base.reg.p2m_type;
+
+        if ( valid )
+            *valid = region_is_valid(region);
+    }
+
+    /* GFN == MFN, 1:1 direct-map in MPU system. */
+    return _mfn(gfn_x(gfn));
+}
+
+struct page_info *p2m_get_region_from_gfns(struct domain *d, gfn_t gfn,
+                                           unsigned long nr_gfns, p2m_type_t *t)
+{
+    struct page_info *page;
+    p2m_type_t p2mt;
+    mfn_t mfn;
+    struct p2m_domain *p2m = p2m_get_hostp2m(d);
+    unsigned int i = 0;
+
+    p2m_read_lock(p2m);
+    mfn = p2m_get_region(p2m, gfn, nr_gfns, &p2mt, NULL);
+    p2m_read_unlock(p2m);
+
+    if ( t )
+        *t = p2mt;
+
+    /* TODO: Add foreign mapping */
+    if ( !p2m_is_ram(p2mt) )
+        return NULL;
+
+    if ( !mfn_valid(mfn) )
+        return NULL;
+
+    page = mfn_to_page(mfn);
+
+    for ( ; i < nr_gfns; i++ )
+        if ( !get_page(page + i, d) )
+            return NULL;
+
+    return page;
+}
+
+/*
+ * Get the details of a given gfn.
+ *
+ * If the entry is present, the associated MFN will be returned and the
+ * p2m type get filled up.
+ *
+ * The page_order is meaningless on MPU system, and keeping it here is only
+ * to be compatible with MMU system.
+ *
+ * If the entry is not present, INVALID_MFN will be returned.
+ *
+ * The parameter valid will contain the value of bit[0] (e.g enable bit)
+ * of the Protection Region Limit Address Register.
+ */
+mfn_t p2m_get_entry(struct p2m_domain *p2m, gfn_t gfn,
+                    p2m_type_t *t, p2m_access_t *a,
+                    unsigned int *page_order,
+                    bool *valid)
+{
+    return p2m_get_region(p2m, gfn, 1, t, valid);
+}
+
 int guest_physmap_mark_populate_on_demand(struct domain *d,
                                           unsigned long gfn,
                                           unsigned int order)
@@ -69,6 +210,156 @@ int guest_physmap_mark_populate_on_demand(struct domain *d,
 unsigned long p2m_pod_decrease_reservation(struct domain *d, gfn_t gfn,
                                            unsigned int order)
 {
+    return 0;
+}
+
+static void p2m_set_permission(pr_t *pr, p2m_type_t t, p2m_access_t a)
+{
+    /* First apply type permissions */
+    /*
+     * Only the following six kinds p2m_type_t are supported on the
+     * mpu system right now, that is, p2m_invalid, p2m_ram_rw, p2m_ram_ro
+     * p2m_max_real_type, p2m_dev_rw, p2m_mmio_direct_dev.
+     * All the left will be introduced on first usage.
+     */
+    switch ( t )
+    {
+    case p2m_ram_rw:
+        pr->base.reg.xn = XN_DISABLED;
+        pr->base.reg.ap = AP_RW_ALL;
+        break;
+
+    case p2m_ram_ro:
+        pr->base.reg.xn = XN_DISABLED;
+        pr->base.reg.ap = AP_RO_ALL;
+        break;
+
+    case p2m_invalid:
+        pr->base.reg.xn = XN_P2M_ENABLED;
+        pr->base.reg.ap = AP_RO_ALL;
+        break;
+
+    case p2m_max_real_type:
+        BUG();
+        break;
+
+    case p2m_mmio_direct_dev:
+    case p2m_mmio_direct_nc:
+    case p2m_mmio_direct_c:
+    case p2m_iommu_map_ro:
+    case p2m_iommu_map_rw:
+    case p2m_map_foreign_ro:
+    case p2m_map_foreign_rw:
+    case p2m_grant_map_ro:
+    case p2m_grant_map_rw:
+        printk("ERROR: UNIMPLEMENTED P2M TYPE PERMISSSON IN MPU!\n");
+        BUG();
+        break;
+    }
+
+    /*
+     * Since mem_access is NOT in use for the domain on MPU system,
+     * then it must be p2m_access_rwx.
+     */
+    ASSERT(a == p2m_access_rwx);
+}
+
+static inline pr_t region_to_p2m_entry(mfn_t smfn, unsigned long nr_mfn,
+                                       p2m_type_t t, p2m_access_t a)
+{
+    prbar_t base;
+    prlar_t limit;
+    pr_t region;
+    paddr_t base_addr, limit_addr;
+
+    /* Build up prbar (Protection Region Base Address Register) register. */
+    base = (prbar_t) {
+        .reg = {
+            .p2m_type = t,  /* P2M Type */
+        }};
+
+    /* Build up prlar (Protection Region Limit Address Register) register. */
+    limit = (prlar_t) {
+        .reg = {
+            .ns = 0,        /* Hyp mode is in secure world */
+            .en = 1,        /* Region enabled */
+        }};
+
+    BUILD_BUG_ON(p2m_max_real_type > (1 << 4));
+
+    /*
+     * Only the following six kinds p2m_type_t are supported on the
+     * mpu system right now, that is, p2m_invalid, p2m_ram_rw, p2m_ram_ro
+     * p2m_max_real_type, p2m_dev_rw, and p2m_mmio_direct_dev.
+     * All the left will be introduced on first usage.
+     */
+    switch ( t )
+    {
+    case p2m_invalid:
+    case p2m_ram_rw:
+    case p2m_ram_ro:
+    case p2m_max_real_type:
+        base.reg.sh = LPAE_SH_INNER;
+        limit.reg.ai = MT_NORMAL;
+        break;
+
+    default:
+        printk("ERROR: UNIMPLEMENTED P2M TYPE IN MPU!\n");
+        BUG();
+        break;
+    }
+
+    /* Build up MPU protection region. */
+    region = (pr_t) {
+        .base = base,
+        .limit = limit,
+    };
+
+    /*
+     * xn and ap bit will be defined in the p2m_set_permission
+     * based on a and t.
+     */
+    p2m_set_permission(&region, t, a);
+
+    /* Set base address and limit address */
+    base_addr = mfn_to_maddr(smfn);
+    limit_addr = mfn_to_maddr(mfn_add(smfn, nr_mfn)) - 1;
+    pr_set_base(&region, base_addr);
+    pr_set_limit(&region, limit_addr);
+
+    return region;
+}
+
+/* TODO: removing mapping (i.e MFN_INVALID). */
+int p2m_set_entry(struct p2m_domain *p2m, gfn_t sgfn,
+                  unsigned long nr, mfn_t smfn,
+                  p2m_type_t t, p2m_access_t a)
+{
+    pr_t *table;
+    mfn_t emfn = mfn_add(smfn, nr);
+
+    /*
+     * Other than removing mapping (i.e MFN_INVALID),
+     * gfn == mfn in MPU system.
+     */
+    if ( !mfn_eq(smfn, INVALID_MFN) )
+        ASSERT(gfn_x(sgfn) == mfn_x(smfn));
+
+    /* MPU P2M table. */
+    table = (pr_t *)page_to_virt(p2m->root);
+    if ( !table )
+        return -EINVAL;
+
+    /*
+     * Build up according MPU protection region and set its
+     * memory attributes.
+     */
+    table[p2m->nr_regions] = region_to_p2m_entry(smfn, nr, t, a);
+    p2m->nr_regions++;
+
+    p2m->max_mapped_gfn = gfn_max(p2m->max_mapped_gfn, _gfn(mfn_x(emfn)));
+    p2m->lowest_mapped_gfn = gfn_min(p2m->lowest_mapped_gfn, _gfn(mfn_x(smfn)));
+
     return 0;
 }
 
@@ -112,6 +403,15 @@ int map_dev_mmio_page(struct domain *d,
                       mfn_t mfn)
 {
     return -EINVAL;
+}
+
+int guest_physmap_add_entry(struct domain *d,
+                            gfn_t gfn,
+                            mfn_t mfn,
+                            unsigned long page_order,
+                            p2m_type_t t)
+{
+    return p2m_insert_mapping(d, gfn, (1 << page_order), mfn, t);
 }
 
 int guest_physmap_remove_page(struct domain *d, gfn_t gfn, mfn_t mfn,
@@ -230,6 +530,11 @@ void p2m_set_way_flush(struct vcpu *v, struct cpu_user_regs *regs,
 
 void p2m_toggle_cache(struct vcpu *v, bool was_enabled)
 {
+}
+
+mfn_t gfn_to_mfn(struct domain *d, gfn_t gfn)
+{
+    return p2m_lookup(d, gfn, NULL);
 }
 
 struct page_info *get_page_from_gva(struct vcpu *v, vaddr_t va,

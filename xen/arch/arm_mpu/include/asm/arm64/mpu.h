@@ -62,7 +62,11 @@ typedef union {
         unsigned long ap:2;       /* Acess Permission */
         unsigned long sh:2;       /* Sharebility */
         unsigned long base:42;    /* Base Address */
-        unsigned long pad:16;
+        unsigned long pad:12;
+        unsigned long p2m_type:4; /*
+                                   * Ignore by hardware.
+                                   * Used to store p2m types.
+                                   */
     } reg;
     uint64_t bits;
 } prbar_t;
