@@ -207,6 +207,11 @@ struct arch_vcpu
     register_t hcr_el2;
     register_t mdcr_el2;
 
+#ifdef CONFIG_HAS_MPU
+    /* Virtualization Translation Control Register */
+    register_t vtcr_el2;
+#endif
+
     uint32_t teecr, teehbr; /* ThumbEE, 32-bit guests only */
 #ifdef CONFIG_ARM_32
     /*

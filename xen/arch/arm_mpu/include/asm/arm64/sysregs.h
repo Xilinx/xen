@@ -488,6 +488,9 @@
 
 #endif /* CONFIG_ARM_SECURE_STATE */
 
+/* Virtualization System Control Register */
+#define VSCTLR_EL2 S3_4_C2_C0_0
+
 /* System registers for AArch64 with PMSA */
 #ifdef CONFIG_HAS_MPU
 
