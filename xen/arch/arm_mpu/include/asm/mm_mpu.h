@@ -55,9 +55,13 @@ extern void update_mm(void);
 extern void map_guest_memory_section_on_boot(void);
 extern void map_boot_module_section(void);
 extern void disable_mpu_region_from_index(unsigned int index);
+extern void unmap_xen_mpumap_on_ctxt(void);
+extern void map_xen_mpumap_on_ctxt(void);
 extern int reorder_xen_mpumap(void);
 extern void clear_xen_mpumap(unsigned int len);
 uint8_t load_mpu_supported_region_el1(void);
+void save_el1_mpu_regions(pr_t *pr);
+void restore_el1_mpu_regions(pr_t *pr);
 
 static inline paddr_t __virt_to_maddr(vaddr_t va)
 {

@@ -599,6 +599,12 @@ void __init map_guest_memory_section_on_boot(void)
     nr_unmapped_xen_mpumap += mpuinfo.sections[MSINFO_GUEST].nr_banks;
 }
 
+static void map_guest_memory_section_on_ctxt(void)
+{
+    map_guest_memory_section(THIS_CPU_MPUMAP,
+                             max_xen_mpumap, &(THIS_CPU_NR_MPUMAP));
+}
+
 void __init map_boot_module_section(void)
 {
     unsigned int i = 0;
@@ -680,6 +686,43 @@ static void __init map_device_memory_section_on_boot(void)
      * hypervisor mode of idle VCPU.
      */
     nr_unmapped_xen_mpumap += mpuinfo.sections[MSINFO_DEVICE].nr_banks;
+}
+
+/* Map device memory on context switch. */
+static void map_device_memory_section_on_ctxt(void)
+{
+    map_device_memory_section(THIS_CPU_MPUMAP, &(THIS_CPU_NR_MPUMAP));
+}
+
+/*
+ * When context switching from hypervisor mode of idle VCPU, some MPU
+ * Protection Region need to be unmapped, to avoid overlapping, such as
+ * if the target is VCPU of a domain, P2M mapping of domain RAM will overlap
+ * with the guest memory section, which contains all guest RAM mapping in
+ * EL2.
+ *
+ * Right now, only guest memory section and device memory dection are
+ * taken into consideration
+ * .
+ * Be aware that all need-to-unmap MPU Protection Regions are added to the
+ * tail.
+ */
+void unmap_xen_mpumap_on_ctxt(void)
+{
+    unsigned int tail = THIS_CPU_NR_MPUMAP - 1;
+    unsigned int i = 0;
+
+    for ( ; i < nr_unmapped_xen_mpumap; i++ )
+    {
+        disable_mpu_region_from_index(tail - i);
+        THIS_CPU_NR_MPUMAP--;
+    }
+}
+
+void map_xen_mpumap_on_ctxt(void)
+{
+    map_guest_memory_section_on_ctxt();
+    map_device_memory_section_on_ctxt();
 }
 
 void free_mpumap(pr_t *mpu)
@@ -1130,4 +1173,212 @@ uint8_t __init load_mpu_supported_region_el1(void)
     mpu_regions_count_el1 = reg_value;
 
     return reg_value;
+}
+
+/*
+ * Save EL1 MPU base registers and limit registers.
+ * As explained from section G1.3.18 of the reference manual for Armv8-R,
+ * PRBAR<n>_ELx and PRLAR<n>_ELx provides access to the MPU region
+ * determined by the 4 most significant bit written on PRSELR_ELx.REGION and
+ * the <n> number from 1 to 15, when n == 0 then PRBAR_ELx should be used.
+ * So for example to access regions from 16 to 31 (0b10000 to 0b11111):
+ *  - Set PRSELR_ELx to 0b10000
+ *  - Region 16 configuration is accessible through PRBAR_ELx and PRLAR_ELx
+ *  - Region 17 configuration is accessible through PRBAR1_ELx and PRLAR1_ELx
+ *  - Region 18 configuration is accessible through PRBAR2_ELx and PRLAR2_ELx
+ *  - ...
+ *  - Region 31 configuration is accessible through PRBAR15_ELx and PRLAR15_ELx
+ */
+void save_el1_mpu_regions(pr_t *pr)
+{
+    int sel = mpu_regions_count_el1 - 1;
+
+    if ( mpu_regions_count_el1 == 0 )
+        return;
+
+    while (sel > 0)
+    {
+        WRITE_SYSREG( (sel & 0xF0), PRSELR_EL1);
+        isb();
+        switch (sel & 0xF) {
+            case 15:
+                pr[sel].base.bits = READ_SYSREG(PRBAR15_EL1);
+                pr[sel].limit.bits = READ_SYSREG(PRLAR15_EL1);
+                sel--;
+                fallthrough;
+            case 14:
+                pr[sel].base.bits = READ_SYSREG(PRBAR14_EL1);
+                pr[sel].limit.bits = READ_SYSREG(PRLAR14_EL1);
+                sel--;
+                fallthrough;
+            case 13:
+                pr[sel].base.bits = READ_SYSREG(PRBAR13_EL1);
+                pr[sel].limit.bits = READ_SYSREG(PRLAR13_EL1);
+                sel--;
+                fallthrough;
+            case 12:
+                pr[sel].base.bits = READ_SYSREG(PRBAR12_EL1);
+                pr[sel].limit.bits = READ_SYSREG(PRLAR12_EL1);
+                sel--;
+                fallthrough;
+            case 11:
+                pr[sel].base.bits = READ_SYSREG(PRBAR11_EL1);
+                pr[sel].limit.bits = READ_SYSREG(PRLAR11_EL1);
+                sel--;
+                fallthrough;
+            case 10:
+                pr[sel].base.bits = READ_SYSREG(PRBAR10_EL1);
+                pr[sel].limit.bits = READ_SYSREG(PRLAR10_EL1);
+                sel--;
+                fallthrough;
+            case 9:
+                pr[sel].base.bits = READ_SYSREG(PRBAR9_EL1);
+                pr[sel].limit.bits = READ_SYSREG(PRLAR9_EL1);
+                sel--;
+                fallthrough;
+            case 8:
+                pr[sel].base.bits = READ_SYSREG(PRBAR8_EL1);
+                pr[sel].limit.bits = READ_SYSREG(PRLAR8_EL1);
+                sel--;
+                fallthrough;
+            case 7:
+                pr[sel].base.bits = READ_SYSREG(PRBAR7_EL1);
+                pr[sel].limit.bits = READ_SYSREG(PRLAR7_EL1);
+                sel--;
+                fallthrough;
+            case 6:
+                pr[sel].base.bits = READ_SYSREG(PRBAR6_EL1);
+                pr[sel].limit.bits = READ_SYSREG(PRLAR6_EL1);
+                sel--;
+                fallthrough;
+            case 5:
+                pr[sel].base.bits = READ_SYSREG(PRBAR5_EL1);
+                pr[sel].limit.bits = READ_SYSREG(PRLAR5_EL1);
+                sel--;
+                fallthrough;
+            case 4:
+                pr[sel].base.bits = READ_SYSREG(PRBAR4_EL1);
+                pr[sel].limit.bits = READ_SYSREG(PRLAR4_EL1);
+                sel--;
+                fallthrough;
+            case 3:
+                pr[sel].base.bits = READ_SYSREG(PRBAR3_EL1);
+                pr[sel].limit.bits = READ_SYSREG(PRLAR3_EL1);
+                sel--;
+                fallthrough;
+            case 2:
+                pr[sel].base.bits = READ_SYSREG(PRBAR2_EL1);
+                pr[sel].limit.bits = READ_SYSREG(PRLAR2_EL1);
+                sel--;
+                fallthrough;
+            case 1:
+                pr[sel].base.bits = READ_SYSREG(PRBAR1_EL1);
+                pr[sel].limit.bits = READ_SYSREG(PRLAR1_EL1);
+                sel--;
+                fallthrough;
+            case 0:
+                pr[sel].base.bits = READ_SYSREG(PRBAR_EL1);
+                pr[sel].limit.bits = READ_SYSREG(PRLAR_EL1);
+                sel--;
+        }
+        isb();
+    }
+}
+
+/* Restore EL1 MPU base registers and limit registers. */
+void restore_el1_mpu_regions(pr_t *pr)
+{
+    int sel = mpu_regions_count_el1 - 1;
+
+    if ( mpu_regions_count_el1 == 0 )
+        return;
+
+    while (sel > 0)
+    {
+        dsb(sy);
+        WRITE_SYSREG( (sel & 0xF0), PRSELR_EL1);
+        isb();
+        switch (sel & 0xF) {
+            case 15:
+                WRITE_SYSREG(pr[sel].base.bits, PRBAR15_EL1);
+                WRITE_SYSREG(pr[sel].limit.bits, PRLAR15_EL1);
+                sel--;
+                fallthrough;
+            case 14:
+                WRITE_SYSREG(pr[sel].base.bits, PRBAR14_EL1);
+                WRITE_SYSREG(pr[sel].limit.bits, PRLAR14_EL1);
+                sel--;
+                fallthrough;
+            case 13:
+                WRITE_SYSREG(pr[sel].base.bits, PRBAR13_EL1);
+                WRITE_SYSREG(pr[sel].limit.bits, PRLAR13_EL1);
+                sel--;
+                fallthrough;
+            case 12:
+                WRITE_SYSREG(pr[sel].base.bits, PRBAR12_EL1);
+                WRITE_SYSREG(pr[sel].limit.bits, PRLAR12_EL1);
+                sel--;
+                fallthrough;
+            case 11:
+                WRITE_SYSREG(pr[sel].base.bits, PRBAR11_EL1);
+                WRITE_SYSREG(pr[sel].limit.bits, PRLAR11_EL1);
+                sel--;
+                fallthrough;
+            case 10:
+                WRITE_SYSREG(pr[sel].base.bits, PRBAR10_EL1);
+                WRITE_SYSREG(pr[sel].limit.bits, PRLAR10_EL1);
+                sel--;
+                fallthrough;
+            case 9:
+                WRITE_SYSREG(pr[sel].base.bits, PRBAR9_EL1);
+                WRITE_SYSREG(pr[sel].limit.bits, PRLAR9_EL1);
+                sel--;
+                fallthrough;
+            case 8:
+                WRITE_SYSREG(pr[sel].base.bits, PRBAR8_EL1);
+                WRITE_SYSREG(pr[sel].limit.bits, PRLAR8_EL1);
+                sel--;
+                fallthrough;
+            case 7:
+                WRITE_SYSREG(pr[sel].base.bits, PRBAR7_EL1);
+                WRITE_SYSREG(pr[sel].limit.bits, PRLAR7_EL1);
+                sel--;
+                fallthrough;
+            case 6:
+                WRITE_SYSREG(pr[sel].base.bits, PRBAR6_EL1);
+                WRITE_SYSREG(pr[sel].limit.bits, PRLAR6_EL1);
+                sel--;
+                fallthrough;
+            case 5:
+                WRITE_SYSREG(pr[sel].base.bits, PRBAR5_EL1);
+                WRITE_SYSREG(pr[sel].limit.bits, PRLAR5_EL1);
+                sel--;
+                fallthrough;
+            case 4:
+                WRITE_SYSREG(pr[sel].base.bits, PRBAR4_EL1);
+                WRITE_SYSREG(pr[sel].limit.bits, PRLAR4_EL1);
+                sel--;
+                fallthrough;
+            case 3:
+                WRITE_SYSREG(pr[sel].base.bits, PRBAR3_EL1);
+                WRITE_SYSREG(pr[sel].limit.bits, PRLAR3_EL1);
+                sel--;
+                fallthrough;
+            case 2:
+                WRITE_SYSREG(pr[sel].base.bits, PRBAR2_EL1);
+                WRITE_SYSREG(pr[sel].limit.bits, PRLAR2_EL1);
+                sel--;
+                fallthrough;
+            case 1:
+                WRITE_SYSREG(pr[sel].base.bits, PRBAR1_EL1);
+                WRITE_SYSREG(pr[sel].limit.bits, PRLAR1_EL1);
+                sel--;
+                fallthrough;
+            case 0:
+                WRITE_SYSREG(pr[sel].base.bits, PRBAR_EL1);
+                WRITE_SYSREG(pr[sel].limit.bits, PRLAR_EL1);
+                sel--;
+        }
+        isb();
+    }
 }

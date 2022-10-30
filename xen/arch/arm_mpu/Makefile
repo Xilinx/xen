@@ -45,6 +45,7 @@ obj-y += mm_mmu.o
 obj-y += p2m_mmu.o
 else
 obj-y += mm_mpu.o
+obj-y += p2m_mpu.o
 endif
 obj-y += monitor.o
 obj-y += percpu.o

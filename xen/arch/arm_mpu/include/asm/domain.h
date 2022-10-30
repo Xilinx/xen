@@ -223,6 +223,9 @@ struct arch_vcpu
 #ifdef CONFIG_HAS_MPU
     /* Virtualization Translation Control Register */
     register_t vtcr_el2;
+
+    /* EL1 MPU regions */
+    pr_t *mpu_regions;
 #endif
 
     uint32_t teecr, teehbr; /* ThumbEE, 32-bit guests only */

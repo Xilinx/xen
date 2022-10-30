@@ -70,6 +70,80 @@ void dump_p2m_lookup(struct domain *d, paddr_t addr)
 {
 }
 
+static int p2m_mpu_update(struct vcpu *v)
+{
+    pr_t *p2m_table;
+    unsigned int i = 0;
+    struct p2m_domain *p2m = p2m_get_hostp2m(v->domain);
+
+    if ( (THIS_CPU_NR_MPUMAP + p2m->nr_regions) > max_xen_mpumap )
+    {
+        printk(XENLOG_ERR
+               "More than maximum supported MPU protection regions!\n");
+        return -EINVAL;
+    }
+
+    /* Domain MPU P2M table. */
+    p2m_table = (pr_t *)page_to_virt(p2m->root);
+    if ( !p2m_table )
+        return -EINVAL;
+
+    /*
+     * During runtime, EL2 MPU protection region layout has a fixed
+     * style, that is, Xen itself stage 1 MPU memory region mapping
+     * is always in the front, containing THIS_CPU_NR_MPUMAP entries.
+     * If on guest mode, domain P2M mapping followed behind.
+     */
+    for ( ; i < p2m->nr_regions; i++ )
+        access_protection_region(false, NULL,
+                                 (const pr_t*)(&p2m_table[i]),
+                                 (THIS_CPU_NR_MPUMAP + i));
+
+    return 0;
+}
+
+/* p2m_save_state and p2m_restore_state work in pair. */
+void p2m_save_state(struct vcpu *p)
+{
+    unsigned int i = 0;
+    struct p2m_domain *p2m = p2m_get_hostp2m(p->domain);
+
+    p->arch.sctlr = READ_SYSREG(SCTLR_EL1);
+    p->arch.vtcr_el2 = READ_SYSREG(VTCR_EL2);
+
+    /*
+     * We keep the system MPU memory region map in a tight and fixed way.
+     * So if in the guest mode, all the previous [0 ... nr_xen_mpumap) MPU
+     * memory regions belong to XEN itself stage 1 memory mapping, and the
+     * latter [nr_xen_mpumap ... nr_xen_mpumap + p2m->nr_regions) belong to
+     * domain P2M stage 2 memory mapping.
+     */
+    for ( ; i < p2m->nr_regions; i++ )
+        disable_mpu_region_from_index(THIS_CPU_NR_MPUMAP + i);
+}
+
+/* p2m_save_state and p2m_restore_state work in pair. */
+void p2m_restore_state(struct vcpu *n)
+{
+    struct p2m_domain *p2m = p2m_get_hostp2m(n->domain);
+    uint8_t *last_vcpu_ran = &p2m->last_vcpu_ran[smp_processor_id()];
+
+    if ( is_idle_vcpu(n) )
+        return;
+
+    WRITE_SYSREG(n->arch.sctlr, SCTLR_EL1);
+    WRITE_SYSREG(n->arch.hcr_el2, HCR_EL2);
+    WRITE_SYSREG(n->arch.vtcr_el2, VTCR_EL2);
+    WRITE_SYSREG64(p2m->vsctlr, VSCTLR_EL2);
+
+    if ( p2m_mpu_update(n) )
+        panic("Failed to update MPU protection region configuration with domain P2M mapping!");
+
+    isb();
+
+    *last_vcpu_ran = n->vcpu_id;
+}
+
 /*
  * Get the details of one guest memory range, [gfn, gfn + nr_gfns).
  *

@@ -23,6 +23,9 @@
 #include <xen/wait.h>
 
 #include <asm/alternative.h>
+#ifdef CONFIG_HAS_MPU
+#include <asm/arm64/mpu.h>
+#endif
 #include <asm/coloring.h>
 #include <asm/cpuerrata.h>
 #include <asm/cpufeature.h>
@@ -40,6 +43,7 @@
 #include <asm/vgic.h>
 #include <asm/viommu.h>
 #include <asm/vtimer.h>
+#include <asm/setup.h>
 
 #include "vpci.h"
 #include "vuart.h"
@@ -100,7 +104,12 @@ static void ctxt_switch_from(struct vcpu *p)
      * mode. Therefore we don't need to save the context of an idle VCPU.
      */
     if ( is_idle_vcpu(p) )
+    {
+#ifdef CONFIG_HAS_MPU
+        unmap_xen_mpumap_on_ctxt();
+#endif
         return;
+    }
 
     p2m_save_state(p);
 
@@ -132,11 +141,25 @@ static void ctxt_switch_from(struct vcpu *p)
 
     isb();
 
-    /* MMU */
+    /* MMU/MPU */
+    if ( is_mpu_domain(p->domain) )
+    {
+#ifdef CONFIG_HAS_MPU
+        /* Domain is PMSAv8-64 mode, save EL1 MPU regions */
+        save_el1_mpu_regions(p->arch.mpu_regions);
+#else
+        ASSERT_UNREACHABLE();
+#endif
+    }
+    else
+    {
+        /* Domain is VMSAv8-64 */
+        p->arch.ttbcr = READ_SYSREG(TCR_EL1);
+        p->arch.ttbr0 = READ_SYSREG64(TTBR0_EL1);
+        p->arch.ttbr1 = READ_SYSREG64(TTBR1_EL1);
+    }
     p->arch.vbar = READ_SYSREG(VBAR_EL1);
-    p->arch.ttbcr = READ_SYSREG(TCR_EL1);
-    p->arch.ttbr0 = READ_SYSREG64(TTBR0_EL1);
-    p->arch.ttbr1 = READ_SYSREG64(TTBR1_EL1);
+
     if ( is_32bit_domain(p->domain) )
         p->arch.dacr = READ_SYSREG(DACR32_EL2);
     p->arch.par = READ_SYSREG64(PAR_EL1);
@@ -165,8 +188,6 @@ static void ctxt_switch_from(struct vcpu *p)
     p->arch.afsr0 = READ_SYSREG(AFSR0_EL1);
     p->arch.afsr1 = READ_SYSREG(AFSR1_EL1);
 
-    /* XXX MPU */
-
     /* VFP */
     vfp_save_state(p);
 
@@ -184,7 +205,12 @@ static void ctxt_switch_to(struct vcpu *n)
      * mode. Therefore we don't need to restore the context of an idle VCPU.
      */
     if ( is_idle_vcpu(n) )
+    {
+#ifdef CONFIG_HAS_MPU
+        map_xen_mpumap_on_ctxt();
+#endif
         return;
+    }
 
     vpidr = READ_SYSREG(MIDR_EL1);
     WRITE_SYSREG(vpidr, VPIDR_EL2);
@@ -195,8 +221,6 @@ static void ctxt_switch_to(struct vcpu *n)
 
     /* VFP */
     vfp_restore_state(n);
-
-    /* XXX MPU */
 
     /* Fault Status */
 #if defined(CONFIG_ARM_32)
@@ -213,11 +237,22 @@ static void ctxt_switch_to(struct vcpu *n)
     WRITE_SYSREG(n->arch.afsr0, AFSR0_EL1);
     WRITE_SYSREG(n->arch.afsr1, AFSR1_EL1);
 
-    /* MMU */
+    /* MMU/MPU */
+    if ( is_mpu_domain(n->domain) )
+#ifdef CONFIG_HAS_MPU
+        /* Domain is PMSAv8-64 mode, restore MPU regions */
+        restore_el1_mpu_regions(n->arch.mpu_regions);
+#else
+        ASSERT_UNREACHABLE();
+#endif
+    else
+    {
+        /* Domain is VMSAv8-64 mode */
+        WRITE_SYSREG(n->arch.ttbcr, TCR_EL1);
+        WRITE_SYSREG64(n->arch.ttbr0, TTBR0_EL1);
+        WRITE_SYSREG64(n->arch.ttbr1, TTBR1_EL1);
+    }
     WRITE_SYSREG(n->arch.vbar, VBAR_EL1);
-    WRITE_SYSREG(n->arch.ttbcr, TCR_EL1);
-    WRITE_SYSREG64(n->arch.ttbr0, TTBR0_EL1);
-    WRITE_SYSREG64(n->arch.ttbr1, TTBR1_EL1);
 
     /*
      * Erratum #852523 (Cortex-A57) or erratum #853709 (Cortex-A72):
@@ -598,6 +633,25 @@ int arch_vcpu_create(struct vcpu *v)
     if ( !(v->domain->options & XEN_DOMCTL_CDF_vpmu) )
         v->arch.mdcr_el2 |= HDCR_TPM | HDCR_TPMCR;
 
+#ifdef CONFIG_HAS_MPU
+    /*
+     * When ID_AA64MMFR0_EL1.MSA_frac is 0b0010(MM64_MSA_FRAC_VMSA_SUPPORT),
+     * then VTCR_EL2.MSA determines the memory system architecture enabled
+     * at the stage 1 of the Secure EL1&0 translation regime.
+     */
+    v->arch.vtcr_el2 = get_default_vtcr_flags();
+    if ( !is_mpu_domain(v->domain) )
+        v->arch.vtcr_el2 |= VTCR_MSA_VMSA;
+    else
+    {
+        v->arch.vtcr_el2 &= VTCR_MSA_PMSA;
+        v->arch.mpu_regions = _xzalloc(sizeof(pr_t) * mpu_regions_count_el1,
+                                       SMP_CACHE_BYTES);
+        if ( v->arch.mpu_regions == NULL )
+            goto fail;
+    }
+#endif
+
     if ( (rc = vcpu_vgic_init(v)) != 0 )
         goto fail;
 
@@ -623,6 +677,9 @@ void arch_vcpu_destroy(struct vcpu *v)
     vcpu_timer_destroy(v);
     vcpu_vgic_free(v);
     free_xenheap_pages(v->arch.stack, STACK_ORDER);
+#ifdef CONFIG_HAS_MPU
+    xfree(v->arch.mpu_regions);
+#endif
 }
 
 void vcpu_switch_to_aarch64_mode(struct vcpu *v)
