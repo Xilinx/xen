@@ -29,6 +29,13 @@ extern bool heap_parsed;
 /* Helper to access MPU protection region */
 extern void access_protection_region(bool read, pr_t *pr_read,
                                      const pr_t *pr_write, u64 sel);
+/*
+ * Switch secondary CPUS to its own mpu memory configuration and
+ * finalise MPU setup
+ */
+extern int init_secondary_protection_regions(int cpu);
+extern void mpu_init_secondary_cpu(void);
+
 /* MPU-related varaible */
 extern pr_t *xen_mpumap;
 extern unsigned long nr_xen_mpumap;
@@ -63,8 +70,8 @@ uint8_t load_mpu_supported_region_el1(void);
 void save_el1_mpu_regions(pr_t *pr);
 void restore_el1_mpu_regions(pr_t *pr);
 
-#define INIT_SECONDARY_MM_DATA(cpu) (0)
-#define MM_INIT_SECONDARY_CPU() do {} while ( 0 )
+#define INIT_SECONDARY_MM_DATA(cpu) init_secondary_protection_regions(cpu)
+#define MM_INIT_SECONDARY_CPU() mpu_init_secondary_cpu()
 
 static inline paddr_t __virt_to_maddr(vaddr_t va)
 {

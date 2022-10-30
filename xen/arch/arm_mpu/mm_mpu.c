@@ -417,6 +417,34 @@ static void clear_boot_mpumap(void)
                                          ARM_DEFAULT_MPU_PROTECTION_REGIONS);
 }
 
+int init_secondary_protection_regions(int cpu)
+{
+    clear_boot_mpumap();
+
+    /* All CPUs share a single Xen stage 1 MPU memory region configuration. */
+    clean_dcache_va_range((void *)&next_xen_mpumap_index,
+                          sizeof(unsigned long));
+    clean_dcache_va_range((void *)(pr_t *)xen_mpumap,
+                          sizeof(pr_t) * next_xen_mpumap_index);
+    return 0;
+}
+
+/*
+ * Below functions need MPU-specific implementation.
+ * TODO: Implementation on first usage.
+ */
+void __init remove_early_mappings(void)
+{
+}
+
+int map_pages_to_xen(unsigned long virt,
+                     mfn_t mfn,
+                     unsigned long nr_mfns,
+                     unsigned int flags)
+{
+    return 0;
+}
+
 void disable_mpu_region_from_index(unsigned int index)
 {
     pr_t pr = {};
@@ -809,6 +837,7 @@ int reorder_xen_mpumap(void)
                           sizeof(pr_t) * reordered_mpu_index);
 
     reorder_xen_mpumap_one(NULL);
+    smp_call_function(reorder_xen_mpumap_one, NULL, 1);
 
     /* Now, xen_mpumap acts in a tight way, absolutely no holes in there,
      * then always next_xen_mpumap_index = nr_xen_mpumap for later on.
@@ -905,6 +934,11 @@ void * __init early_fdt_map(paddr_t fdt_paddr)
 static void xen_mpu_enforce_wnx(void)
 {
     WRITE_SYSREG(READ_SYSREG(SCTLR_EL2) | SCTLR_Axx_ELx_WXN, SCTLR_EL2);
+}
+
+void mpu_init_secondary_cpu(void)
+{
+    xen_mpu_enforce_wnx();
 }
 
 /*
@@ -1132,6 +1166,16 @@ void __init update_mm(void)
     map_boot_module_section();
 }
 
+static DECLARE_BITMAP(initial_section_mask, MAX_MPU_PROTECTION_REGIONS);
+static void free_init_memory_one(void *data)
+{
+    unsigned int i;
+
+    for_each_set_bit( i, (const unsigned long *)&initial_section_mask,
+                      MAX_MPU_PROTECTION_REGIONS )
+        disable_mpu_region_from_index(i);
+}
+
 void free_init_memory(void)
 {
     /* Kernel init text section. */
@@ -1175,7 +1219,10 @@ void free_init_memory(void)
         rc = destroy_xen_mappings(init_section[i], init_section[i + 1]);
         if ( rc < 0 )
             panic("Unable to remove the init section (rc = %d)\n", rc);
+        set_bit(rc, initial_section_mask);
     }
+
+    smp_call_function(free_init_memory_one, NULL, 1);
 }
 
 /* Loads and returns the number of EL1 MPU supported regions by the hardware */

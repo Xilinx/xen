@@ -313,6 +313,17 @@ GLOBAL(init_secondary)
 #endif
         bl    check_cpu_mode
         bl    cpu_init
+#ifdef CONFIG_HAS_MPU
+        ldr   x0, =next_xen_mpumap_index
+        ldr   x0, [x0]
+        ldr   x1, =xen_mpumap
+        ldr   x1, [x1]
+        dsb   sy
+        bl    set_boot_mpumap
+        bl    enable_mm
+        dsb   sy
+        isb
+#else
         bl    prepare_early_mappings
         bl    enable_mm
 
@@ -335,6 +346,7 @@ secondary_switched:
         tlbi  alle2
         dsb   sy                     /* Ensure completion of TLB flush */
         isb
+#endif /* !CONFIG_HAS_MPU */
 
 #ifdef CONFIG_EARLY_PRINTK
         /* Use a virtual address to access the UART. */

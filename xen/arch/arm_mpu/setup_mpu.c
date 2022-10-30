@@ -106,6 +106,15 @@ bool __init check_boot_module(bootmodule_kind kind,
     return false;
 }
 
+static void __init discard_initial_modules_one(void* data)
+{
+    unsigned int i;
+
+    for_each_set_bit( i, (const unsigned long *)&initial_module_mask,
+                      MAX_MPU_PROTECTION_REGIONS )
+        disable_mpu_region_from_index(i);
+}
+
 void __init discard_initial_modules(void)
 {
     unsigned int i = 0;
@@ -131,6 +140,8 @@ void __init discard_initial_modules(void)
                   start, end);
         set_bit(rc, initial_module_mask);
     }
+
+    smp_call_function(discard_initial_modules_one, NULL, 1);
 }
 
 void __init setup_mm(void)

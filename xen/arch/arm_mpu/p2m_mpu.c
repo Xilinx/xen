@@ -727,6 +727,7 @@ void __init setup_virt_paging(void)
     vtcr = val;
 
     setup_virt_paging_one(NULL);
+    smp_call_function(setup_virt_paging_one, NULL, 1);
 
     return;
 
