@@ -1059,6 +1059,15 @@ void __init setup_protection_regions()
     enable_mm();
 
     xen_mpu_enforce_wnx();
+
+    if ( IS_ENABLED(CONFIG_DEBUG) )
+        for ( unsigned int i = 0; i < nr_xen_mpumap; i++ )
+        {
+            pr_t region;
+            access_protection_region(true, &region, NULL, i);
+            printk("Boot-time Xen MPU memory configuration. #%u : 0x%"PRIx64" - 0x%"PRIx64".\n",
+                   i, pr_get_base(&region), pr_get_limit(&region));
+        }
 }
 
 void __init setup_frametable_mappings(paddr_t ps, paddr_t pe)
