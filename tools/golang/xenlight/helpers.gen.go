@@ -1227,6 +1227,7 @@ x.ArchArm.NrSpis = uint32(xc.arch_arm.nr_spis)
 if err := x.ArchArm.ArmSci.fromC(&xc.arch_arm.arm_sci);err != nil {
 return fmt.Errorf("converting field ArchArm.ArmSci: %v", err)
 }
+x.ArchArm.ViommuType = ViommuType(xc.arch_arm.viommu_type)
 if err := x.ArchX86.MsrRelaxed.fromC(&xc.arch_x86.msr_relaxed);err != nil {
 return fmt.Errorf("converting field ArchX86.MsrRelaxed: %v", err)
 }
@@ -1768,6 +1769,7 @@ xc.arch_arm.nr_spis = C.uint32_t(x.ArchArm.NrSpis)
 if err := x.ArchArm.ArmSci.toC(&xc.arch_arm.arm_sci); err != nil {
 return fmt.Errorf("converting field ArchArm.ArmSci: %v", err)
 }
+xc.arch_arm.viommu_type = C.libxl_viommu_type(x.ArchArm.ViommuType)
 if err := x.ArchX86.MsrRelaxed.toC(&xc.arch_x86.msr_relaxed); err != nil {
 return fmt.Errorf("converting field ArchX86.MsrRelaxed: %v", err)
 }
