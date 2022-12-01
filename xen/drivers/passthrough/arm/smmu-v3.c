@@ -2753,11 +2753,13 @@ static struct arm_smmu_device *arm_smmu_get_by_dev(struct device *dev)
 static struct iommu_domain *arm_smmu_get_domain(struct domain *d,
 				struct device *dev)
 {
+	unsigned long flags;
 	struct iommu_domain *io_domain;
 	struct arm_smmu_domain *smmu_domain;
 	struct iommu_fwspec *fwspec = dev_iommu_fwspec_get(dev);
 	struct arm_smmu_xen_domain *xen_domain = dom_iommu(d)->arch.priv;
 	struct arm_smmu_device *smmu = arm_smmu_get_by_dev(fwspec->iommu_dev);
+	struct arm_smmu_master *master;
 
 	if (!smmu)
 		return NULL;
@@ -2768,8 +2770,15 @@ static struct iommu_domain *arm_smmu_get_domain(struct domain *d,
 	 */
 	list_for_each_entry(io_domain, &xen_domain->contexts, list) {
 		smmu_domain = to_smmu_domain(io_domain);
-		if (smmu_domain->smmu == smmu)
-			return io_domain;
+
+		spin_lock_irqsave(&smmu_domain->devices_lock, flags);
+		list_for_each_entry(master, &smmu_domain->devices, domain_head) {
+			if (master->dev == dev) {
+				spin_unlock_irqrestore(&smmu_domain->devices_lock, flags);
+				return io_domain;
+			}
+		}
+		spin_unlock_irqrestore(&smmu_domain->devices_lock, flags);
 	}
 	return NULL;
 }
