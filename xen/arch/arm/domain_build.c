@@ -2240,6 +2240,95 @@ int __init make_chosen_node(const struct kernel_info *kinfo)
     return res;
 }
 
+#ifdef CONFIG_VIRTUAL_IOMMU
+static int make_hwdom_viommu_node(const struct kernel_info *kinfo)
+{
+    uint32_t len;
+    int res;
+    char buf[24];
+    void *fdt = kinfo->fdt;
+    const void *prop = NULL;
+    const struct dt_device_node *iommu = NULL;
+    struct host_iommu *iommu_data;
+    gic_interrupt_t intr;
+
+    if ( list_empty(&host_iommu_list) )
+        return 0;
+
+    list_for_each_entry( iommu_data, &host_iommu_list, entry )
+    {
+        if ( iommu_data->hwdom_node_created )
+            return 0;
+
+        iommu = iommu_data->dt_node;
+
+        snprintf(buf, sizeof(buf), "iommu@%"PRIx64, iommu_data->addr);
+
+        res = fdt_begin_node(fdt, buf);
+        if ( res )
+            return res;
+
+        prop = dt_get_property(iommu, "compatible", &len);
+        if ( !prop )
+        {
+            res = -FDT_ERR_XEN(ENOENT);
+            return res;
+        }
+
+        res = fdt_property(fdt, "compatible", prop, len);
+        if ( res )
+            return res;
+
+        if ( iommu->phandle )
+        {
+            res = fdt_property_cell(fdt, "phandle", iommu->phandle);
+            if ( res )
+                return res;
+        }
+
+        /* Use the same reg regions as the IOMMU node in host DTB. */
+        prop = dt_get_property(iommu, "reg", &len);
+        if ( !prop )
+        {
+            printk(XENLOG_ERR "vIOMMU: Can't find IOMMU reg property.\n");
+            res = -FDT_ERR_XEN(ENOENT);
+            return res;
+        }
+
+        res = fdt_property(fdt, "reg", prop, len);
+        if ( res )
+            return res;
+
+        prop = dt_get_property(iommu, "#iommu-cells", &len);
+        if ( !prop )
+        {
+            res = -FDT_ERR_XEN(ENOENT);
+            return res;
+        }
+
+        res = fdt_property(fdt, "#iommu-cells", prop, len);
+        if ( res )
+            return res;
+
+        res = fdt_property_string(fdt, "interrupt-names", "combined");
+        if ( res )
+            return res;
+
+        set_interrupt(intr, iommu_data->irq, 0xf, DT_IRQ_TYPE_LEVEL_HIGH);
+
+        res = fdt_property_interrupts(kinfo, &intr, 1);
+        if ( res )
+            return res;
+
+        iommu_data->hwdom_node_created = true;
+
+        fdt_end_node(fdt);
+    }
+
+    return res;
+}
+#endif
+
 static int __init map_dt_irq_to_domain(const struct dt_device_node *dev,
                                        const struct dt_irq *dt_irq,
                                        void *data)
@@ -2451,6 +2540,11 @@ static int __init handle_node(struct domain *d, struct kernel_info *kinfo,
         return make_gic_node(d, kinfo->fdt, node);
     if ( dt_match_node(timer_matches, node) )
         return make_timer_node(kinfo);
+
+#ifdef CONFIG_VIRTUAL_IOMMU
+    if ( device_get_class(node) == DEVICE_IOMMU && is_viommu_enabled() )
+        return make_hwdom_viommu_node(kinfo);
+#endif
 
     /* Skip nodes used by Xen */
     if ( dt_device_used_by(node) == DOMID_XEN )

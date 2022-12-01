@@ -19,6 +19,7 @@ struct host_iommu {
     paddr_t addr;
     paddr_t size;
     uint32_t irq;
+    bool hwdom_node_created;
 };
 
 struct viommu_ops {
