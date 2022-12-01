@@ -297,7 +297,8 @@ DEFINE_XEN_GUEST_HANDLE(vcpu_guest_context_t);
 #define XEN_DOMCTL_CONFIG_TEE_NONE      0
 #define XEN_DOMCTL_CONFIG_TEE_OPTEE     1
 
-#define XEN_DOMCTL_CONFIG_VIOMMU_NONE   0
+#define XEN_DOMCTL_CONFIG_VIOMMU_NONE       0
+#define XEN_DOMCTL_CONFIG_VIOMMU_SMMUV3     1
 
 __DEFINE_XEN_GUEST_HANDLE(color_t, unsigned int);
 
@@ -425,6 +426,10 @@ typedef uint64_t xen_callback_t;
 
 #define GUEST_GICV3_GICR0_BASE     xen_mk_ullong(0x03020000) /* vCPU0..127 */
 #define GUEST_GICV3_GICR0_SIZE     xen_mk_ullong(0x01000000)
+
+/* vsmmuv3 ITS mappings */
+#define GUEST_VSMMUV3_BASE     xen_mk_ullong(0x04040000)
+#define GUEST_VSMMUV3_SIZE     xen_mk_ullong(0x00040000)
 
 /*
  * 256 MB is reserved for VPCI configuration space based on calculation

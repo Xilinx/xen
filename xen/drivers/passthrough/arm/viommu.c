@@ -2,11 +2,41 @@
 
 #include <xen/errno.h>
 #include <xen/init.h>
+#include <xen/irq.h>
 #include <xen/types.h>
 
 #include <asm/viommu.h>
 
+/* List of all host IOMMUs */
+LIST_HEAD(host_iommu_list);
+
 const struct viommu_desc __read_mostly *cur_viommu;
+
+/* Common function for adding to host_iommu_list */
+void add_to_host_iommu_list(paddr_t addr, paddr_t size,
+                            const struct dt_device_node *node)
+{
+    struct host_iommu *iommu_data;
+
+    iommu_data = xzalloc(struct host_iommu);
+    if ( !iommu_data )
+        panic("vIOMMU: Cannot allocate memory for host IOMMU data\n");
+
+    iommu_data->addr = addr;
+    iommu_data->size = size;
+    iommu_data->dt_node = node;
+    iommu_data->irq = platform_get_irq(node, 0);
+    if ( iommu_data->irq < 0 )
+    {
+        gdprintk(XENLOG_ERR,
+                 "vIOMMU: Cannot find a valid IOMMU irq\n");
+        return;
+    }
+
+    printk("vIOMMU: Found IOMMU @0x%"PRIx64"\n", addr);
+
+    list_add_tail(&iommu_data->entry, &host_iommu_list);
+}
 
 int domain_viommu_init(struct domain *d, uint16_t viommu_type)
 {

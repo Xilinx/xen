@@ -693,7 +693,8 @@ int arch_sanitise_domain_config(struct xen_domctl_createdomain *config)
         return -EINVAL;
     }
 
-    if ( config->arch.viommu_type != XEN_DOMCTL_CONFIG_VIOMMU_NONE )
+    if ( config->arch.viommu_type != XEN_DOMCTL_CONFIG_VIOMMU_NONE &&
+         config->arch.viommu_type != viommu_get_type() )
     {
         dprintk(XENLOG_INFO,
                 "vIOMMU type requested not supported by the platform or Xen\n");

@@ -3,3 +3,4 @@ obj-$(CONFIG_ARM_SMMU) += smmu.o
 obj-$(CONFIG_IPMMU_VMSA) += ipmmu-vmsa.o
 obj-$(CONFIG_ARM_SMMU_V3) += smmu-v3.o
 obj-$(CONFIG_VIRTUAL_IOMMU) += viommu.o
+obj-$(CONFIG_VIRTUAL_ARM_SMMU_V3) += vsmmu-v3.o
