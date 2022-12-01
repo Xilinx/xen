@@ -500,9 +500,10 @@ typedef uint64_t xen_callback_t;
 #define GUEST_EVTCHN_PPI        31
 
 #define GUEST_VPL011_SPI        32
+#define GUEST_VSMMU_SPI         33
 
-#define GUEST_VIRTIO_MMIO_SPI_FIRST   33
-#define GUEST_VIRTIO_MMIO_SPI_LAST    43
+#define GUEST_VIRTIO_MMIO_SPI_FIRST   34
+#define GUEST_VIRTIO_MMIO_SPI_LAST    44
 
 /* PSCI functions */
 #define PSCI_cpu_suspend 0
