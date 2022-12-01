@@ -2754,6 +2754,37 @@ static struct arm_smmu_device *arm_smmu_get_by_dev(struct device *dev)
 	return NULL;
 }
 
+static struct iommu_domain *arm_smmu_get_domain_by_sid(struct domain *d,
+				u32 sid)
+{
+	int i;
+	unsigned long flags;
+	struct iommu_domain *io_domain;
+	struct arm_smmu_domain *smmu_domain;
+	struct arm_smmu_master *master;
+	struct arm_smmu_xen_domain *xen_domain = dom_iommu(d)->arch.priv;
+
+	/*
+	 * Loop through the &xen_domain->contexts to locate a context
+	 * assigned to this SMMU
+	 */
+	list_for_each_entry(io_domain, &xen_domain->contexts, list) {
+		smmu_domain = to_smmu_domain(io_domain);
+
+		spin_lock_irqsave(&smmu_domain->devices_lock, flags);
+		list_for_each_entry(master, &smmu_domain->devices, domain_head) {
+			for (i = 0; i < master->num_streams; i++) {
+				if (sid != master->streams[i].id)
+					continue;
+				spin_unlock_irqrestore(&smmu_domain->devices_lock, flags);
+				return io_domain;
+			}
+		}
+		spin_unlock_irqrestore(&smmu_domain->devices_lock, flags);
+	}
+	return NULL;
+}
+
 static struct iommu_domain *arm_smmu_get_domain(struct domain *d,
 				struct device *dev)
 {
@@ -2909,6 +2940,53 @@ static void arm_smmu_iommu_xen_domain_teardown(struct domain *d)
 	xfree(xen_domain);
 }
 
+static int arm_smmu_attach_guest_config(struct domain *d, u32 sid,
+		struct iommu_guest_config *cfg)
+{
+	int ret = -EINVAL;
+	unsigned long flags;
+	struct arm_smmu_master *master;
+	struct arm_smmu_domain *smmu_domain;
+	struct arm_smmu_xen_domain *xen_domain = dom_iommu(d)->arch.priv;
+	struct iommu_domain *io_domain = arm_smmu_get_domain_by_sid(d, sid);
+
+	if (!io_domain)
+		return -ENODEV;
+
+	smmu_domain = to_smmu_domain(io_domain);
+
+	spin_lock(&xen_domain->lock);
+
+	switch (cfg->config) {
+	case ARM_SMMU_DOMAIN_ABORT:
+		smmu_domain->abort = true;
+		break;
+	case ARM_SMMU_DOMAIN_BYPASS:
+		smmu_domain->abort = false;
+		break;
+	case ARM_SMMU_DOMAIN_NESTED:
+		/* Enable Nested stage translation. */
+		smmu_domain->stage = ARM_SMMU_DOMAIN_NESTED;
+		smmu_domain->s1_cfg.s1ctxptr = cfg->s1ctxptr;
+		smmu_domain->s1_cfg.s1fmt = cfg->s1fmt;
+		smmu_domain->s1_cfg.s1cdmax = cfg->s1cdmax;
+		smmu_domain->abort = false;
+		break;
+	default:
+		goto out;
+	}
+
+	spin_lock_irqsave(&smmu_domain->devices_lock, flags);
+	list_for_each_entry(master, &smmu_domain->devices, domain_head)
+		arm_smmu_install_ste_for_dev(master);
+	spin_unlock_irqrestore(&smmu_domain->devices_lock, flags);
+
+	ret = 0;
+out:
+	spin_unlock(&xen_domain->lock);
+	return ret;
+}
+
 static const struct iommu_ops arm_smmu_iommu_ops = {
 	.page_sizes		= PAGE_SIZE_4K,
 	.init			= arm_smmu_iommu_xen_domain_init,
@@ -2921,6 +2999,7 @@ static const struct iommu_ops arm_smmu_iommu_ops = {
 	.unmap_page		= arm_iommu_unmap_page,
 	.dt_xlate		= arm_smmu_dt_xlate,
 	.add_device		= arm_smmu_add_device,
+	.attach_guest_config = arm_smmu_attach_guest_config
 };
 
 static __init int arm_smmu_dt_init(struct dt_device_node *dev,
