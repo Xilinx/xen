@@ -10,6 +10,7 @@
 #include <public/xen.h>
 
 extern struct list_head host_iommu_list;
+extern bool viommu_enabled;
 
 /* data structure for each hardware IOMMU */
 struct host_iommu {
@@ -50,6 +51,11 @@ uint16_t viommu_get_type(void);
 void add_to_host_iommu_list(paddr_t addr, paddr_t size,
                             const struct dt_device_node *node);
 
+static always_inline bool is_viommu_enabled(void)
+{
+    return viommu_enabled;
+}
+
 #else
 
 static inline uint8_t viommu_get_type(void)
@@ -74,6 +80,11 @@ static inline void add_to_host_iommu_list(paddr_t addr, paddr_t size,
                                           const struct dt_device_node *node)
 {
     return;
+}
+
+static always_inline bool is_viommu_enabled(void)
+{
+    return false;
 }
 
 #endif /* CONFIG_VIRTUAL_IOMMU */
