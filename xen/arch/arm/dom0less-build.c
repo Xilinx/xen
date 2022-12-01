@@ -23,6 +23,8 @@
 #include <asm/pci.h>
 #include <asm/static-memory.h>
 #include <asm/static-shmem.h>
+#include <asm/platform.h>
+#include <asm/viommu.h>
 
 static domid_t __initdata xs_domid = DOMID_INVALID;
 static bool __initdata need_xenstore;
@@ -1478,6 +1480,7 @@ void __init create_domUs(void)
         domid_t domid;
         struct xen_domctl_createdomain d_cfg = {
             .arch.gic_version = XEN_DOMCTL_CONFIG_GIC_NATIVE,
+            .arch.viommu_type = viommu_get_type(),
             .flags = XEN_DOMCTL_CDF_hvm | XEN_DOMCTL_CDF_hap,
             /*
              * The default of 1023 should be sufficient for guests because
