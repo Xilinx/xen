@@ -563,6 +563,8 @@ typedef uint64_t xen_callback_t;
 #define GUEST_VIRTIO_PCI_SPI_FIRST   44
 #define GUEST_VIRTIO_PCI_SPI_LAST    48
 
+#define GUEST_VSMMU_SPI         49
+
 /* PSCI functions */
 #define PSCI_cpu_suspend 0
 #define PSCI_cpu_off     1
