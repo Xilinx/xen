@@ -599,6 +599,7 @@ GicVersion GicVersion
 Vuart VuartType
 SveVl SveType
 NrSpis uint32
+Viommu ViommuType
 }
 ArchX86 struct {
 MsrRelaxed Defbool

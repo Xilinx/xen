@@ -3012,6 +3012,15 @@ skip_usbdev:
     if (!xlu_cfg_get_long (config, "nr_spis", &l, 0))
         b_info->arch_arm.nr_spis = l;
 
+    if (!xlu_cfg_get_string (config, "viommu", &buf, 1)) {
+        e = libxl_viommu_type_from_string(buf, &b_info->arch_arm.viommu_type);
+        if (e) {
+            fprintf(stderr,
+                    "Unknown vIOMMU type \"%s\" specified\n", buf);
+            exit(-ERROR_FAIL);
+        }
+    }
+
     parse_vkb_list(config, d_config);
 
     d_config->virtios = NULL;
