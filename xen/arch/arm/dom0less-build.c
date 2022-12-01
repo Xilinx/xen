@@ -27,6 +27,7 @@
 #include <asm/grant_table.h>
 #include <asm/pci.h>
 #include <asm/setup.h>
+#include <asm/viommu.h>
 
 #ifdef CONFIG_VGICV2
 static int __init make_gicv2_domU_node(struct kernel_info *kinfo)
@@ -414,6 +415,7 @@ int __init arch_parse_dom0less_node(struct dt_device_node *node,
     BUG_ON(!(d_cfg->flags & XEN_DOMCTL_CDF_hvm));
 
     d_cfg->arch.gic_version = XEN_DOMCTL_CONFIG_GIC_NATIVE;
+    d_cfg->arch.viommu_type = viommu_get_type();
     d_cfg->flags |= XEN_DOMCTL_CDF_hap;
 
     if ( domu_dt_sci_parse(node, d_cfg) )

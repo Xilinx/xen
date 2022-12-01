@@ -35,6 +35,7 @@
 #include <asm/arm64/sve.h>
 #include <asm/cpufeature.h>
 #include <asm/domain_build.h>
+#include <asm/viommu.h>
 #include <xen/event.h>
 
 #include <xen/irq.h>
@@ -2245,6 +2246,7 @@ void __init create_dom0(void)
     dom0_cfg.arch.nr_spis = vgic_def_nr_spis();
     dom0_cfg.arch.tee_type = tee_get_type();
     dom0_cfg.max_vcpus = dom0_max_vcpus();
+    dom0_cfg.arch.viommu_type = viommu_get_type();
 
     if ( iommu_enabled )
         dom0_cfg.flags |= XEN_DOMCTL_CDF_iommu;
