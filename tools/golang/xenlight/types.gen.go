@@ -590,6 +590,7 @@ ArchArm struct {
 GicVersion GicVersion
 Vuart VuartType
 SveVl SveType
+Viommu ViommuType
 }
 ArchX86 struct {
 MsrRelaxed Defbool
