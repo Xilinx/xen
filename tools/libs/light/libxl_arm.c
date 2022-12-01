@@ -74,8 +74,8 @@ int libxl__arch_domain_prepare_config(libxl__gc *gc,
 {
     uint32_t nr_spis = 0;
     unsigned int i;
-    uint32_t vuart_irq;
-    bool vuart_enabled = false, virtio_enabled = false;
+    uint32_t vuart_irq, vsmmu_irq = 0;
+    bool vuart_enabled = false, virtio_enabled = false, vsmmu_enabled = false;
     uint64_t virtio_mmio_base = GUEST_VIRTIO_MMIO_BASE + VIRTIO_MMIO_DEV_SIZE *
         (GUEST_VIRTIO_MMIO_SPI_LAST - GUEST_VIRTIO_MMIO_SPI_FIRST);
     uint32_t virtio_mmio_irq = GUEST_VIRTIO_MMIO_SPI_LAST;
@@ -90,6 +90,12 @@ int libxl__arch_domain_prepare_config(libxl__gc *gc,
         nr_spis += (GUEST_VPL011_SPI - 32) + 1;
         vuart_irq = GUEST_VPL011_SPI;
         vuart_enabled = true;
+    }
+
+    if (d_config->num_pcidevs || d_config->b_info.device_tree) {
+        nr_spis += (GUEST_VSMMU_SPI - 32) + 1;
+        vsmmu_irq = GUEST_VSMMU_SPI;
+        vsmmu_enabled = true;
     }
 
     for (i = 0; i < d_config->num_disks; i++) {
@@ -169,6 +175,11 @@ int libxl__arch_domain_prepare_config(libxl__gc *gc,
             (irq >= GUEST_VIRTIO_MMIO_SPI_FIRST &&
              irq <= GUEST_VIRTIO_MMIO_SPI_LAST)) {
             LOG(ERROR, "Physical IRQ %u conflicting with Virtio MMIO IRQ range\n", irq);
+            return ERROR_FAIL;
+        }
+
+        if (vsmmu_enabled && irq == vsmmu_irq) {
+            LOG(ERROR, "Physical IRQ %u conflicting with vSMMUv3 SPI\n", irq);
             return ERROR_FAIL;
         }
 
@@ -992,6 +1003,7 @@ static int make_vsmmuv3_node(libxl__gc *gc, void *fdt,
 {
     int res;
     const char *name = GCSPRINTF("iommu@%llx", GUEST_VSMMUV3_BASE);
+    gic_interrupt intr;
 
     res = fdt_begin_node(fdt, name);
     if (res) return res;
@@ -1008,6 +1020,14 @@ static int make_vsmmuv3_node(libxl__gc *gc, void *fdt,
     if (res) return res;
 
     res = fdt_property_cell(fdt, "#iommu-cells", 1);
+    if (res) return res;
+
+    res = fdt_property_string(fdt, "interrupt-names", "combined");
+    if (res) return res;
+
+    set_interrupt(intr, GUEST_VSMMU_SPI, 0xf, DT_IRQ_TYPE_LEVEL_HIGH);
+
+    res = fdt_property_interrupts(gc, fdt, &intr, 1);
     if (res) return res;
 
     res = fdt_end_node(fdt);
