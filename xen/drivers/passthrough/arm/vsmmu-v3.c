@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: (GPL-2.0-or-later OR BSD-2-Clause) */
 
+#include <xen/guest_access.h>
 #include <xen/param.h>
 #include <xen/sched.h>
 #include <asm/mmio.h>
@@ -23,6 +24,26 @@
 
 /* Struct to hold the vIOMMU ops and vIOMMU type */
 extern const struct viommu_desc __read_mostly *cur_viommu;
+
+/* SMMUv3 command definitions */
+#define CMDQ_OP_PREFETCH_CFG    0x1
+#define CMDQ_OP_CFGI_STE        0x3
+#define CMDQ_OP_CFGI_ALL        0x4
+#define CMDQ_OP_CFGI_CD         0x5
+#define CMDQ_OP_CFGI_CD_ALL     0x6
+#define CMDQ_OP_TLBI_NH_ASID    0x11
+#define CMDQ_OP_TLBI_NH_VA      0x12
+#define CMDQ_OP_TLBI_NSNH_ALL   0x30
+#define CMDQ_OP_CMD_SYNC        0x46
+
+/* Queue Handling */
+#define Q_BASE(q)       ((q)->q_base & Q_BASE_ADDR_MASK)
+#define Q_CONS_ENT(q)   (Q_BASE(q) + Q_IDX(q, (q)->cons) * (q)->ent_size)
+#define Q_PROD_ENT(q)   (Q_BASE(q) + Q_IDX(q, (q)->prod) * (q)->ent_size)
+
+/* Helper Macros */
+#define smmu_get_cmdq_enabled(x)    FIELD_GET(CR0_CMDQEN, x)
+#define smmu_cmd_get_command(x)     FIELD_GET(CMDQ_0_OP, x)
 
 /* virtual smmu queue */
 struct arm_vsmmu_queue {
@@ -48,7 +69,79 @@ struct virt_smmu {
     uint64_t    gerror_irq_cfg0;
     uint64_t    evtq_irq_cfg0;
     struct      arm_vsmmu_queue evtq, cmdq;
+    spinlock_t  cmd_queue_lock;
 };
+
+/* Queue manipulation functions */
+static bool queue_empty(struct arm_vsmmu_queue *q)
+{
+    return Q_IDX(q, q->prod) == Q_IDX(q, q->cons) &&
+           Q_WRP(q, q->prod) == Q_WRP(q, q->cons);
+}
+
+static void queue_inc_cons(struct arm_vsmmu_queue *q)
+{
+    uint32_t cons = (Q_WRP(q, q->cons) | Q_IDX(q, q->cons)) + 1;
+    q->cons = Q_OVF(q->cons) | Q_WRP(q, cons) | Q_IDX(q, cons);
+}
+
+static void dump_smmu_command(uint64_t *command)
+{
+    gdprintk(XENLOG_ERR, "cmd 0x%02llx: %016lx %016lx\n",
+             smmu_cmd_get_command(command[0]), command[0], command[1]);
+}
+static int arm_vsmmu_handle_cmds(struct virt_smmu *smmu)
+{
+    struct arm_vsmmu_queue *q = &smmu->cmdq;
+    struct domain *d = smmu->d;
+    uint64_t command[CMDQ_ENT_DWORDS];
+    paddr_t addr;
+
+    if ( !smmu_get_cmdq_enabled(smmu->cr[0]) )
+        return 0;
+
+    while ( !queue_empty(q) )
+    {
+        int ret;
+
+        addr = Q_CONS_ENT(q);
+        ret = access_guest_memory_by_gpa(d, addr, command,
+                                         sizeof(command), false);
+        if ( ret )
+            return ret;
+
+        switch ( smmu_cmd_get_command(command[0]) )
+        {
+        case CMDQ_OP_CFGI_STE:
+            break;
+        case CMDQ_OP_PREFETCH_CFG:
+        case CMDQ_OP_CFGI_CD:
+        case CMDQ_OP_CFGI_CD_ALL:
+        case CMDQ_OP_CFGI_ALL:
+        case CMDQ_OP_CMD_SYNC:
+            break;
+        case CMDQ_OP_TLBI_NH_ASID:
+        case CMDQ_OP_TLBI_NSNH_ALL:
+        case CMDQ_OP_TLBI_NH_VA:
+            if ( !iommu_iotlb_flush_all(smmu->d, 1) )
+                break;
+        default:
+            gdprintk(XENLOG_ERR, "vSMMUv3: unhandled command\n");
+            dump_smmu_command(command);
+            break;
+        }
+
+        if ( ret )
+        {
+            gdprintk(XENLOG_ERR,
+                     "vSMMUv3: command error %d while handling command\n",
+                     ret);
+            dump_smmu_command(command);
+        }
+        queue_inc_cons(q);
+    }
+    return 0;
+}
 
 static int vsmmuv3_mmio_write(struct vcpu *v, mmio_info_t *info,
                               register_t r, void *priv)
@@ -103,9 +196,15 @@ static int vsmmuv3_mmio_write(struct vcpu *v, mmio_info_t *info,
         break;
 
     case VREG32(ARM_SMMU_CMDQ_PROD):
+        spin_lock(&smmu->cmd_queue_lock);
         reg32 = smmu->cmdq.prod;
         vreg_reg32_update(&reg32, r, info);
         smmu->cmdq.prod = reg32;
+
+        if ( arm_vsmmu_handle_cmds(smmu) )
+            gdprintk(XENLOG_ERR, "error handling vSMMUv3 commands\n");
+
+        spin_unlock(&smmu->cmd_queue_lock);
         break;
 
     case VREG32(ARM_SMMU_CMDQ_CONS):
@@ -320,6 +419,8 @@ static int vsmmuv3_init_single(struct domain *d, paddr_t addr, paddr_t size)
     smmu->cmdq.ent_size = CMDQ_ENT_DWORDS * DWORDS_BYTES;
     smmu->evtq.q_base = FIELD_PREP(Q_BASE_LOG2SIZE, SMMU_EVTQS);
     smmu->evtq.ent_size = EVTQ_ENT_DWORDS * DWORDS_BYTES;
+
+    spin_lock_init(&smmu->cmd_queue_lock);
 
     register_mmio_handler(d, &vsmmuv3_mmio_handler, addr, size, smmu);
 
