@@ -47,6 +47,10 @@ int handle_device_interrupts(struct domain *d, struct dt_device_node *dev,
 void set_interrupt(gic_interrupt_t interrupt, unsigned int irq,
                    unsigned int cpumask, unsigned int level);
 
+int fdt_property_interrupts(const struct kernel_info *kinfo,
+                            gic_interrupt_t *intr,
+                            unsigned int num_irq);
+
 #ifndef CONFIG_ACPI
 static inline int prepare_acpi(struct domain *d, struct kernel_info *kinfo)
 {

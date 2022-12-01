@@ -739,9 +739,9 @@ void __init set_interrupt(gic_interrupt_t interrupt,
  *  "interrupts": contains the list of interrupts
  *  "interrupt-parent": link to the GIC
  */
-static int __init fdt_property_interrupts(const struct kernel_info *kinfo,
-                                          gic_interrupt_t *intr,
-                                          unsigned int num_irq)
+int __init fdt_property_interrupts(const struct kernel_info *kinfo,
+                                   gic_interrupt_t *intr,
+                                   unsigned int num_irq)
 {
     int res;
 
