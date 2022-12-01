@@ -35,6 +35,12 @@ config IPMMU_VMSA
 	  (H3 ES3.0, M3-W+, etc) or Gen4 SoCs which IPMMU hardware supports stage 2
 	  translation table format and is able to use CPU's P2M table as is.
 
+config VIRTUAL_IOMMU
+	bool "Virtual IOMMU Support (UNSUPPORTED)" if UNSUPPORTED
+	default n
+	help
+	 Support virtual IOMMU infrastructure to implement vIOMMU.
+
 endif
 
 config AMD_IOMMU
