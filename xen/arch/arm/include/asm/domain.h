@@ -153,6 +153,10 @@ struct arch_domain
     struct reset_info *reset_info;
 #endif
 
+#ifdef CONFIG_VIRTUAL_IOMMU
+    struct list_head viommu_list;     /* List of virtual IOMMUs */
+#endif
+
     /*
      * for multiple SGI this should be uint32_t and status of each bit
      * should represent if that SGI number is registered or not.
