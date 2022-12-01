@@ -223,8 +223,11 @@ static int arm_vsmmu_handle_cfgi_ste(struct virt_smmu *smmu, uint64_t *cmdptr)
 {
     int ret;
     uint64_t ste[STRTAB_STE_DWORDS];
+    struct domain *d = smmu->d;
+    struct domain_iommu *hd = dom_iommu(d);
     struct arm_vsmmu_s1_trans_cfg s1_cfg = {0};
     uint32_t sid = smmu_cmd_get_sid(cmdptr[0]);
+    struct iommu_guest_config guest_cfg = {0};
 
     ret = arm_vsmmu_find_ste(smmu, sid, ste);
     if ( ret )
@@ -233,6 +236,21 @@ static int arm_vsmmu_handle_cfgi_ste(struct virt_smmu *smmu, uint64_t *cmdptr)
     ret = arm_vsmmu_decode_ste(smmu, sid, &s1_cfg, ste);
     if ( ret )
         return (ret == -EAGAIN ) ? 0 : ret;
+
+    guest_cfg.s1ctxptr = s1_cfg.s1ctxptr;
+    guest_cfg.s1fmt = s1_cfg.s1fmt;
+    guest_cfg.s1cdmax = s1_cfg.s1cdmax;
+
+    if ( s1_cfg.bypassed )
+        guest_cfg.config = ARM_SMMU_DOMAIN_BYPASS;
+    else if ( s1_cfg.aborted )
+        guest_cfg.config = ARM_SMMU_DOMAIN_ABORT;
+    else
+        guest_cfg.config = ARM_SMMU_DOMAIN_NESTED;
+
+    ret = hd->platform_ops->attach_guest_config(d, sid, &guest_cfg);
+    if ( ret )
+        return ret;
 
     return 0;
 }
