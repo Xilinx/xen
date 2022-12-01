@@ -105,6 +105,9 @@ void __init vsmmuv3_set_type(void)
 {
     const struct viommu_desc *desc = &vsmmuv3_desc;
 
+    if ( !is_viommu_enabled() )
+        return;
+
     if ( cur_viommu && (cur_viommu != desc) )
     {
         printk("WARNING: Cannot set vIOMMU, already set to a different value\n");
