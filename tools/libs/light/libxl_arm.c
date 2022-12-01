@@ -1252,6 +1252,41 @@ static int copy_partial_fdt(libxl__gc *gc, void *fdt, void *pfdt)
     return 0;
 }
 
+static int modify_partial_fdt(libxl__gc *gc, void *pfdt)
+{
+    int nodeoff, proplen, i, r;
+    const fdt32_t *prop;
+    fdt32_t *prop_c;
+
+    nodeoff = fdt_path_offset(pfdt, "/passthrough");
+    if (nodeoff < 0)
+        return nodeoff;
+
+    for (nodeoff = fdt_first_subnode(pfdt, nodeoff);
+         nodeoff >= 0;
+         nodeoff = fdt_next_subnode(pfdt, nodeoff)) {
+
+        prop = fdt_getprop(pfdt, nodeoff, "iommus", &proplen);
+        if (!prop)
+            continue;
+
+        prop_c = libxl__zalloc(gc, proplen);
+
+        for (i = 0; i < proplen / 8; ++i) {
+            prop_c[i * 2] = cpu_to_fdt32(GUEST_PHANDLE_VSMMUV3);
+            prop_c[i * 2 + 1] = prop[i * 2 + 1];
+        }
+
+        r = fdt_setprop(pfdt, nodeoff, "iommus", prop_c, proplen);
+        if (r) {
+            LOG(ERROR, "Can't set the iommus property in partial FDT");
+            return r;
+        }
+    }
+
+    return 0;
+}
+
 #else
 
 static int check_partial_fdt(libxl__gc *gc, void *fdt, size_t size)
@@ -1268,6 +1303,13 @@ static int copy_partial_fdt(libxl__gc *gc, void *fdt, void *pfdt)
      * supported.
      * */
     return -FDT_ERR_INTERNAL;
+}
+
+static int modify_partial_fdt(libxl__gc *gc, void *pfdt)
+{
+    LOG(ERROR, "partial device tree not supported");
+
+    return ERROR_FAIL;
 }
 
 #endif /* ENABLE_PARTIAL_DEVICE_TREE */
@@ -1393,8 +1435,11 @@ next_resize:
         if (d_config->num_pcidevs)
             FDT( make_vpci_node(gc, fdt, ainfo, dom) );
 
-        if (info->arch_arm.viommu_type == LIBXL_VIOMMU_TYPE_SMMUV3)
+        if (info->arch_arm.viommu_type == LIBXL_VIOMMU_TYPE_SMMUV3) {
             FDT( make_vsmmuv3_node(gc, fdt, ainfo, dom) );
+            if (pfdt)
+                FDT( modify_partial_fdt(gc, pfdt) );
+        }
 
         iommu_created = false;
         for (i = 0; i < d_config->num_disks; i++) {
