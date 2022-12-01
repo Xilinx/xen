@@ -297,11 +297,15 @@ DEFINE_XEN_GUEST_HANDLE(vcpu_guest_context_t);
 #define XEN_DOMCTL_CONFIG_TEE_NONE      0
 #define XEN_DOMCTL_CONFIG_TEE_OPTEE     1
 
+#define XEN_DOMCTL_CONFIG_VIOMMU_NONE   0
+
 __DEFINE_XEN_GUEST_HANDLE(color_t, unsigned int);
 
 struct xen_arch_domainconfig {
     /* IN/OUT */
     uint8_t gic_version;
+    /* IN */
+    uint8_t viommu_type;
     /* IN */
     uint16_t tee_type;
     /* IN */

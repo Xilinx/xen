@@ -28,6 +28,7 @@
 #include <asm/coloring.h>
 #include <asm/cpufeature.h>
 #include <asm/domain_build.h>
+#include <asm/viommu.h>
 #include <xen/event.h>
 
 #include <xen/irq.h>
@@ -3737,6 +3738,7 @@ void __init create_domUs(void)
         struct domain *d;
         struct xen_domctl_createdomain d_cfg = {
             .arch.gic_version = XEN_DOMCTL_CONFIG_GIC_NATIVE,
+            .arch.viommu_type = viommu_get_type(),
             .flags = XEN_DOMCTL_CDF_hvm | XEN_DOMCTL_CDF_hap,
             /*
              * The default of 1023 should be sufficient for guests because
@@ -3950,6 +3952,7 @@ void __init create_dom0(void)
         printk(XENLOG_WARNING "Maximum number of vGIC IRQs exceeded.\n");
     dom0_cfg.arch.tee_type = tee_get_type();
     dom0_cfg.max_vcpus = dom0_max_vcpus();
+    dom0_cfg.arch.viommu_type = viommu_get_type();
 
     if ( iommu_enabled )
         dom0_cfg.flags |= XEN_DOMCTL_CDF_iommu;
