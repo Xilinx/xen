@@ -1119,9 +1119,18 @@ static int __init write_properties(struct domain *d, struct kernel_info *kinfo,
      * Use "iommu_node" as an indicator of the master device which properties
      * should be skipped.
      */
-    iommu_node = dt_parse_phandle(node, "iommus", 0);
-    if ( iommu_node && device_get_class(iommu_node) != DEVICE_IOMMU )
-        iommu_node = NULL;
+    if ( dt_device_type_is_equal(node, "pci") )
+    {
+        iommu_node = dt_parse_phandle(node, "iommu-map", 1);
+        if ( iommu_node && device_get_class(iommu_node) != DEVICE_IOMMU )
+            iommu_node = NULL;
+    }
+    else
+    {
+        iommu_node = dt_parse_phandle(node, "iommus", 0);
+        if ( iommu_node && device_get_class(iommu_node) != DEVICE_IOMMU )
+            iommu_node = NULL;
+    }
 
     dt_for_each_property_node (node, prop)
     {
