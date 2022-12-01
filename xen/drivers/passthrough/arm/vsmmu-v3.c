@@ -43,6 +43,7 @@ extern const struct viommu_desc __read_mostly *cur_viommu;
 
 /* Helper Macros */
 #define smmu_get_cmdq_enabled(x)    FIELD_GET(CR0_CMDQEN, x)
+#define smmu_get_evtq_enabled(x)    FIELD_GET(CR0_EVTQEN, x)
 #define smmu_cmd_get_command(x)     FIELD_GET(CMDQ_0_OP, x)
 #define smmu_cmd_get_sid(x)         FIELD_GET(CMDQ_PREFETCH_0_SID, x)
 #define smmu_get_ste_s1cdmax(x)     FIELD_GET(STRTAB_STE_0_S1CDMAX, x)
@@ -50,6 +51,35 @@ extern const struct viommu_desc __read_mostly *cur_viommu;
 #define smmu_get_ste_s1stalld(x)    FIELD_GET(STRTAB_STE_1_S1STALLD, x)
 #define smmu_get_ste_s1ctxptr(x)    FIELD_PREP(STRTAB_STE_0_S1CTXPTR_MASK, \
                                     FIELD_GET(STRTAB_STE_0_S1CTXPTR_MASK, x))
+
+/* event queue entry */
+struct arm_smmu_evtq_ent {
+    /* Common fields */
+    uint8_t     opcode;
+    uint32_t    sid;
+
+    /* Event-specific fields */
+    union {
+        struct {
+            uint32_t ssid;
+            bool ssv;
+        } c_bad_ste_streamid;
+
+        struct {
+            bool stall;
+            uint16_t stag;
+            uint32_t ssid;
+            bool ssv;
+            bool s2;
+            uint64_t addr;
+            bool rnw;
+            bool pnu;
+            bool ind;
+            uint8_t class;
+            uint64_t addr2;
+        } f_translation;
+    };
+};
 
 /* stage-1 translation configuration */
 struct arm_vsmmu_s1_trans_cfg {
@@ -81,6 +111,7 @@ struct virt_smmu {
     uint32_t    strtab_base_cfg;
     uint64_t    strtab_base;
     uint32_t    irq_ctrl;
+    uint32_t    virq;
     uint64_t    gerror_irq_cfg0;
     uint64_t    evtq_irq_cfg0;
     struct      arm_vsmmu_queue evtq, cmdq;
@@ -88,6 +119,12 @@ struct virt_smmu {
 };
 
 /* Queue manipulation functions */
+static bool queue_full(struct arm_vsmmu_queue *q)
+{
+    return Q_IDX(q, q->prod) == Q_IDX(q, q->cons) &&
+           Q_WRP(q, q->prod) != Q_WRP(q, q->cons);
+}
+
 static bool queue_empty(struct arm_vsmmu_queue *q)
 {
     return Q_IDX(q, q->prod) == Q_IDX(q, q->cons) &&
@@ -100,11 +137,105 @@ static void queue_inc_cons(struct arm_vsmmu_queue *q)
     q->cons = Q_OVF(q->cons) | Q_WRP(q, cons) | Q_IDX(q, cons);
 }
 
+static void queue_inc_prod(struct arm_vsmmu_queue *q)
+{
+    u32 prod = (Q_WRP(q, q->prod) | Q_IDX(q, q->prod)) + 1;
+    q->prod = Q_OVF(q->prod) | Q_WRP(q, prod) | Q_IDX(q, prod);
+}
+
 static void dump_smmu_command(uint64_t *command)
 {
     gdprintk(XENLOG_ERR, "cmd 0x%02llx: %016lx %016lx\n",
              smmu_cmd_get_command(command[0]), command[0], command[1]);
 }
+
+static void arm_vsmmu_inject_irq(struct virt_smmu *smmu, bool is_gerror,
+                                uint32_t gerror_err)
+{
+    uint32_t new_gerrors, pending;
+
+    if ( is_gerror )
+    {
+        /* trigger global error irq to guest */
+        pending = smmu->gerror ^ smmu->gerrorn;
+        new_gerrors = ~pending & gerror_err;
+
+        /* only toggle non pending errors */
+        if (!new_gerrors)
+            return;
+
+        smmu->gerror ^= new_gerrors;
+    }
+
+    vgic_inject_irq(smmu->d, NULL, smmu->virq, true);
+}
+
+static int arm_vsmmu_write_evtq(struct virt_smmu *smmu, uint64_t *evt)
+{
+    struct arm_vsmmu_queue *q = &smmu->evtq;
+    struct domain *d = smmu->d;
+    paddr_t addr;
+    int ret;
+
+    if ( !smmu_get_evtq_enabled(smmu->cr[0]) )
+        return -EINVAL;
+
+    if ( queue_full(q) )
+        return -EINVAL;
+
+    addr = Q_PROD_ENT(q);
+    ret = access_guest_memory_by_gpa(d, addr, evt,
+                                     sizeof(*evt) * EVTQ_ENT_DWORDS, true);
+    if ( ret )
+        return ret;
+
+    queue_inc_prod(q);
+
+    /* trigger eventq irq to guest */
+    if ( !queue_empty(q) )
+        arm_vsmmu_inject_irq(smmu, false, 0);
+
+    return 0;
+}
+
+void arm_vsmmu_send_event(struct virt_smmu *smmu,
+                          struct arm_smmu_evtq_ent *ent)
+{
+    uint64_t evt[EVTQ_ENT_DWORDS];
+    int ret;
+
+    memset(evt, 0, 1 << EVTQ_ENT_SZ_SHIFT);
+
+    if ( !smmu_get_evtq_enabled(smmu->cr[0]) )
+        return;
+
+    evt[0] |= FIELD_PREP(EVTQ_0_ID, ent->opcode);
+    evt[0] |= FIELD_PREP(EVTQ_0_SID, ent->sid);
+
+    switch (ent->opcode)
+    {
+    case EVT_ID_BAD_STREAMID:
+    case EVT_ID_BAD_STE:
+        evt[0] |= FIELD_PREP(EVTQ_0_SSID, ent->c_bad_ste_streamid.ssid);
+        evt[0] |= FIELD_PREP(EVTQ_0_SSV, ent->c_bad_ste_streamid.ssv);
+        break;
+    case EVT_ID_TRANSLATION_FAULT:
+    case EVT_ID_ADDR_SIZE_FAULT:
+    case EVT_ID_ACCESS_FAULT:
+    case EVT_ID_PERMISSION_FAULT:
+        break;
+    default:
+        gdprintk(XENLOG_WARNING, "vSMMUv3: event opcode is bad\n");
+        break;
+    }
+
+    ret = arm_vsmmu_write_evtq(smmu, evt);
+    if ( ret )
+        arm_vsmmu_inject_irq(smmu, true, GERROR_EVTQ_ABT_ERR);
+
+    return;
+}
+
 static int arm_vsmmu_find_ste(struct virt_smmu *smmu, uint32_t sid,
                               uint64_t *ste)
 {
@@ -113,11 +244,22 @@ static int arm_vsmmu_find_ste(struct virt_smmu *smmu, uint32_t sid,
     uint32_t log2size;
     int strtab_size_shift;
     int ret;
+    struct arm_smmu_evtq_ent ent = {
+        .sid = sid,
+        .c_bad_ste_streamid = {
+            .ssid = 0,
+            .ssv = false,
+        },
+    };
 
     log2size = FIELD_GET(STRTAB_BASE_CFG_LOG2SIZE, smmu->strtab_base_cfg);
 
     if ( sid >= (1 << MIN(log2size, SMMU_IDR1_SIDSIZE)) )
+    {
+        ent.opcode = EVT_ID_BAD_STE;
+        arm_vsmmu_send_event(smmu, &ent);
         return -EINVAL;
+    }
 
     if ( smmu->features & STRTAB_BASE_CFG_FMT_2LVL )
     {
@@ -155,6 +297,8 @@ static int arm_vsmmu_find_ste(struct virt_smmu *smmu, uint32_t sid,
         {
             gdprintk(XENLOG_ERR, "idx=%d > max_l2_ste=%d\n",
                      idx, max_l2_ste);
+            ent.opcode = EVT_ID_BAD_STREAMID;
+            arm_vsmmu_send_event(smmu, &ent);
             return -EINVAL;
         }
         addr = l2ptr + idx * sizeof(*ste) * STRTAB_STE_DWORDS;
@@ -182,6 +326,14 @@ static int arm_vsmmu_decode_ste(struct virt_smmu *smmu, uint32_t sid,
                                 uint64_t *ste)
 {
     uint64_t val = ste[0];
+    struct arm_smmu_evtq_ent ent = {
+        .opcode = EVT_ID_BAD_STE,
+        .sid = sid,
+        .c_bad_ste_streamid = {
+            .ssid = 0,
+            .ssv = false,
+        },
+    };
 
     if ( !(val & STRTAB_STE_0_V) )
         return -EAGAIN;
@@ -216,6 +368,7 @@ static int arm_vsmmu_decode_ste(struct virt_smmu *smmu, uint32_t sid,
     return 0;
 
 bad_ste:
+    arm_vsmmu_send_event(smmu, &ent);
     return -EINVAL;
 }
 
@@ -572,7 +725,8 @@ static const struct mmio_handler_ops vsmmuv3_mmio_handler = {
     .write = vsmmuv3_mmio_write,
 };
 
-static int vsmmuv3_init_single(struct domain *d, paddr_t addr, paddr_t size)
+static int vsmmuv3_init_single(struct domain *d, paddr_t addr,
+                               paddr_t size, uint32_t virq)
 {
     struct virt_smmu *smmu;
 
@@ -581,6 +735,7 @@ static int vsmmuv3_init_single(struct domain *d, paddr_t addr, paddr_t size)
         return -ENOMEM;
 
     smmu->d = d;
+    smmu->virq = virq;
     smmu->cmdq.q_base = FIELD_PREP(Q_BASE_LOG2SIZE, SMMU_CMDQS);
     smmu->cmdq.ent_size = CMDQ_ENT_DWORDS * DWORDS_BYTES;
     smmu->evtq.q_base = FIELD_PREP(Q_BASE_LOG2SIZE, SMMU_EVTQS);
@@ -607,14 +762,16 @@ int domain_vsmmuv3_init(struct domain *d)
 
         list_for_each_entry(hw_iommu, &host_iommu_list, entry)
         {
-            ret = vsmmuv3_init_single(d, hw_iommu->addr, hw_iommu->size);
+            ret = vsmmuv3_init_single(d, hw_iommu->addr, hw_iommu->size,
+                                      hw_iommu->irq);
             if ( ret )
                 return ret;
         }
     }
     else
     {
-        ret = vsmmuv3_init_single(d, GUEST_VSMMUV3_BASE, GUEST_VSMMUV3_SIZE);
+        ret = vsmmuv3_init_single(d, GUEST_VSMMUV3_BASE, GUEST_VSMMUV3_SIZE,
+                                  GUEST_VSMMU_SPI);
         if ( ret )
             return ret;
     }
