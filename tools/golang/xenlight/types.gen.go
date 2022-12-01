@@ -531,6 +531,7 @@ TypeUnion DomainBuildInfoTypeUnion
 ArchArm struct {
 GicVersion GicVersion
 Vuart VuartType
+Viommu ViommuType
 }
 ArchX86 struct {
 MsrRelaxed Defbool

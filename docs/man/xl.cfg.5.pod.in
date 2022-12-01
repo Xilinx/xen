@@ -2895,6 +2895,17 @@ a single color value or a hypen-separated closed interval of colors
 
 =back
 
+=item B<viommu="N">
+
+To enable viommu, user must specify the following option in the VM
+config file:
+
+viommu = "smmuv3"
+
+Currently, only the "smmuv3" type is supported for ARM.
+
+=back
+
 =head3 x86
 
 =over 4
