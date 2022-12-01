@@ -247,6 +247,15 @@ int iommu_remove_dt_device(struct dt_device_node *np);
 
 #endif /* HAS_DEVICE_TREE */
 
+#ifdef CONFIG_ARM
+struct iommu_guest_config {
+    paddr_t     s1ctxptr;
+    uint8_t     config;
+    uint8_t     s1fmt;
+    uint8_t     s1cdmax;
+};
+#endif /* CONFIG_ARM */
+
 struct page_info;
 
 /*
@@ -319,6 +328,11 @@ struct iommu_ops {
      * that device (device IDs, etc).
      */
     int (*dt_xlate)(device_t *dev, const struct dt_phandle_args *args);
+#endif
+
+#ifdef CONFIG_ARM
+    int (*attach_guest_config)(struct domain *d, u32 sid,
+                               struct iommu_guest_config *cfg);
 #endif
 };
 
