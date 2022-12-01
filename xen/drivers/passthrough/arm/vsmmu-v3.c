@@ -728,6 +728,7 @@ static const struct mmio_handler_ops vsmmuv3_mmio_handler = {
 static int vsmmuv3_init_single(struct domain *d, paddr_t addr,
                                paddr_t size, uint32_t virq)
 {
+    int ret;
     struct virt_smmu *smmu;
 
     smmu = xzalloc(struct virt_smmu);
@@ -743,12 +744,21 @@ static int vsmmuv3_init_single(struct domain *d, paddr_t addr,
 
     spin_lock_init(&smmu->cmd_queue_lock);
 
+    ret = vgic_reserve_virq(d, virq);
+    if ( !ret )
+        goto out;
+
     register_mmio_handler(d, &vsmmuv3_mmio_handler, addr, size, smmu);
 
     /* Register the vIOMMU to be able to clean it up later. */
     list_add_tail(&smmu->viommu_list, &d->arch.viommu_list);
 
     return 0;
+
+out:
+    xfree(smmu);
+    vgic_free_virq(d, virq);
+    return ret;
 }
 
 int domain_vsmmuv3_init(struct domain *d)
