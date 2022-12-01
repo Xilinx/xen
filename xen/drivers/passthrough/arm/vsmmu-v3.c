@@ -44,6 +44,21 @@ extern const struct viommu_desc __read_mostly *cur_viommu;
 /* Helper Macros */
 #define smmu_get_cmdq_enabled(x)    FIELD_GET(CR0_CMDQEN, x)
 #define smmu_cmd_get_command(x)     FIELD_GET(CMDQ_0_OP, x)
+#define smmu_cmd_get_sid(x)         FIELD_GET(CMDQ_PREFETCH_0_SID, x)
+#define smmu_get_ste_s1cdmax(x)     FIELD_GET(STRTAB_STE_0_S1CDMAX, x)
+#define smmu_get_ste_s1fmt(x)       FIELD_GET(STRTAB_STE_0_S1FMT, x)
+#define smmu_get_ste_s1stalld(x)    FIELD_GET(STRTAB_STE_1_S1STALLD, x)
+#define smmu_get_ste_s1ctxptr(x)    FIELD_PREP(STRTAB_STE_0_S1CTXPTR_MASK, \
+                                    FIELD_GET(STRTAB_STE_0_S1CTXPTR_MASK, x))
+
+/* stage-1 translation configuration */
+struct arm_vsmmu_s1_trans_cfg {
+    paddr_t s1ctxptr;
+    uint8_t s1fmt;
+    uint8_t s1cdmax;
+    bool    bypassed;             /* translation is bypassed */
+    bool    aborted;              /* translation is aborted */
+};
 
 /* virtual smmu queue */
 struct arm_vsmmu_queue {
@@ -90,6 +105,138 @@ static void dump_smmu_command(uint64_t *command)
     gdprintk(XENLOG_ERR, "cmd 0x%02llx: %016lx %016lx\n",
              smmu_cmd_get_command(command[0]), command[0], command[1]);
 }
+static int arm_vsmmu_find_ste(struct virt_smmu *smmu, uint32_t sid,
+                              uint64_t *ste)
+{
+    paddr_t addr, strtab_base;
+    struct domain *d = smmu->d;
+    uint32_t log2size;
+    int strtab_size_shift;
+    int ret;
+
+    log2size = FIELD_GET(STRTAB_BASE_CFG_LOG2SIZE, smmu->strtab_base_cfg);
+
+    if ( sid >= (1 << MIN(log2size, SMMU_IDR1_SIDSIZE)) )
+        return -EINVAL;
+
+    if ( smmu->features & STRTAB_BASE_CFG_FMT_2LVL )
+    {
+        int idx, max_l2_ste, span;
+        paddr_t l1ptr, l2ptr;
+        uint64_t l1std;
+
+        strtab_size_shift = MAX(5, (int)log2size - smmu->sid_split - 1 + 3);
+        strtab_base = smmu->strtab_base & STRTAB_BASE_ADDR_MASK &
+                        ~GENMASK_ULL(strtab_size_shift, 0);
+        idx = (sid >> STRTAB_SPLIT) * STRTAB_L1_DESC_DWORDS;
+        l1ptr = (paddr_t)(strtab_base + idx * sizeof(l1std));
+
+        ret = access_guest_memory_by_gpa(d, l1ptr, &l1std,
+                                         sizeof(l1std), false);
+        if ( ret )
+        {
+            gdprintk(XENLOG_ERR,
+                     "Could not read L1PTR at 0X%"PRIx64"\n", l1ptr);
+            return ret;
+        }
+
+        span = FIELD_GET(STRTAB_L1_DESC_SPAN, l1std);
+        if ( !span )
+        {
+            gdprintk(XENLOG_ERR, "Bad StreamID span\n");
+            return -EINVAL;
+        }
+
+        max_l2_ste = (1 << span) - 1;
+        l2ptr = FIELD_PREP(STRTAB_L1_DESC_L2PTR_MASK,
+                    FIELD_GET(STRTAB_L1_DESC_L2PTR_MASK, l1std));
+        idx = sid & ((1 << smmu->sid_split) - 1);
+        if ( idx > max_l2_ste )
+        {
+            gdprintk(XENLOG_ERR, "idx=%d > max_l2_ste=%d\n",
+                     idx, max_l2_ste);
+            return -EINVAL;
+        }
+        addr = l2ptr + idx * sizeof(*ste) * STRTAB_STE_DWORDS;
+    }
+    else
+    {
+        strtab_size_shift = log2size + 5;
+        strtab_base = smmu->strtab_base & STRTAB_BASE_ADDR_MASK &
+                      ~GENMASK_ULL(strtab_size_shift, 0);
+        addr = strtab_base + sid * sizeof(*ste) * STRTAB_STE_DWORDS;
+    }
+    ret = access_guest_memory_by_gpa(d, addr, ste, sizeof(*ste), false);
+    if ( ret )
+    {
+        gdprintk(XENLOG_ERR,
+                "Cannot fetch pte at address=0x%"PRIx64"\n", addr);
+        return -EINVAL;
+    }
+
+    return 0;
+}
+
+static int arm_vsmmu_decode_ste(struct virt_smmu *smmu, uint32_t sid,
+                                struct arm_vsmmu_s1_trans_cfg *cfg,
+                                uint64_t *ste)
+{
+    uint64_t val = ste[0];
+
+    if ( !(val & STRTAB_STE_0_V) )
+        return -EAGAIN;
+
+    switch ( FIELD_GET(STRTAB_STE_0_CFG, val) )
+    {
+    case STRTAB_STE_0_CFG_BYPASS:
+        cfg->bypassed = true;
+        return 0;
+    case STRTAB_STE_0_CFG_ABORT:
+        cfg->aborted = true;
+        return 0;
+    case STRTAB_STE_0_CFG_S1_TRANS:
+        break;
+    case STRTAB_STE_0_CFG_S2_TRANS:
+        gdprintk(XENLOG_ERR, "vSMMUv3 does not support stage 2 yet\n");
+        goto bad_ste;
+    default:
+        BUG(); /* STE corruption */
+    }
+
+    cfg->s1ctxptr = smmu_get_ste_s1ctxptr(val);
+    cfg->s1fmt = smmu_get_ste_s1fmt(val);
+    cfg->s1cdmax = smmu_get_ste_s1cdmax(val);
+    if ( cfg->s1cdmax != 0 )
+    {
+        gdprintk(XENLOG_ERR,
+                 "vSMMUv3 does not support multiple context descriptors\n");
+        goto bad_ste;
+    }
+
+    return 0;
+
+bad_ste:
+    return -EINVAL;
+}
+
+static int arm_vsmmu_handle_cfgi_ste(struct virt_smmu *smmu, uint64_t *cmdptr)
+{
+    int ret;
+    uint64_t ste[STRTAB_STE_DWORDS];
+    struct arm_vsmmu_s1_trans_cfg s1_cfg = {0};
+    uint32_t sid = smmu_cmd_get_sid(cmdptr[0]);
+
+    ret = arm_vsmmu_find_ste(smmu, sid, ste);
+    if ( ret )
+        return ret;
+
+    ret = arm_vsmmu_decode_ste(smmu, sid, &s1_cfg, ste);
+    if ( ret )
+        return (ret == -EAGAIN ) ? 0 : ret;
+
+    return 0;
+}
+
 static int arm_vsmmu_handle_cmds(struct virt_smmu *smmu)
 {
     struct arm_vsmmu_queue *q = &smmu->cmdq;
@@ -113,6 +260,7 @@ static int arm_vsmmu_handle_cmds(struct virt_smmu *smmu)
         switch ( smmu_cmd_get_command(command[0]) )
         {
         case CMDQ_OP_CFGI_STE:
+            ret = arm_vsmmu_handle_cfgi_ste(smmu, command);
             break;
         case CMDQ_OP_PREFETCH_CFG:
         case CMDQ_OP_CFGI_CD:
