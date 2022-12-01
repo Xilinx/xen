@@ -3106,7 +3106,35 @@ static int __init handle_prop_pfdt(struct kernel_info *kinfo,
     return ( propoff != -FDT_ERR_NOTFOUND ) ? propoff : 0;
 }
 
-static int __init scan_pfdt_node(struct kernel_info *kinfo, const void *pfdt,
+static void modify_pfdt_node(void *pfdt, int nodeoff)
+{
+    int proplen, i, rc;
+    const fdt32_t *prop;
+    fdt32_t *prop_c;
+
+    prop = fdt_getprop(pfdt, nodeoff, "iommus", &proplen);
+    if ( !prop )
+        return;
+
+    prop_c = xzalloc_bytes(proplen);
+
+    for ( i = 0; i < proplen / 8; ++i )
+    {
+        prop_c[i * 2] = cpu_to_fdt32(GUEST_PHANDLE_VSMMUV3);
+        prop_c[i * 2 + 1] = prop[i * 2 + 1];
+    }
+
+    rc = fdt_setprop(pfdt, nodeoff, "iommus", prop_c, proplen);
+    if ( rc )
+    {
+        dprintk(XENLOG_ERR, "Can't set the iommus property in partial FDT");
+        return;
+    }
+
+    return;
+}
+
+static int __init scan_pfdt_node(struct kernel_info *kinfo, void *pfdt,
                                  int nodeoff,
                                  uint32_t address_cells, uint32_t size_cells,
                                  bool scan_passthrough_prop)
@@ -3132,6 +3160,7 @@ static int __init scan_pfdt_node(struct kernel_info *kinfo, const void *pfdt,
     node_next = fdt_first_subnode(pfdt, nodeoff);
     while ( node_next > 0 )
     {
+        modify_pfdt_node(pfdt, node_next);
         scan_pfdt_node(kinfo, pfdt, node_next, address_cells, size_cells,
                        scan_passthrough_prop);
         node_next = fdt_next_subnode(pfdt, node_next);
