@@ -8,11 +8,23 @@
 
 void vsmmuv3_set_type(void);
 
+static inline int arm_vsmmu_handle_evt(struct domain *d,
+                                       struct device *dev, uint64_t *evt)
+{
+    return -EINVAL;
+}
+
 #else
 
 static inline void vsmmuv3_set_type(void)
 {
     return;
+}
+
+static inline int arm_vsmmu_handle_evt(struct domain *d,
+                                       struct device *dev, uint64_t *evt)
+{
+    return -EINVAL;
 }
 
 #endif /* CONFIG_VIRTUAL_ARM_SMMU_V3 */

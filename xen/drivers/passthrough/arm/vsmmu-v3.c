@@ -102,6 +102,7 @@ struct arm_vsmmu_queue {
 struct virt_smmu {
     struct      domain *d;
     struct      list_head viommu_list;
+    paddr_t     addr;
     uint8_t     sid_split;
     uint32_t    features;
     uint32_t    cr[3];
@@ -234,6 +235,49 @@ void arm_vsmmu_send_event(struct virt_smmu *smmu,
         arm_vsmmu_inject_irq(smmu, true, GERROR_EVTQ_ABT_ERR);
 
     return;
+}
+
+static struct virt_smmu *vsmmuv3_find_by_addr(struct domain *d, paddr_t paddr)
+{
+    struct virt_smmu *smmu;
+
+    list_for_each_entry( smmu, &d->arch.viommu_list, viommu_list )
+    {
+        if ( smmu->addr == paddr )
+            return smmu;
+    }
+
+    return NULL;
+}
+
+int arm_vsmmu_handle_evt(struct domain *d, struct device *dev, uint64_t *evt)
+{
+    int ret;
+    struct virt_smmu *smmu;
+
+    if ( is_hardware_domain(d) )
+    {
+        paddr_t paddr;
+        /* Base address */
+        ret = dt_device_get_address(dev_to_dt(dev), 0, &paddr, NULL);
+        if ( ret )
+            return -EINVAL;
+
+        smmu = vsmmuv3_find_by_addr(d, paddr);
+        if ( !smmu )
+            return -ENODEV;
+    }
+    else
+    {
+        smmu = list_entry(d->arch.viommu_list.next,
+                          struct virt_smmu, viommu_list);
+    }
+
+    ret = arm_vsmmu_write_evtq(smmu, evt);
+    if ( ret )
+        arm_vsmmu_inject_irq(smmu, true, GERROR_EVTQ_ABT_ERR);
+
+    return 0;
 }
 
 static int arm_vsmmu_find_ste(struct virt_smmu *smmu, uint32_t sid,
@@ -737,6 +781,7 @@ static int vsmmuv3_init_single(struct domain *d, paddr_t addr,
 
     smmu->d = d;
     smmu->virq = virq;
+    smmu->addr = addr;
     smmu->cmdq.q_base = FIELD_PREP(Q_BASE_LOG2SIZE, SMMU_CMDQS);
     smmu->cmdq.ent_size = CMDQ_ENT_DWORDS * DWORDS_BYTES;
     smmu->evtq.q_base = FIELD_PREP(Q_BASE_LOG2SIZE, SMMU_EVTQS);
