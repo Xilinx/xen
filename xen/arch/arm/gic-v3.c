@@ -651,7 +651,7 @@ static void __init gicv3_dist_init(void)
     affinity &= ~GICD_IROUTER_SPI_MODE_ANY;
 
     for ( i = NR_GIC_LOCAL_IRQS; i < nr_lines; i++ )
-        writeq_relaxed(affinity, GICD + GICD_IROUTER + i * 8);
+        writeq_relaxed_non_atomic(affinity, GICD + GICD_IROUTER + i * 8);
 }
 
 static int gicv3_enable_redist(void)
@@ -745,7 +745,7 @@ static int __init gicv3_populate_rdist(void)
         }
 
         do {
-            typer = readq_relaxed(ptr + GICR_TYPER);
+            typer = readq_relaxed_non_atomic(ptr + GICR_TYPER);
 
             if ( (typer >> 32) == aff )
             {
@@ -1265,7 +1265,7 @@ static void gicv3_irq_set_affinity(struct irq_desc *desc, const cpumask_t *mask)
     affinity &= ~GICD_IROUTER_SPI_MODE_ANY;
 
     if ( desc->irq >= NR_GIC_LOCAL_IRQS )
-        writeq_relaxed(affinity, (GICD + GICD_IROUTER + desc->irq * 8));
+        writeq_relaxed_non_atomic(affinity, (GICD + GICD_IROUTER + desc->irq * 8));
 
     spin_unlock(&gicv3.lock);
 }
