@@ -241,7 +241,7 @@ bool xilinx_eemi(struct cpu_user_regs *regs, const uint32_t fid,
     case EEMI_FID(PM_PINCTRL_CONFIG_PARAM_SET):
         if ( !is_hardware_domain(current->domain) )
         {
-            gprintk(XENLOG_WARNING, "eemi: fn=%u No access", pm_fn);
+            gprintk(XENLOG_WARNING, "eemi: fn=%u No access\n", pm_fn);
             ret = XST_PM_NO_ACCESS;
             goto done;
         }
@@ -287,7 +287,7 @@ bool xilinx_eemi(struct cpu_user_regs *regs, const uint32_t fid,
             }
             else
             {
-                gprintk(XENLOG_WARNING, "eemi: fn=%u No access id = %d ", pm_fn, id);
+                gprintk(XENLOG_WARNING, "eemi: fn=%u No access id = %d\n", pm_fn, id);
                 ret = XST_PM_NO_ACCESS;
                 goto done;
             }
@@ -403,7 +403,7 @@ bool xilinx_eemi(struct cpu_user_regs *regs, const uint32_t fid,
     case IPI_MAILBOX_FID(IPI_MAILBOX_DISABLE_IRQ):
         if ( !is_hardware_domain(current->domain) )
         {
-            gprintk(XENLOG_WARNING, "IPI mailbox: fn=%u No access", pm_fn);
+            gprintk(XENLOG_WARNING, "IPI mailbox: fn=%u No access\n", pm_fn);
             ret = XST_PM_NO_ACCESS;
             goto done;
         }
