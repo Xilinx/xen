@@ -43,12 +43,12 @@ struct viommu_desc {
      * ID of vIOMMU. Corresponds to xen_arch_domainconfig.viommu_type.
      * Should be one of XEN_DOMCTL_CONFIG_VIOMMU_xxx
      */
-    uint16_t viommu_type;
+    uint8_t viommu_type;
 };
 
-int domain_viommu_init(struct domain *d, uint16_t viommu_type);
+int domain_viommu_init(struct domain *d, uint8_t viommu_type);
 int viommu_relinquish_resources(struct domain *d);
-uint16_t viommu_get_type(void);
+uint8_t viommu_get_type(void);
 void add_to_host_iommu_list(paddr_t addr, paddr_t size,
                             const struct dt_device_node *node);
 
@@ -64,7 +64,7 @@ static inline uint8_t viommu_get_type(void)
     return XEN_DOMCTL_CONFIG_VIOMMU_NONE;
 }
 
-static inline int domain_viommu_init(struct domain *d, uint16_t viommu_type)
+static inline int domain_viommu_init(struct domain *d, uint8_t viommu_type)
 {
     if ( likely(viommu_type == XEN_DOMCTL_CONFIG_VIOMMU_NONE) )
         return 0;

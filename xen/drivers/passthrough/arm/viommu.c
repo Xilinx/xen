@@ -43,7 +43,7 @@ void add_to_host_iommu_list(paddr_t addr, paddr_t size,
 bool __read_mostly viommu_enabled;
 boolean_param("viommu", viommu_enabled);
 
-int domain_viommu_init(struct domain *d, uint16_t viommu_type)
+int domain_viommu_init(struct domain *d, uint8_t viommu_type)
 {
     /* Enable viommu when it has been enabled explicitly (viommu=on). */
     if ( !viommu_enabled )
@@ -69,7 +69,7 @@ int viommu_relinquish_resources(struct domain *d)
     return cur_viommu->ops->relinquish_resources(d);
 }
 
-uint16_t viommu_get_type(void)
+uint8_t viommu_get_type(void)
 {
     if ( !cur_viommu )
         return XEN_DOMCTL_CONFIG_VIOMMU_NONE;
