@@ -18,7 +18,7 @@ struct host_iommu {
     const struct dt_device_node *dt_node;
     paddr_t addr;
     paddr_t size;
-    uint32_t irq;
+    int irq;
     bool hwdom_node_created;
 };
 
