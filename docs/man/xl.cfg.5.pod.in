@@ -2885,6 +2885,16 @@ Currently, only the "sbsa_uart" model is supported for ARM.
 
 =back
 
+=over 4
+
+=item B<colors=[ "COLORS_RANGE", "COLORS_RANGE", ...]>
+
+Specify the LLC color configuration for the guest. B<COLORS_RANGE> can be either
+a single color value or a hypen-separated closed interval of colors
+(such as "0-4").
+
+=back
+
 =head3 x86
 
 =over 4

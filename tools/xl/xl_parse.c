@@ -1221,8 +1221,9 @@ void parse_config_data(const char *config_source,
                    *usbctrls, *usbdevs, *p9devs, *vdispls, *pvcallsifs_devs,
                    *sshms;
     XLU_ConfigList *channels, *ioports, *irqs, *iomem, *viridian, *dtdevs,
-                   *mca_caps;
-    int num_ioports, num_irqs, num_iomem, num_cpus, num_viridian, num_mca_caps;
+                   *mca_caps, *colors;
+    int num_ioports, num_irqs, num_iomem, num_cpus, num_viridian, num_mca_caps,
+        num_colors;
     int pci_power_mgmt = 0;
     int pci_msitranslate = 0;
     int pci_permissive = 0;
@@ -1370,6 +1371,53 @@ void parse_config_data(const char *config_source,
 
     if (!xlu_cfg_get_long (config, "maxmem", &l, 0))
         b_info->max_memkb = l * 1024;
+
+    if (!xlu_cfg_get_list(config, "colors", &colors, &num_colors, 0)) {
+        int k, p, cur_index = 0;
+
+        b_info->num_colors = 0;
+        /* Get number of colors based on ranges */
+        for (i = 0; i < num_colors; i++) {
+            uint32_t start = 0, end = 0;
+
+            buf = xlu_cfg_get_listitem(colors, i);
+            if (!buf) {
+                fprintf(stderr,
+                    "xl: Unable to get element %d in colors range list\n", i);
+                exit(1);
+            }
+
+            if (sscanf(buf, "%u-%u", &start, &end) != 2) {
+                if (sscanf(buf, "%u", &start) != 1) {
+                    fprintf(stderr, "xl: Invalid color range: %s\n", buf);
+                    exit(1);
+                }
+                end = start;
+            }
+            else if (start > end) {
+                fprintf(stderr,
+                        "xl: Start color is greater than end color: %s\n", buf);
+                exit(1);
+            }
+
+            /* Check for overlaps */
+            for (k = start; k <= end; k++) {
+                for (p = 0; p < b_info->num_colors; p++) {
+                    if (b_info->colors[p] == k) {
+                        fprintf(stderr, "xl: Overlapped ranges not allowed\n");
+                        exit(1);
+                    }
+                }
+            }
+
+            b_info->num_colors += (end - start) + 1;
+            b_info->colors = (uint32_t *)realloc(b_info->colors,
+                                sizeof(*b_info->colors) * b_info->num_colors);
+
+            for (k = start; k <= end; k++)
+                b_info->colors[cur_index++] = k;
+        }
+    }
 
     if (!xlu_cfg_get_long (config, "vcpus", &l, 0)) {
         vcpus = l;
