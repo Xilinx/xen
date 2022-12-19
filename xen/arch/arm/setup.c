@@ -1094,6 +1094,10 @@ void __init start_xen(unsigned long boot_phys_offset,
 
     tasklet_subsys_init();
 
+    rc = xsm_dt_init();
+    if ( rc < 0 )
+        panic("XSM initialization failed (error %d)\n", rc);
+
     init_maintenance_interrupt();
     init_timer_interrupt();
 
