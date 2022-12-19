@@ -31,6 +31,8 @@
 
 #include <public/arch-arm.h>
 
+struct page_info;
+
 bool __init coloring_init(void);
 
 int domain_coloring_init(struct domain *d,
@@ -40,6 +42,10 @@ void domain_dump_coloring_info(struct domain *d);
 
 void prepare_color_domain_config(struct xen_arch_domainconfig *config,
                                  const char *colors_str);
+
+unsigned int page_to_color(const struct page_info *pg);
+
+unsigned int get_max_colors(void);
 
 #else /* !CONFIG_CACHE_COLORING */
 

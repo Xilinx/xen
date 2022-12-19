@@ -322,6 +322,16 @@ void prepare_color_domain_config(struct xen_arch_domainconfig *config,
     config->num_colors = (uint16_t)num_colors;
 }
 
+unsigned int page_to_color(const struct page_info *pg)
+{
+    return addr_to_color(page_to_maddr(pg));
+}
+
+unsigned int get_max_colors(void)
+{
+    return max_colors;
+}
+
 /*
  * Local variables:
  * mode: C

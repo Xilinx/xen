@@ -16,6 +16,9 @@ In order to enable and use it, few steps are needed.
   (refer to menuconfig help for value meaning and when it should be changed).
 
         CONFIG_MAX_CACHE_COLORS=<n>
+- If needed, change the amount of memory reserved for the buddy allocator either
+  from the Xen configuration file, via the CONFIG_BUDDY_ALLOCATOR_SIZE value,
+  or with the command line option. See `Colored allocator and buddy allocator`.
 - Assign colors to domains using the `Color selection format`_ (see
   `Coloring parameters`_ for more documentation pointers).
 
@@ -162,6 +165,18 @@ Please refer to the relative documentation in
 Note that if no color configuration is provided for domains, they fallback to
 the default one, which corresponds simply to all available colors.
 
+Colored allocator and buddy allocator
+*************************************
+
+The colored allocator distributes pages based on color configurations of
+domains so that each domains only gets pages of its own colors.
+The colored allocator is meant as an alternative to the buddy allocator because
+its allocation policy is by definition incompatible with the generic one. Since
+the Xen heap is not colored yet, we need to support the coexistence of the two
+allocators and some memory must be left for the buddy one.
+The buddy allocator memory can be reserved from the Xen configuration file or
+with the help of a command-line option.
+
 Known issues and limitations
 ****************************
 
@@ -182,7 +197,6 @@ configuration structure size used in domain creation. "uint16_t" is the biggest
 integer type that fit the constraint and 2^15 is the biggest power of 2 it can
 easily represent. This value is big enough for the generic case, though.
 
-
 "xen,static-mem" isn't supported when coloring is enabled
 #########################################################
 
@@ -190,3 +204,26 @@ In the domain configuration, "xen,static-mem" allows memory to be statically
 allocated to the domain. This isn't possibile when cache coloring is enabled,
 because that memory can't be guaranteed to be of the same colors assigned to
 that domain.
+
+Colored allocator can only make use of order-0 pages
+####################################################
+
+The cache coloring technique relies on memory mappings and on the smallest
+amount of memory that can be mapped to achieve the maximum number of colors
+(cache partitions) possible. This amount is what is normally called a page and,
+in Xen terminology, the order-0 page is the smallest one. The fairly simple
+colored allocator currently implemented, makes use only of such pages.
+It must be said that a more complex one could, in theory, adopt higher order
+pages if the colors selection contained adjacent colors. Two subsequent colors,
+for example, can be represented by an order-1 page, four colors correspond to
+an order-2 page, etc.
+
+Fail to boot colored DomUs with large memory size
+#################################################
+
+If the Linux kernel used for Dom0 does not contain the upstream commit
+3941552aec1e04d63999988a057ae09a1c56ebeb and uses the hypercall buffer device,
+colored DomUs with memory size larger then 127 MB cannot be created. This is
+caused by the default limit of this buffer of 64 pages. The solution is to
+manually apply the above patch, or to check if there is an updated version of
+the kernel in use for Dom0 that contains this change.

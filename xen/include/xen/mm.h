@@ -297,6 +297,37 @@ page_list_add_tail(struct page_info *page, struct page_list_head *head)
     }
     head->tail = page;
 }
+static inline void
+_page_list_add(struct page_info *new, struct page_info *prev,
+               struct page_info *next)
+{
+    new->list.prev = page_to_pdx(prev);
+	new->list.next = page_to_pdx(next);
+	prev->list.next = page_to_pdx(new);
+	next->list.prev = page_to_pdx(new);
+}
+static inline void
+page_list_add_next(struct page_info *new, struct page_info *prev,
+                   struct page_list_head *head)
+{
+	struct page_info *next = page_list_next(prev, head);
+
+    if ( !next )
+        page_list_add_tail(new, head);
+    else
+        _page_list_add(new, prev, next);
+}
+static inline void
+page_list_add_prev(struct page_info *new, struct page_info *next,
+                   struct page_list_head *head)
+{
+	struct page_info *prev = page_list_prev(next, head);
+
+    if ( !prev )
+        page_list_add(new, head);
+    else
+        _page_list_add(new, prev, next);
+}
 static inline bool_t
 __page_list_del_head(struct page_info *page, struct page_list_head *head,
                      struct page_info *next, struct page_info *prev)
@@ -447,6 +478,18 @@ static inline void
 page_list_add_tail(struct page_info *page, struct page_list_head *head)
 {
     list_add_tail(&page->list, head);
+}
+static inline void
+page_list_add_next(struct page_info *new, struct page_info *prev,
+                   struct page_list_head *head)
+{
+	page_list_add_tail(new, &prev->list);
+}
+static inline void
+page_list_add_prev(struct page_info *new, struct page_info *next,
+                   struct page_list_head *head)
+{
+    page_list_add(new, &next->list);
 }
 static inline void
 page_list_del(struct page_info *page, struct page_list_head *head)
