@@ -3818,7 +3818,9 @@ void __init create_domUs(void)
             d_cfg.cpupool_id = pool_id;
         }
 
-        if ( !dt_property_read_string(node, "colors", &colors_str) )
+        if ( coloring_legacy && IS_ENABLED(CONFIG_CACHE_COLORING) )
+            prepare_color_domain_config_legacy(node, &d_cfg.arch);
+        else if ( !dt_property_read_string(node, "colors", &colors_str) )
         {
             if ( !IS_ENABLED(CONFIG_CACHE_COLORING) )
                 printk(XENLOG_WARNING

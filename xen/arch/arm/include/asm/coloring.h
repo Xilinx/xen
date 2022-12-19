@@ -63,13 +63,16 @@ void domain_dump_coloring_info(struct domain *d);
 
 void prepare_color_domain_config(struct xen_arch_domainconfig *config,
                                  const char *colors_str);
-
+void prepare_color_domain_config_legacy(struct dt_device_node *node,
+                                        struct xen_arch_domainconfig *config);
 unsigned int page_to_color(const struct page_info *pg);
 
 unsigned int get_max_colors(void);
 
 mfn_t xen_colored_mfn(mfn_t mfn);
 void *xen_remap_colored(mfn_t xen_fn, paddr_t xen_size);
+
+extern bool coloring_legacy;
 
 #else /* !CONFIG_CACHE_COLORING */
 
@@ -82,10 +85,13 @@ static inline void domain_coloring_free(struct domain *d) {}
 static inline void domain_dump_coloring_info(struct domain *d) {}
 static inline void prepare_color_domain_config(
     struct xen_arch_domainconfig *config, const char *colors_str) {}
+static inline void prepare_color_domain_config_legacy(struct dt_device_node *node,
+                                        struct xen_arch_domainconfig *config) {}
 static inline void *xen_remap_colored(mfn_t xen_fn, paddr_t xen_size)
 {
     return NULL;
 }
+#define coloring_legacy (0)
 
 #endif /* CONFIG_CACHE_COLORING */
 #endif /* __ASM_ARM_COLORING_H__ */
