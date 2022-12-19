@@ -276,6 +276,8 @@ bool __init coloring_init(void)
     }
 
     register_keyhandler('K', dump_coloring_info, "dump coloring info", 1);
+    /* print coloring info at start of day */
+    dump_coloring_info('K');
 
     return true;
 }
@@ -316,6 +318,7 @@ int domain_coloring_init(struct domain *d,
             xfree(config->colors.p);
         }
     }
+    domain_dump_coloring_info(d);
 
     if ( !d->arch.colors )
     {

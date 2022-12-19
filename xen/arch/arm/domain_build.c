@@ -3845,6 +3845,9 @@ void __init create_domUs(void)
 
         if ( construct_domU(d, node) != 0 )
             panic("Could not set up domain %s\n", dt_node_name(node));
+
+        if ( IS_ENABLED(CONFIG_CACHE_COLORING) )
+            domain_dump_coloring_info(d);
     }
 }
 
