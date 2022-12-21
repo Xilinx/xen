@@ -481,21 +481,15 @@ static unsigned long *__ro_after_init free_colored_pages;
 
 static void free_color_heap_page(struct page_info *pg)
 {
-    struct page_info *pos;
     unsigned int color = page_to_color(pg);
     colored_pages_t *head = color_heap(color);
+    struct page_info *pos = (struct page_info *) head->next;
 
     spin_lock(&heap_lock);
 
     pg->count_info = PGC_state_free | PGC_colored;
     page_set_owner(pg, NULL);
     free_colored_pages[color]++;
-
-    page_list_for_each( pos, head )
-    {
-        if ( page_to_maddr(pos) < page_to_maddr(pg) )
-            break;
-    }
 
     page_list_add_next(pg, pos, head);
 
