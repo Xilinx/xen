@@ -49,7 +49,7 @@ static inline struct page_info *_p2m_alloc_page(struct domain *d)
     /* If cache coloring is enabled, p2m tables are allocated using the domain
      * coloring configuration to prevent cache interference. */
     if ( IS_ENABLED(CONFIG_CACHE_COLORING) )
-        return alloc_domheap_page(d, MEMF_no_refcount);
+        return alloc_domheap_page(d, MEMF_no_owner);
     else
         return alloc_domheap_page(NULL, 0);
 }
