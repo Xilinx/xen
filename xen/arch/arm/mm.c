@@ -572,30 +572,28 @@ void __init setup_pagetables(unsigned long boot_phys_offset, paddr_t xen_paddr)
     pte.pt.table = 1;
     xen_second[second_table_offset(FIXMAP_ADDR(0))] = pte;
 
-    if ( IS_ENABLED(CONFIG_CACHE_COLORING) )
-    {
-        ttbr = virt_to_maddr(virt_to_boot_virt((vaddr_t)xen_pgtable));
-        relocate_xen(ttbr, _start, (void *)BOOT_RELOC_VIRT_START,
-                     _end - _start);
-        /*
-        * Keep original Xen memory mapped because secondary CPUs still point to it
-        * and a few variables needs to be accessed by the master CPU in order to
-        * let them boot. This mapping will also replace the one created at the
-        * beginning of setup_pagetables.
-        */
-        map_pages_to_xen(BOOT_RELOC_VIRT_START,
-                         maddr_to_mfn(XEN_VIRT_START + phys_offset),
-                         SZ_2M >> PAGE_SHIFT, PAGE_HYPERVISOR_RW | _PAGE_BLOCK);
-    }
-    else
-    {
-#ifdef CONFIG_ARM_64
-        ttbr = (uintptr_t) xen_pgtable + phys_offset;
+#ifdef CONFIG_CACHE_COLORING
+    ttbr = virt_to_maddr(virt_to_boot_virt((vaddr_t)xen_pgtable));
+    relocate_xen(ttbr, _start, (void *)BOOT_RELOC_VIRT_START,
+                 _end - _start);
+    /*
+     * Keep original Xen memory mapped because secondary CPUs still point to it
+     * and a few variables needs to be accessed by the master CPU in order to
+     * let them boot. This mapping will also replace the one created at the
+     * beginning of setup_pagetables.
+     */
+    map_pages_to_xen(BOOT_RELOC_VIRT_START,
+                     maddr_to_mfn(XEN_VIRT_START + phys_offset),
+                     SZ_2M >> PAGE_SHIFT, PAGE_HYPERVISOR_RW | _PAGE_BLOCK);
+
 #else
-        ttbr = (uintptr_t) cpu0_pgtable + phys_offset;
+#ifdef CONFIG_ARM_64
+    ttbr = (uintptr_t) xen_pgtable + phys_offset;
+#else
+    ttbr = (uintptr_t) cpu0_pgtable + phys_offset;
 #endif
-        switch_ttbr(ttbr);
-    }
+    switch_ttbr(ttbr);
+#endif
 
     xen_pt_enforce_wnx();
 
