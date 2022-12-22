@@ -92,7 +92,7 @@ int libxl__arch_domain_prepare_config(libxl__gc *gc,
         vuart_enabled = true;
     }
 
-    if (d_config->num_pcidevs || d_config->b_info.device_tree) {
+    if (d_config->b_info.arch_arm.viommu_type == LIBXL_VIOMMU_TYPE_SMMUV3) {
         nr_spis += (GUEST_VSMMU_SPI - 32) + 1;
         vsmmu_irq = GUEST_VSMMU_SPI;
         vsmmu_enabled = true;
@@ -1038,7 +1038,8 @@ static int make_vsmmuv3_node(libxl__gc *gc, void *fdt,
 
 static int make_vpci_node(libxl__gc *gc, void *fdt,
                           const struct arch_info *ainfo,
-                          struct xc_dom_image *dom)
+                          struct xc_dom_image *dom,
+                          bool vsmmu_created)
 {
     int res;
     const uint64_t vpci_ecam_base = GUEST_VPCI_ECAM_BASE;
@@ -1077,11 +1078,11 @@ static int make_vpci_node(libxl__gc *gc, void *fdt,
         GUEST_VPCI_PREFETCH_MEM_SIZE);
     if (res) return res;
 
-    if (res) return res;
-
-    res = fdt_property_values(gc, fdt, "iommu-map", 4, 0,
-                              GUEST_PHANDLE_VSMMUV3, 0, 0x10000);
-    if (res) return res;
+    if (vsmmu_created) {
+        res = fdt_property_values(gc, fdt, "iommu-map", 4, 0,
+                                  GUEST_PHANDLE_VSMMUV3, 0, 0x10000);
+        if (res) return res;
+    }
 
     res = fdt_end_node(fdt);
     if (res) return res;
@@ -1508,7 +1509,7 @@ static int libxl__prepare_dtb(libxl__gc *gc, libxl_domain_config *d_config,
     size_t fdt_size = 0;
     int pfdt_size = 0;
     libxl_domain_build_info *const info = &d_config->b_info;
-    bool iommu_needed = false;
+    bool iommu_needed = false, vsmmu_created = false;
     unsigned int i;
 
     const libxl_version_info *vers;
@@ -1618,14 +1619,15 @@ next_resize:
         if (info->tee == LIBXL_TEE_TYPE_OPTEE)
             FDT( make_optee_node(gc, fdt) );
 
-        if (d_config->num_pcidevs)
-            FDT( make_vpci_node(gc, fdt, ainfo, dom) );
-
         if (info->arch_arm.viommu_type == LIBXL_VIOMMU_TYPE_SMMUV3) {
             FDT( make_vsmmuv3_node(gc, fdt, ainfo, dom) );
+            vsmmu_created = true;
             if (pfdt)
                 FDT( modify_partial_fdt(gc, pfdt) );
         }
+
+        if (d_config->num_pcidevs)
+            FDT( make_vpci_node(gc, fdt, ainfo, dom, vsmmu_created) );
 
         for (i = 0; i < d_config->num_disks; i++) {
             libxl_device_disk *disk = &d_config->disks[i];
