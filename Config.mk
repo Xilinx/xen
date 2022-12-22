@@ -1,5 +1,11 @@
 # -*- mode: Makefile; -*-
 
+ifeq ($(XEN_TARGET_ARCH),armr32)
+override XEN_TARGET_ARCH=arm32
+override SRCARCH=arm_mpu
+export XEN_TARGET_ARCH SRCARCH
+endif
+
 ifeq ($(filter /%,$(XEN_ROOT)),)
 $(error XEN_ROOT must be absolute)
 endif

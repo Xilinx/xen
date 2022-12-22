@@ -36,9 +36,13 @@ MAKEFLAGS += -rR
 EFI_MOUNTPOINT ?= $(BOOT_DIR)/efi
 
 ARCH=$(XEN_TARGET_ARCH)
+
+ifneq ($(SRCARCH),arm_mpu)
 SRCARCH=$(shell echo $(ARCH) | \
           sed -e 's/x86.*/x86/' -e s'/arm\(32\|64\)/arm/g' \
               -e s'/riscv.*/riscv/g')
+endif
+
 export ARCH SRCARCH
 
 # Allow someone to change their config file
@@ -242,9 +246,14 @@ include $(XEN_ROOT)/Config.mk
 
 # Set ARCH/SUBARCH appropriately.
 export TARGET_SUBARCH  := $(XEN_TARGET_ARCH)
+
+ifeq ($(SRCARCH),arm_mpu)
+export TARGET_ARCH     := $(shell echo $(SRCARCH))
+else
 export TARGET_ARCH     := $(shell echo $(XEN_TARGET_ARCH) | \
                             sed -e 's/x86.*/x86/' -e s'/arm\(32\|64\)/arm/g' \
                                 -e s'/riscv.*/riscv/g')
+endif
 
 export CONFIG_SHELL := $(SHELL)
 export CC CXX LD NM OBJCOPY OBJDUMP ADDR2LINE
