@@ -32,10 +32,60 @@
         hint    #22
     .endm
 
+    /*
+     * Pseudo-op for PC relative adr <reg>, <symbol> where <symbol> is
+     * within the range +/- 4GB of the PC.
+     *
+     * @dst: destination register (64 bit wide)
+     * @sym: name of the symbol
+     */
+    .macro  adr_l, dst, sym
+        adrp \dst, \sym
+        add  \dst, \dst, :lo12:\sym
+    .endm
+
+    /* Load the physical address of a symbol into xb */
+    .macro load_paddr xb, sym
+        ldr \xb, =\sym
+        add \xb, \xb, x20
+    .endm
+
 /*
  * Register aliases.
  */
 lr      .req    x30             /* link register */
 
-#endif /* __ASM_ARM_ARM64_MACROS_H */
+#ifdef CONFIG_EARLY_PRINTK
+/*
+ * Macro to print a string to the UART, if there is one.
+ *
+ * Clobbers x0 - x3
+ */
+#define PRINT(_s)          \
+        mov   x3, lr ;     \
+        adr   x0, 98f ;    \
+        bl    puts    ;    \
+        mov   lr, x3 ;     \
+        RODATA_STR(98, _s)
 
+    /*
+     * Macro to print the value of register \xb
+     *
+     * Clobbers x0 - x4
+     */
+    .macro print_reg xb
+    mov   x0, \xb
+    mov   x4, lr
+    bl    putn
+    mov   lr, x4
+    .endm
+
+#else /* CONFIG_EARLY_PRINTK */
+#define PRINT(s)
+
+.macro print_reg xb
+.endm
+
+#endif /* !CONFIG_EARLY_PRINTK */
+
+#endif /* __ASM_ARM_ARM64_MACROS_H */

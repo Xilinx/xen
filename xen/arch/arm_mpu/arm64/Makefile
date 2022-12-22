@@ -8,6 +8,9 @@ obj-y += domctl.o
 obj-y += domain.o
 obj-y += entry.o
 obj-y += head.o
+ifneq ($(CONFIG_HAS_MPU),y)
+obj-y += head_mmu.o
+endif
 obj-y += insn.o
 obj-$(CONFIG_LIVEPATCH) += livepatch.o
 obj-y += smc.o
