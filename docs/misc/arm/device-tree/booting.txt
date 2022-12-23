@@ -332,6 +332,13 @@ with the following properties:
     passed through. This option is the default if this property is missing
     and the user does not provide the device partial device tree for the domain.
 
+- viommu
+
+    An empty property to enable/disable support for virtual IOMMU for
+    the domain. This option will result in creating an emulated IOMMU device
+    tree node in the domain's device tree to enable the guest OS to discover
+    the virtual IOMMU.
+
 - xen,sci_type
 
     A string property specifying an ARM SCI type for the guest.

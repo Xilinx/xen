@@ -356,6 +356,27 @@ static int __init make_vsmmuv3_node(const struct kernel_info *kinfo)
 }
 #endif
 
+static int __init make_viommu_domU_node(const struct kernel_info *kinfo)
+{
+#ifdef CONFIG_VIRTUAL_IOMMU
+    /* List head is NULL if vIOMMU was not enabled for the domain */
+    if ( list_head_is_null(&kinfo->bd.d->arch.viommu_list) )
+        return 0;
+#endif
+
+    switch ( viommu_get_type() )
+    {
+#ifdef CONFIG_VIRTUAL_ARM_SMMU_V3
+    case XEN_DOMCTL_CONFIG_VIOMMU_SMMUV3:
+        return make_vsmmuv3_node(kinfo);
+#endif
+    case XEN_DOMCTL_CONFIG_VIOMMU_NONE:
+        return 0;
+    default:
+        panic("Unsupported vIOMMU type\n");
+    }
+}
+
 int __init make_arch_nodes(struct kernel_info *kinfo)
 {
     int ret;
@@ -379,14 +400,9 @@ int __init make_arch_nodes(struct kernel_info *kinfo)
             return -EINVAL;
     }
 
-#ifdef CONFIG_VIRTUAL_ARM_SMMU_V3
-    if ( viommu_enabled  )
-    {
-        ret = make_vsmmuv3_node(kinfo);
-        if ( ret )
-            return -EINVAL;
-    }
-#endif
+    ret = make_viommu_domU_node(kinfo);
+    if ( ret )
+        return -EINVAL;
 
     return 0;
 }
@@ -478,8 +494,11 @@ int __init arch_parse_dom0less_node(struct dt_device_node *node,
     BUG_ON(!(d_cfg->flags & XEN_DOMCTL_CDF_hvm));
 
     d_cfg->arch.gic_version = XEN_DOMCTL_CONFIG_GIC_NATIVE;
-    d_cfg->arch.viommu_type = viommu_get_type();
+    d_cfg->arch.viommu_type = XEN_DOMCTL_CONFIG_VIOMMU_NONE;
     d_cfg->flags |= XEN_DOMCTL_CDF_hap;
+
+    if ( dt_property_read_bool(node, "viommu") )
+        d_cfg->arch.viommu_type = viommu_get_type();
 
     if ( domu_dt_sci_parse(node, d_cfg) )
         panic("Error getting SCI configuration\n");
