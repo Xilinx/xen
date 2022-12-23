@@ -330,6 +330,13 @@ struct arch_vcpu_io {
     struct instr_details dabt_instr; /* when the instruction is decoded */
 };
 
+/* If this domain has PMSAv8-64 memory architecture? */
+#ifdef CONFIG_HAS_MPU
+#define CDF_mpu                  (1U << 3)
+#else
+#define CDF_mpu                  0
+#endif
+
 #endif /* __ASM_DOMAIN_H__ */
 
 /*
