@@ -1152,7 +1152,7 @@ static int __init prepare_dtb_domU(struct domain *d, struct kernel_info *kinfo)
     }
 
 #ifdef CONFIG_VIRTUAL_ARM_SMMU_V3
-    if ( is_viommu_enabled() )
+    if ( viommu_enabled  )
     {
         ret = make_vsmmuv3_node(kinfo);
         if ( ret )
