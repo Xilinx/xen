@@ -39,16 +39,8 @@ void add_to_host_iommu_list(paddr_t addr, paddr_t size,
     list_add_tail(&iommu_data->entry, &host_iommu_list);
 }
 
-/* By default viommu is disabled. */
-bool __read_mostly viommu_enabled;
-boolean_param("viommu", viommu_enabled);
-
 int domain_viommu_init(struct domain *d, uint8_t viommu_type)
 {
-    /* Enable viommu when it has been enabled explicitly (viommu=on). */
-    if ( !viommu_enabled )
-        return 0;
-
     if ( viommu_type == XEN_DOMCTL_CONFIG_VIOMMU_NONE )
         return 0;
 

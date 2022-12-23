@@ -1192,7 +1192,7 @@ static int __init write_properties(struct domain *d, struct kernel_info *kinfo,
          * Expose IOMMU specific properties to hwdom when vIOMMU is
          * enabled.
          */
-        if ( iommu_node && !is_viommu_enabled() )
+        if ( iommu_node && !viommu_enabled )
         {
             if ( dt_property_name_is_equal(prop, "iommus") )
                 continue;
@@ -2605,7 +2605,7 @@ static int __init handle_node(struct domain *d, struct kernel_info *kinfo,
         return make_timer_node(kinfo);
 
 #ifdef CONFIG_VIRTUAL_IOMMU
-    if ( device_get_class(node) == DEVICE_IOMMU && is_viommu_enabled() )
+    if ( device_get_class(node) == DEVICE_IOMMU && viommu_enabled )
         return make_hwdom_viommu_node(kinfo);
 #endif
 
@@ -3357,7 +3357,7 @@ static int __init prepare_dtb_domU(struct domain *d, struct kernel_info *kinfo)
     }
 
 #ifdef CONFIG_VIRTUAL_ARM_SMMU_V3
-    if ( is_viommu_enabled() )
+    if ( viommu_enabled )
     {
         ret = make_vsmmuv3_node(kinfo);
         if ( ret )
