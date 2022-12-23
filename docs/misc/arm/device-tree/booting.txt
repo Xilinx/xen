@@ -289,7 +289,6 @@ with the following properties:
     value specified by Xen command line parameter gnttab_max_maptrack_frames
     (or its default value if unspecified, i.e. 1024) is used.
 
-<<<<<<< HEAD
 - passthrough
 
     A string property specifying whether IOMMU mappings are enabled for the
@@ -305,14 +304,15 @@ with the following properties:
     IOMMU mappings are disabled for the domain and so hardware may not be
     passed through. This option is the default if this property is missing
     and the user does not provide the device partial device tree for the domain.
-=======
+
 - viommu
 
-    An empty property to enable/disable support for virtual IOMMU for
-    the domain. This option will result in creating an emulated IOMMU device
-    tree node in the domain's device tree to enable the guest OS to discover
-    the virtual IOMMU.
->>>>>>> 481b266830cb... xen/arm: vIOMMU: Add proper handling for dom0less domUs
+    A string to enable/disable support for virtual IOMMU for the domain.
+    The string specifies the type of vIOMMU, for instance "smmuv3". The
+    string can be left empty (string length == 0) to select the default
+    based on the physical IOMMU available on the platform. This option will
+    result in creating an emulated IOMMU device tree node in the domain's
+    device tree to enable the guest OS to discover the virtual IOMMU.
 
 - virtio-pci
 

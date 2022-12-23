@@ -1579,6 +1579,7 @@ void __init create_domUs(void)
     bool iommu = false;
     const struct dt_device_node *cpupool_node,
                                 *chosen = dt_find_node_by_path("/chosen");
+    const char *viommu_str;
     const char *llc_colors_str = NULL;
 
     BUG_ON(chosen == NULL);
@@ -1765,8 +1766,16 @@ void __init create_domUs(void)
         if ( is_pci_scan_enabled() )
             d_cfg.flags |= XEN_DOMCTL_CDF_vpci;
 
-        if ( dt_property_read_bool(node, "viommu") )
+        rc = dt_property_read_string(node, "viommu", &viommu_str);
+        if ( rc == -ENODATA )
             d_cfg.arch.viommu_type = viommu_get_type();
+        else if ( !rc )
+        {
+            if ( !strcmp(viommu_str, "smmuv3") )
+                d_cfg.arch.viommu_type = XEN_DOMCTL_CONFIG_VIOMMU_SMMUV3;
+            else
+                panic("Unknown vIOMMU %s\n", viommu_str);
+        }
 
         /*
          * The variable max_init_domid is initialized with zero, so here it's
