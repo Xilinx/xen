@@ -46,6 +46,9 @@
 static unsigned int __initdata opt_dom0_max_vcpus;
 integer_param("dom0_max_vcpus", opt_dom0_max_vcpus);
 
+static bool __initdata dom0_viommu = false;
+boolean_param("dom0_viommu", dom0_viommu);
+
 /*
  * If true, the extended regions support is enabled for dom0 and
  * dom0less domUs.
@@ -2261,7 +2264,8 @@ static int make_hwdom_viommu_node(const struct kernel_info *kinfo)
     struct host_iommu *iommu_data;
     gic_interrupt_t intr;
 
-    if ( list_empty(&host_iommu_list) )
+    if ( list_empty(&host_iommu_list) ||
+         list_head_is_null(&kinfo->d->arch.viommu_list) )
         return 0;
 
     list_for_each_entry( iommu_data, &host_iommu_list, entry )
@@ -2605,7 +2609,7 @@ static int __init handle_node(struct domain *d, struct kernel_info *kinfo,
         return make_timer_node(kinfo);
 
 #ifdef CONFIG_VIRTUAL_IOMMU
-    if ( device_get_class(node) == DEVICE_IOMMU && viommu_enabled )
+    if ( device_get_class(node) == DEVICE_IOMMU && dom0_viommu )
         return make_hwdom_viommu_node(kinfo);
 #endif
 
@@ -4137,6 +4141,7 @@ void __init create_dom0(void)
         .max_grant_frames = gnttab_dom0_frames(),
         .max_maptrack_frames = -1,
         .grant_opts = XEN_DOMCTL_GRANT_version(opt_gnttab_max_version),
+        .arch.viommu_type = XEN_DOMCTL_CONFIG_VIOMMU_NONE,
     };
 
     /* The vGIC for DOM0 is exactly emulating the hardware GIC */
@@ -4150,7 +4155,9 @@ void __init create_dom0(void)
         printk(XENLOG_WARNING "Maximum number of vGIC IRQs exceeded.\n");
     dom0_cfg.arch.tee_type = tee_get_type();
     dom0_cfg.max_vcpus = dom0_max_vcpus();
-    dom0_cfg.arch.viommu_type = viommu_get_type();
+
+    if ( dom0_viommu )
+        dom0_cfg.arch.viommu_type = viommu_get_type();
 
     if ( iommu_enabled )
         dom0_cfg.flags |= XEN_DOMCTL_CDF_iommu;

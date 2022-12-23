@@ -1936,6 +1936,13 @@ This option can be specified more than once (up to 8 times at present).
 
 Flag to enable or disable support for PCI passthrough
 
+### dom0_viommu (arm)
+> `= <boolean>`
+
+> Default: `false`
+
+Flag to enable or disable support for virtual IOMMU for dom0.
+
 ### pcid (x86)
 > `= <boolean> | xpti=<bool>`
 
