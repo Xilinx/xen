@@ -2895,6 +2895,8 @@ a single color value or a hypen-separated closed interval of colors
 
 =back
 
+=over 4
+
 =item B<viommu="N">
 
 To enable viommu, user must specify the following option in the VM
