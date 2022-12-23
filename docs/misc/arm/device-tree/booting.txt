@@ -229,10 +229,12 @@ with the following properties:
 
 - viommu
 
-    An empty property to enable/disable support for virtual IOMMU for
-    the domain. This option will result in creating an emulated IOMMU device
-    tree node in the domain's device tree to enable the guest OS to discover
-    the virtual IOMMU.
+    A string to enable/disable support for virtual IOMMU for the domain.
+    The string specifies the type of vIOMMU, for instance "smmuv3". The
+    string can be left empty (string length == 0) to select the default
+    based on the physical IOMMU available on the platform. This option will
+    result in creating an emulated IOMMU device tree node in the domain's
+    device tree to enable the guest OS to discover the virtual IOMMU.
 
 Under the "xen,domain" compatible node, one or more sub-nodes are present
 for the DomU kernel and ramdisk.

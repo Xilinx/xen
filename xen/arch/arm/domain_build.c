@@ -3948,7 +3948,8 @@ void __init create_domUs(void)
     struct dt_device_node *node;
     const struct dt_device_node *cpupool_node,
                                 *chosen = dt_find_node_by_path("/chosen");
-    const char *colors_str;
+    const char *colors_str, *viommu_str;
+    int rc;
 
     BUG_ON(chosen == NULL);
     dt_for_each_child_node(chosen, node)
@@ -4051,8 +4052,16 @@ void __init create_domUs(void)
                 prepare_color_domain_config(&d_cfg.arch, colors_str);
         }
 
-        if ( dt_property_read_bool(node, "viommu") )
+        rc = dt_property_read_string(node, "viommu", &viommu_str);
+        if ( rc == -ENODATA )
             d_cfg.arch.viommu_type = viommu_get_type();
+        else if ( !rc )
+        {
+            if ( !strcmp(viommu_str, "smmuv3") )
+                d_cfg.arch.viommu_type = XEN_DOMCTL_CONFIG_VIOMMU_SMMUV3;
+            else
+                panic("Unknown vIOMMU %s\n", viommu_str);
+        }
 
         /*
          * The variable max_init_domid is initialized with zero, so here it's
