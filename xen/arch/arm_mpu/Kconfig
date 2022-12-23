@@ -1,0 +1,374 @@
+config ARM_32
+	def_bool y
+	depends on "$(ARCH)" = "arm32"
+	select ARCH_MAP_DOMAIN_PAGE
+
+config ARM_64
+	def_bool y
+	depends on !ARM_32
+	select 64BIT
+	select ARM_EFI
+	select HAS_FAST_MULTIPLY
+	select HAS_CACHE_COLORING
+
+config ARM
+	def_bool y
+	select HAS_ALTERNATIVE
+	select HAS_DEVICE_TREE
+	select HAS_PASSTHROUGH
+	select HAS_PDX
+	select HAS_PMAP
+	select IOMMU_FORCE_PT_SHARE
+
+config ARCH_DEFCONFIG
+	string
+	default "arch/arm/configs/arm32_defconfig" if ARM_32
+	default "arch/arm/configs/arm64_defconfig" if ARM_64
+
+menu "Architecture Features"
+
+source "arch/Kconfig"
+
+config ACPI
+	bool "ACPI (Advanced Configuration and Power Interface) Support (UNSUPPORTED)" if UNSUPPORTED
+	depends on ARM_64
+	---help---
+
+	  Advanced Configuration and Power Interface (ACPI) support for Xen is
+	  an alternative to device tree on ARM64.
+
+config ARM_EFI
+	bool
+
+config GICV3
+	bool "GICv3 driver"
+	depends on !NEW_VGIC
+	default n if ARM_32
+	default y if ARM_64
+	---help---
+
+	  Driver for the ARM Generic Interrupt Controller v3.
+	  If unsure, use the default setting.
+
+config HAS_ITS
+        bool "GICv3 ITS MSI controller support (UNSUPPORTED)" if UNSUPPORTED
+        depends on GICV3 && !NEW_VGIC && !ARM_32
+
+config OVERLAY_DTB
+    bool "DTB overlay support (UNSUPPORTED)" if UNSUPPORTED
+    ---help---
+
+    Dynamic addition/removal of Xen device tree nodes using a dtbo.
+
+config HVM
+        def_bool y
+
+config NEW_VGIC
+	bool "Use new VGIC implementation"
+	---help---
+
+	This is an alternative implementation of the ARM GIC interrupt
+	controller emulation, based on the Linux/KVM VGIC. It has a better
+	design and fixes many shortcomings of the existing GIC emulation in
+	Xen. It will eventually replace the existing/old VGIC.
+	However at the moment it lacks support for Dom0 using the ITS for
+	using MSIs.
+	Say Y if you want to help testing this new code or if you experience
+	problems with the standard emulation.
+	At the moment this implementation is not security supported.
+
+config SBSA_VUART_CONSOLE
+	bool "Emulated SBSA UART console support"
+	default y
+	---help---
+	  Allows a guest to use SBSA Generic UART as a console. The
+	  SBSA Generic UART implements a subset of ARM PL011 UART.
+
+config ARM_SSBD
+	bool "Speculative Store Bypass Disable" if EXPERT
+	depends on HAS_ALTERNATIVE
+	default y
+	help
+	  This enables mitigation of bypassing of previous stores by speculative
+	  loads.
+
+	  If unsure, say Y.
+
+config HARDEN_BRANCH_PREDICTOR
+	bool "Harden the branch predictor against aliasing attacks" if EXPERT
+	default y
+	help
+	  Speculation attacks against some high-performance processors rely on
+	  being able to manipulate the branch predictor for a victim context by
+	  executing aliasing branches in the attacker context.  Such attacks
+	  can be partially mitigated against by clearing internal branch
+	  predictor state and limiting the prediction logic in some situations.
+
+	  This config option will take CPU-specific actions to harden the
+	  branch predictor against aliasing attacks and may rely on specific
+	  instruction sequences or control bits being set by the system
+	  firmware.
+
+	  If unsure, say Y.
+
+config ARM64_PTR_AUTH
+	def_bool n
+	depends on ARM_64
+	help
+	  Pointer authentication support.
+	  This feature is not supported in Xen.
+
+config ARM64_SVE
+	def_bool n
+	depends on ARM_64
+	help
+	  Scalar Vector Extension support.
+	  This feature is not supported in Xen.
+
+config ARM64_MTE
+	def_bool n
+	depends on ARM_64
+	help
+	  Memory Tagging Extension support.
+	  This feature is not supported in Xen.
+
+config ARM64_BTI
+	def_bool n
+	depends on ARM_64
+	help
+	  Branch Target Identification support.
+	  This feature is not supported in Xen.
+
+config CACHE_COLORING
+	bool "Last Level Cache (LLC) coloring" if EXPERT
+	depends on HAS_CACHE_COLORING
+
+config MAX_CACHE_COLORS
+	int "Maximum number of cache colors"
+	default 128
+	range 2 32768
+	depends on CACHE_COLORING
+	help
+	  This config value is an upper bound for the actual number of cache colors
+	  supported by the architecture. Xen preallocates this amount of cache
+	  colors at boot. Refer to the documentation for how to compute the number
+	  of colors supported by the platform.
+	  The default value corresponds to an 8 MiB 16-ways LLC, which should be
+	  more than what needed in the normal case.
+	  The max value corresponds to a 2 GiB 16-ways LLC which should never be
+	  reached.
+	  Note that if, at any time, a color configuration with more colors than the
+	  maximum is employed, an error is produced.
+
+config BUDDY_ALLOCATOR_SIZE
+	int "Buddy allocator reserved memory size (MiB)"
+	default "64"
+	depends on CACHE_COLORING
+	help
+	  Amount of memory reserved for the buddy allocator to work alongside
+	  the colored one. The colored allocator is meant as an alternative to the
+	  buddy allocator because its allocation policy is by definition
+	  incompatible with the generic one. Since the Xen heap is not colored yet,
+	  we need to support the coexistence of the two allocators and some memory
+	  must be left for the buddy one.
+
+config TEE
+	bool "Enable TEE mediators support (UNSUPPORTED)" if UNSUPPORTED
+	default n
+	help
+	  This option enables generic TEE mediators support. It allows guests
+	  to access real TEE via one of TEE mediators implemented in XEN.
+
+source "arch/arm/tee/Kconfig"
+
+config STATIC_SHM
+	bool "Statically shared memory on a dom0less system" if UNSUPPORTED
+	depends on STATIC_MEMORY
+	help
+	  This option enables statically shared memory on a dom0less system.
+
+endmenu
+
+menu "ARM errata workaround via the alternative framework"
+	depends on HAS_ALTERNATIVE
+
+config ARM64_ERRATUM_827319
+	bool "Cortex-A53: 827319: Data cache clean instructions might cause overlapping transactions to the interconnect"
+	default y
+	depends on ARM_64
+	help
+	  This option adds an alternative code sequence to work around ARM
+	  erratum 827319 on Cortex-A53 parts up to r0p2 with an AMBA 5 CHI
+	  master interface and an L2 cache.
+
+	  Under certain conditions this erratum can cause a clean line eviction
+	  to occur at the same time as another transaction to the same address
+	  on the AMBA 5 CHI interface, which can cause data corruption if the
+	  interconnect reorders the two transactions.
+
+	  The workaround promotes data cache clean instructions to
+	  data cache clean-and-invalidate.
+	  Please note that this does not necessarily enable the workaround,
+	  as it depends on the alternative framework, which will only patch
+	  the kernel if an affected CPU is detected.
+
+	  If unsure, say Y.
+
+config ARM64_ERRATUM_824069
+	bool "Cortex-A53: 824069: Cache line might not be marked as clean after a CleanShared snoop"
+	default y
+	depends on ARM_64
+	help
+	  This option adds an alternative code sequence to work around ARM
+	  erratum 824069 on Cortex-A53 parts up to r0p2 when it is connected
+	  to a coherent interconnect.
+
+	  If a Cortex-A53 processor is executing a store or prefetch for
+	  write instruction at the same time as a processor in another
+	  cluster is executing a cache maintenance operation to the same
+	  address, then this erratum might cause a clean cache line to be
+	  incorrectly marked as dirty.
+
+	  The workaround promotes data cache clean instructions to
+	  data cache clean-and-invalidate.
+	  Please note that this option does not necessarily enable the
+	  workaround, as it depends on the alternative framework, which will
+	  only patch the kernel if an affected CPU is detected.
+
+	  If unsure, say Y.
+
+config ARM64_ERRATUM_819472
+	bool "Cortex-A53: 819472: Store exclusive instructions might cause data corruption"
+	default y
+	depends on ARM_64
+	help
+	  This option adds an alternative code sequence to work around ARM
+	  erratum 819472 on Cortex-A53 parts up to r0p1 with an L2 cache
+	  present when it is connected to a coherent interconnect.
+
+	  If the processor is executing a load and store exclusive sequence at
+	  the same time as a processor in another cluster is executing a cache
+	  maintenance operation to the same address, then this erratum might
+	  cause data corruption.
+
+	  The workaround promotes data cache clean instructions to
+	  data cache clean-and-invalidate.
+	  Please note that this does not necessarily enable the workaround,
+	  as it depends on the alternative framework, which will only patch
+	  the kernel if an affected CPU is detected.
+
+	  If unsure, say Y.
+
+config ARM64_ERRATUM_843419
+	bool "Cortex-A53: 843419: A load or store might access an incorrect address"
+	default y
+	depends on ARM_64
+	help
+	  This option adds an alternative code sequence to work around ARM
+	  erratum 843419 on Cortex-A53 parts up to r0p4.
+
+	  When executing in AArch64 state, a load or store instruction which uses
+	  the result of an ADRP instruction as a base register, or which uses a
+	  base register written by an instruction immediately after an ADRP to the
+	  same register, might access an incorrect address.
+
+	  The workaround enables the linker to check if the affected sequence is
+	  produced and it will fix it with an alternative not affected sequence
+	  that produce the same behavior.
+
+	  If unsure, say Y.
+
+config ARM64_ERRATUM_832075
+	bool "Cortex-A57: 832075: possible deadlock on mixing exclusive memory accesses with device loads"
+	default y
+	depends on ARM_64
+	help
+	  This option adds an alternative code sequence to work around ARM
+	  erratum 832075 on Cortex-A57 parts up to r1p2.
+
+	  Affected Cortex-A57 parts might deadlock when exclusive load/store
+	  instructions to Write-Back memory are mixed with Device loads.
+
+	  The workaround is to promote device loads to use Load-Acquire
+	  semantics.
+	  Please note that this does not necessarily enable the workaround,
+	  as it depends on the alternative framework, which will only patch
+	  the kernel if an affected CPU is detected.
+
+	  If unsure, say Y.
+
+config ARM64_ERRATUM_834220
+	bool "Cortex-A57: 834220: Stage 2 translation fault might be incorrectly reported in presence of a Stage 1 fault"
+	default y
+	depends on ARM_64
+	help
+	  This option adds an alternative code sequence to work around ARM
+	  erratum 834220 on Cortex-A57 parts up to r1p2.
+
+	  Affected Cortex-A57 parts might report a Stage 2 translation
+	  fault as the result of a Stage 1 fault for load crossing a
+	  page boundary when there is a permission or device memory
+	  alignment fault at Stage 1 and a translation fault at Stage 2.
+
+	  The workaround is to verify that the Stage 1 translation
+	  doesn't generate a fault before handling the Stage 2 fault.
+	  Please note that this does not necessarily enable the workaround,
+	  as it depends on the alternative framework, which will only patch
+	  the kernel if an affected CPU is detected.
+
+	  If unsure, say Y.
+
+config ARM_ERRATUM_858921
+	bool "Cortex-A73: 858921: Possible wrong read value for CNTVCT or CNTPCT"
+	default y
+	help
+	  This option adds an alternative code sequence to work around ARM
+	  erratum 858921 on Cortex-A73 (all versions).
+
+	  Affected Cortex-A73 might return wrong read value for CNTVCT or CNTPCT
+	  when the counter crosses a 32bit boundary.
+
+	  The workaround involves performing the read twice, and to return
+	  one or the other value depending on whether a transition has taken place.
+	  Please note that this does not necessarily enable the workaround,
+	  as it depends on the alternative framework, which will only patch
+	  the kernel if an affected CPU is detected.
+
+	  If unsure, say Y.
+
+config ARM64_WORKAROUND_REPEAT_TLBI
+	bool
+
+config ARM64_ERRATUM_1286807
+	bool "Cortex-A76/Neoverse-N1: 1286807: Modification of the translation table for a virtual address might lead to read-after-read ordering violation"
+	default y
+	select ARM64_WORKAROUND_REPEAT_TLBI
+	depends on ARM_64
+	help
+	  This option adds a workaround for ARM Cortex-A76/Neoverse-N1 erratum 1286807.
+
+	  On the affected Cortex-A76/Neoverse-N1 cores (r0p0 to r3p0), if a virtual
+	  address for a cacheable mapping of a location is being
+	  accessed by a core while another core is remapping the virtual
+	  address to a new physical page using the recommended
+	  break-before-make sequence, then under very rare circumstances
+	  TLBI+DSB completes before a read using the translation being
+	  invalidated has been observed by other observers. The
+	  workaround repeats the TLBI+DSB operation for all the TLB flush
+	  operations.
+
+	  If unsure, say Y.
+
+endmenu
+
+config ARM64_HARDEN_BRANCH_PREDICTOR
+    def_bool y if ARM_64 && HARDEN_BRANCH_PREDICTOR
+
+config ARM32_HARDEN_BRANCH_PREDICTOR
+    def_bool y if ARM_32 && HARDEN_BRANCH_PREDICTOR
+
+source "arch/arm_mpu/platforms/Kconfig"
+
+source "common/Kconfig"
+
+source "drivers/Kconfig"
