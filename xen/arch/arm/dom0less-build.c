@@ -489,6 +489,8 @@ int __init arch_parse_dom0less_node(struct dt_device_node *node,
     struct xen_domctl_createdomain *d_cfg = &bd->create_cfg;
     unsigned int flags = bd->create_flags;
     uint32_t val;
+    const char *viommu_str;
+    int rc;
 
     /* Prior checks will have ensured only HVM gets here */
     BUG_ON(!(d_cfg->flags & XEN_DOMCTL_CDF_hvm));
@@ -497,8 +499,16 @@ int __init arch_parse_dom0less_node(struct dt_device_node *node,
     d_cfg->arch.viommu_type = XEN_DOMCTL_CONFIG_VIOMMU_NONE;
     d_cfg->flags |= XEN_DOMCTL_CDF_hap;
 
-    if ( dt_property_read_bool(node, "viommu") )
+    rc = dt_property_read_string(node, "viommu", &viommu_str);
+    if ( rc == -ENODATA )
         d_cfg->arch.viommu_type = viommu_get_type();
+    else if ( !rc )
+    {
+        if ( !strcmp(viommu_str, "smmuv3") )
+            d_cfg->arch.viommu_type = XEN_DOMCTL_CONFIG_VIOMMU_SMMUV3;
+        else
+            panic("Unknown vIOMMU %s\n", viommu_str);
+    }
 
     if ( domu_dt_sci_parse(node, d_cfg) )
         panic("Error getting SCI configuration\n");
