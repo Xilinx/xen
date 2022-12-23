@@ -227,6 +227,13 @@ with the following properties:
     the default size of domain P2M pool, i.e. 1MB per guest vCPU plus 4KB
     per MB of guest RAM plus 512KB for guest extended regions.
 
+- viommu
+
+    An empty property to enable/disable support for virtual IOMMU for
+    the domain. This option will result in creating an emulated IOMMU device
+    tree node in the domain's device tree to enable the guest OS to discover
+    the virtual IOMMU.
+
 Under the "xen,domain" compatible node, one or more sub-nodes are present
 for the DomU kernel and ramdisk.
 
