@@ -186,7 +186,6 @@ extern unsigned long directmap_base_pdx;
 
 #define maddr_get_owner(ma)   (page_get_owner(maddr_to_page((ma))))
 
-#define frame_table ((struct page_info *)FRAMETABLE_VIRT_START)
 /* PDX of the first page in the frame table. */
 extern unsigned long frametable_base_pdx;
 
@@ -207,19 +206,12 @@ extern unsigned long total_pages;
     clean_dcache(var);
 #endif
 
-/* Boot-time pagetable setup */
-extern void setup_pagetables(unsigned long boot_phys_offset, paddr_t xen_paddr);
 /* Map FDT in boot pagetable */
 extern void *early_fdt_map(paddr_t fdt_paddr);
 /* Remove early mappings */
 extern void remove_early_mappings(void);
 /* Remove early coloring mappings */
 extern void remove_coloring_mappings(void);
-/* Allocate and initialise pagetables for a secondary CPU. Sets init_ttbr to the
- * new page table */
-extern int init_secondary_pagetables(int cpu);
-/* Switch secondary CPUS to its own pagetables and finalise MMU setup */
-extern void mmu_init_secondary_cpu(void);
 /*
  * For Arm32, set up the direct-mapped xenheap: up to 1GB of contiguous,
  * always-mapped memory. Base must be 32MB aligned and size a multiple of 32MB.
@@ -273,34 +265,14 @@ static inline void __iomem *ioremap_wc(paddr_t start, size_t len)
 #define vmap_to_mfn(va)     maddr_to_mfn(virt_to_maddr((vaddr_t)va))
 #define vmap_to_page(va)    mfn_to_page(vmap_to_mfn(va))
 
+#ifndef CONFIG_HAS_MPU
+#include <asm/mm_mmu.h>
+#else
+#include <asm/mm_mpu.h>
+#endif
+
 /* Page-align address and convert to frame number format */
 #define paddr_to_pfn_aligned(paddr)    paddr_to_pfn(PAGE_ALIGN(paddr))
-
-static inline paddr_t __virt_to_maddr(vaddr_t va)
-{
-    uint64_t par = va_to_par(va);
-    return (par & PADDR_MASK & PAGE_MASK) | (va & ~PAGE_MASK);
-}
-#define virt_to_maddr(va)   __virt_to_maddr((vaddr_t)(va))
-
-#ifdef CONFIG_ARM_32
-static inline void *maddr_to_virt(paddr_t ma)
-{
-    ASSERT(is_xen_heap_mfn(maddr_to_mfn(ma)));
-    ma -= mfn_to_maddr(directmap_mfn_start);
-    return (void *)(unsigned long) ma + XENHEAP_VIRT_START;
-}
-#else
-static inline void *maddr_to_virt(paddr_t ma)
-{
-    ASSERT((mfn_to_pdx(maddr_to_mfn(ma)) - directmap_base_pdx) <
-           (DIRECTMAP_SIZE >> PAGE_SHIFT));
-    return (void *)(XENHEAP_VIRT_START -
-                    (directmap_base_pdx << PAGE_SHIFT) +
-                    ((ma & ma_va_bottom_mask) |
-                     ((ma & ma_top_mask) >> pfn_pdx_hole_shift)));
-}
-#endif
 
 /*
  * Translate a guest virtual address to a machine address.
@@ -331,20 +303,6 @@ static inline uint64_t gvirt_to_maddr(vaddr_t va, paddr_t *pa,
  */
 #define virt_to_mfn(va)     __virt_to_mfn(va)
 #define mfn_to_virt(mfn)    __mfn_to_virt(mfn)
-
-/* Convert between Xen-heap virtual addresses and page-info structures. */
-static inline struct page_info *virt_to_page(const void *v)
-{
-    unsigned long va = (unsigned long)v;
-    unsigned long pdx;
-
-    ASSERT(va >= XENHEAP_VIRT_START);
-    ASSERT(va < directmap_virt_end);
-
-    pdx = (va - XENHEAP_VIRT_START) >> PAGE_SHIFT;
-    pdx += mfn_to_pdx(directmap_mfn_start);
-    return frame_table + pdx - frametable_base_pdx;
-}
 
 static inline void *page_to_virt(const struct page_info *pg)
 {
