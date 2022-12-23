@@ -268,6 +268,13 @@ with the following properties:
     value specified by Xen command line parameter gnttab_max_maptrack_frames
     (or its default value if unspecified, i.e. 1024) is used.
 
+- viommu
+
+    An empty property to enable/disable support for virtual IOMMU for
+    the domain. This option will result in creating an emulated IOMMU device
+    tree node in the domain's device tree to enable the guest OS to discover
+    the virtual IOMMU.
+
 Under the "xen,domain" compatible node, one or more sub-nodes are present
 for the DomU kernel and ramdisk.
 

@@ -2458,6 +2458,27 @@ static int __init make_vsmmuv3_node(const struct kernel_info *kinfo)
 }
 #endif
 
+static int __init make_viommu_domU_node(const struct kernel_info *kinfo)
+{
+#ifdef CONFIG_VIRTUAL_IOMMU
+    /* List head is NULL if vIOMMU was not enabled for the domain */
+    if ( list_head_is_null(&kinfo->d->arch.viommu_list) )
+        return 0;
+#endif
+
+    switch ( viommu_get_type() )
+    {
+#ifdef CONFIG_VIRTUAL_ARM_SMMU_V3
+    case XEN_DOMCTL_CONFIG_VIOMMU_SMMUV3:
+        return make_vsmmuv3_node(kinfo);
+#endif
+    case XEN_DOMCTL_CONFIG_VIOMMU_NONE:
+        return 0;
+    default:
+        panic("Unsupported vIOMMU type\n");
+    }
+}
+
 static int __init handle_node(struct domain *d, struct kernel_info *kinfo,
                               struct dt_device_node *node,
                               p2m_type_t p2mt)
@@ -3351,14 +3372,9 @@ static int __init prepare_dtb_domU(struct domain *d, struct kernel_info *kinfo)
             goto err;
     }
 
-#ifdef CONFIG_VIRTUAL_ARM_SMMU_V3
-    if ( viommu_enabled )
-    {
-        ret = make_vsmmuv3_node(kinfo);
-        if ( ret )
-            goto err;
-    }
-#endif
+    ret = make_viommu_domU_node(kinfo);
+    if ( ret )
+        goto err;
 
     ret = fdt_end_node(kinfo->fdt);
     if ( ret < 0 )
@@ -3959,7 +3975,7 @@ void __init create_domUs(void)
         struct domain *d;
         struct xen_domctl_createdomain d_cfg = {
             .arch.gic_version = XEN_DOMCTL_CONFIG_GIC_NATIVE,
-            .arch.viommu_type = viommu_get_type(),
+            .arch.viommu_type = XEN_DOMCTL_CONFIG_VIOMMU_NONE,
             .flags = XEN_DOMCTL_CDF_hvm | XEN_DOMCTL_CDF_hap,
             /*
              * The default of 1023 should be sufficient for guests because
@@ -4090,6 +4106,9 @@ void __init create_domUs(void)
             panic("'sve' property found, but CONFIG_ARM64_SVE not selected\n");
 #endif
         }
+
+        if ( dt_property_read_bool(node, "viommu") )
+            d_cfg.arch.viommu_type = viommu_get_type();
 
         /*
          * The variable max_init_domid is initialized with zero, so here it's
