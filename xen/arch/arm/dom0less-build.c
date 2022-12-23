@@ -380,7 +380,7 @@ int __init make_arch_nodes(struct kernel_info *kinfo)
     }
 
 #ifdef CONFIG_VIRTUAL_ARM_SMMU_V3
-    if ( is_viommu_enabled() )
+    if ( viommu_enabled  )
     {
         ret = make_vsmmuv3_node(kinfo);
         if ( ret )
