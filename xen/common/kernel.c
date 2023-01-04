@@ -704,6 +704,26 @@ long do_xen_version(int cmd, XEN_GUEST_HANDLE_PARAM(void) arg)
                              (has_pirq(d) ? (1U << XENFEAT_hvm_pirqs) : 0);
             fi.submap |= (1U << XENFEAT_dm_msix_all_writes);
 #endif
+
+#ifdef CONFIG_VIRTUAL_IOMMU
+            /*
+             * QUIRK:
+             * In case of a domain that is running in nested IOMMU
+             * configuration, we do not want Linux to set dma operations to
+             * xen swiotlb ones. For that, we need to always set a feature flag
+             * XENFEAT_not_direct_mapped, even for a direct-mapped domain.
+             * This is safe for now, as this flag is only used by Linux's
+             * function xen_swiotlb_detect().
+             *
+             * In the future, this will need a proper handling in Linux.
+            */
+            if ( !list_head_is_null(&d->arch.viommu_list) )
+            {
+                fi.submap |= (1U << XENFEAT_not_direct_mapped);
+                break;
+            }
+#endif
+
             if ( !paging_mode_translate(d) || is_domain_direct_mapped(d) )
                 fi.submap |= (1U << XENFEAT_direct_mapped);
             else
