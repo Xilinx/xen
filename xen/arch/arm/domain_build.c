@@ -3131,7 +3131,7 @@ static int __init handle_prop_pfdt(struct kernel_info *kinfo,
     return ( propoff != -FDT_ERR_NOTFOUND ) ? propoff : 0;
 }
 
-static void modify_pfdt_node(void *pfdt, int nodeoff)
+static void __init modify_pfdt_node(void *pfdt, int nodeoff)
 {
     int proplen, i, rc;
     const fdt32_t *prop;
