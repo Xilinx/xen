@@ -1362,8 +1362,6 @@ static int libxl__build_device_model_args_new(libxl__gc *gc,
     }
 
     if (b_info->type == LIBXL_DOMAIN_TYPE_HVM) {
-        int ioemu_nics = 0;
-
         if (b_info->kernel)
             flexarray_vappend(dm_args, "-kernel", b_info->kernel, NULL);
 
@@ -1565,17 +1563,35 @@ static int libxl__build_device_model_args_new(libxl__gc *gc,
             } else
                 flexarray_append(dm_args, GCSPRINTF("%d", b_info->max_vcpus));
         }
+    } else {
+        if (!sdl && !vnc) {
+            flexarray_append(dm_args, "-nographic");
+        }
+    }
+
+    if (b_info->type != LIBXL_DOMAIN_TYPE_PV) {
+        int ioemu_nics = 0;
+
         for (i = 0; i < num_nics; i++) {
             if (nics[i].nictype == LIBXL_NIC_TYPE_VIF_IOEMU) {
+                char *model;
                 char *smac = GCSPRINTF(LIBXL_MAC_FMT,
                                        LIBXL_MAC_BYTES(nics[i].mac));
                 const char *ifname = libxl__device_nic_devname(gc,
                                                 guest_domid, nics[i].devid,
                                                 LIBXL_NIC_TYPE_VIF_IOEMU);
+
+                /* assume PVH uses virtio-mmio for now */
+                if (b_info->type == LIBXL_DOMAIN_TYPE_PVH &&
+                    nics[i].model != NULL && !strcmp(nics[i].model, "virtio-net"))
+                    model = "virtio-net-device";
+                else
+                    model = nics[i].model;
+
                 flexarray_append(dm_args, "-device");
                 flexarray_append(dm_args,
                    GCSPRINTF("%s,id=nic%d,netdev=net%d,mac=%s",
-                             nics[i].model, nics[i].devid,
+                             model, nics[i].devid,
                              nics[i].devid, smac));
                 flexarray_append(dm_args, "-netdev");
                 flexarray_append(dm_args,
@@ -1733,10 +1749,6 @@ static int libxl__build_device_model_args_new(libxl__gc *gc,
         if ( ioemu_nics == 0 ) {
             flexarray_append(dm_args, "-net");
             flexarray_append(dm_args, "none");
-        }
-    } else {
-        if (!sdl && !vnc) {
-            flexarray_append(dm_args, "-nographic");
         }
     }
 
@@ -3799,6 +3811,22 @@ int libxl__need_xenpv_qemu(libxl__gc *gc, libxl_domain_config *d_config)
         libxl_defbool_val(d_config->b_info.tpm)) {
         ret = 1;
         goto out;
+    }
+
+    for (i = 0; i < d_config->num_disks; i++) {
+        libxl_device_disk *disk = &d_config->disks[i];
+        if (disk->specification == LIBXL_DISK_SPECIFICATION_VIRTIO) {
+            ret = 1;
+            goto out;
+        }
+    }
+
+    for (i = 0; i < d_config->num_nics; i++) {
+        libxl_device_nic *nic = &d_config->nics[i];
+        if (nic->nictype == LIBXL_NIC_TYPE_VIF_IOEMU) {
+            ret = 1;
+            goto out;
+        }
     }
 
     for (idx = 0;; idx++) {

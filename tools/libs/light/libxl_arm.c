@@ -95,6 +95,29 @@ int libxl__arch_domain_prepare_config(libxl__gc *gc,
         }
     }
 
+    for (i = 0; i < d_config->num_nics; i++) {
+        libxl_device_nic *nic = &d_config->nics[i];
+
+        if (nic->model != NULL && !strcmp(nic->model, "virtio-net")) {
+            nic->base = alloc_virtio_mmio_base(gc, &virtio_mmio_base);
+            if (nic->base < GUEST_VIRTIO_MMIO_BASE) {
+                LOG(ERROR, "No available virtio-mmio\n");
+                return ERROR_FAIL;
+            }
+
+            nic->irq = alloc_virtio_mmio_irq(gc, &virtio_mmio_irq);
+            if (nic->irq < GUEST_VIRTIO_MMIO_SPI_FIRST) {
+                LOG(ERROR, "No available Virtio MMIO IRQ\n");
+                return ERROR_FAIL;
+            }
+
+            virtio_enabled = true;
+
+            LOG(DEBUG, "Allocate Virtio MMIO params for IRQ %u BASE 0x%"PRIx64,
+                nic->irq, nic->base);
+        }
+    }
+
     /*
      * Every virtio-mmio device uses one emulated SPI. If Virtio devices are
      * present, make sure that we allocate enough SPIs for them.
@@ -1444,6 +1467,21 @@ next_resize:
 
                 FDT( make_virtio_mmio_node(gc, fdt, disk->base, disk->irq,
                                            disk->backend_domid) );
+            }
+        }
+
+        for (i = 0; i < d_config->num_nics; i++) {
+            libxl_device_nic *nic = &d_config->nics[i];
+
+            if (nic->model != NULL && !strcmp(nic->model, "virtio-net")) {
+                if (nic->backend_domid != LIBXL_TOOLSTACK_DOMID &&
+                    !iommu_created) {
+                    FDT( make_xen_iommu_node(gc, fdt) );
+                    iommu_created = true;
+                }
+
+                FDT( make_virtio_mmio_node(gc, fdt, nic->base, nic->irq,
+                                           nic->backend_domid) );
             }
         }
 

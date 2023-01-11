@@ -102,6 +102,9 @@ static int libxl__device_nic_setdefault(libxl__gc *gc, uint32_t domid,
         }
         break;
     case LIBXL_DOMAIN_TYPE_PVH:
+        if (nic->model != NULL && !nic->nictype)
+            nic->nictype = LIBXL_NIC_TYPE_VIF_IOEMU;
+        break;
     case LIBXL_DOMAIN_TYPE_PV:
         if (nic->nictype == LIBXL_NIC_TYPE_VIF_IOEMU) {
             LOGD(ERROR, domid,
@@ -260,6 +263,10 @@ static int libxl__set_xenstore_nic(libxl__gc *gc, uint32_t domid,
     flexarray_append(front, "trusted");
     flexarray_append(front, libxl_defbool_val(nic->trusted) ? "1" : "0");
 
+    if (nic->model != NULL && !strcmp(nic->model, "virtio-net")) {
+        flexarray_append_pair(back, "base", GCSPRINTF("%"PRIu64, nic->base));
+        flexarray_append_pair(back, "irq", GCSPRINTF("%u", nic->irq));
+    }
     return 0;
 }
 
