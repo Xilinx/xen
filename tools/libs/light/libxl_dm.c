@@ -1875,11 +1875,10 @@ static int libxl__build_device_model_args_new(libxl__gc *gc,
     flexarray_append(dm_args, "-m");
     flexarray_append(dm_args, GCSPRINTF("%"PRId64, ram_size));
 
-    if (b_info->type == LIBXL_DOMAIN_TYPE_HVM) {
+    if (b_info->type == LIBXL_DOMAIN_TYPE_HVM)
         flexarray_append_pair(dm_envs, "XEN_DOMAIN_ID", GCSPRINTF("%d", guest_domid));
 
-        if (b_info->u.hvm.hdtype == LIBXL_HDTYPE_AHCI)
-            flexarray_append_pair(dm_args, "-device", "ahci,id=ahci0");
+    if (b_info->type != LIBXL_DOMAIN_TYPE_PV) {
         for (i = 0; i < num_disks; i++) {
             int disk, part;
             int dev_number =
@@ -1985,6 +1984,17 @@ static int libxl__build_device_model_args_new(libxl__gc *gc,
                     colo_mode = LIBXL__COLO_NONE;
                 }
 
+                if (disks[i].specification == LIBXL_DISK_SPECIFICATION_VIRTIO) {
+                    flexarray_append(dm_args, "-device");
+                    flexarray_append(dm_args, "virtio-blk-device,drive=image");
+                    flexarray_append(dm_args, "-drive");
+                    flexarray_append(dm_args, GCSPRINTF("if=none,id=image,format=%s,"
+                                "file=%s", format, disks[i].pdev_path));
+                    continue;
+                } else if (b_info->type == LIBXL_DOMAIN_TYPE_HVM &&
+                    b_info->u.hvm.hdtype == LIBXL_HDTYPE_AHCI) {
+                    flexarray_append_pair(dm_args, "-device", "ahci,id=ahci0");
+                }
                 if (strncmp(disks[i].vdev, "sd", 2) == 0) {
                     const char *drive_id;
                     if (colo_mode == LIBXL__COLO_SECONDARY) {
