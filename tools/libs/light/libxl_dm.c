@@ -1803,6 +1803,7 @@ static int libxl__build_device_model_args_new(libxl__gc *gc,
     /*
      * swtpm needs to be started at system boot with the following
      * command line parameters:
+     * mkdir /tpm/vtpm2
      * swtpm socket --tpmstate dir=/tmp/vtpm2 --ctrl type=unixio,path=/tmp/vtpm2/swtpm-sock
      *
      * The socket path needs to correspond to the one passed to QEMU
