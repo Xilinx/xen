@@ -103,7 +103,8 @@ NOTE: netdev is a deprecated alias of this option.
 
 =head2 type
 
-This keyword is valid for HVM guests only.
+This keyword is valid only for HVM and PVH guests. For PVH, this keyword is valid only with
+model "virtio-net".
 
 Specifies the type of device to valid values are:
 
@@ -128,7 +129,8 @@ only.
 
 =head2 model
 
-This keyword is valid for HVM guest devices with C<type=ioemu> only.
+This keyword is valid for HVM guest devices with C<type=ioemu> only. For PVH
+guest, this is supported only with C<type=ioemu>.
 
 Specifies the type device to emulated for this guest. Valid values
 are:
@@ -143,6 +145,11 @@ C<rtl8139> (default) -- Realtek RTL8139
 =item *
 
 C<e1000> -- Intel E1000
+
+
+=item *
+
+C<virtio-net> -- QEMU emulated Virtio-network device.
 
 
 =item *
