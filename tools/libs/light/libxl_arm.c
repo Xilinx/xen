@@ -22,32 +22,16 @@
 
 static uint64_t alloc_virtio_mmio_base(libxl__gc *gc, uint64_t *virtio_mmio_base)
 {
-    uint64_t base = *virtio_mmio_base;
+    *virtio_mmio_base -= VIRTIO_MMIO_DEV_SIZE;
 
-    /* Make sure we have enough reserved resources */
-    if (base + VIRTIO_MMIO_DEV_SIZE >
-        GUEST_VIRTIO_MMIO_BASE + GUEST_VIRTIO_MMIO_SIZE) {
-        LOG(ERROR, "Ran out of reserved range for Virtio MMIO BASE 0x%"PRIx64"\n",
-            base);
-        return 0;
-    }
-    *virtio_mmio_base += VIRTIO_MMIO_DEV_SIZE;
-
-    return base;
+    return *virtio_mmio_base;
 }
 
 static uint32_t alloc_virtio_mmio_irq(libxl__gc *gc, uint32_t *virtio_mmio_irq)
 {
-    uint32_t irq = *virtio_mmio_irq;
+    (*virtio_mmio_irq)--;
 
-    /* Make sure we have enough reserved resources */
-    if (irq > GUEST_VIRTIO_MMIO_SPI_LAST) {
-        LOG(ERROR, "Ran out of reserved range for Virtio MMIO IRQ %u\n", irq);
-        return 0;
-    }
-    (*virtio_mmio_irq)++;
-
-    return irq;
+    return *virtio_mmio_irq;
 }
 
 static int alloc_virtio_mmio_params(libxl__gc *gc, uint64_t *base,
@@ -55,12 +39,16 @@ static int alloc_virtio_mmio_params(libxl__gc *gc, uint64_t *base,
                                     uint32_t *virtio_mmio_irq)
 {
     *base = alloc_virtio_mmio_base(gc, virtio_mmio_base);
-    if (!*base)
+    if (*base < GUEST_VIRTIO_MMIO_BASE) {
+        LOG(ERROR, "No available virtio-mmio\n");
         return ERROR_FAIL;
+    }
 
     *irq = alloc_virtio_mmio_irq(gc, virtio_mmio_irq);
-    if (!*irq)
+    if (*irq < GUEST_VIRTIO_MMIO_SPI_FIRST) {
+        LOG(ERROR, "No available Virtio MMIO IRQ\n");
         return ERROR_FAIL;
+    }
 
     LOG(DEBUG, "Allocate Virtio MMIO params: IRQ %u BASE 0x%"PRIx64, *irq,
         *base);
@@ -86,10 +74,11 @@ int libxl__arch_domain_prepare_config(libxl__gc *gc,
 {
     uint32_t nr_spis = 0;
     unsigned int i;
-    uint32_t vuart_irq, virtio_irq = 0;
+    uint32_t vuart_irq;
     bool vuart_enabled = false, virtio_enabled = false;
-    uint64_t virtio_mmio_base = GUEST_VIRTIO_MMIO_BASE;
-    uint32_t virtio_mmio_irq = GUEST_VIRTIO_MMIO_SPI_FIRST;
+    uint64_t virtio_mmio_base = GUEST_VIRTIO_MMIO_BASE + VIRTIO_MMIO_DEV_SIZE *
+        (GUEST_VIRTIO_MMIO_SPI_LAST - GUEST_VIRTIO_MMIO_SPI_FIRST);
+    uint32_t virtio_mmio_irq = GUEST_VIRTIO_MMIO_SPI_LAST;
     int rc;
 
     /*
@@ -134,15 +123,14 @@ int libxl__arch_domain_prepare_config(libxl__gc *gc,
      * present, make sure that we allocate enough SPIs for them.
      * The resulting "nr_spis" needs to cover the highest possible SPI.
      */
-    if (virtio_mmio_irq != GUEST_VIRTIO_MMIO_SPI_FIRST) {
+    if (virtio_mmio_irq != GUEST_VIRTIO_MMIO_SPI_LAST) {
         virtio_enabled = true;
 
         /*
          * Assumes that "virtio_mmio_irq" is the highest allocated irq, which is
          * updated from alloc_virtio_mmio_irq() currently.
          */
-        virtio_irq = virtio_mmio_irq - 1;
-        nr_spis = max(nr_spis, virtio_irq - 32 + 1);
+        nr_spis = MAX(nr_spis, (GUEST_VIRTIO_MMIO_SPI_LAST - 32 + 1));
     }
 
     for (i = 0; i < d_config->b_info.num_irqs; i++) {
@@ -166,7 +154,8 @@ int libxl__arch_domain_prepare_config(libxl__gc *gc,
 
         /* The same check as for vpl011 */
         if (virtio_enabled &&
-            (irq >= GUEST_VIRTIO_MMIO_SPI_FIRST && irq <= virtio_irq)) {
+            (irq >= GUEST_VIRTIO_MMIO_SPI_FIRST &&
+             irq <= GUEST_VIRTIO_MMIO_SPI_LAST)) {
             LOG(ERROR, "Physical IRQ %u conflicting with Virtio MMIO IRQ range\n", irq);
             return ERROR_FAIL;
         }

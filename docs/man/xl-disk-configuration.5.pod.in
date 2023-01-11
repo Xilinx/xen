@@ -253,7 +253,9 @@ For example, "phy" and "standalone" do not support formats other than "raw"
 and "standalone" does not support specifications other than "virtio".
 Normally this option should not be specified, in which case libxl will
 automatically determine the most suitable backend.
-
+For PVH machines, "qdisk" with specification "virtio" is supported. It creates
+appropriate configuration for emulation and a virtio-blk device is passed to the
+guest.
 
 =item B<script>=I<SCRIPT>
 
