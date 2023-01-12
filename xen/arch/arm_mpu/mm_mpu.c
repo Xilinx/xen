@@ -377,7 +377,10 @@ void *ioremap_attr(paddr_t pa, size_t len, unsigned int attributes)
         return NULL;
     }
 
-    return (void *)pa;
+    ASSERT(pa < (1ULL << PADDR_BITS));
+
+    /* In MPU system, VA == PA. */
+    return (void *) ((unsigned long) pa);
 }
 
 static void clear_boot_mpumap(void)
@@ -884,8 +887,10 @@ void * __init early_fdt_map(paddr_t fdt_paddr)
     next_xen_mpumap_index++;
     nr_xen_mpumap++;
 
-    /* VA == PA */
-    fdt_virt = (void *)fdt_paddr;
+    ASSERT(fdt_paddr < (1ULL << PADDR_BITS));
+
+    /* In MPU system, VA == PA. */
+    fdt_virt = (void *) ((unsigned long) fdt_paddr);
 
     if ( fdt_magic(fdt_virt) != FDT_MAGIC )
         return NULL;

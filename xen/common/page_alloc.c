@@ -2444,7 +2444,9 @@ void __init xenheap_max_mfn(unsigned long mfn)
 {
     ASSERT(!first_node_initialised);
     ASSERT(!xenheap_bits);
+#ifndef CONFIG_AARCH32_V8R
     BUILD_BUG_ON(PADDR_BITS >= BITS_PER_LONG);
+#endif
     xenheap_bits = min(flsl(mfn + 1) - 1 + PAGE_SHIFT, PADDR_BITS);
     printk(XENLOG_INFO "Xen heap: %u bits\n", xenheap_bits);
 }

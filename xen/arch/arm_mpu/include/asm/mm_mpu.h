@@ -80,8 +80,10 @@ static inline paddr_t __virt_to_maddr(vaddr_t va)
 
 static inline void *maddr_to_virt(paddr_t ma)
 {
+    ASSERT(ma < (1ULL << PADDR_BITS));
+
     /* In MPU system, VA == PA. */
-    return (void *)ma;
+    return (void *) ((unsigned long) ma);
 }
 
 /*

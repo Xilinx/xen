@@ -5,6 +5,8 @@
 
 #ifdef CONFIG_ARM_64
 #define PADDR_BITS              48
+#elif CONFIG_AARCH32_V8R
+#define PADDR_BITS              32
 #else
 #define PADDR_BITS              40
 #endif
