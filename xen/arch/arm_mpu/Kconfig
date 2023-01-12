@@ -3,6 +3,15 @@ config ARM_32
 	depends on "$(ARCH)" = "arm32"
 	select ARCH_MAP_DOMAIN_PAGE
 
+config AARCH32_V8R
+	bool "AArch32 Arm V8R Support (UNSUPPORTED)" if UNSUPPORTED
+	default n
+	select HAS_MPU
+	select STATIC_MEMORY
+	depends on ARM_32
+	help
+	  This option enables Armv8-R profile for Arm32.
+
 config ARM_64
 	def_bool y
 	depends on !ARM_32
