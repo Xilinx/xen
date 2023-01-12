@@ -32,11 +32,6 @@ static inline bool p2m_is_valid(pr_t *region)
     return region->base.reg.p2m_type != p2m_invalid;
 }
 
-static uint64_t generate_vsctlr(uint16_t vmid)
-{
-    return ((uint64_t)vmid << 48);
-}
-
 /* Return the size of the pool, rounded up to the nearest MB */
 unsigned int p2m_get_allocation(struct domain *d)
 {
@@ -138,7 +133,8 @@ void p2m_restore_state(struct vcpu *n)
 #ifdef CONFIG_ARM_64
     WRITE_SYSREG(n->arch.vtcr_el2, VTCR_EL2);
 #endif
-    WRITE_SYSREG64(p2m->vsctlr, VSCTLR_EL2);
+
+    WRITE_SYSREG(p2m->vsctlr, VSCTLR_EL2);
 
     if ( p2m_mpu_update(n) )
         panic("Failed to update MPU protection region configuration with domain P2M mapping!");

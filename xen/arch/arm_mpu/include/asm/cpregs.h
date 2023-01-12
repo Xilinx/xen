@@ -131,6 +131,7 @@
 #define CLIDR           p15,1,c0,c0,1   /* Cache Level ID Register */
 #define CSSELR          p15,2,c0,c0,0   /* Cache Size Selection Register */
 #define VPIDR           p15,4,c0,c0,0   /* Virtualization Processor ID Register */
+#define HMPUIR          p15,4,c0,c0,4   /* Hypervisor MPU Type Register */
 #define VMPIDR          p15,4,c0,c0,5   /* Virtualization Multiprocessor ID Register */
 
 /* CP15 CR1: System Control Registers */
@@ -153,6 +154,7 @@
 #define HTTBR           p15,4,c2        /* Hyp. Translation Table Base Register */
 #define TTBR0_32        p15,0,c2,c0,0   /* 32-bit access to TTBR0 */
 #define TTBR1_32        p15,0,c2,c0,1   /* 32-bit access to TTBR1 */
+#define VSCTLR          p15,4,c2,c0,0   /* Virtualization System Control Register */
 #define HTCR            p15,4,c2,c0,2   /* Hyp. Translation Control Register */
 #define VTCR            p15,4,c2,c1,2   /* Virtualization Translation Control Register */
 #define VTTBR           p15,6,c2        /* Virtualization Translation Table Base Register */
@@ -177,8 +179,13 @@
 #define HIFAR           p15,4,c6,c0,2   /* Hyp. Instruction Fault Address Register */
 #define HPFAR           p15,4,c6,c0,4   /* Hyp. IPA Fault Address Register */
 
+/* CP15 CR6: Protection Region Enable Register */
+#define HPRENR          p15,4,c6,c1,1   /* MPU Protection Region Enable Register */
+
 /* CP15 CR6: MPU Protection Region Base/Limit/Select Address Register */
 #define HPRSELR         p15,4,c6,c2,1
+
+/* CP15 CR6: MPU Protection Region Base/Limit Address Register */
 #define HPRBAR0         p15,4,c6,c8,0
 #define HPRLAR0         p15,4,c6,c8,1
 #define HPRBAR1         p15,4,c6,c8,4
@@ -461,6 +468,7 @@
 #define ESR_EL2                 HSR
 #define HCR_EL2                 HCR
 #define HPFAR_EL2               HPFAR
+#define PRENR_EL2               HPRENR
 #define PRBAR0_EL2              HPRBAR0
 #define PRBAR1_EL2              HPRBAR1
 #define PRBAR2_EL2              HPRBAR2
@@ -606,6 +614,7 @@
 #define MDCR_EL2                HDCR
 #define MIDR_EL1                MIDR
 #define MPIDR_EL1               MPIDR
+#define MPUIR_EL2               HMPUIR
 #define PAR_EL1                 PAR
 #define SCTLR_EL1               SCTLR
 #define SCTLR_EL2               HSCTLR
@@ -623,6 +632,7 @@
 #define VBAR_EL2                HVBAR
 #define VMPIDR_EL2              VMPIDR
 #define VPIDR_EL2               VPIDR
+#define VSCTLR_EL2              VSCTLR
 #define VTCR_EL2                VTCR
 #define VTTBR_EL2               VTTBR
 #define MVFR0_EL1               MVFR0

@@ -67,7 +67,7 @@ struct p2m_domain {
 
 #ifdef CONFIG_HAS_MPU
     /* Current Virtualization System Control Register for the p2m */
-    uint64_t vsctlr;
+    register_t vsctlr;
 #endif
 
     /* Highest guest frame that's ever been mapped in the p2m */

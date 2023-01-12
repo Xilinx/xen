@@ -7,7 +7,6 @@
 #define __ARM64_MPU_H__
 
 #define MPUIR_REGION_MASK _AC(0xFF, UL)
-#define MPU_PRENR_BITS    32
 
 /* Access permission attributes. */
 /* Read/Write at EL2, No Access at EL1/EL0. */
@@ -31,9 +30,6 @@
 #define XN_DISABLED    0x0
 #define XN_P2M_ENABLED 0x1
 #define XN_ENABLED     0x2
-
-/* For Armv8-R, the MPU protection regions can reach to 256. */
-#define MAX_MPU_PROTECTION_REGIONS 256
 
 /*
  * 16 as default size of Arm MPU Protetcion Regions is enough
@@ -125,6 +121,11 @@ typedef struct {
 static inline bool region_is_valid(pr_t *region)
 {
     return region->limit.reg.en;
+}
+
+static inline uint64_t generate_vsctlr(uint16_t vmid)
+{
+    return ((uint64_t)vmid << 48);
 }
 
 #endif /* __ASSEMBLY__ */
