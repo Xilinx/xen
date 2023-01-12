@@ -221,8 +221,10 @@ struct arch_vcpu
     register_t mdcr_el2;
 
 #ifdef CONFIG_HAS_MPU
+#ifdef CONFIG_ARM_64
     /* Virtualization Translation Control Register */
     register_t vtcr_el2;
+#endif
 
     /* EL1 MPU regions */
     pr_t *mpu_regions;

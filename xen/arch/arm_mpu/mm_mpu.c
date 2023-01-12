@@ -933,7 +933,9 @@ void * __init early_fdt_map(paddr_t fdt_paddr)
  */
 static void xen_mpu_enforce_wnx(void)
 {
+#ifdef CONFIG_ARM_64
     WRITE_SYSREG(READ_SYSREG(SCTLR_EL2) | SCTLR_Axx_ELx_WXN, SCTLR_EL2);
+#endif
 }
 
 void mpu_init_secondary_cpu(void)

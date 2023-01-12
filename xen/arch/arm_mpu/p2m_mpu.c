@@ -109,7 +109,9 @@ void p2m_save_state(struct vcpu *p)
     struct p2m_domain *p2m = p2m_get_hostp2m(p->domain);
 
     p->arch.sctlr = READ_SYSREG(SCTLR_EL1);
+#ifdef CONFIG_ARM_64
     p->arch.vtcr_el2 = READ_SYSREG(VTCR_EL2);
+#endif
 
     /*
      * We keep the system MPU memory region map in a tight and fixed way.
@@ -133,7 +135,9 @@ void p2m_restore_state(struct vcpu *n)
 
     WRITE_SYSREG(n->arch.sctlr, SCTLR_EL1);
     WRITE_SYSREG(n->arch.hcr_el2, HCR_EL2);
+#ifdef CONFIG_ARM_64
     WRITE_SYSREG(n->arch.vtcr_el2, VTCR_EL2);
+#endif
     WRITE_SYSREG64(p2m->vsctlr, VSCTLR_EL2);
 
     if ( p2m_mpu_update(n) )
@@ -647,6 +651,7 @@ register_t get_default_vtcr_flags()
     return vtcr;
 }
 
+#ifdef CONFIG_ARM_64
 static void setup_virt_paging_one(void *data)
 {
     WRITE_SYSREG(vtcr, VTCR_EL2);
@@ -734,6 +739,22 @@ void __init setup_virt_paging(void)
 fault:
     panic("Hardware with no PMSAv8-64 support in any translation regime.\n");
 }
+#else
+void __init setup_virt_paging(void)
+{
+    /*
+     * When guest in PMSAv8-64, the guest EL1 MPU regions will be saved on
+     * context switch.
+     */
+    load_mpu_supported_region_el1();
+
+    p2m_vmid_allocator_init();
+
+    vtcr = 0;
+
+    return;
+}
+#endif
 
 /*
  * Local variables:

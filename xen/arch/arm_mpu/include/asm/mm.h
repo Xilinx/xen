@@ -157,14 +157,17 @@ struct page_info
 #define _PGC_need_scrub   _PGC_allocated
 #define PGC_need_scrub    PGC_allocated
 
+#ifndef CONFIG_HAS_MPU
 extern mfn_t directmap_mfn_start, directmap_mfn_end;
 extern vaddr_t directmap_virt_end;
+#endif
+
 #ifdef CONFIG_ARM_64
 extern vaddr_t directmap_virt_start;
 extern unsigned long directmap_base_pdx;
 #endif
 
-#ifdef CONFIG_ARM_32
+#if (CONFIG_ARM_32 && !CONFIG_HAS_MPU)
 #define is_xen_heap_page(page) is_xen_heap_mfn(page_to_mfn(page))
 #define is_xen_heap_mfn(mfn) ({                                 \
     unsigned long mfn_ = mfn_x(mfn);                            \

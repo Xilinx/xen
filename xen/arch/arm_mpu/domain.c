@@ -160,8 +160,10 @@ static void ctxt_switch_from(struct vcpu *p)
     }
     p->arch.vbar = READ_SYSREG(VBAR_EL1);
 
+#ifndef CONFIG_HAS_MPU
     if ( is_32bit_domain(p->domain) )
         p->arch.dacr = READ_SYSREG(DACR32_EL2);
+#endif
     p->arch.par = READ_SYSREG64(PAR_EL1);
 #if defined(CONFIG_ARM_32)
     p->arch.mair0 = READ_CP32(MAIR0);
@@ -254,6 +256,7 @@ static void ctxt_switch_to(struct vcpu *n)
     }
     WRITE_SYSREG(n->arch.vbar, VBAR_EL1);
 
+#ifndef CONFIG_HAS_MPU
     /*
      * Erratum #852523 (Cortex-A57) or erratum #853709 (Cortex-A72):
      * DACR32_EL2 must be restored before one of the
@@ -262,6 +265,7 @@ static void ctxt_switch_to(struct vcpu *n)
      */
     if ( is_32bit_domain(n->domain) )
         WRITE_SYSREG(n->arch.dacr, DACR32_EL2);
+#endif
     WRITE_SYSREG64(n->arch.par, PAR_EL1);
 #if defined(CONFIG_ARM_32)
     WRITE_CP32(n->arch.mair0, MAIR0);
@@ -634,6 +638,7 @@ int arch_vcpu_create(struct vcpu *v)
         v->arch.mdcr_el2 |= HDCR_TPM | HDCR_TPMCR;
 
 #ifdef CONFIG_HAS_MPU
+#ifdef CONFIG_ARM_64
     /*
      * When ID_AA64MMFR0_EL1.MSA_frac is 0b0010(MM64_MSA_FRAC_VMSA_SUPPORT),
      * then VTCR_EL2.MSA determines the memory system architecture enabled
@@ -645,6 +650,11 @@ int arch_vcpu_create(struct vcpu *v)
     else
     {
         v->arch.vtcr_el2 &= VTCR_MSA_PMSA;
+    }
+#endif
+
+    if ( is_mpu_domain(v->domain) )
+    {
         v->arch.mpu_regions = _xzalloc(sizeof(pr_t) * mpu_regions_count_el1,
                                        SMP_CACHE_BYTES);
         if ( v->arch.mpu_regions == NULL )

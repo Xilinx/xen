@@ -916,13 +916,17 @@ static void _show_registers(const struct cpu_user_regs *regs,
     printk("  VTCR_EL2: %"PRIregister"\n", READ_SYSREG(VTCR_EL2));
     printk(" VTTBR_EL2: %016"PRIx64"\n", ctxt->vttbr_el2);
 #else
+#ifdef CONFIG_ARM_64
     printk("  VTCR_EL2: %"PRIregister"\n", v->arch.vtcr_el2);
+#endif
 #endif
     printk("\n");
 
     printk(" SCTLR_EL2: %"PRIregister"\n", READ_SYSREG(SCTLR_EL2));
     printk("   HCR_EL2: %"PRIregister"\n", READ_SYSREG(HCR_EL2));
+#ifndef CONFIG_HAS_MPU
     printk(" TTBR0_EL2: %016"PRIx64"\n", READ_SYSREG64(TTBR0_EL2));
+#endif
     printk("\n");
     printk("   ESR_EL2: %"PRIregister"\n", regs->hsr);
     printk(" HPFAR_EL2: %"PRIregister"\n", READ_SYSREG(HPFAR_EL2));
@@ -940,9 +944,11 @@ void show_registers(const struct cpu_user_regs *regs)
 {
     struct reg_ctxt ctxt;
     ctxt.sctlr_el1 = READ_SYSREG(SCTLR_EL1);
+#ifndef CONFIG_AARCH32_V8R
     ctxt.tcr_el1 = READ_SYSREG(TCR_EL1);
     ctxt.ttbr0_el1 = READ_SYSREG64(TTBR0_EL1);
     ctxt.ttbr1_el1 = READ_SYSREG64(TTBR1_EL1);
+#endif /* !CONFIG_AARCH32_V8R */
 #ifdef CONFIG_ARM_32
     ctxt.dfar = READ_CP32(DFAR);
     ctxt.ifar = READ_CP32(IFAR);
@@ -954,7 +960,9 @@ void show_registers(const struct cpu_user_regs *regs)
     if ( guest_mode(regs) && is_32bit_domain(current->domain) )
         ctxt.ifsr32_el2 = READ_SYSREG(IFSR32_EL2);
 #endif
+#ifndef CONFIG_HAS_MPU
     ctxt.vttbr_el2 = READ_SYSREG64(VTTBR_EL2);
+#endif /* !CONFIG_HAS_MPU */
 
     _show_registers(regs, &ctxt, guest_mode(regs), current);
 }

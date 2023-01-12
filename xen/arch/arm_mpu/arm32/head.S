@@ -166,6 +166,7 @@ past_zImage:
 
         bl    check_cpu_mode
         bl    cpu_init
+#ifndef CONFIG_HAS_MPU
         bl    create_page_tables
         bl    enable_mmu
 
@@ -181,6 +182,7 @@ primary_switched:
          */
         bl    remove_identity_mapping
         bl    setup_fixmap
+#endif
 #ifdef CONFIG_EARLY_PRINTK
         /* Use a virtual address to access the UART. */
         mov_w r11, EARLY_UART_VIRTUAL_ADDRESS
@@ -222,8 +224,10 @@ GLOBAL(init_secondary)
 #endif
         bl    check_cpu_mode
         bl    cpu_init
+#ifndef CONFIG_HAS_MPU
         bl    create_page_tables
         bl    enable_mmu
+#endif
 
 
         /* We are still in the 1:1 mapping. Jump to the runtime Virtual Address. */
@@ -335,6 +339,7 @@ cpu_init_done:
         mcr   CP32(r0, HMAIR0)
         mcr   CP32(r1, HMAIR1)
 
+#ifndef CONFIG_HAS_MPU
         /*
          * Set up the HTCR:
          * PT walks use Inner-Shareable accesses,
@@ -343,6 +348,7 @@ cpu_init_done:
          */
         ldr   r0, =(TCR_RES1|TCR_SH0_IS|TCR_ORGN0_WBWA|TCR_IRGN0_WBWA|TCR_T0SZ(0))
         mcr   CP32(r0, HTCR)
+#endif /* !CONFIG_AARCH32_V8R */
 
         ldr   r0, =HSCTLR_SET
         mcr   CP32(r0, HSCTLR)
@@ -432,6 +438,7 @@ ENDPROC(cpu_init)
         strd  r2, r3, [r4, r1]
 .endm
 
+#ifndef CONFIG_HAS_MPU
 /*
  * Rebuild the boot pagetable's first-level entries. The structure
  * is described in mm.c.
@@ -631,6 +638,7 @@ setup_fixmap:
 
         mov   pc, lr
 ENDPROC(setup_fixmap)
+#endif
 
 /*
  * Setup the initial stack and jump to the C world

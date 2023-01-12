@@ -637,7 +637,7 @@ void __init populate_boot_allocator(void)
 
             s = bootinfo.reserved_mem.bank[i].start;
             e = s + bootinfo.reserved_mem.bank[i].size;
-#ifdef CONFIG_ARM_32
+#if (CONFIG_ARM_32 && !CONFIG_HAS_MPU)
             /* Avoid the xenheap, note that the xenheap cannot across a bank */
             if ( s <= mfn_to_maddr(directmap_mfn_start) &&
                  e >= mfn_to_maddr(directmap_mfn_end) )
@@ -675,7 +675,7 @@ void __init populate_boot_allocator(void)
             if ( e > bank_end )
                 e = bank_end;
 
-#ifdef CONFIG_ARM_32
+#if (CONFIG_ARM_32 && !CONFIG_HAS_MPU)
             /* Avoid the xenheap */
             if ( s < mfn_to_maddr(directmap_mfn_end) &&
                  mfn_to_maddr(directmap_mfn_start) < e )
