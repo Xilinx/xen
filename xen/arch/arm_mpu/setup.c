@@ -743,6 +743,10 @@ void __init start_xen(unsigned long boot_phys_offset,
     /* Initialize traps early allow us to get backtrace when an error occurred */
     init_traps();
 
+#ifdef CONFIG_HAS_MPU
+    setup_protection_regions();
+#endif
+
     smp_clear_cpu_maps();
 
     device_tree_flattened = early_fdt_map(fdt_paddr);
@@ -772,8 +776,10 @@ void __init start_xen(unsigned long boot_phys_offset,
         xen_bootmodule->start = get_xen_paddr(xen_bootmodule->size);
     }
 
+#ifndef CONFIG_HAS_MPU
     setup_mm_data(boot_phys_offset, xen_bootmodule->start);
     device_tree_flattened = early_fdt_map(fdt_paddr);
+#endif
 
     setup_mm();
 
