@@ -145,3 +145,41 @@ ENTRY(disable_mpu)
     isb
     ret
 ENDPROC(disable_mpu)
+
+/*
+ * Iterate MPU memory region configuration, #mpu_table, to properly
+ * set according MPU protection region registers.
+ *
+ * r0: len refers to table length (count of entries in mpu table).
+ * r1: mpu_table. Every entry(pr_t) takes up 16 bytes, the previous 4 bytes
+ * shall be stored in prbar register, and the latter 4 are for prlar register.
+ * The last 8 bytes are left unused as of now. They shall be used later to
+ * store p2m_type.
+ */
+ENTRY(set_boot_mpumap)
+    push {r4}
+    mov   r2, #0               /* table index */
+1:  ldr   r3, [r1], #4         /* r3: prbar */
+    ldr   r4, [r1], #12        /* r4: prlar */
+    write_pr r2, r3, r4
+    add   r2, r2, #1           /* table index ++ */
+    cmp   r2, r0
+    blt  1b
+    pop {r4}
+    ret
+ENDPROC(set_boot_mpumap)
+
+/*
+ * Clear stale MPU protection regions before setting new reordered ones.
+ *
+ * r0: len refers to length of stale mpu table (count of entries in mpu table).
+ */
+ENTRY(clear_xen_mpumap)
+    mov   r1, #0              /* sel */
+    mov   r2, #0              /* use zero value to clean up. */
+1:  write_pr r1, r2, r2
+    add   r1, r1, #1
+    cmp   r1, r0
+    blt  1b
+    ret
+ENDPROC(clear_xen_mpumap)
