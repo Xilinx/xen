@@ -402,7 +402,7 @@ config ARM64_HARDEN_BRANCH_PREDICTOR
     def_bool y if ARM_64 && HARDEN_BRANCH_PREDICTOR
 
 config ARM32_HARDEN_BRANCH_PREDICTOR
-    def_bool y if ARM_32 && HARDEN_BRANCH_PREDICTOR
+    def_bool y if ARM_32 && HARDEN_BRANCH_PREDICTOR && !AARCH32_V8R
 
 source "arch/arm_mpu/platforms/Kconfig"
 
