@@ -60,7 +60,7 @@ config ALL64_PLAT
 
 config ALL32_PLAT
 	bool
-	default (ALL_PLAT && ARM_32)
+	default (ALL_PLAT && ARM_32 && !AARCH32_V8R)
 
 config MPSOC_PLATFORM
 	bool

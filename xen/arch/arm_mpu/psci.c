@@ -47,12 +47,17 @@ static uint32_t psci_cpu_on_nr;
 
 int call_psci_cpu_on(int cpu)
 {
+    /* SMP is not supported for AArch32 Armv8-R */
+#ifdef CONFIG_AARCH32_V8R
+    return -ENODEV;
+#else
     struct arm_smccc_res res;
 
     arm_smccc_smc(psci_cpu_on_nr, cpu_logical_map(cpu),
                   __pa(virt_to_boot_virt((vaddr_t)init_secondary)), &res);
 
     return PSCI_RET(res);
+#endif
 }
 
 void call_psci_cpu_off(void)
