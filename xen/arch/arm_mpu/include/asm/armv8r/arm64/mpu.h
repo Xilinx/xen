@@ -8,12 +8,6 @@
 
 #define MPUIR_REGION_MASK _AC(0xFF, UL)
 
-/*
- * 16 as default size of Arm MPU Protetcion Regions is enough
- * and necessary for initializing mpu map table in boot stage.
- */
-#define ARM_DEFAULT_MPU_PROTECTION_REGIONS 16
-
 #ifndef __ASSEMBLY__
 
 /* Protection Region Base Address Register */
@@ -51,23 +45,6 @@ typedef struct {
     prlar_t limit;
 } pr_t;
 
-/* Access to set base address of MPU protection region(pr_t). */
-#define pr_set_base(pr, paddr) ({                           \
-    pr_t* _pr = pr;                                         \
-    _pr->base.reg.base = (paddr >> MPU_REGION_SHIFT);       \
-})
-
-/* Access to set limit address of MPU protection region(pr_t). */
-#define pr_set_limit(pr, paddr) ({                          \
-    pr_t* _pr = pr;                                         \
-    _pr->limit.reg.base = (paddr >> MPU_REGION_SHIFT);      \
-})
-
-#define IS_PR_ENABLED(pr) ({                                \
-    pr_t* _pr = pr;                                         \
-    _pr->limit.reg.en;                                      \
-})
-
 /*
  * Access to get base address of MPU protection region.
  * The base address shall be zero extended.
@@ -85,11 +62,6 @@ typedef struct {
     pr_t* _pr = pr;                                               \
     (uint64_t)((_pr->limit.reg.base << MPU_REGION_SHIFT) | 0x3f); \
 })
-
-static inline bool region_is_valid(pr_t *region)
-{
-    return region->limit.reg.en;
-}
 
 static inline uint64_t generate_vsctlr(uint16_t vmid)
 {

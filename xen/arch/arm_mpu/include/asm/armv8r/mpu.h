@@ -50,4 +50,35 @@
 #define XN_DISABLED    0x0
 #define XN_ENABLED     0x1
 
+/*
+ * 16 as default size of Arm MPU Protetcion Regions is enough
+ * and necessary for initializing mpu map table in boot stage.
+ */
+#define ARM_DEFAULT_MPU_PROTECTION_REGIONS 16
+
+#ifndef __ASSEMBLY__
+/* Access to set base address of MPU protection region(pr_t). */
+#define pr_set_base(pr, paddr) ({                           \
+    pr_t* _pr = pr;                                         \
+    _pr->base.reg.base = (paddr >> MPU_REGION_SHIFT);       \
+})
+
+/* Access to set limit address of MPU protection region(pr_t). */
+#define pr_set_limit(pr, paddr) ({                          \
+    pr_t* _pr = pr;                                         \
+    _pr->limit.reg.base = (paddr >> MPU_REGION_SHIFT);      \
+})
+
+#define IS_PR_ENABLED(pr) ({                                \
+    pr_t* _pr = pr;                                         \
+    _pr->limit.reg.en;                                      \
+})
+
+static inline bool region_is_valid(pr_t *region)
+{
+    return region->limit.reg.en;
+}
+
+#endif /* ! __ASSEMBLY__ */
+
 #endif /* __ARM_MPU_H__ */

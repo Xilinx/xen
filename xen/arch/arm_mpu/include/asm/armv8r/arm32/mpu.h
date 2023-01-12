@@ -45,6 +45,24 @@ typedef struct {
 
 #define XN_P2M_ENABLED XN_ENABLED
 
+/*
+ * Access to get base address of MPU protection region.
+ * The base address shall be zero extended.
+ */
+#define pr_get_base(pr) ({                              \
+    pr_t* _pr = pr;                                     \
+    (uint32_t)_pr->base.reg.base << MPU_REGION_SHIFT;   \
+})
+
+/*
+ * Access to get limit address of MPU protection region.
+ * The limit address shall be concatenated with 0x3f.
+ */
+#define pr_get_limit(pr) ({                                         \
+    pr_t* _pr = pr;                                                 \
+    (uint32_t)((_pr->limit.reg.base << MPU_REGION_SHIFT) | 0x3f);   \
+})
+
 static inline uint64_t p2m_get_region_type(pr_t *region)
 {
     return region->p2m_type;

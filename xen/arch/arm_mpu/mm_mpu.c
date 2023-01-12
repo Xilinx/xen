@@ -829,7 +829,7 @@ int reorder_xen_mpumap(void)
         pr_t region;
         access_protection_region(true, &region, NULL, i);
         printk(XENLOG_DEBUG
-               "MPU protection region #%u : 0x%"PRIx64" - 0x%"PRIx64".\n",
+               "MPU protection region #%u : 0x%"PRIregister" - 0x%"PRIregister".\n",
                i, pr_get_base(&region), pr_get_limit(&region));
     }
 
@@ -1043,7 +1043,7 @@ void __init setup_protection_regions()
         {
             pr_t region;
             access_protection_region(true, &region, NULL, i);
-            printk("Boot-time Xen MPU memory configuration. #%u : 0x%"PRIx64" - 0x%"PRIx64".\n",
+            printk("Boot-time Xen MPU memory configuration. #%u : 0x%"PRIregister" - 0x%"PRIregister".\n",
                    i, pr_get_base(&region), pr_get_limit(&region));
         }
 }
