@@ -97,7 +97,7 @@ ENTRY(setup_fixmap)
     orr x1, x1, x3
 
     ldr x2, =CONFIG_EARLY_UART_BASE_ADDRESS
-    ldr x3, =(CONFIG_EARLY_UART_BASE_ADDRESS + EARLY_UART_SIZE - 1)
+    ldr x3, =(EARLY_UART_SIZE - 1)
     add x2, x2, x3
     and x2, x2, #MPU_REGION_MASK
     mov x3, #PRLAR_DEVICE_MEM
