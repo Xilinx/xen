@@ -233,6 +233,8 @@ static int __init kernel_uimage_probe(struct kernel_info *info,
     if ( len > size - sizeof(uimage) )
         return -EINVAL;
 
+    info->zimage.start = be32_to_cpu(uimage.ep);
+
     info->zimage.kernel_addr = addr + sizeof(uimage);
     info->zimage.len = len;
 
