@@ -1182,8 +1182,15 @@ void free_init_memory(void)
 
     unsigned long init_section[4] = {init_text, init_text_end, init_data, init_data_end};
     unsigned int nr_init = 2;
-    uint32_t insn = AARCH64_BREAK_FAULT;
     unsigned int i = 0, j = 0;
+    uint32_t insn;
+
+#ifdef CONFIG_ARM_32
+    /* udf instruction i.e (see A8.8.247 in ARM DDI 0406C.c) */
+    insn = 0xe7f000f0;
+#else
+    insn = AARCH64_BREAK_FAULT;
+#endif
 
     /* Change memory attribute of kernel init text section to RW. */
     modify_xen_mappings(init_text, init_text_end, REGION_HYPERVISOR_RW);
