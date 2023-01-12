@@ -24,6 +24,7 @@
 #include <xen/sched.h>
 #include <xen/sizes.h>
 #include <asm/kernel.h>
+#include <asm/armv8r/sysregs.h>
 
 /*
  *  A boot time MPU protetction region map that is used in assembly code
@@ -85,37 +86,11 @@ DEFINE_PER_CPU(unsigned long, nr_cpu_mpumap);
 /* Number of EL1 MPU regions supported by the hardware */
 uint8_t __read_mostly mpu_regions_count_el1;
 
-/* Write a protection region */
-#define WRITE_PROTECTION_REGION(sel, pr, prbar, prlar) ({               \
-    uint64_t _sel = sel;                                                \
-    const pr_t *_pr = pr;                                               \
-    asm volatile(                                                       \
-        "msr "__stringify(PRSELR_EL2)", %0;" /* Selects the region */   \
-        "dsb sy;"                                                       \
-        "msr "__stringify(prbar)", %1;" /* Write PRBAR<n>_EL2 */        \
-        "msr "__stringify(prlar)", %2;" /* Write PRLAR<n>_EL2 */        \
-        "dsb sy;"                                                       \
-        : : "r" (_sel), "r" (_pr->base.bits), "r" (_pr->limit.bits));   \
-})
-
-/* Read a protection region */
-#define READ_PROTECTION_REGION(sel, prbar, prlar) ({                    \
-    uint64_t _sel = sel;                                                \
-    pr_t _pr;                                                           \
-    asm volatile(                                                       \
-        "msr "__stringify(PRSELR_EL2)", %2;" /* Selects the region */   \
-        "dsb sy;"                                                       \
-        "mrs %0, "__stringify(prbar)";" /* Read PRBAR<n>_EL2 */         \
-        "mrs %1, "__stringify(prlar)";" /* Read PRLAR<n>_EL2 */         \
-        "dsb sy;"                                                       \
-        : "=r" (_pr.base.bits), "=r" (_pr.limit.bits) : "r" (_sel));    \
-    _pr;                                                                \
-})
-
 /*
  * Access MPU protection region, including both read/write operations.
- * AArch64-v8R at most supports 256 MPU protection regions.
- * As explained from section G1.3.18 of the reference manual for AArch64-v8R,
+ * AArch64-v8R/AArch32-v8R at most supports 256 MPU protection regions.
+ * As explained from section G1.3.18 of the reference manual for AArch64-v8R
+ * and from section E2.2.10 of the reference manual for AArch32-v8R,
  * PRBAR<n>_ELx and PRLAR<n>_ELx provides access to the MPU region
  * determined by the 4 most significant bit written on PRSELR_ELx.REGION and
  * the <n> number from 1 to 15, when n == 0 then PRBAR_ELx should be used.
