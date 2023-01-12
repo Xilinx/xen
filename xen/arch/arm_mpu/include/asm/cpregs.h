@@ -107,6 +107,7 @@
 /* CP15 CR0: CPUID and Cache Type Registers */
 #define MIDR            p15,0,c0,c0,0   /* Main ID Register */
 #define CTR             p15,0,c0,c0,1   /* Cache Type Register */
+#define MPUIR           p15,0,c0,c0,4   /* number of regions supported by the EL1 MPU */
 #define MPIDR           p15,0,c0,c0,5   /* Multiprocessor Affinity Register */
 #define ID_PFR0         p15,0,c0,c1,0   /* Processor Feature Register 0 */
 #define ID_PFR1         p15,0,c0,c1,1   /* Processor Feature Register 1 */
@@ -175,6 +176,72 @@
 /* CP15 CR6: Fault Address Registers */
 #define DFAR            p15,0,c6,c0,0   /* Data Fault Address Register  */
 #define IFAR            p15,0,c6,c0,2   /* Instruction Fault Address Register */
+#define PRSELR          p15,0,c6,c2,1   /* MPU Protection Region Selection Register encode */
+/* EL1 MPU Protection Region Base/Limit Address Register encode */
+#define PRBAR           p15,0,c6,c8,0
+#define PRLAR           p15,0,c6,c8,1
+#define PRBAR1          p15,0,c6,c8,4
+#define PRLAR1          p15,0,c6,c8,5
+#define PRBAR2          p15,0,c6,c9,0
+#define PRLAR2          p15,0,c6,c9,1
+#define PRBAR3          p15,0,c6,c9,4
+#define PRLAR3          p15,0,c6,c9,5
+#define PRBAR4          p15,0,c6,c10,0
+#define PRLAR4          p15,0,c6,c10,1
+#define PRBAR5          p15,0,c6,c10,4
+#define PRLAR5          p15,0,c6,c10,5
+#define PRBAR6          p15,0,c6,c11,0
+#define PRLAR6          p15,0,c6,c11,1
+#define PRBAR7          p15,0,c6,c11,4
+#define PRLAR7          p15,0,c6,c11,5
+#define PRBAR8          p15,0,c6,c12,0
+#define PRLAR8          p15,0,c6,c12,1
+#define PRBAR9          p15,0,c6,c12,4
+#define PRLAR9          p15,0,c6,c12,5
+#define PRBAR10         p15,0,c6,c13,0
+#define PRLAR10         p15,0,c6,c13,1
+#define PRBAR11         p15,0,c6,c13,4
+#define PRLAR11         p15,0,c6,c13,5
+#define PRBAR12         p15,0,c6,c14,0
+#define PRLAR12         p15,0,c6,c14,1
+#define PRBAR13         p15,0,c6,c14,4
+#define PRLAR13         p15,0,c6,c14,5
+#define PRBAR14         p15,0,c6,c15,0
+#define PRLAR14         p15,0,c6,c15,1
+#define PRBAR15         p15,0,c6,c15,4
+#define PRLAR15         p15,0,c6,c15,5
+#define PRBAR16         p15,1,c6,c8,0
+#define PRLAR16         p15,1,c6,c8,1
+#define PRBAR17         p15,1,c6,c8,4
+#define PRLAR17         p15,1,c6,c8,5
+#define PRBAR18         p15,1,c6,c9,0
+#define PRLAR18         p15,1,c6,c9,1
+#define PRBAR19         p15,1,c6,c9,4
+#define PRLAR19         p15,1,c6,c9,5
+#define PRBAR20         p15,1,c6,c10,0
+#define PRLAR20         p15,1,c6,c10,1
+#define PRBAR21         p15,1,c6,c10,4
+#define PRLAR21         p15,1,c6,c10,5
+#define PRBAR22         p15,1,c6,c11,0
+#define PRLAR22         p15,1,c6,c11,1
+#define PRBAR23         p15,1,c6,c11,4
+#define PRLAR23         p15,1,c6,c11,5
+#define PRBAR24         p15,1,c6,c12,0
+#define PRLAR24         p15,1,c6,c12,1
+#define PRBAR25         p15,1,c6,c12,4
+#define PRLAR25         p15,1,c6,c12,5
+#define PRBAR26         p15,1,c6,c13,0
+#define PRLAR26         p15,1,c6,c13,1
+#define PRBAR27         p15,1,c6,c13,4
+#define PRLAR27         p15,1,c6,c13,5
+#define PRBAR28         p15,1,c6,c14,0
+#define PRLAR28         p15,1,c6,c14,1
+#define PRBAR29         p15,1,c6,c14,4
+#define PRLAR29         p15,1,c6,c14,5
+#define PRBAR30         p15,1,c6,c15,0
+#define PRLAR30         p15,1,c6,c15,1
+#define PRBAR31         p15,1,c6,c15,4
+#define PRLAR31         p15,1,c6,c15,5
 #define HDFAR           p15,4,c6,c0,0   /* Hyp. Data Fault Address Register */
 #define HIFAR           p15,4,c6,c0,2   /* Hyp. Instruction Fault Address Register */
 #define HPFAR           p15,4,c6,c0,4   /* Hyp. IPA Fault Address Register */
@@ -468,7 +535,74 @@
 #define ESR_EL2                 HSR
 #define HCR_EL2                 HCR
 #define HPFAR_EL2               HPFAR
+#define MPUIR_EL1               MPUIR
 #define PRENR_EL2               HPRENR
+#define PRBAR0_EL1              PRBAR
+#define PRBAR_EL1               PRBAR0_EL1
+#define PRBAR1_EL1              PRBAR1
+#define PRBAR2_EL1              PRBAR2
+#define PRBAR3_EL1              PRBAR3
+#define PRBAR4_EL1              PRBAR4
+#define PRBAR5_EL1              PRBAR5
+#define PRBAR6_EL1              PRBAR6
+#define PRBAR7_EL1              PRBAR7
+#define PRBAR8_EL1              PRBAR8
+#define PRBAR9_EL1              PRBAR9
+#define PRBAR10_EL1             PRBAR10
+#define PRBAR11_EL1             PRBAR11
+#define PRBAR12_EL1             PRBAR12
+#define PRBAR13_EL1             PRBAR13
+#define PRBAR14_EL1             PRBAR14
+#define PRBAR15_EL1             PRBAR15
+#define PRBAR16_EL1             PRBAR16
+#define PRBAR17_EL1             PRBAR17
+#define PRBAR18_EL1             PRBAR18
+#define PRBAR19_EL1             PRBAR19
+#define PRBAR20_EL1             PRBAR20
+#define PRBAR21_EL1             PRBAR21
+#define PRBAR22_EL1             PRBAR22
+#define PRBAR23_EL1             PRBAR23
+#define PRBAR24_EL1             PRBAR24
+#define PRBAR25_EL1             PRBAR25
+#define PRBAR26_EL1             PRBAR26
+#define PRBAR27_EL1             PRBAR27
+#define PRBAR28_EL1             PRBAR28
+#define PRBAR29_EL1             PRBAR29
+#define PRBAR30_EL1             PRBAR30
+#define PRBAR31_EL1             PRBAR31
+#define PRLAR0_EL1              PRLAR
+#define PRLAR_EL1               PRLAR0_EL1
+#define PRLAR1_EL1              PRLAR1
+#define PRLAR2_EL1              PRLAR2
+#define PRLAR3_EL1              PRLAR3
+#define PRLAR4_EL1              PRLAR4
+#define PRLAR5_EL1              PRLAR5
+#define PRLAR6_EL1              PRLAR6
+#define PRLAR7_EL1              PRLAR7
+#define PRLAR8_EL1              PRLAR8
+#define PRLAR9_EL1              PRLAR9
+#define PRLAR10_EL1             PRLAR10
+#define PRLAR11_EL1             PRLAR11
+#define PRLAR12_EL1             PRLAR12
+#define PRLAR13_EL1             PRLAR13
+#define PRLAR14_EL1             PRLAR14
+#define PRLAR15_EL1             PRLAR15
+#define PRLAR16_EL1             PRLAR16
+#define PRLAR17_EL1             PRLAR17
+#define PRLAR18_EL1             PRLAR18
+#define PRLAR19_EL1             PRLAR19
+#define PRLAR20_EL1             PRLAR20
+#define PRLAR21_EL1             PRLAR21
+#define PRLAR22_EL1             PRLAR22
+#define PRLAR23_EL1             PRLAR23
+#define PRLAR24_EL1             PRLAR24
+#define PRLAR25_EL1             PRLAR25
+#define PRLAR26_EL1             PRLAR26
+#define PRLAR27_EL1             PRLAR27
+#define PRLAR28_EL1             PRLAR28
+#define PRLAR29_EL1             PRLAR29
+#define PRLAR30_EL1             PRLAR30
+#define PRLAR31_EL1             PRLAR31
 #define PRBAR0_EL2              HPRBAR0
 #define PRBAR1_EL2              HPRBAR1
 #define PRBAR2_EL2              HPRBAR2
@@ -533,6 +667,7 @@
 #define PRLAR29_EL2             HPRLAR29
 #define PRLAR30_EL2             HPRLAR30
 #define PRLAR31_EL2             HPRLAR31
+#define PRSELR_EL1              PRSELR
 #define PRSELR_EL2              HPRSELR
 #define HSTR_EL2                HSTR
 #define ICC_BPR1_EL1            ICC_BPR1

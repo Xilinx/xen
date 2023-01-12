@@ -6,8 +6,6 @@
 #ifndef __ARM64_MPU_H__
 #define __ARM64_MPU_H__
 
-#define MPUIR_REGION_MASK _AC(0xFF, UL)
-
 #ifndef __ASSEMBLY__
 
 /* Protection Region Base Address Register */
@@ -44,6 +42,8 @@ typedef struct {
     prbar_t base;
     prlar_t limit;
 } pr_t;
+
+#define MPUIR_REGION_SHIFT 0
 
 /*
  * Access to get base address of MPU protection region.

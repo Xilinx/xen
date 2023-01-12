@@ -16,6 +16,10 @@
 
 #define REGION_HYPERVISOR_RW    _REGION_XN
 
+/* MPUIR, MPU Type register attributes */
+#define MPUIR_REGION_MASK _AC(0xFF, UL)
+#define MPUIR_REGION_SHIFT          0x8
+
 #if defined(CONFIG_ARM_32)
 # include <asm/armv8r/arm32/mpu.h>
 #elif defined(CONFIG_ARM_64)
@@ -23,6 +27,8 @@
 #else
 # error "unknown ARM variant"
 #endif
+
+#define MPU_PRENR_BITS    32
 
 /* For Armv8-R, the MPU protection regions can reach to 256. */
 #define MAX_MPU_PROTECTION_REGIONS   256

@@ -145,7 +145,7 @@ static void ctxt_switch_from(struct vcpu *p)
     if ( is_mpu_domain(p->domain) )
     {
 #ifdef CONFIG_HAS_MPU
-        /* Domain is PMSAv8-64 mode, save EL1 MPU regions */
+        /* Domain is PMSAv8 mode, save EL1 MPU regions */
         save_el1_mpu_regions(p->arch.mpu_regions);
 #else
         ASSERT_UNREACHABLE();
@@ -242,7 +242,7 @@ static void ctxt_switch_to(struct vcpu *n)
     /* MMU/MPU */
     if ( is_mpu_domain(n->domain) )
 #ifdef CONFIG_HAS_MPU
-        /* Domain is PMSAv8-64 mode, restore MPU regions */
+        /* Domain is PMSAv8, restore MPU regions */
         restore_el1_mpu_regions(n->arch.mpu_regions);
 #else
         ASSERT_UNREACHABLE();

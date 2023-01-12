@@ -1227,7 +1227,9 @@ void free_init_memory(void)
 /* Loads and returns the number of EL1 MPU supported regions by the hardware */
 uint8_t __init load_mpu_supported_region_el1(void)
 {
-    uint8_t reg_value = (uint8_t)(READ_SYSREG(MPUIR_EL1) & MPUIR_REGION_MASK);
+    uint8_t reg_value = (uint8_t)((READ_SYSREG(MPUIR_EL1) >> MPUIR_REGION_SHIFT)
+                        & MPUIR_REGION_MASK);
+
     /*
      * Returns the number of supported MPU regions for EL1 from MPUIR_EL1
      * register and also writes the mpu_regions_count_el1 variable value.
