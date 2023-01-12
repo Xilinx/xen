@@ -1,7 +1,7 @@
 config ARM_32
 	def_bool y
 	depends on "$(ARCH)" = "arm32"
-	select ARCH_MAP_DOMAIN_PAGE
+	select ARCH_MAP_DOMAIN_PAGE if !HAS_MPU
 
 config AARCH32_V8R
 	bool "AArch32 Arm V8R Support (UNSUPPORTED)" if UNSUPPORTED
