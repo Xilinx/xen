@@ -8,7 +8,9 @@
  */
 
 #include <asm/armv8r/mpu.h>
+#include <asm/cpregs.h>
 #include <asm/early_printk.h>
+#include <asm/sysregs.h>
 
 /* Normal and device MPU protection region selector. */
 #define MPU_REGION_NORMAL_SEL       0x0
@@ -121,3 +123,25 @@ ENTRY(mpu_init)
 #endif
     ret
 ENDPROC(mpu_init)
+
+/* Enable EL2 MPU and data cache. */
+ENTRY(enable_mpu)
+    mrc   CP32(r0, HSCTLR)
+    mov   r1, #(SCTLR_Axx_ELx_M | SCTLR_Axx_ELx_C)
+    orr   r0, r0, r1  /* Enable EL2 MPU and D-cache */
+    dsb   sy
+    mcr   CP32(r0, HSCTLR)
+    isb
+    ret
+ENDPROC(enable_mpu)
+
+/* Disable EL2 MPU and data cache. */
+ENTRY(disable_mpu)
+    mrc   CP32(r0, HSCTLR)
+    mov   r1, #~(SCTLR_Axx_ELx_M | SCTLR_Axx_ELx_C)
+    and   r0, r0, r1  /* Disable EL2 MPU and D-cache */
+    dsb   sy
+    mcr   CP32(r0, HSCTLR)
+    isb
+    ret
+ENDPROC(disable_mpu)

@@ -750,17 +750,17 @@ static unsigned long reordered_mpu_index = 0;
  */
 void reorder_xen_mpumap_one(void *data)
 {
-    disable_mm();
+    disable_mpu();
     clear_xen_mpumap(next_xen_mpumap_index);
     set_boot_mpumap(reordered_mpu_index, (pr_t *)reordered_mpu);
-    enable_mm();
+    enable_mpu();
 
     /*
      * When users disable DEBUG option, some compilers' optimization will
      * use 'ret' in enable_mpu for reorder_xen_mpumap_one directly.
      * The side affect is that, LR will be populated from stack before
-     * calling enable_mm. But LR had been pushed to stack before
-     * calling disable_mm. In this case, LR push and pop behaviors
+     * calling enable_mpu. But LR had been pushed to stack before
+     * calling disable_mpu. In this case, LR push and pop behaviors
      * handle with different cache state stack, so the data might be corrupt.
      *
      * The isb will force compiler to generate a 'ret' for
@@ -1022,7 +1022,7 @@ void __init setup_protection_regions()
      * needs updating.
      * The whole MPU system must be disabled for the update.
      */
-    disable_mm();
+    disable_mpu();
 
     /*
      * Set new MPU memory region configuration.
@@ -1034,7 +1034,7 @@ void __init setup_protection_regions()
      */
     set_boot_mpumap(next_xen_mpumap_index, (pr_t *)boot_mpumap);
 
-    enable_mm();
+    enable_mpu();
 
     xen_mpu_enforce_wnx();
 

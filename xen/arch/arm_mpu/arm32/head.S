@@ -168,6 +168,7 @@ past_zImage:
         bl    cpu_init
 #ifdef CONFIG_HAS_MPU
         bl    mpu_init
+        bl    enable_mpu
 #else
         bl    create_page_tables
         bl    enable_mmu

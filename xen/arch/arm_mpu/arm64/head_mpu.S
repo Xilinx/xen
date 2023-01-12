@@ -130,7 +130,7 @@ ENDPROC(remove_identity_mapping)
  * explicitly to tell user that when MPU is disabled, the memory
  * access is uncacheable.
  */
-ENTRY(enable_mm)
+ENTRY(enable_mpu)
     mrs   x0, SCTLR_EL2
     mov   x1, #(SCTLR_Axx_ELx_M | SCTLR_Axx_ELx_C)
     /* Enable EL2 MPU and D-cache */
@@ -139,10 +139,10 @@ ENTRY(enable_mm)
     msr   SCTLR_EL2, x0
     isb
     ret
-ENDPROC(enable_mm)
+ENDPROC(enable_mpu)
 
 /* Disable MPU system, including data cache. */
-ENTRY(disable_mm)
+ENTRY(disable_mpu)
     mrs   x0, SCTLR_EL2
     mov   x1, #~(SCTLR_Axx_ELx_M | SCTLR_Axx_ELx_C)
     /* Disable EL2 MPU and D-cache */
@@ -151,7 +151,7 @@ ENTRY(disable_mm)
     msr   SCTLR_EL2, x0
     isb
     ret
-ENDPROC(disable_mm)
+ENDPROC(disable_mpu)
 
 /*
  * Clear stale MPU protection regions before setting new reordered ones.
