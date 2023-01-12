@@ -128,6 +128,8 @@ static inline uint64_t generate_vsctlr(uint16_t vmid)
     return ((uint64_t)vmid << 48);
 }
 
+extern void set_boot_mpumap(u64 len, pr_t *table);
+
 #endif /* __ASSEMBLY__ */
 
 #endif /* __ARM64_MPU_H__ */

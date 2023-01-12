@@ -56,7 +56,6 @@ DECLARE_PER_CPU(unsigned long, nr_cpu_mpumap);
 /* MPU-related functionality */
 extern void enable_mm(void);
 extern void disable_mm(void);
-extern void set_boot_mpumap(u64 len, pr_t *table);
 extern pr_t *alloc_mpumap(void);
 extern void update_mm(void);
 extern void map_guest_memory_section_on_boot(void);

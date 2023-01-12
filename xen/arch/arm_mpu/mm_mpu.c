@@ -24,6 +24,7 @@
 #include <xen/sched.h>
 #include <xen/sizes.h>
 #include <asm/kernel.h>
+#include <asm/armv8r/mpu.h>
 #include <asm/armv8r/sysregs.h>
 
 /*
