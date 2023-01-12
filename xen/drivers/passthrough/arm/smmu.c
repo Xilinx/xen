@@ -1745,8 +1745,6 @@ static void arm_smmu_detach_dev(struct iommu_domain *domain, struct device *dev)
 	if (cfg)
 		arm_smmu_domain_remove_master(smmu_domain, cfg);
 
-    iommu_group_put(dev_iommu_group(dev));
-    dev_iommu_group(dev) = NULL;
 }
 
 #if 0 /*
