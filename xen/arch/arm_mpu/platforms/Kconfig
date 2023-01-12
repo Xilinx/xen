@@ -41,7 +41,7 @@ config MPSOC
 
 config FVP_BASER
 	bool "Fixed Virtual Platform BaseR support"
-	depends on ARM_V8R
+	depends on ARM_V8R || AARCH32_V8R
 	help
 	  Enable platform specific configurations for Fixed Virtual
 	  Platform BaseR
