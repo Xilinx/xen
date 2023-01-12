@@ -24,7 +24,7 @@
 
 #include <asm/alternative.h>
 #ifdef CONFIG_HAS_MPU
-#include <asm/arm64/mpu.h>
+#include <asm/armv8r/mpu.h>
 #endif
 #include <asm/coloring.h>
 #include <asm/cpuerrata.h>

@@ -166,7 +166,9 @@ past_zImage:
 
         bl    check_cpu_mode
         bl    cpu_init
-#ifndef CONFIG_HAS_MPU
+#ifdef CONFIG_HAS_MPU
+        bl    mpu_init
+#else
         bl    create_page_tables
         bl    enable_mmu
 

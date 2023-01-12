@@ -12,3 +12,4 @@ obj-$(CONFIG_AARCH32_V8R) += proc-v8.o
 obj-y += smpboot.o
 obj-y += traps.o
 obj-y += vfp.o
+obj-$(CONFIG_AARCH32_V8R) += mpu_v8r.o

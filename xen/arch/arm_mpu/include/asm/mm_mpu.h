@@ -21,7 +21,7 @@
 #define __ARCH_ARM_MM_MPU__
 
 #include <xen/percpu.h>
-#include <asm/arm64/mpu.h>
+#include <asm/armv8r/mpu.h>
 
 extern struct page_info* frame_table;
 extern bool heap_parsed;

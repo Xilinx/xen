@@ -20,7 +20,7 @@
 #include <xen/cpu.h>
 #include <xen/sched.h>
 #include <xen/warning.h>
-#include <asm/arm64/mpu.h>
+#include <asm/armv8r/mpu.h>
 #include <asm/p2m.h>
 
 /* VTCR_EL2 value to be configured for the boot CPU. */

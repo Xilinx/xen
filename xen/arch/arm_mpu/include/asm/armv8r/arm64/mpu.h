@@ -6,9 +6,6 @@
 #ifndef __ARM64_MPU_H__
 #define __ARM64_MPU_H__
 
-#define MPU_REGION_SHIFT  6
-#define MPU_REGION_ALIGN  (_AC(1, UL) << MPU_REGION_SHIFT)
-#define MPU_REGION_MASK   (~(MPU_REGION_ALIGN - 1))
 #define MPUIR_REGION_MASK _AC(0xFF, UL)
 #define MPU_PRENR_BITS    32
 
