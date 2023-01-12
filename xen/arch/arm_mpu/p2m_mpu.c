@@ -29,7 +29,7 @@ static uint32_t __read_mostly vtcr;
 /* Use the p2m type to check whether a region is valid. */
 static inline bool p2m_is_valid(pr_t *region)
 {
-    return region->base.reg.p2m_type != p2m_invalid;
+    return p2m_get_region_type(region) != p2m_invalid;
 }
 
 /* Return the size of the pool, rounded up to the nearest MB */
@@ -210,7 +210,7 @@ static mfn_t p2m_get_region(struct p2m_domain *p2m, gfn_t gfn,
 
     if ( p2m_is_valid(region) )
     {
-        *t = region->base.reg.p2m_type;
+        *t = p2m_get_region_type(region);
 
         if ( valid )
             *valid = region_is_valid(region);
@@ -355,12 +355,6 @@ static inline pr_t region_to_p2m_entry(mfn_t smfn, unsigned long nr_mfn,
     pr_t region;
     paddr_t base_addr, limit_addr;
 
-    /* Build up prbar (Protection Region Base Address Register) register. */
-    base = (prbar_t) {
-        .reg = {
-            .p2m_type = t,  /* P2M Type */
-        }};
-
     /* Build up prlar (Protection Region Limit Address Register) register. */
     limit = (prlar_t) {
         .reg = {
@@ -407,6 +401,8 @@ static inline pr_t region_to_p2m_entry(mfn_t smfn, unsigned long nr_mfn,
         .base = base,
         .limit = limit,
     };
+
+    p2m_set_region_type(&region, t);
 
     /*
      * xn and ap bit will be defined in the p2m_set_permission

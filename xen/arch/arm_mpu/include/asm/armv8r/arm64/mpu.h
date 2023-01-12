@@ -8,43 +8,11 @@
 
 #define MPUIR_REGION_MASK _AC(0xFF, UL)
 
-/* Access permission attributes. */
-/* Read/Write at EL2, No Access at EL1/EL0. */
-#define AP_RW_EL2 0x0
-/* Read/Write at EL2/EL1/EL0 all levels. */
-#define AP_RW_ALL 0x1
-/* Read-only at EL2, No Access at EL1/EL0. */
-#define AP_RO_EL2 0x2
-/* Read-only at EL2/EL1/EL0 all levels. */
-#define AP_RO_ALL 0x3
-
-/*
- * Excute never.
- * Stage 1 EL2 translation regime.
- * XN[1] determines whether execution of the instruction fetched from the MPU
- * memory region is permitted.
- * Stage 2 EL1/EL0 translation regime.
- * XN[0] determines whether execution of the instruction fetched from the MPU
- * memory region is permitted.
- */
-#define XN_DISABLED    0x0
-#define XN_P2M_ENABLED 0x1
-#define XN_ENABLED     0x2
-
 /*
  * 16 as default size of Arm MPU Protetcion Regions is enough
  * and necessary for initializing mpu map table in boot stage.
  */
 #define ARM_DEFAULT_MPU_PROTECTION_REGIONS 16
-
-#define _REGION_XN_BIT      0
-#define _REGION_RO_BIT      1
-#define _REGION_XN          (1U << _REGION_XN_BIT)
-#define _REGION_RO          (1U << _REGION_RO)
-#define REGION_XN_MASK(x)   (((x) >> _REGION_XN_BIT) & 0x1U)
-#define REGION_RO_MASK(x)   (((x) >> _REGION_RO_BIT) & 0x1U)
-
-#define REGION_HYPERVISOR_RW    _REGION_XN
 
 #ifndef __ASSEMBLY__
 
@@ -129,6 +97,16 @@ static inline uint64_t generate_vsctlr(uint16_t vmid)
 }
 
 extern void set_boot_mpumap(u64 len, pr_t *table);
+
+static inline unsigned long p2m_get_region_type(pr_t *region)
+{
+    return region->base.reg.p2m_type;
+}
+
+static inline void p2m_set_region_type(pr_t *region, uint64_t type)
+{
+    region->base.reg.p2m_type = type;
+}
 
 #endif /* __ASSEMBLY__ */
 
