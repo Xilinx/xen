@@ -1104,6 +1104,13 @@ static int __init cf_check _scan_pci_devices(struct pci_seg *pseg, void *arg)
             {
                 if ( !pci_device_detect(pseg->nr, bus, dev, func) )
                 {
+                    /*
+                     * XXX: we only have one bridge on Xilinx devices.
+                     * Idelly we would only scan the valid bus range for
+                     * each bridge.
+                     */
+                    if ( !pci_find_host_bridge(pseg->nr, bus) )
+                        return 0;
                     if ( !func )
                         break;
                     continue;
