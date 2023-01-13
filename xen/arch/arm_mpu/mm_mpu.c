@@ -1140,7 +1140,7 @@ static int __init relocate_xen_mpumap(void)
     if ( !xen_mpumap )
         return -EINVAL;
 
-    copy_from_paddr(xen_mpumap, (paddr_t)(pr_t *)boot_mpumap,
+    copy_from_paddr(xen_mpumap, (unsigned long)(pr_t *)boot_mpumap,
                     sizeof(pr_t) * next_xen_mpumap_index);
 
     clear_boot_mpumap();
