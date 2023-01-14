@@ -2525,7 +2525,7 @@ static int __init handle_device(struct domain *d, struct dt_device_node *dev,
             return res;
         }
 
-        if ( dt_device_is_protected(dev) )
+        if ( device_is_protected(dt_to_dev(dev)) )
         {
             dt_dprintk("%s setup iommu\n", dt_node_full_name(dev));
             res = iommu_assign_dt_device(d, dev);
@@ -3040,7 +3040,7 @@ static int __init handle_passthrough_prop(struct kernel_info *kinfo,
         return res;
 
     if ( (xen_force || is_domain_direct_mapped(kinfo->d)) &&
-         !dt_device_is_protected(node) )
+         !device_is_protected(dt_to_dev(node)) )
         return 0;
 
     return iommu_assign_dt_device(kinfo->d, node);

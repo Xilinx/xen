@@ -692,7 +692,7 @@ static long handle_add_overlay_nodes(void *overlay_fdt,
             goto remove_node;
         }
 
-        if ( dt_device_is_protected(overlay_node) && domain_mapping )
+        if ( device_is_protected(dt_to_dev(overlay_node)) && domain_mapping )
         {
             dt_dprintk("%s setup iommu\n", dt_node_full_name(overlay_node));
             rc = iommu_assign_dt_device(d, overlay_node);

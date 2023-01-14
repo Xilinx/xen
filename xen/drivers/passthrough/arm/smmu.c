@@ -851,7 +851,7 @@ static int arm_smmu_dt_add_device_legacy(struct arm_smmu_device *smmu,
 	master->of_node = dev_node;
 
 	/* Xen: Let Xen know that the device is protected by an SMMU */
-	dt_device_set_protected(dev_node);
+	device_set_protected(dev);
 
 	for (i = 0; i < fwspec->num_ids; ++i) {
 		if (!(smmu->features & ARM_SMMU_FEAT_STREAM_MATCH) &&
@@ -886,7 +886,7 @@ static int arm_smmu_dt_remove_device_legacy(struct arm_smmu_device *smmu,
 	if (ret)
 		return ret;
 
-	dev_node->is_protected = false;
+	dev_node->dev.is_protected = false;
 
 	kfree(master);
 	return 0;
