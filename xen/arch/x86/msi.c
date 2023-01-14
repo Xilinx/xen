@@ -613,7 +613,7 @@ static int msi_capability_init(struct pci_dev *dev,
     u8 slot = PCI_SLOT(dev->devfn);
     u8 func = PCI_FUNC(dev->devfn);
 
-    ASSERT(pcidevs_locked());
+    ASSERT(pcidevs_read_locked());
     pos = pci_find_cap_offset(seg, bus, slot, func, PCI_CAP_ID_MSI);
     if ( !pos )
         return -ENODEV;
@@ -783,7 +783,7 @@ static int msix_capability_init(struct pci_dev *dev,
     if ( !pos )
         return -ENODEV;
 
-    ASSERT(pcidevs_locked());
+    ASSERT(pcidevs_read_locked());
 
     control = pci_conf_read16(dev->sbdf, msix_control_reg(pos));
     /*
@@ -1000,7 +1000,7 @@ static int __pci_enable_msi(struct msi_info *msi, struct msi_desc **desc)
     struct pci_dev *pdev;
     struct msi_desc *old_desc;
 
-    ASSERT(pcidevs_locked());
+    ASSERT(pcidevs_read_locked());
     pdev = pci_get_pdev(NULL, msi->sbdf);
     if ( !pdev )
         return -ENODEV;
@@ -1055,7 +1055,7 @@ static int __pci_enable_msix(struct msi_info *msi, struct msi_desc **desc)
     struct pci_dev *pdev;
     struct msi_desc *old_desc;
 
-    ASSERT(pcidevs_locked());
+    ASSERT(pcidevs_read_locked());
     pdev = pci_get_pdev(NULL, msi->sbdf);
     if ( !pdev || !pdev->msix )
         return -ENODEV;
@@ -1146,7 +1146,7 @@ int pci_prepare_msix(u16 seg, u8 bus, u8 devfn, bool off)
     if ( !use_msi )
         return 0;
 
-    pcidevs_lock();
+    pcidevs_read_lock();
     pdev = pci_get_pdev(NULL, PCI_SBDF(seg, bus, devfn));
     if ( !pdev )
         rc = -ENODEV;
@@ -1159,7 +1159,7 @@ int pci_prepare_msix(u16 seg, u8 bus, u8 devfn, bool off)
     }
     else
         rc = msix_capability_init(pdev, NULL, NULL);
-    pcidevs_unlock();
+    pcidevs_read_unlock();
 
     return rc;
 }
@@ -1170,7 +1170,7 @@ int pci_prepare_msix(u16 seg, u8 bus, u8 devfn, bool off)
  */
 int pci_enable_msi(struct msi_info *msi, struct msi_desc **desc)
 {
-    ASSERT(pcidevs_locked());
+    ASSERT(pcidevs_read_locked());
 
     if ( !use_msi )
         return -EPERM;
@@ -1306,7 +1306,7 @@ int pci_restore_msi_state(struct pci_dev *pdev)
     unsigned int type = 0, pos = 0;
     u16 control = 0;
 
-    ASSERT(pcidevs_locked());
+    ASSERT(pcidevs_read_locked());
 
     if ( !use_msi )
         return -EOPNOTSUPP;

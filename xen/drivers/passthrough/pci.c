@@ -50,21 +50,74 @@ struct pci_seg {
     } bus2bridge[MAX_BUSES];
 };
 
-static spinlock_t _pcidevs_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_RWLOCK(_pcidevs_rwlock);
+static DEFINE_PER_CPU(unsigned int, pcidevs_read_cnt);
+static DEFINE_PER_CPU(unsigned int, pcidevs_write_cnt);
 
 void pcidevs_lock(void)
 {
-    spin_lock_recursive(&_pcidevs_lock);
+    pcidevs_write_lock();
 }
 
 void pcidevs_unlock(void)
 {
-    spin_unlock_recursive(&_pcidevs_lock);
+    pcidevs_write_unlock();
 }
 
-bool_t pcidevs_locked(void)
+bool pcidevs_locked(void)
 {
-    return !!spin_is_locked(&_pcidevs_lock);
+    return pcidevs_write_locked();
+}
+
+void pcidevs_read_lock(void)
+{
+    if ( this_cpu(pcidevs_read_cnt)++ == 0 )
+        read_lock(&_pcidevs_rwlock);
+}
+
+int pcidevs_read_trylock(void)
+{
+    int ret = 1;
+
+    if ( this_cpu(pcidevs_read_cnt) == 0 )
+        ret = read_trylock(&_pcidevs_rwlock);
+    if ( ret )
+        this_cpu(pcidevs_read_cnt)++;
+
+    return ret;
+}
+
+void pcidevs_read_unlock(void)
+{
+    ASSERT(this_cpu(pcidevs_read_cnt));
+
+    if ( --this_cpu(pcidevs_read_cnt) == 0 )
+        read_unlock(&_pcidevs_rwlock);
+}
+
+bool pcidevs_read_locked(void)
+{
+    /* Write lock implies read lock */
+    return this_cpu(pcidevs_read_cnt) || this_cpu(pcidevs_write_cnt);
+}
+
+void pcidevs_write_lock(void)
+{
+    if ( this_cpu(pcidevs_write_cnt)++ == 0 )
+        write_lock(&_pcidevs_rwlock);
+}
+
+void pcidevs_write_unlock(void)
+{
+    ASSERT(this_cpu(pcidevs_write_cnt));
+
+    if ( --this_cpu(pcidevs_write_cnt) == 0 )
+        write_unlock(&_pcidevs_rwlock);
+}
+
+bool pcidevs_write_locked(void)
+{
+    return rw_is_write_locked(&_pcidevs_rwlock);
 }
 
 static struct radix_tree_root pci_segments;
@@ -530,7 +583,7 @@ struct pci_dev *pci_get_pdev(const struct domain *d, pci_sbdf_t sbdf)
 {
     struct pci_dev *pdev;
 
-    ASSERT(d || pcidevs_locked());
+    ASSERT(d || pcidevs_read_locked());
 
     /*
      * The hardware domain owns the majority of the devices in the system.
