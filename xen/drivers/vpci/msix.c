@@ -191,7 +191,7 @@ static void __iomem *get_pba(struct vpci *vpci)
     return read_atomic(&msix->pba);
 }
 
-int cf_check vpci_msix_read(struct vpci_msix *msix, unsigned long addr,
+bool cf_check vpci_msix_read(struct vpci_msix *msix, unsigned long addr,
     unsigned int len, unsigned long *data)
 {
     const struct vpci_msix_entry *entry;
@@ -203,13 +203,13 @@ int cf_check vpci_msix_read(struct vpci_msix *msix, unsigned long addr,
     if ( !msix )
     {
         pcidevs_read_unlock();
-        return X86EMUL_RETRY;
+        return false;
     }
 
     if ( !access_allowed(msix->pdev, addr, len) )
     {
         pcidevs_read_unlock();
-        return X86EMUL_OKAY;
+        return true;
     }
 
     if ( VMSIX_ADDR_IN_RANGE(addr, msix->pdev->vpci, VPCI_MSIX_PBA) )
@@ -231,7 +231,7 @@ int cf_check vpci_msix_read(struct vpci_msix *msix, unsigned long addr,
                     "%pp: unable to map MSI-X PBA, report all pending\n",
                     &msix->pdev->sbdf);
             pcidevs_read_unlock();
-            return X86EMUL_OKAY;
+            return true;
         }
 
         switch ( len )
@@ -250,7 +250,7 @@ int cf_check vpci_msix_read(struct vpci_msix *msix, unsigned long addr,
         }
 
         pcidevs_read_unlock();
-        return X86EMUL_OKAY;
+        return true;
     }
 
     spin_lock(&msix->pdev->vpci->lock);
@@ -285,10 +285,10 @@ int cf_check vpci_msix_read(struct vpci_msix *msix, unsigned long addr,
     spin_unlock(&msix->pdev->vpci->lock);
     pcidevs_read_unlock();
 
-    return X86EMUL_OKAY;
+    return true;
 }
 
-int cf_check vpci_msix_write(struct vpci_msix *msix, unsigned long addr,
+bool cf_check vpci_msix_write(struct vpci_msix *msix, unsigned long addr,
     unsigned int len, unsigned long data)
 {
     const struct domain *d = msix->pdev->domain;
@@ -300,13 +300,13 @@ int cf_check vpci_msix_write(struct vpci_msix *msix, unsigned long addr,
     if ( !msix )
     {
         pcidevs_read_unlock();
-        return X86EMUL_RETRY;
+        return false;
     }
 
     if ( !access_allowed(msix->pdev, addr, len) )
     {
         pcidevs_read_unlock();
-        return X86EMUL_OKAY;
+        return true;
     }
 
     if ( VMSIX_ADDR_IN_RANGE(addr, msix->pdev->vpci, VPCI_MSIX_PBA) )
@@ -319,7 +319,7 @@ int cf_check vpci_msix_write(struct vpci_msix *msix, unsigned long addr,
         {
             /* Ignore writes to PBA for DomUs, it's behavior is undefined. */
             pcidevs_read_unlock();
-            return X86EMUL_OKAY;
+            return true;
         }
 
         if ( !pba )
@@ -328,7 +328,7 @@ int cf_check vpci_msix_write(struct vpci_msix *msix, unsigned long addr,
             gprintk(XENLOG_WARNING,
                     "%pp: unable to map MSI-X PBA, write ignored\n",
                     &msix->pdev->sbdf);
-            return X86EMUL_OKAY;
+            return true;
         }
 
         switch ( len )
@@ -347,7 +347,7 @@ int cf_check vpci_msix_write(struct vpci_msix *msix, unsigned long addr,
         }
 
         pcidevs_read_unlock();
-        return X86EMUL_OKAY;
+        return true;
     }
 
     spin_lock(&msix->pdev->vpci->lock);
@@ -426,7 +426,7 @@ int cf_check vpci_msix_write(struct vpci_msix *msix, unsigned long addr,
     spin_unlock(&msix->pdev->vpci->lock);
     pcidevs_read_unlock();
 
-    return X86EMUL_OKAY;
+    return true;
 }
 
 static int cf_check init_msix(struct pci_dev *pdev)
