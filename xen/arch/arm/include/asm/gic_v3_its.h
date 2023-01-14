@@ -181,6 +181,8 @@ int gicv3_its_map_guest_device(struct domain *d,
                                paddr_t guest_doorbell, uint32_t guest_devid,
                                uint64_t nr_events, bool valid);
 
+int gicv3_its_unmap_all_guest_device(struct domain *d);
+
 int gicv3_allocate_host_lpi_block(struct domain *d, uint32_t *first_lpi);
 void gicv3_free_host_lpi_block(uint32_t first_lpi);
 
