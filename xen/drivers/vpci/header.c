@@ -437,6 +437,71 @@ static void cf_check bar_write(
     pci_conf_write32(pdev->sbdf, reg, val);
 }
 
+static void cf_check guest_bar_write(
+    const struct pci_dev *pdev, unsigned int reg, uint32_t val, void *data)
+{
+    struct vpci_bar *bar = data;
+    bool hi = false;
+    uint64_t guest_reg = bar->guest_reg;
+
+    if ( bar->type == VPCI_BAR_MEM64_HI )
+    {
+        ASSERT(reg > PCI_BASE_ADDRESS_0);
+        bar--;
+        hi = true;
+    }
+    else
+    {
+        val &= PCI_BASE_ADDRESS_MEM_MASK;
+        val |= bar->type == VPCI_BAR_MEM32 ? PCI_BASE_ADDRESS_MEM_TYPE_32
+                                           : PCI_BASE_ADDRESS_MEM_TYPE_64;
+        val |= bar->prefetchable ? PCI_BASE_ADDRESS_MEM_PREFETCH : 0;
+    }
+
+    guest_reg &= ~(0xffffffffull << (hi ? 32 : 0));
+    guest_reg |= (uint64_t)val << (hi ? 32 : 0);
+
+    guest_reg &= ~(bar->size - 1) | ~PCI_BASE_ADDRESS_MEM_MASK;
+
+    /*
+     * Make sure that the guest set address has the same page offset
+     * as the physical address on the host or otherwise things won't work as
+     * expected.
+     */
+    if ( (guest_reg & (~PAGE_MASK & PCI_BASE_ADDRESS_MEM_MASK)) !=
+         (bar->addr & ~PAGE_MASK) )
+    {
+        gprintk(XENLOG_WARNING,
+                "%pp: ignored BAR %zu write attempting to change page offset\n",
+                &pdev->sbdf, bar - pdev->vpci->header.bars + hi);
+        return;
+    }
+
+    bar->guest_reg = guest_reg;
+}
+
+static uint32_t cf_check guest_bar_read(
+    const struct pci_dev *pdev, unsigned int reg, void *data)
+{
+    const struct vpci_bar *bar = data;
+    bool hi = false;
+
+    if ( bar->type == VPCI_BAR_MEM64_HI )
+    {
+        ASSERT(reg > PCI_BASE_ADDRESS_0);
+        bar--;
+        hi = true;
+    }
+
+    return bar->guest_reg >> (hi ? 32 : 0);
+}
+
+static uint32_t cf_check empty_bar_read(
+    const struct pci_dev *pdev, unsigned int reg, void *data)
+{
+    return 0;
+}
+
 static void cf_check rom_write(
     const struct pci_dev *pdev, unsigned int reg, uint32_t val, void *data)
 {
@@ -497,6 +562,7 @@ static int cf_check init_bars(struct pci_dev *pdev)
     struct vpci_header *header;
     struct vpci_bar *bars;
     int rc;
+    bool is_hwdom = is_hardware_domain(pdev->domain);
 
     ASSERT(pcidevs_write_locked());
 
@@ -541,13 +607,12 @@ static int cf_check init_bars(struct pci_dev *pdev)
         if ( i && bars[i - 1].type == VPCI_BAR_MEM64_LO )
         {
             bars[i].type = VPCI_BAR_MEM64_HI;
-            rc = vpci_add_register(pdev->vpci, vpci_hw_read32, bar_write, reg,
-                                   4, &bars[i]);
+            rc = vpci_add_register(pdev->vpci,
+                                   is_hwdom ? vpci_hw_read32 : guest_bar_read,
+                                   is_hwdom ? bar_write : guest_bar_write,
+                                   reg, 4, &bars[i]);
             if ( rc )
-            {
-                pci_conf_write16(pdev->sbdf, PCI_COMMAND, cmd);
-                return rc;
-            }
+                goto fail;
 
             continue;
         }
@@ -556,6 +621,17 @@ static int cf_check init_bars(struct pci_dev *pdev)
         if ( (val & PCI_BASE_ADDRESS_SPACE) == PCI_BASE_ADDRESS_SPACE_IO )
         {
             bars[i].type = VPCI_BAR_IO;
+
+#ifndef CONFIG_X86
+            if ( !is_hwdom )
+            {
+                rc = vpci_add_register(pdev->vpci, empty_bar_read, NULL,
+                                       reg, 4, &bars[i]);
+                if ( rc )
+                    goto fail;
+            }
+#endif
+
             continue;
         }
         if ( (val & PCI_BASE_ADDRESS_MEM_TYPE_MASK) ==
@@ -567,14 +643,20 @@ static int cf_check init_bars(struct pci_dev *pdev)
         rc = pci_size_mem_bar(pdev->sbdf, reg, &addr, &size,
                               (i == num_bars - 1) ? PCI_BAR_LAST : 0);
         if ( rc < 0 )
-        {
-            pci_conf_write16(pdev->sbdf, PCI_COMMAND, cmd);
-            return rc;
-        }
+            goto fail;
 
         if ( size == 0 )
         {
             bars[i].type = VPCI_BAR_EMPTY;
+
+            if ( !is_hwdom )
+            {
+                rc = vpci_add_register(pdev->vpci, empty_bar_read, NULL,
+                                       reg, 4, &bars[i]);
+                if ( rc )
+                    goto fail;
+            }
+
             continue;
         }
 
@@ -582,34 +664,47 @@ static int cf_check init_bars(struct pci_dev *pdev)
         bars[i].size = size;
         bars[i].prefetchable = val & PCI_BASE_ADDRESS_MEM_PREFETCH;
 
-        rc = vpci_add_register(pdev->vpci, vpci_hw_read32, bar_write, reg, 4,
-                               &bars[i]);
+        rc = vpci_add_register(pdev->vpci,
+                               is_hwdom ? vpci_hw_read32 : guest_bar_read,
+                               is_hwdom ? bar_write : guest_bar_write,
+                               reg, 4, &bars[i]);
         if ( rc )
-        {
-            pci_conf_write16(pdev->sbdf, PCI_COMMAND, cmd);
-            return rc;
-        }
+            goto fail;
     }
 
-    /* Check expansion ROM. */
-    rc = pci_size_mem_bar(pdev->sbdf, rom_reg, &addr, &size, PCI_BAR_ROM);
-    if ( rc > 0 && size )
+    /* Check expansion ROM: we do not handle ROM for guests. */
+    if ( is_hwdom )
     {
-        struct vpci_bar *rom = &header->bars[num_bars];
+        rc = pci_size_mem_bar(pdev->sbdf, rom_reg, &addr, &size, PCI_BAR_ROM);
+        if ( rc > 0 && size )
+        {
+            struct vpci_bar *rom = &header->bars[num_bars];
 
-        rom->type = VPCI_BAR_ROM;
-        rom->size = size;
-        rom->addr = addr;
-        header->rom_enabled = pci_conf_read32(pdev->sbdf, rom_reg) &
-                              PCI_ROM_ADDRESS_ENABLE;
+            rom->type = VPCI_BAR_ROM;
+            rom->size = size;
+            rom->addr = addr;
+            header->rom_enabled = pci_conf_read32(pdev->sbdf, rom_reg) &
+                                  PCI_ROM_ADDRESS_ENABLE;
 
-        rc = vpci_add_register(pdev->vpci, vpci_hw_read32, rom_write, rom_reg,
-                               4, rom);
+            rc = vpci_add_register(pdev->vpci, vpci_hw_read32, rom_write,
+                                   rom_reg, 4, rom);
+            if ( rc )
+                rom->type = VPCI_BAR_EMPTY;
+        }
+    }
+    else
+    {
+        rc = vpci_add_register(pdev->vpci, empty_bar_read, NULL,
+                               rom_reg, 4, &header->bars[num_bars]);
         if ( rc )
-            rom->type = VPCI_BAR_EMPTY;
+            goto fail;
     }
 
     return (cmd & PCI_COMMAND_MEMORY) ? modify_bars(pdev, cmd, false) : 0;
+
+ fail:
+    pci_conf_write16(pdev->sbdf, PCI_COMMAND, cmd);
+    return rc;
 }
 REGISTER_VPCI_INIT(init_bars, VPCI_PRIORITY_MIDDLE);
 
