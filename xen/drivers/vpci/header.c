@@ -142,64 +142,106 @@ static void modify_decoding(const struct pci_dev *pdev, uint16_t cmd,
 
 bool vpci_process_pending(struct vcpu *v)
 {
-    if ( v->vpci.mem )
+    struct pci_dev *pdev = v->vpci.pdev;
+
+    if ( !pdev )
+        return false;
+
+    pcidevs_read_lock();
+
+    if ( v->vpci.map_pending )
     {
         struct map_data data = {
             .d = v->domain,
             .map = v->vpci.cmd & PCI_COMMAND_MEMORY,
         };
-        int rc = rangeset_consume_ranges(v->vpci.mem, map_range, &data);
+        struct vpci_header *header = &pdev->vpci->header;
+        unsigned int i;
 
-        if ( rc == -ERESTART )
-            return true;
-
-        pcidevs_read_lock();
-        spin_lock(&v->vpci.pdev->vpci->lock);
-        /* Disable memory decoding unconditionally on failure. */
-        modify_decoding(v->vpci.pdev,
-                        rc ? v->vpci.cmd & ~PCI_COMMAND_MEMORY : v->vpci.cmd,
-                        !rc && v->vpci.rom_only);
-        spin_unlock(&v->vpci.pdev->vpci->lock);
-        pcidevs_read_unlock();
-
-        rangeset_destroy(v->vpci.mem);
-        v->vpci.mem = NULL;
-        if ( rc )
+        for ( i = 0; i < ARRAY_SIZE(header->bars); i++ )
         {
-            /*
-             * FIXME: in case of failure remove the device from the domain.
-             * Note that there might still be leftover mappings. While this is
-             * safe for Dom0, for DomUs the domain will likely need to be
-             * killed in order to avoid leaking stale p2m mappings on
-             * failure.
-             */
-            pcidevs_write_lock();
-            vpci_remove_device(v->vpci.pdev);
-            pcidevs_write_unlock();
+            struct vpci_bar *bar = &header->bars[i];
+            int rc;
+
+            if ( rangeset_is_empty(bar->mem) )
+                continue;
+
+            rc = rangeset_consume_ranges(bar->mem, map_range, &data);
+
+            if ( rc == -ERESTART )
+            {
+                pcidevs_read_unlock();
+                return true;
+            }
+
+            spin_lock(&pdev->vpci->lock);
+            /* Disable memory decoding unconditionally on failure. */
+            modify_decoding(pdev, rc ? v->vpci.cmd & ~PCI_COMMAND_MEMORY :
+                                       v->vpci.cmd, !rc && v->vpci.rom_only);
+            spin_unlock(&pdev->vpci->lock);
+
+            if ( rc )
+            {
+                /*
+                 * FIXME: in case of failure remove the device from the domain.
+                 * Note that there might still be leftover mappings. While this
+                 * is safe for Dom0, for DomUs the domain needs to be killed in
+                 * order to avoid leaking stale p2m mappings on failure.
+                 */
+                v->vpci.map_pending = false;
+                pcidevs_read_unlock();
+
+                if ( is_hardware_domain(v->domain) )
+                {
+                    pcidevs_write_lock();
+                    vpci_remove_device(v->vpci.pdev);
+                    pcidevs_write_unlock();
+                }
+                else
+                    domain_crash(v->domain);
+
+                return false;
+            }
         }
+
+        v->vpci.map_pending = false;
     }
+
+    pcidevs_read_unlock();
 
     return false;
 }
 
 static int __init apply_map(struct domain *d, const struct pci_dev *pdev,
-                            struct rangeset *mem, uint16_t cmd)
+                            uint16_t cmd)
 {
     struct map_data data = { .d = d, .map = true };
-    int rc;
+    struct vpci_header *header = &pdev->vpci->header;
+    int rc = 0;
+    unsigned int i;
 
-    while ( (rc = rangeset_consume_ranges(mem, map_range, &data)) == -ERESTART )
+    ASSERT(pcidevs_write_locked());
+
+    for ( i = 0; i < ARRAY_SIZE(header->bars); i++ )
     {
-        /*
-         * It's safe to drop and re-acquire the lock in this context
-         * without risking pdev disappearing because devices cannot be
-         * removed until the initial domain has been started.
-         */
-        pcidevs_write_unlock();
-        process_pending_softirqs();
-        pcidevs_write_lock();
+        struct vpci_bar *bar = &header->bars[i];
+
+        if ( rangeset_is_empty(bar->mem) )
+            continue;
+
+        while ( (rc = rangeset_consume_ranges(bar->mem, map_range,
+                                              &data)) == -ERESTART )
+        {
+            /*
+             * It's safe to drop and reacquire the lock in this context
+             * without risking pdev disappearing because devices cannot be
+             * removed until the initial domain has been started.
+             */
+            pcidevs_write_unlock();
+            process_pending_softirqs();
+            pcidevs_write_lock();
+        }
     }
-    rangeset_destroy(mem);
     if ( !rc )
         modify_decoding(pdev, cmd, false);
 
@@ -207,7 +249,7 @@ static int __init apply_map(struct domain *d, const struct pci_dev *pdev,
 }
 
 static void defer_map(struct domain *d, struct pci_dev *pdev,
-                      struct rangeset *mem, uint16_t cmd, bool rom_only)
+                      uint16_t cmd, bool rom_only)
 {
     struct vcpu *curr = current;
 
@@ -218,7 +260,7 @@ static void defer_map(struct domain *d, struct pci_dev *pdev,
      * started for the same device if the domain is not well-behaved.
      */
     curr->vpci.pdev = pdev;
-    curr->vpci.mem = mem;
+    curr->vpci.map_pending = true;
     curr->vpci.cmd = cmd;
     curr->vpci.rom_only = rom_only;
     /*
@@ -232,29 +274,30 @@ static void defer_map(struct domain *d, struct pci_dev *pdev,
 static int modify_bars(const struct pci_dev *pdev, uint16_t cmd, bool rom_only)
 {
     struct vpci_header *header = &pdev->vpci->header;
-    struct rangeset *mem = rangeset_new(NULL, NULL, 0);
     struct pci_dev *tmp, *dev = NULL;
     const struct vpci_msix *msix = pdev->vpci->msix;
-    unsigned int i;
+    unsigned int i, j;
     int rc;
-
-    if ( !mem )
-        return -ENOMEM;
+    bool map_pending;
 
     /*
-     * Create a rangeset that represents the current device BARs memory region
-     * and compare it against all the currently active BAR memory regions. If
-     * an overlap is found, subtract it from the region to be mapped/unmapped.
+     * Create a rangeset per BAR that represents the current device memory
+     * region and compare it against all the currently active BAR memory
+     * regions. If an overlap is found, subtract it from the region to be
+     * mapped/unmapped.
      *
-     * First fill the rangeset with all the BARs of this device or with the ROM
+     * First fill the rangesets with the BARs of this device or with the ROM
      * BAR only, depending on whether the guest is toggling the memory decode
      * bit of the command register, or the enable bit of the ROM BAR register.
      */
     for ( i = 0; i < ARRAY_SIZE(header->bars); i++ )
     {
-        const struct vpci_bar *bar = &header->bars[i];
+        struct vpci_bar *bar = &header->bars[i];
         unsigned long start = PFN_DOWN(bar->addr);
         unsigned long end = PFN_DOWN(bar->addr + bar->size - 1);
+
+        if ( !bar->mem )
+            continue;
 
         if ( !MAPPABLE_BAR(bar) ||
              (rom_only ? bar->type != VPCI_BAR_ROM
@@ -271,13 +314,30 @@ static int modify_bars(const struct pci_dev *pdev, uint16_t cmd, bool rom_only)
             continue;
         }
 
-        rc = rangeset_add_range(mem, start, end);
+        rc = rangeset_add_range(bar->mem, start, end);
         if ( rc )
         {
             printk(XENLOG_G_WARNING "Failed to add [%lx, %lx]: %d\n",
                    start, end, rc);
-            rangeset_destroy(mem);
             return rc;
+        }
+
+        /* Check for overlap with the already setup BAR ranges. */
+        for ( j = 0; j < i; j++ )
+        {
+            struct vpci_bar *bar = &header->bars[j];
+
+            if ( rangeset_is_empty(bar->mem) )
+                continue;
+
+            rc = rangeset_remove_range(bar->mem, start, end);
+            if ( rc )
+            {
+                printk(XENLOG_G_WARNING
+                       "Failed to remove overlapping range [%lx, %lx]: %d\n",
+                       start, end, rc);
+                return rc;
+            }
         }
     }
 
@@ -288,14 +348,21 @@ static int modify_bars(const struct pci_dev *pdev, uint16_t cmd, bool rom_only)
         unsigned long end = PFN_DOWN(vmsix_table_addr(pdev->vpci, i) +
                                      vmsix_table_size(pdev->vpci, i) - 1);
 
-        rc = rangeset_remove_range(mem, start, end);
-        if ( rc )
+        for ( j = 0; j < ARRAY_SIZE(header->bars); j++ )
         {
-            printk(XENLOG_G_WARNING
-                   "Failed to remove MSIX table [%lx, %lx]: %d\n",
-                   start, end, rc);
-            rangeset_destroy(mem);
-            return rc;
+            const struct vpci_bar *bar = &header->bars[j];
+
+            if ( rangeset_is_empty(bar->mem) )
+                continue;
+
+            rc = rangeset_remove_range(bar->mem, start, end);
+            if ( rc )
+            {
+                printk(XENLOG_G_WARNING
+                       "Failed to remove MSIX table [%lx, %lx]: %d\n",
+                       start, end, rc);
+                return rc;
+            }
         }
     }
 
@@ -327,7 +394,8 @@ static int modify_bars(const struct pci_dev *pdev, uint16_t cmd, bool rom_only)
             unsigned long start = PFN_DOWN(bar->addr);
             unsigned long end = PFN_DOWN(bar->addr + bar->size - 1);
 
-            if ( !bar->enabled || !rangeset_overlaps_range(mem, start, end) ||
+            if ( !bar->enabled ||
+                 !rangeset_overlaps_range(bar->mem, start, end) ||
                  /*
                   * If only the ROM enable bit is toggled check against other
                   * BARs in the same device for overlaps, but not against the
@@ -336,12 +404,11 @@ static int modify_bars(const struct pci_dev *pdev, uint16_t cmd, bool rom_only)
                  (rom_only && tmp == pdev && bar->type == VPCI_BAR_ROM) )
                 continue;
 
-            rc = rangeset_remove_range(mem, start, end);
+            rc = rangeset_remove_range(bar->mem, start, end);
             if ( rc )
             {
                 printk(XENLOG_G_WARNING "Failed to remove [%lx, %lx]: %d\n",
                        start, end, rc);
-                rangeset_destroy(mem);
                 return rc;
             }
         }
@@ -360,10 +427,23 @@ static int modify_bars(const struct pci_dev *pdev, uint16_t cmd, bool rom_only)
          * will always be to establish mappings and process all the BARs.
          */
         ASSERT((cmd & PCI_COMMAND_MEMORY) && !rom_only);
-        return apply_map(pdev->domain, pdev, mem, cmd);
+        return apply_map(pdev->domain, pdev, cmd);
     }
 
-    defer_map(dev->domain, dev, mem, cmd, rom_only);
+    /* Find out how many memory ranges has left after MSI and overlaps. */
+    map_pending = false;
+    for ( i = 0; i < ARRAY_SIZE(header->bars); i++ )
+        if ( !rangeset_is_empty(header->bars[i].mem) )
+        {
+            map_pending = true;
+            break;
+        }
+
+    /* If there's no mapping work write the command register now. */
+    if ( !map_pending )
+        pci_conf_write16(pdev->sbdf, PCI_COMMAND, cmd);
+    else
+        defer_map(dev->domain, dev, cmd, rom_only);
 
     return 0;
 }
@@ -554,6 +634,19 @@ static void cf_check rom_write(
         rom->addr = val & PCI_ROM_ADDRESS_MASK;
 }
 
+static int bar_add_rangeset(struct pci_dev *pdev, struct vpci_bar *bar, int i)
+{
+    char str[32];
+
+    snprintf(str, sizeof(str), "%pp:BAR%d", &pdev->sbdf, i);
+
+    bar->mem = rangeset_new(pdev->domain, str, RANGESETF_no_print);
+    if ( !bar->mem )
+        return -ENOMEM;
+
+    return 0;
+}
+
 static int cf_check init_bars(struct pci_dev *pdev)
 {
     uint16_t cmd;
@@ -640,6 +733,13 @@ static int cf_check init_bars(struct pci_dev *pdev)
         else
             bars[i].type = VPCI_BAR_MEM32;
 
+        rc = bar_add_rangeset(pdev, &bars[i], i);
+        if ( rc )
+        {
+            bars[i].type = VPCI_BAR_EMPTY;
+            goto fail;
+        }
+
         rc = pci_size_mem_bar(pdev->sbdf, reg, &addr, &size,
                               (i == num_bars - 1) ? PCI_BAR_LAST : 0);
         if ( rc < 0 )
@@ -690,6 +790,15 @@ static int cf_check init_bars(struct pci_dev *pdev)
                                    rom_reg, 4, rom);
             if ( rc )
                 rom->type = VPCI_BAR_EMPTY;
+            else
+            {
+                rc = bar_add_rangeset(pdev, rom, i);
+                if ( rc )
+                {
+                    rom->type = VPCI_BAR_EMPTY;
+                    goto fail;
+                }
+            }
         }
     }
     else

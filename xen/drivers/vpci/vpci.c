@@ -38,6 +38,8 @@ extern vpci_register_init_t *const __end_vpci_array[];
 
 void vpci_remove_device(struct pci_dev *pdev)
 {
+    unsigned int i;
+
     ASSERT(pcidevs_write_locked());
 
     if ( !has_vpci(pdev->domain) || !pdev->vpci )
@@ -54,6 +56,9 @@ void vpci_remove_device(struct pci_dev *pdev)
         xfree(r);
     }
     spin_unlock(&pdev->vpci->lock);
+
+    for ( i = 0; i < ARRAY_SIZE(pdev->vpci->header.bars); i++ )
+        rangeset_destroy(pdev->vpci->header.bars[i].mem);
     if ( pdev->vpci->msix )
     {
         list_del(&pdev->vpci->msix->next);
