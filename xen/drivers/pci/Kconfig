@@ -5,3 +5,17 @@ config HAS_PCI
 config HAS_PCI_MSI
 	bool
 	depends on HAS_PCI
+
+config PCI_PASSTHROUGH
+	bool "PCI Passthrough on ARM (UNSUPPORTED)" if UNSUPPORTED
+	depends on ARM_64
+	select HAS_PCI
+	select HAS_VPCI
+	select LATE_HWDOM
+	select ARM_SMMU_V3
+	select HAS_VPCI_GUEST_SUPPORT
+	select HAS_HAS_ITS
+	default n
+	---help---
+
+	PCI device Passthrough on ARM (Early Access)
