@@ -730,6 +730,10 @@ static int cf_check init_bars(struct pci_dev *pdev)
      */
     ASSERT(header->guest_cmd == 0);
 
+    /* Reset the command register for guests. */
+    if ( !is_hwdom )
+        cmd_write(pdev, PCI_COMMAND, 0, header);
+
     /* Setup a handler for the command register. */
     rc = vpci_add_register(pdev->vpci, cmd_read, cmd_write, PCI_COMMAND,
                            2, header);
