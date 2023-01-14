@@ -889,9 +889,15 @@ void vpci_msix_arch_init_entry(struct vpci_msix_entry *entry)
     entry->arch.pirq = INVALID_PIRQ;
 }
 
-int vpci_msix_arch_print(const struct vpci_msix *msix)
+int vpci_msix_arch_print(const struct domain *d, const struct vpci_msix *msix)
 {
     unsigned int i;
+
+    /*
+     * FIXME: this is not immediately correct, as the lock can be grabbed
+     * by a different CPU. But this is better then nothing.
+     */
+    ASSERT(pcidevs_read_locked());
 
     for ( i = 0; i < msix->max_entries; i++ )
     {
@@ -909,11 +915,23 @@ int vpci_msix_arch_print(const struct vpci_msix *msix)
         if ( i && !(i % 64) )
         {
             struct pci_dev *pdev = msix->pdev;
+            pci_sbdf_t sbdf = pdev->sbdf;
 
             spin_unlock(&msix->pdev->vpci->lock);
+            pcidevs_read_unlock();
+
+            /* NB: we still hold rcu_read_lock(&domlist_read_lock); here. */
             process_pending_softirqs();
-            /* NB: we assume that pdev cannot go away for an alive domain. */
-            if ( !pdev->vpci || !spin_trylock(&pdev->vpci->lock) )
+
+            if ( !pcidevs_read_trylock() )
+                return -EBUSY;
+            pdev = pci_get_pdev(d, sbdf);
+            /*
+             * FIXME: we may find a re-allocated pdev's copy here.
+             * Even occupying the same address as before. Do our best.
+             */
+            if ( !pdev || (pdev != msix->pdev) || !pdev->vpci ||
+                 !spin_trylock(&pdev->vpci->lock) )
                 return -EBUSY;
             if ( pdev->vpci->msix != msix )
             {

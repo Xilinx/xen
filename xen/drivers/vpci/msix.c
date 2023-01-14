@@ -144,9 +144,13 @@ static struct vpci_msix *msix_find(const struct domain *d, unsigned long addr)
 
     list_for_each_entry ( msix, &d->arch.hvm.msix_tables, next )
     {
-        const struct vpci_bar *bars = msix->pdev->vpci->header.bars;
+        const struct vpci_bar *bars;
         unsigned int i;
 
+        if ( !msix->pdev->vpci )
+            continue;
+
+        bars = msix->pdev->vpci->header.bars;
         for ( i = 0; i < ARRAY_SIZE(msix->tables); i++ )
             if ( bars[msix->tables[i] & PCI_MSIX_BIRMASK].enabled &&
                  VMSIX_ADDR_IN_RANGE(addr, msix->pdev->vpci, i) )
@@ -158,7 +162,13 @@ static struct vpci_msix *msix_find(const struct domain *d, unsigned long addr)
 
 static int cf_check msix_accept(struct vcpu *v, unsigned long addr)
 {
-    return !!msix_find(v->domain, addr);
+    int rc;
+
+    pcidevs_read_lock();
+    rc = !!msix_find(v->domain, addr);
+    pcidevs_read_unlock();
+
+    return rc;
 }
 
 static bool access_allowed(const struct pci_dev *pdev, unsigned long addr,
@@ -218,17 +228,26 @@ static int cf_check msix_read(
     struct vcpu *v, unsigned long addr, unsigned int len, unsigned long *data)
 {
     const struct domain *d = v->domain;
-    struct vpci_msix *msix = msix_find(d, addr);
+    struct vpci_msix *msix;
     const struct vpci_msix_entry *entry;
     unsigned int offset;
 
     *data = ~0ul;
 
+    pcidevs_read_lock();
+
+    msix = msix_find(d, addr);
     if ( !msix )
+    {
+        pcidevs_read_unlock();
         return X86EMUL_RETRY;
+    }
 
     if ( !access_allowed(msix->pdev, addr, len) )
+    {
+        pcidevs_read_unlock();
         return X86EMUL_OKAY;
+    }
 
     if ( VMSIX_ADDR_IN_RANGE(addr, msix->pdev->vpci, VPCI_MSIX_PBA) )
     {
@@ -248,6 +267,7 @@ static int cf_check msix_read(
             gprintk(XENLOG_WARNING,
                     "%pp: unable to map MSI-X PBA, report all pending\n",
                     &msix->pdev->sbdf);
+            pcidevs_read_unlock();
             return X86EMUL_OKAY;
         }
 
@@ -266,6 +286,7 @@ static int cf_check msix_read(
             break;
         }
 
+        pcidevs_read_unlock();
         return X86EMUL_OKAY;
     }
 
@@ -299,6 +320,7 @@ static int cf_check msix_read(
         break;
     }
     spin_unlock(&msix->pdev->vpci->lock);
+    pcidevs_read_unlock();
 
     return X86EMUL_OKAY;
 }
@@ -307,15 +329,24 @@ static int cf_check msix_write(
     struct vcpu *v, unsigned long addr, unsigned int len, unsigned long data)
 {
     const struct domain *d = v->domain;
-    struct vpci_msix *msix = msix_find(d, addr);
+    struct vpci_msix *msix;
     struct vpci_msix_entry *entry;
     unsigned int offset;
 
+    pcidevs_read_lock();
+
+    msix = msix_find(d, addr);
     if ( !msix )
+    {
+        pcidevs_read_unlock();
         return X86EMUL_RETRY;
+    }
 
     if ( !access_allowed(msix->pdev, addr, len) )
+    {
+        pcidevs_read_unlock();
         return X86EMUL_OKAY;
+    }
 
     if ( VMSIX_ADDR_IN_RANGE(addr, msix->pdev->vpci, VPCI_MSIX_PBA) )
     {
@@ -324,8 +355,11 @@ static int cf_check msix_write(
         const void __iomem *pba = get_pba(vpci);
 
         if ( !is_hardware_domain(d) )
+        {
             /* Ignore writes to PBA for DomUs, it's behavior is undefined. */
+            pcidevs_read_unlock();
             return X86EMUL_OKAY;
+        }
 
         if ( !pba )
         {
@@ -351,6 +385,7 @@ static int cf_check msix_write(
             break;
         }
 
+        pcidevs_read_unlock();
         return X86EMUL_OKAY;
     }
 
@@ -428,6 +463,7 @@ static int cf_check msix_write(
         break;
     }
     spin_unlock(&msix->pdev->vpci->lock);
+    pcidevs_read_unlock();
 
     return X86EMUL_OKAY;
 }
@@ -440,8 +476,12 @@ static const struct hvm_mmio_ops vpci_msix_table_ops = {
 
 int vpci_make_msix_hole(const struct pci_dev *pdev)
 {
-    struct domain *d = pdev->domain;
+    struct domain *d;
     unsigned int i;
+
+    ASSERT(pcidevs_read_locked());
+
+    d = pdev->domain;
 
     if ( !pdev->vpci->msix )
         return 0;
@@ -487,12 +527,18 @@ int vpci_make_msix_hole(const struct pci_dev *pdev)
 
 static int cf_check init_msix(struct pci_dev *pdev)
 {
-    struct domain *d = pdev->domain;
-    uint8_t slot = PCI_SLOT(pdev->devfn), func = PCI_FUNC(pdev->devfn);
+    struct domain *d;
+    uint8_t slot, func;
     unsigned int msix_offset, i, max_entries;
     uint16_t control;
     struct vpci_msix *msix;
     int rc;
+
+    ASSERT(pcidevs_write_locked());
+
+    d = pdev->domain;
+    slot = PCI_SLOT(pdev->devfn);
+    func = PCI_FUNC(pdev->devfn);
 
     msix_offset = pci_find_cap_offset(pdev->seg, pdev->bus, slot, func,
                                       PCI_CAP_ID_MSIX);

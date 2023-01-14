@@ -181,7 +181,7 @@ int __must_check vpci_msix_arch_enable_entry(struct vpci_msix_entry *entry,
 int __must_check vpci_msix_arch_disable_entry(struct vpci_msix_entry *entry,
                                               const struct pci_dev *pdev);
 void vpci_msix_arch_init_entry(struct vpci_msix_entry *entry);
-int vpci_msix_arch_print(const struct vpci_msix *msix);
+int vpci_msix_arch_print(const struct domain *d, const struct vpci_msix *msix);
 
 /*
  * Helper functions to fetch MSIX related data. They are used by both the

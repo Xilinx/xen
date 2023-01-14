@@ -161,6 +161,7 @@ void pcidevs_unlock(void);
 bool __must_check pcidevs_locked(void);
 
 void pcidevs_read_lock(void);
+int pcidevs_read_trylock(void);
 void pcidevs_read_unlock(void);
 bool __must_check pcidevs_read_locked(void);
 

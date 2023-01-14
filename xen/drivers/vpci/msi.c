@@ -184,11 +184,16 @@ static void cf_check mask_write(
 
 static int cf_check init_msi(struct pci_dev *pdev)
 {
-    uint8_t slot = PCI_SLOT(pdev->devfn), func = PCI_FUNC(pdev->devfn);
-    unsigned int pos = pci_find_cap_offset(pdev->seg, pdev->bus, slot, func,
-                                           PCI_CAP_ID_MSI);
+    uint8_t slot, func;
+    unsigned int pos;
     uint16_t control;
     int ret;
+
+    ASSERT(pcidevs_write_locked());
+
+    slot = PCI_SLOT(pdev->devfn);
+    func = PCI_FUNC(pdev->devfn);
+    pos = pci_find_cap_offset(pdev->seg, pdev->bus, slot, func, PCI_CAP_ID_MSI);
 
     if ( !pos )
         return 0;
@@ -277,6 +282,9 @@ void vpci_dump_msi(void)
 
         printk("vPCI MSI/MSI-X d%d\n", d->domain_id);
 
+        if ( !pcidevs_read_trylock() )
+            continue;
+
         for_each_pdev ( d, pdev )
         {
             const struct vpci_msi *msi;
@@ -310,7 +318,7 @@ void vpci_dump_msi(void)
                 printk("  entries: %u maskall: %d enabled: %d\n",
                        msix->max_entries, msix->masked, msix->enabled);
 
-                rc = vpci_msix_arch_print(msix);
+                rc = vpci_msix_arch_print(d, msix);
                 if ( rc )
                 {
                     /*
@@ -318,12 +326,13 @@ void vpci_dump_msi(void)
                      * holding the lock.
                      */
                     printk("unable to print all MSI-X entries: %d\n", rc);
-                    process_pending_softirqs();
-                    continue;
+                    goto pdev_done;
                 }
             }
 
             spin_unlock(&pdev->vpci->lock);
+ pdev_done:
+            pcidevs_read_unlock();
             process_pending_softirqs();
         }
     }

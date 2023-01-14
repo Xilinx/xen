@@ -153,16 +153,19 @@ bool vpci_process_pending(struct vcpu *v)
         if ( rc == -ERESTART )
             return true;
 
+        pcidevs_read_lock();
         spin_lock(&v->vpci.pdev->vpci->lock);
         /* Disable memory decoding unconditionally on failure. */
         modify_decoding(v->vpci.pdev,
                         rc ? v->vpci.cmd & ~PCI_COMMAND_MEMORY : v->vpci.cmd,
                         !rc && v->vpci.rom_only);
         spin_unlock(&v->vpci.pdev->vpci->lock);
+        pcidevs_read_unlock();
 
         rangeset_destroy(v->vpci.mem);
         v->vpci.mem = NULL;
         if ( rc )
+        {
             /*
              * FIXME: in case of failure remove the device from the domain.
              * Note that there might still be leftover mappings. While this is
@@ -170,7 +173,10 @@ bool vpci_process_pending(struct vcpu *v)
              * killed in order to avoid leaking stale p2m mappings on
              * failure.
              */
+            pcidevs_write_lock();
             vpci_remove_device(v->vpci.pdev);
+            pcidevs_write_unlock();
+        }
     }
 
     return false;
@@ -183,7 +189,16 @@ static int __init apply_map(struct domain *d, const struct pci_dev *pdev,
     int rc;
 
     while ( (rc = rangeset_consume_ranges(mem, map_range, &data)) == -ERESTART )
+    {
+        /*
+         * It's safe to drop and re-acquire the lock in this context
+         * without risking pdev disappearing because devices cannot be
+         * removed until the initial domain has been started.
+         */
+        pcidevs_write_unlock();
         process_pending_softirqs();
+        pcidevs_write_lock();
+    }
     rangeset_destroy(mem);
     if ( !rc )
         modify_decoding(pdev, cmd, false);
@@ -479,9 +494,14 @@ static int cf_check init_bars(struct pci_dev *pdev)
     uint16_t cmd;
     uint64_t addr, size;
     unsigned int i, num_bars, rom_reg;
-    struct vpci_header *header = &pdev->vpci->header;
-    struct vpci_bar *bars = header->bars;
+    struct vpci_header *header;
+    struct vpci_bar *bars;
     int rc;
+
+    ASSERT(pcidevs_write_locked());
+
+    header = &pdev->vpci->header;
+    bars = header->bars;
 
     switch ( pci_conf_read8(pdev->sbdf, PCI_HEADER_TYPE) & 0x7f )
     {
