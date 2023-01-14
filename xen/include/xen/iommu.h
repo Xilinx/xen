@@ -215,7 +215,8 @@ int iommu_dt_domain_init(struct domain *d);
 int iommu_release_dt_devices(struct domain *d);
 
 /*
- * Helper to add master device to the IOMMU using generic IOMMU DT bindings.
+ * Helpers to add master device to the IOMMU using generic (PCI-)IOMMU
+ * DT bindings.
  *
  * Return values:
  *  0 : device is protected by an IOMMU
@@ -224,6 +225,9 @@ int iommu_release_dt_devices(struct domain *d);
  *      (IOMMU is not enabled/present or device is not connected to it).
  */
 int iommu_add_dt_device(struct dt_device_node *np);
+#ifdef CONFIG_HAS_PCI
+int iommu_add_dt_pci_device(uint8_t devfn, struct pci_dev *pdev);
+#endif
 
 int iommu_remove_dt_device(struct dt_device_node *np);
 
