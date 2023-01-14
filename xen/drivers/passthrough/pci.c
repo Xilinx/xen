@@ -1360,7 +1360,7 @@ __initcall(setup_dump_pcidevs);
 
 static int iommu_add_device(struct pci_dev *pdev)
 {
-    const struct domain_iommu *hd;
+    const struct domain_iommu *hd __maybe_unused;
     int rc;
     unsigned int devfn = pdev->devfn;
 
@@ -1373,17 +1373,30 @@ static int iommu_add_device(struct pci_dev *pdev)
     if ( !is_iommu_enabled(pdev->domain) )
         return 0;
 
+#ifdef CONFIG_HAS_DEVICE_TREE
+    rc = iommu_add_dt_pci_device(devfn, pdev);
+#else
     rc = iommu_call(hd->platform_ops, add_device, devfn, pci_to_dev(pdev));
-    if ( rc || !pdev->phantom_stride )
+#endif
+    if ( rc < 0 || !pdev->phantom_stride )
+    {
+        if ( rc < 0 )
+            printk(XENLOG_WARNING "IOMMU: add %pp failed (%d)\n",
+                   &pdev->sbdf, rc);
         return rc;
+    }
 
     for ( ; ; )
     {
         devfn += pdev->phantom_stride;
         if ( PCI_SLOT(devfn) != PCI_SLOT(pdev->devfn) )
             return 0;
+#ifdef CONFIG_HAS_DEVICE_TREE
+        rc = iommu_add_dt_pci_device(devfn, pdev);
+#else
         rc = iommu_call(hd->platform_ops, add_device, devfn, pci_to_dev(pdev));
-        if ( rc )
+#endif
+        if ( rc < 0 )
             printk(XENLOG_WARNING "IOMMU: add %pp failed (%d)\n",
                    &PCI_SBDF(pdev->seg, pdev->bus, devfn), rc);
     }
