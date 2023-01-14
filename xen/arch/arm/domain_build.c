@@ -2253,7 +2253,7 @@ int __init make_chosen_node(const struct kernel_info *kinfo)
 }
 
 #ifdef CONFIG_VIRTUAL_IOMMU
-static int make_hwdom_viommu_node(const struct kernel_info *kinfo)
+static int __init make_hwdom_viommu_node(const struct kernel_info *kinfo)
 {
     uint32_t len;
     int res;
