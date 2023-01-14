@@ -96,6 +96,26 @@ int vpci_add_handlers(struct pci_dev *pdev)
 
     return rc;
 }
+
+#ifdef CONFIG_HAS_VPCI_GUEST_SUPPORT
+/* Notify vPCI that device is assigned to guest. */
+int vpci_assign_device(struct pci_dev *pdev)
+{
+    int rc;
+
+    ASSERT(pcidevs_write_locked());
+
+    if ( !has_vpci(pdev->domain) )
+        return 0;
+
+    rc = vpci_add_handlers(pdev);
+    if ( rc )
+        vpci_deassign_device(pdev);
+
+    return rc;
+}
+#endif /* CONFIG_HAS_VPCI_GUEST_SUPPORT */
+
 #endif /* __XEN__ */
 
 static int vpci_register_cmp(const struct vpci_register *r1,
