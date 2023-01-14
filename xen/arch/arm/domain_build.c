@@ -1981,7 +1981,7 @@ int __init make_vpci_node(struct domain *d, void *fdt)
 #endif /* CONFIG_HAS_VPCI_GUEST_SUPPORT */
 
 #ifdef CONFIG_VIRTUAL_IOMMU
-static int make_hwdom_viommu_node(const struct kernel_info *kinfo)
+static int __init make_hwdom_viommu_node(const struct kernel_info *kinfo)
 {
     uint32_t len;
     int res = 0;
