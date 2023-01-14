@@ -20,10 +20,10 @@
 #include <xen/iocap.h>
 #include <xen/keyhandler.h>
 #include <xen/pfn.h>
+#include <xen/msi.h>
 #include <asm/io.h>
 #include <asm/smp.h>
 #include <asm/desc.h>
-#include <asm/msi.h>
 #include <asm/fixmap.h>
 #include <asm/p2m.h>
 #include <mach_apic.h>

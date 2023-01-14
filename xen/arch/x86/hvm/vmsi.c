@@ -943,4 +943,126 @@ int vpci_msix_arch_print(const struct domain *d, const struct vpci_msix *msix)
 
     return 0;
 }
+
+int vpci_make_msix_hole(const struct pci_dev *pdev)
+{
+    struct domain *d;
+    unsigned int i;
+
+    ASSERT(pcidevs_read_locked());
+
+    d = pdev->domain;
+
+    if ( !pdev->vpci->msix )
+        return 0;
+
+    /* Make sure there's a hole for the MSIX table/PBA in the p2m. */
+    for ( i = 0; i < ARRAY_SIZE(pdev->vpci->msix->tables); i++ )
+    {
+        unsigned long start = PFN_DOWN(vmsix_table_addr(pdev->vpci, i));
+        unsigned long end = PFN_DOWN(vmsix_table_addr(pdev->vpci, i) +
+                                     vmsix_table_size(pdev->vpci, i) - 1);
+
+        for ( ; start <= end; start++ )
+        {
+            p2m_type_t t;
+            mfn_t mfn = get_gfn_query(d, start, &t);
+
+            switch ( t )
+            {
+            case p2m_mmio_dm:
+            case p2m_invalid:
+                break;
+            case p2m_mmio_direct:
+                if ( mfn_x(mfn) == start )
+                {
+                    p2m_remove_identity_entry(d, start);
+                    break;
+                }
+                /* fallthrough. */
+            default:
+                put_gfn(d, start);
+                gprintk(XENLOG_WARNING,
+                        "%pp: existing mapping (mfn: %" PRI_mfn
+                        "type: %d) at %#lx clobbers MSIX MMIO area\n",
+                        &pdev->sbdf, mfn_x(mfn), t, start);
+                return -EEXIST;
+            }
+            put_gfn(d, start);
+        }
+    }
+
+    return 0;
+}
+
+struct vpci_msix *vpci_msix_find(const struct domain *d, unsigned long addr)
+{
+    struct vpci_msix *msix;
+
+    list_for_each_entry ( msix, &d->arch.hvm.msix_tables, next )
+    {
+        const struct vpci_bar *bars;
+        unsigned int i;
+
+        if ( !msix->pdev->vpci )
+            continue;
+
+        bars = msix->pdev->vpci->header.bars;
+        for ( i = 0; i < ARRAY_SIZE(msix->tables); i++ )
+            if ( bars[msix->tables[i] & PCI_MSIX_BIRMASK].enabled &&
+                 VMSIX_ADDR_IN_RANGE(addr, msix->pdev->vpci, i) )
+                return msix;
+    }
+
+    return NULL;
+}
+
+static int cf_check x86_msix_accept(struct vcpu *v, unsigned long addr)
+{
+    int rc;
+
+    pcidevs_read_lock();
+    rc = !!vpci_msix_find(v->domain, addr);
+    pcidevs_read_unlock();
+
+    return rc;
+}
+
+static int cf_check x86_msix_write(struct vcpu *v, unsigned long addr,
+    unsigned int len, unsigned long data)
+{
+    const struct domain *d = v->domain;
+    struct vpci_msix *msix;
+    pcidevs_read_lock();
+    msix = vpci_msix_find(d, addr);
+    pcidevs_read_unlock();
+
+    return vpci_msix_write(msix, addr, len, data);
+}
+
+static int cf_check x86_msix_read(struct vcpu *v, unsigned long addr,
+    unsigned int len, unsigned long *data)
+{
+    const struct domain *d = v->domain;
+    struct vpci_msix *msix;
+    pcidevs_read_lock();
+    msix = vpci_msix_find(d, addr);
+    pcidevs_read_unlock();
+
+    return vpci_msix_read(msix, addr, len, data);
+}
+
+static const struct hvm_mmio_ops vpci_msix_table_ops = {
+    .check = x86_msix_accept,
+    .read = x86_msix_read,
+    .write = x86_msix_write,
+};
+
+void vpci_msix_arch_register(struct vpci_msix *msix, struct domain *d)
+{
+    if ( list_empty(&d->arch.hvm.msix_tables) )
+        register_mmio_handler(d, &vpci_msix_table_ops);
+
+    list_add(&msix->next, &d->arch.hvm.msix_tables);
+}
 #endif /* CONFIG_HAS_VPCI */

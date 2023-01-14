@@ -16,11 +16,10 @@
  * License along with this program; If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <xen/msi.h>
 #include <xen/sched.h>
 #include <xen/softirq.h>
 #include <xen/vpci.h>
-
-#include <asm/msi.h>
 
 static uint32_t cf_check control_read(
     const struct pci_dev *pdev, unsigned int reg, void *data)
