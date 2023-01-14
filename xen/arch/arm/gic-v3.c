@@ -1270,6 +1270,20 @@ static void gicv3_irq_set_affinity(struct irq_desc *desc, const cpumask_t *mask)
     spin_unlock(&gicv3.lock);
 }
 
+static int gicv3_map_hwdom_extra_mappings(struct domain *d)
+{
+    int ret;
+
+    if ( gicv3_its_host_has_its() && is_iommu_enabled(d) )
+    {
+        ret = gicv3_its_map_translation_register(d);
+        if ( ret )
+            return ret;
+    }
+
+    return 0;
+}
+
 static int gicv3_make_hwdom_dt_node(const struct domain *d,
                                     const struct dt_device_node *gic,
                                     void *fdt)
@@ -1866,6 +1880,7 @@ static const struct gic_hw_operations gicv3_ops = {
 #endif
     .iomem_deny_access   = gicv3_iomem_deny_access,
     .do_LPI              = gicv3_do_LPI,
+    .map_hwdom_extra_mappings = gicv3_map_hwdom_extra_mappings,
 };
 
 static int __init gicv3_dt_preinit(struct dt_device_node *node, const void *data)

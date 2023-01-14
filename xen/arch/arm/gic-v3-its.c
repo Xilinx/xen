@@ -271,6 +271,36 @@ int gicv3_its_setup_collection(unsigned int cpu)
     return 0;
 }
 
+int gicv3_its_map_translation_register(struct domain *d)
+{
+    struct host_its *its;
+    paddr_t its_translation_addr;
+    paddr_t its_translation_size = ITS_TRANSLATION_OFFSET;
+    int ret;
+
+    list_for_each_entry(its, &host_its_list, entry)
+    {
+        its_translation_addr = its->addr + ITS_TRANSLATION_OFFSET;
+
+        printk(XENLOG_INFO "GICv3: Mapping ITS translation register to d%d:"
+                "addr=0x%"PRIpaddr" size=0x%"PRIpaddr" \n",
+                d->domain_id, its_translation_addr, its_translation_size);
+
+        ret = map_mmio_regions(d, gaddr_to_gfn(its_translation_addr),
+                PFN_UP(its_translation_size),
+                maddr_to_mfn(its_translation_addr),
+                CACHEABILITY_DEVMEM);
+        if ( ret )
+        {
+            printk(XENLOG_ERR "GICv3: Map ITS translation register d%d failed.\n",
+                    d->domain_id);
+            return ret;
+        }
+    }
+
+    return 0;
+}
+
 #define BASER_ATTR_MASK                                           \
         ((0x3UL << GITS_BASER_SHAREABILITY_SHIFT)               | \
          (0x7UL << GITS_BASER_OUTER_CACHEABILITY_SHIFT)         | \
