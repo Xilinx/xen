@@ -129,6 +129,13 @@ int pci_host_bridge_mappings(struct domain *d);
 
 bool pci_check_bar(const struct pci_dev *pdev, mfn_t start, mfn_t end);
 
+static inline int
+pci_msi_conf_write_intercept(struct pci_dev *pdev, unsigned int reg,
+                             unsigned int size, uint32_t *data)
+{
+    return 0;
+}
+
 #else   /*!CONFIG_HAS_PCI*/
 
 struct arch_pci_dev { };
