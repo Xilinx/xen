@@ -464,10 +464,26 @@ static int modify_bars(const struct pci_dev *pdev, uint16_t cmd, bool rom_only)
     return 0;
 }
 
+/* TODO: Add proper emulation for all bits of the command register. */
 static void cf_check cmd_write(
     const struct pci_dev *pdev, unsigned int reg, uint32_t cmd, void *data)
 {
     struct vpci_header *header = data;
+
+    if ( !is_hardware_domain(pdev->domain) )
+    {
+        struct vpci_header *header = data;
+
+        header->guest_cmd = cmd;
+#ifdef CONFIG_HAS_PCI_MSI
+        if ( pdev->vpci->msi->enabled || pdev->vpci->msix->enabled )
+            /*
+             * Guest wants to enable INTx, but it can't be enabled
+             * if MSI/MSI-X enabled.
+             */
+            cmd |= PCI_COMMAND_INTX_DISABLE;
+#endif
+    }
 
     /*
      * Let Dom0 play with all the bits directly except for the memory
@@ -483,6 +499,19 @@ static void cf_check cmd_write(
         modify_bars(pdev, cmd, false);
     else
         pci_conf_write16(pdev->sbdf, reg, cmd);
+}
+
+static uint32_t cf_check cmd_read(
+    const struct pci_dev *pdev, unsigned int reg, void *data)
+{
+    if ( !is_hardware_domain(pdev->domain) )
+    {
+        struct vpci_header *header = data;
+
+        return header->guest_cmd;
+    }
+
+    return pci_conf_read16(pdev->sbdf, reg);
 }
 
 static void cf_check bar_write(
@@ -694,8 +723,15 @@ static int cf_check init_bars(struct pci_dev *pdev)
         return -EOPNOTSUPP;
     }
 
+    /*
+     * According to "PCI LOCAL BUS SPECIFICATION, REV. 3.0", section "6.2.2
+     * Device Control" the reset state of the command register is
+     * typically all 0's, so this is used as initial value for the guests.
+     */
+    ASSERT(header->guest_cmd == 0);
+
     /* Setup a handler for the command register. */
-    rc = vpci_add_register(pdev->vpci, vpci_hw_read16, cmd_write, PCI_COMMAND,
+    rc = vpci_add_register(pdev->vpci, cmd_read, cmd_write, PCI_COMMAND,
                            2, header);
     if ( rc )
         return rc;
