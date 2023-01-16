@@ -115,7 +115,7 @@ int domain_vpci_init(struct domain *d)
      * physical host bridge.
      * Guests get the virtual platform layout: one virtual host bridge for now.
      */
-    if ( is_hardware_pci_domain(d) )
+    if ( is_hardware_pci_domain(d) || is_domain_direct_mapped(d) )
     {
         int ret;
 
