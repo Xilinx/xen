@@ -1328,6 +1328,9 @@ static int gicv3_make_hwdom_dt_node(const struct domain *d,
     if ( res )
         return res;
 
+    if ( hwdom_uses_vpci() )
+        return gicv3_its_make_emulated_dt_node(fdt);
+
     return gicv3_its_make_hwdom_dt_nodes(d, gic, fdt);
 }
 
