@@ -1139,6 +1139,34 @@ int __init scan_pci_devices(void)
     return ret;
 }
 
+static int __init _add_discovered_pci_devices(struct pci_seg *pseg, void *arg)
+{
+    struct pci_dev *pdev;
+    int ret = 0;
+
+    list_for_each_entry ( pdev, &pseg->alldevs_list, alldevs_list )
+    {
+        ret = pci_add_device(dom_io, pdev->seg, pdev->bus, pdev->devfn, NULL,
+                             NUMA_NO_NODE);
+        if ( ret < 0 )
+        {
+            printk(XENLOG_ERR
+                   "%pp: Failure adding the discovered pci device (Error %d)\n",
+                   &pdev->sbdf, ret);
+            break;
+        }
+    }
+
+    return ret;
+}
+
+void __init add_discovered_pci_devices(void)
+{
+    pcidevs_lock();
+    pci_segments_iterate(_add_discovered_pci_devices, NULL);
+    pcidevs_unlock();
+}
+
 struct setup_hwdom {
     struct domain *d;
     int (*handler)(u8 devfn, struct pci_dev *);
