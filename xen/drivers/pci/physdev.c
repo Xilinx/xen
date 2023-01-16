@@ -21,6 +21,9 @@ ret_t pci_physdev_op(int cmd, XEN_GUEST_HANDLE_PARAM(void) arg)
         if ( !is_pci_passthrough_enabled() )
             return -EOPNOTSUPP;
 
+        if ( hwdom_uses_vpci() )
+            return 0;
+
         ret = -EFAULT;
         if ( copy_from_guest(&add, arg, 1) != 0 )
             break;
@@ -59,6 +62,9 @@ ret_t pci_physdev_op(int cmd, XEN_GUEST_HANDLE_PARAM(void) arg)
 
         if ( !is_pci_passthrough_enabled() )
             return -EOPNOTSUPP;
+
+        if ( hwdom_uses_vpci() )
+            return 0;
 
         ret = -EFAULT;
         if ( copy_from_guest(&dev, arg, 1) != 0 )
