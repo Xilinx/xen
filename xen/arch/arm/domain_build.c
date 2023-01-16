@@ -2657,8 +2657,86 @@ static int __init make_vpci_node(void *fdt)
 
     return res;
 }
+
+static int __init domU_assign_pci_device(struct domain *d,
+                                         struct kernel_info *kinfo,
+                                         const void *pfdt,
+                                         int nodeoffset)
+{
+    const struct fdt_property *prop;
+    const __be32 *cell;
+    unsigned int count;
+    int rc;
+
+    if ( !is_pci_passthrough_enabled() || !is_pci_scan_enabled() )
+        return 0;
+
+    prop = fdt_get_property(pfdt, nodeoffset, "xen,pci-assigned", NULL);
+    /* If the property is not found, return without errors */
+    if ( !prop )
+        return 0;
+
+    if ( !prop->len )
+    {
+        printk(XENLOG_ERR "xen,pci-assigned property cannot be empty.\n");
+        return -EINVAL;
+    }
+
+    cell = (const __be32 *)prop->data;
+    count = fdt32_to_cpu(prop->len) / sizeof(u32);
+
+    if ( (count % 3) != 0 )
+    {
+        printk(XENLOG_ERR
+               "xen,pci-assigned values count must be multiple of 3.\n");
+        return -EINVAL;
+    }
+
+    while ( count > 0 )
+    {
+        u32 seg, bus, devfn;
+
+        seg = dt_next_cell(1, &cell);
+        bus = dt_next_cell(1, &cell);
+        devfn = dt_next_cell(1, &cell);
+
+        if ( (seg & ~0xFFFF) || (bus & ~0xFF) || (devfn & ~0xFF) )
+        {
+            printk(XENLOG_ERR
+                   "Invalid device identifier in xen,pci-assigned property: "
+                   "<%04x %02x %02x> \n", seg, bus, devfn);
+            return -EINVAL;
+        }
+
+        printk(XENLOG_INFO
+               "Assign PCI device %04x:%02x:%02x.%x to domain domU%d\n", seg,
+               bus, PCI_SLOT(devfn), PCI_FUNC(devfn), d->domain_id);
+
+        rc = pci_assign_device(d, seg, bus, devfn, 0);
+        if ( rc < 0 )
+        {
+            printk(XENLOG_ERR
+                   "Failure assigning the pci device (Error %d) \n", rc);
+            return rc;
+        }
+        count -= 3;
+    }
+
+    rc = make_vpci_node(kinfo->fdt);
+    if ( rc )
+        return rc;
+
+    return 0;
+}
 #else
 static inline int __init make_vpci_node(void *fdt)
+{
+    return 0;
+}
+static inline int __init domU_assign_pci_device(struct domain *d,
+                                                struct kernel_info *kinfo,
+                                                const void *pfdt,
+                                                int nodeoffset)
 {
     return 0;
 }
@@ -3384,6 +3462,10 @@ static int __init domain_handle_dtb_bootmodule(struct domain *d,
         }
         if ( dt_node_cmp(name, "passthrough") == 0 )
         {
+            res = domU_assign_pci_device(d, kinfo, pfdt, node_next);
+            if ( res )
+                return res;
+
             res = scan_pfdt_node(kinfo, pfdt, node_next,
                                  DT_ROOT_NODE_ADDR_CELLS_DEFAULT,
                                  DT_ROOT_NODE_SIZE_CELLS_DEFAULT,
