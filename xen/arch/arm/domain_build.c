@@ -19,6 +19,7 @@
 #include <xen/warning.h>
 #include <acpi/actables.h>
 #include <asm/device.h>
+#include <asm/gic_v3_its.h>
 #include <asm/kernel.h>
 #include <asm/setup.h>
 #include <asm/tee/tee.h>
@@ -2832,10 +2833,6 @@ static int __init make_gicv3_domU_node(struct kernel_info *kinfo)
     if ( res )
         return res;
 
-    res = fdt_property_cell(fdt, "#address-cells", 0);
-    if ( res )
-        return res;
-
     res = fdt_property_cell(fdt, "#interrupt-cells", 3);
     if ( res )
         return res;
@@ -2876,6 +2873,14 @@ static int __init make_gicv3_domU_node(struct kernel_info *kinfo)
 
     res = fdt_property_cell(fdt, "phandle", kinfo->phandle_gic);
     if (res)
+        return res;
+
+    /* Add ITS node only if domain will use vpci */
+    if ( is_pci_scan_enabled() )
+        res = gicv3_its_make_emulated_dt_node(fdt);
+    else
+        res = fdt_property_cell(fdt, "#address-cells", 0);
+    if ( res )
         return res;
 
     res = fdt_end_node(fdt);
