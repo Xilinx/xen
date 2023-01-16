@@ -173,6 +173,7 @@ bool_t pci_known_segment(u16 seg);
 bool_t pci_device_detect(u16 seg, u8 bus, u8 dev, u8 func);
 int scan_pci_devices(void);
 void add_discovered_pci_devices(void);
+void assign_hwdom_pci_devices(void);
 void dump_pci_devices(unsigned char ch);
 enum pdev_type pdev_type(u16 seg, u8 bus, u8 devfn);
 int find_upstream_bridge(u16 seg, u8 *bus, u8 *devfn, u8 *secbus);

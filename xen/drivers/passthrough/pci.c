@@ -1585,6 +1585,45 @@ static int assign_device(struct domain *d, u16 seg, u8 bus, u8 devfn, u32 flag)
     return rc;
 }
 
+static int __init _assign_hwdom_pci_devices(struct pci_seg *pseg, void *arg)
+{
+    struct pci_dev *pdev;
+    int ret = 0;
+
+    list_for_each_entry ( pdev, &pseg->alldevs_list, alldevs_list )
+    {
+        enum pdev_type pci_dev_type = pdev_type(pdev->seg, pdev->bus,
+                                                pdev->devfn);
+        bool is_pci_endpoint = (pci_dev_type == DEV_TYPE_PCIe_ENDPOINT) ||
+                               (pci_dev_type == DEV_TYPE_PCI);
+
+        if ( is_pci_endpoint && (pdev->domain == dom_io) )
+        {
+            ret = assign_device(hardware_domain, pdev->seg, pdev->bus,
+                                pdev->devfn, 0);
+            if ( ret < 0 )
+            {
+                printk(XENLOG_ERR
+                       "%pp: Failure assigning the discovered pci device "
+                       "(Error %d)\n", &pdev->sbdf, ret);
+                break;
+            }
+        }
+    }
+
+    return ret;
+}
+
+void __init assign_hwdom_pci_devices(void)
+{
+    if ( !hardware_domain || !hwdom_uses_vpci() )
+        return;
+
+    pcidevs_lock();
+    pci_segments_iterate(_assign_hwdom_pci_devices, NULL);
+    pcidevs_unlock();
+}
+
 static int iommu_get_device_group(
     struct domain *d, u16 seg, u8 bus, u8 devfn,
     XEN_GUEST_HANDLE_64(uint32) buf, int max_sdevs)
