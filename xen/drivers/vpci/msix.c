@@ -158,7 +158,7 @@ static struct vpci_msix_entry *get_entry(struct vpci_msix *msix,
 {
     paddr_t start;
 
-    if ( is_hardware_domain(current->domain) )
+    if ( is_hardware_pci_domain(current->domain) )
         start = vmsix_table_addr(msix->pdev->vpci, VPCI_MSIX_TABLE);
     else
         start = vmsix_guest_table_addr(msix->pdev->vpci, VPCI_MSIX_TABLE);

@@ -115,7 +115,7 @@ int domain_vpci_init(struct domain *d)
      * physical host bridge.
      * Guests get the virtual platform layout: one virtual host bridge for now.
      */
-    if ( is_hardware_domain(d) )
+    if ( is_hardware_pci_domain(d) )
     {
         int ret;
 
@@ -144,7 +144,7 @@ unsigned int domain_vpci_get_num_mmio_handlers(struct domain *d)
     if ( !has_vpci(d) )
         return 0;
 
-    if ( is_hardware_domain(d) )
+    if ( is_hardware_pci_domain(d) )
     {
         int ret = pci_host_iterate_bridges_and_count(d, vpci_get_num_handlers_cb);
 
