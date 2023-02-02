@@ -520,8 +520,9 @@ static int sanitise_domain_config(struct xen_domctl_createdomain *config)
 
         if ( !iommu_enabled )
         {
-            dprintk(XENLOG_INFO, "IOMMU requested but not available\n");
-            return -EINVAL;
+            printk(XENLOG_WARNING "IOMMU requested but not available\n");
+            iommu = false;
+            config->flags &= ~XEN_DOMCTL_CDF_iommu;
         }
     }
     else
