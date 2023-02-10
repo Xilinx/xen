@@ -1,35 +1,22 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
- * xen/arch/arm/coloring.c
+ * Last Level Cache (LLC) coloring support for ARM
  *
- * Coloring support for ARM
- *
- * Copyright (C) 2019 Xilinx Inc.
+ * Copyright (C) 2022 Xilinx Inc.
  *
  * Authors:
  *    Luca Miccio <lucmiccio@gmail.com>
  *    Carlo Nonato <carlo.nonato@minervasys.tech>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <xen/bitops.h>
 #include <xen/errno.h>
 #include <xen/guest_access.h>
 #include <xen/keyhandler.h>
+#include <xen/llc_coloring.h>
 #include <xen/param.h>
 #include <xen/types.h>
 #include <xen/vmap.h>
 
-#include <asm/coloring.h>
 #include <asm/processor.h>
 #include <asm/sysregs.h>
 
@@ -37,24 +24,30 @@
 #define XEN_DEFAULT_COLOR       0
 #define XEN_DEFAULT_NUM_COLORS  1
 
+bool llc_coloring_enabled;
+boolean_param("llc-coloring", llc_coloring_enabled);
+
 /* Size of an LLC way */
 static unsigned int __ro_after_init llc_way_size, way_size;
+size_param("llc-way-size", llc_way_size);
+integer_param("way_size", way_size);
 /* Number of colors available in the LLC */
-static unsigned int __ro_after_init max_colors = CONFIG_MAX_CACHE_COLORS;
-/* Mask to retrieve coloring relevant bits */
-static uint64_t __ro_after_init addr_col_mask;
+static unsigned int __ro_after_init nr_colors = CONFIG_NR_LLC_COLORS;
+/* Mask to extract coloring relevant bits */
+static paddr_t __ro_after_init addr_col_mask;
+
+static unsigned int __ro_after_init dom0_colors[CONFIG_NR_LLC_COLORS];
+static unsigned int __ro_after_init dom0_num_colors;
+
+static unsigned int __ro_after_init xen_colors[CONFIG_NR_LLC_COLORS];
+static unsigned int __ro_after_init xen_num_colors;
+
 /* Legacy configuration parameters for cache coloring */
 bool __ro_after_init coloring_legacy;
 
 #define addr_to_color(addr) (((addr) & addr_col_mask) >> PAGE_SHIFT)
 #define addr_set_color(addr, color) (((addr) & ~addr_col_mask) \
                                      | ((color) << PAGE_SHIFT))
-
-static unsigned int xen_colors[CONFIG_MAX_CACHE_COLORS];
-static unsigned int xen_num_colors;
-
-static unsigned int dom0_colors[CONFIG_MAX_CACHE_COLORS];
-static unsigned int dom0_num_colors;
 
 /*
  * Parse the coloring configuration given in the buf string, following the
@@ -73,6 +66,8 @@ static int parse_color_config(const char *buf, unsigned int *colors,
     if ( !colors || !num_colors )
         return -EINVAL;
 
+    *num_colors = 0;
+
     while ( *s != '\0' )
     {
         if ( *s != ',' )
@@ -89,8 +84,8 @@ static int parse_color_config(const char *buf, unsigned int *colors,
             else                /* Single value */
                 end = start;
 
-            if ( start > end ||
-                 *num_colors + end - start >= max_colors )
+            if ( start > end || (end - start) > UINT_MAX - *num_colors ||
+                 *num_colors + (end - start) >= nr_colors )
                 return -EINVAL;
             for ( color = start; color <= end; color++ )
                 colors[(*num_colors)++] = color;
@@ -102,17 +97,16 @@ static int parse_color_config(const char *buf, unsigned int *colors,
     return *s ? -EINVAL : 0;
 }
 
-integer_param("llc-way-size", llc_way_size);
-integer_param("way_size", way_size);
-
 static int __init parse_xen_colors(const char *s)
 {
     return parse_color_config(s, xen_colors, &xen_num_colors);
 }
-custom_param("xen-colors", parse_xen_colors);
+custom_param("xen-llc-colors", parse_xen_colors);
 
 static int __init parse_xen_colors_legacy(const char *s)
 {
+    /* For legacy coloring, enable LLC by default */
+    llc_coloring_enabled = true;
     coloring_legacy = true;
     return parse_color_config(s, xen_colors, &xen_num_colors);
 }
@@ -122,10 +116,12 @@ static int __init parse_dom0_colors(const char *s)
 {
     return parse_color_config(s, dom0_colors, &dom0_num_colors);
 }
-custom_param("dom0-colors", parse_dom0_colors);
+custom_param("dom0-llc-colors", parse_dom0_colors);
 
 static int __init parse_dom0_colors_legacy(const char *s)
 {
+    /* For legacy coloring, enable LLC by default */
+    llc_coloring_enabled = true;
     coloring_legacy = true;
     return parse_color_config(s, dom0_colors, &dom0_num_colors);
 }
@@ -181,26 +177,15 @@ static bool check_colors(unsigned int *colors, unsigned int num_colors)
 {
     unsigned int i;
 
-    if ( num_colors > max_colors )
+    if ( num_colors > nr_colors )
         return false;
 
     for ( i = 0; i < num_colors; i++ )
-        if ( colors[i] >= max_colors )
+        if ( colors[i] >= nr_colors ||
+             (i != num_colors - 1 && colors[i] >= colors[i + 1]) )
             return false;
 
     return true;
-}
-
-static unsigned int set_default_domain_colors(unsigned int *colors)
-{
-    unsigned int i;
-
-    if ( !colors )
-        return 0;
-
-    for ( i = 0; i < max_colors; i++ )
-        colors[i] = i;
-    return max_colors;
 }
 
 static void print_colors(unsigned int *colors, unsigned int num_colors)
@@ -215,15 +200,16 @@ static void print_colors(unsigned int *colors, unsigned int num_colors)
 
 static void dump_coloring_info(unsigned char key)
 {
-    printk("'%c' pressed -> dumping coloring general info\n", key);
+    printk("'%c' pressed -> dumping LLC coloring general info\n", key);
     printk("LLC way size: %u KiB\n", llc_way_size >> 10);
-    printk("Number of LLC colors supported: %u\n", max_colors);
-    printk("Address color mask: 0x%lx\n", addr_col_mask);
-    printk("Xen colors: ");
+    printk("Number of LLC colors supported: %u\n", nr_colors);
+    printk("Address to LLC color mask: 0x%lx\n", addr_col_mask);
+    printk("Legacy LLC params: %s\n", coloring_legacy ? "true" : "false");
+    printk("Xen LLC colors: ");
     print_colors(xen_colors, xen_num_colors);
 }
 
-bool __init coloring_init(void)
+bool __init llc_coloring_init(void)
 {
     if ( way_size != 0 )
         llc_way_size = way_size + 1;
@@ -235,22 +221,21 @@ bool __init coloring_init(void)
         return false;
     }
 
-    max_colors = llc_way_size >> PAGE_SHIFT;
+    nr_colors = llc_way_size >> PAGE_SHIFT;
 
-    if ( max_colors < 2 || max_colors > CONFIG_MAX_CACHE_COLORS )
+    if ( nr_colors < 2 || nr_colors > CONFIG_NR_LLC_COLORS )
     {
-        printk(XENLOG_ERR
-               "Max number of colors (%u) not in range [2, config max (%u)]\n",
-               max_colors, CONFIG_MAX_CACHE_COLORS);
+        printk(XENLOG_ERR "Number of LLC colors (%u) not in range [2, %u]\n",
+               nr_colors, CONFIG_NR_LLC_COLORS);
         return false;
     }
 
-    addr_col_mask = (max_colors - 1) << PAGE_SHIFT;
+    addr_col_mask = (nr_colors - 1) << PAGE_SHIFT;
 
     if ( !xen_num_colors )
     {
         printk(XENLOG_WARNING
-               "Xen color config not found. Using default color: %u\n",
+               "Xen LLC color config not found. Using default color: %u\n",
                XEN_DEFAULT_COLOR);
         xen_colors[0] = XEN_DEFAULT_COLOR;
         xen_num_colors = XEN_DEFAULT_NUM_COLORS;
@@ -258,117 +243,134 @@ bool __init coloring_init(void)
 
     if ( !check_colors(xen_colors, xen_num_colors) )
     {
-        printk(XENLOG_ERR "Bad color config for Xen\n");
+        printk(XENLOG_ERR "Bad LLC color config for Xen\n");
         return false;
     }
 
-    if ( !dom0_num_colors )
-    {
-        printk(XENLOG_WARNING
-               "Dom0 color config not found. Using default (all colors)\n");
-        dom0_num_colors = set_default_domain_colors(dom0_colors);
-    }
+    register_keyhandler('K', dump_coloring_info, "dump LLC coloring info", 1);
 
-    if ( !check_colors(dom0_colors, dom0_num_colors) )
-    {
-        printk(XENLOG_ERR "Bad color config for Dom0\n");
-        return false;
-    }
-
-    register_keyhandler('K', dump_coloring_info, "dump coloring info", 1);
-    /* print coloring info at start of day */
+    /* Print general coloring info at start of day */
     dump_coloring_info('K');
 
     return true;
 }
 
-int domain_coloring_init(struct domain *d,
-                         const struct xen_arch_domainconfig *config)
+int domain_llc_coloring_init(struct domain *d, unsigned int *colors,
+                             unsigned int num_colors)
 {
+    unsigned int i;
+
     if ( is_domain_direct_mapped(d) )
     {
         printk(XENLOG_ERR
-               "Can't enable coloring and directmap at the same time for %pd\n",
-               d);
+               "LLC coloring and direct mapping are incompatible (%pd)\n", d);
         return -EINVAL;
     }
 
-    if ( is_hardware_domain(d) )
-    {
-        d->arch.colors = dom0_colors;
-        d->arch.num_colors = dom0_num_colors;
-    }
-    else if ( config->num_colors == 0 )
+    if ( !colors || num_colors == 0 )
     {
         printk(XENLOG_WARNING
-               "Color config not found for %pd. Using default\n", d);
-        d->arch.colors = xzalloc_array(unsigned int, max_colors);
-        d->arch.num_colors = set_default_domain_colors(d->arch.colors);
-    }
-    else
-    {
-        d->arch.colors = xzalloc_array(unsigned int, config->num_colors);
-        d->arch.num_colors = config->num_colors;
-        if ( config->from_guest )
-            copy_from_guest(d->arch.colors, config->colors, config->num_colors);
-        else
+               "LLC color config not found for %pd. Using default\n", d);
+        colors = xmalloc_array(unsigned int, nr_colors);
+
+        if ( !colors )
         {
-            memcpy(d->arch.colors, config->colors.p,
-                   sizeof(unsigned int) * config->num_colors);
-            xfree(config->colors.p);
+            printk(XENLOG_ERR "Can't allocate LLC colors for domain %pd\n", d);
+            return -ENOMEM;
         }
-    }
-    domain_dump_coloring_info(d);
 
-    if ( !d->arch.colors )
-    {
-        printk(XENLOG_ERR "Colors allocation failed for %pd\n", d);
-        return -ENOMEM;
+        num_colors = nr_colors;
+        for ( i = 0; i < nr_colors; i++ )
+            colors[i] = i;
     }
 
-    if ( !check_colors(d->arch.colors, d->arch.num_colors) )
+    d->llc_colors = colors;
+    d->num_llc_colors = num_colors;
+
+    /* Print domain coloring info at domain creation */
+    domain_dump_llc_colors(d);
+
+    if ( !check_colors(d->llc_colors, d->num_llc_colors) )
     {
-        printk(XENLOG_ERR "Bad color config for %pd\n", d);
-        domain_coloring_free(d);
+        /* d->llc_colors will be freed in domain_destroy() */
+        printk(XENLOG_ERR "Bad LLC color config for %pd\n", d);
+        print_colors(d->llc_colors, d->num_llc_colors);
         return -EINVAL;
     }
 
     return 0;
 }
 
-void domain_coloring_free(struct domain *d)
+void domain_llc_coloring_free(struct domain *d)
 {
-    if ( !is_hardware_domain(d) )
-        xfree(d->arch.colors);
+    xfree(d->llc_colors);
 }
 
-void domain_dump_coloring_info(struct domain *d)
+void domain_dump_llc_colors(struct domain *d)
 {
-    printk("Domain %pd has %u colors: ", d, d->arch.num_colors);
-    print_colors(d->arch.colors, d->arch.num_colors);
+    printk("Domain %pd has %u LLC colors: ", d, d->num_llc_colors);
+    print_colors(d->llc_colors, d->num_llc_colors);
 }
 
-
-void prepare_color_domain_config_legacy(struct dt_device_node *node,
-                                        struct xen_arch_domainconfig *config)
+unsigned int *dom0_llc_colors(unsigned int *num_colors)
 {
-    u32 len;
-    int cell, k, i, j = 0;
-    const u32 *cells;
-    u32 col_val;
+    unsigned int *colors = xmalloc_array(unsigned int, dom0_num_colors);
 
-    config->num_colors = 0;
+    if ( !dom0_num_colors || !colors )
+        return NULL;
+
+    memcpy(colors, dom0_colors, sizeof(unsigned int) * dom0_num_colors);
+    *num_colors = dom0_num_colors;
+
+    return colors;
+}
+
+unsigned int *llc_colors_from_guest(const struct xen_domctl_createdomain *config)
+{
+    unsigned int *colors = xmalloc_array(unsigned int, config->num_llc_colors);
+
+    if ( !config->num_llc_colors || !colors )
+        return NULL;
+
+    copy_from_guest(colors, config->llc_colors, config->num_llc_colors);
+
+    return colors;
+}
+
+unsigned int *llc_colors_from_str(const char *str, unsigned int *num_colors)
+{
+    unsigned int *colors = xmalloc_array(unsigned int, nr_colors);
+
+    if ( !colors )
+        panic("Can't allocate LLC colors\n");
+
+    if ( parse_color_config(str, colors, num_colors) )
+        panic("Error parsing LLC color configuration\n");
+
+    return colors;
+}
+
+unsigned int *llc_colors_from_legacy_bitmask(struct dt_device_node *node,
+                                             unsigned int *num_colors)
+{
+    uint32_t len, col_val;
+    const uint32_t *cells;
+    int cell, k, i;
+    unsigned int *colors = NULL;
+
+    *num_colors = 0;
 
     cells = dt_get_property(node, "colors", &len);
     if ( cells != NULL && len > 0 )
     {
-        if ( !get_max_colors() )
+        if ( !get_nr_llc_colors() )
             panic("Coloring requested but no colors configuration found!\n");
 
-        config->colors.p = xzalloc_array(unsigned int, max_colors);
-        if ( !config->colors.p )
+        colors = xmalloc_array(unsigned int, nr_colors);
+        if ( !colors )
             panic("Unable to allocate cache colors\n");
 
+        *num_colors = 0;
         for ( k = 0, cell = len/4 - 1; cell >= 0; cell--, k++ )
         {
             col_val = be32_to_cpup(&cells[cell]);
@@ -378,38 +380,28 @@ void prepare_color_domain_config_legacy(struct dt_device_node *node,
                 for ( i = 0; i < 32; i++)
                 {
                     if ( col_val & (1 << i) )
-                    {
-                        config->num_colors++;
-                        config->colors.p[j++] = i;
-                    }
+                        colors[(*num_colors)++] = i;
                 }
             }
         }
     }
+
+    return colors;
 }
 
-void prepare_color_domain_config(struct xen_arch_domainconfig *config,
-                                 const char *colors_str)
-{
-    unsigned int num_colors;
-
-    config->colors.p = xzalloc_array(unsigned int, max_colors);
-    if ( !config->colors.p )
-        panic("Unable to allocate cache colors\n");
-
-    if ( parse_color_config(colors_str, config->colors.p, &num_colors) )
-        panic("Error parsing the color configuration\n");
-    config->num_colors = (uint16_t)num_colors;
-}
-
-unsigned int page_to_color(const struct page_info *pg)
+unsigned int page_to_llc_color(const struct page_info *pg)
 {
     return addr_to_color(page_to_maddr(pg));
 }
 
-unsigned int get_max_colors(void)
+unsigned int get_nr_llc_colors(void)
 {
-    return max_colors;
+    return nr_colors;
+}
+
+paddr_t xen_colored_map_size(paddr_t size)
+{
+    return ROUNDUP(size * nr_colors, XEN_PADDR_ALIGN);
 }
 
 mfn_t xen_colored_mfn(mfn_t mfn)
@@ -436,7 +428,7 @@ void *xen_remap_colored(mfn_t xen_mfn, paddr_t xen_size)
     mfn_t *xen_colored_mfns = xmalloc_array(mfn_t, xen_size >> PAGE_SHIFT);
 
     if ( !xen_colored_mfns )
-        panic("Can't allocate colored MFNs\n");
+        panic("Can't allocate LLC colored MFNs\n");
 
     for_each_xen_colored_mfn( xen_mfn, i )
     {

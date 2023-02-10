@@ -21,7 +21,7 @@
 #include "hvm/save.h"
 #include "memory.h"
 
-#define XEN_DOMCTL_INTERFACE_VERSION 0x00000015
+#define XEN_DOMCTL_INTERFACE_VERSION 0x00000016
 
 /*
  * NB. xen_domctl.domain is an IN/OUT parameter for this operation.
@@ -91,6 +91,10 @@ struct xen_domctl_createdomain {
 
     /* CPU pool to use; specify 0 or a specific existing pool */
     uint32_t cpupool_id;
+
+    /* IN LLC coloring parameters */
+    uint32_t num_llc_colors;
+    XEN_GUEST_HANDLE(uint32) llc_colors;
 
     struct xen_arch_domainconfig arch;
 };

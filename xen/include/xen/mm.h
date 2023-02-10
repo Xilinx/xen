@@ -298,35 +298,32 @@ page_list_add_tail(struct page_info *page, struct page_list_head *head)
     head->tail = page;
 }
 static inline void
-_page_list_add(struct page_info *new, struct page_info *prev,
+_page_list_add(struct page_info *page, struct page_info *prev,
                struct page_info *next)
 {
-    new->list.prev = page_to_pdx(prev);
-	new->list.next = page_to_pdx(next);
-	prev->list.next = page_to_pdx(new);
-	next->list.prev = page_to_pdx(new);
+    page->list.prev = page_to_pdx(prev);
+    page->list.next = page_to_pdx(next);
+    prev->list.next = page_to_pdx(page);
+    next->list.prev = page_to_pdx(page);
 }
 static inline void
-page_list_add_next(struct page_info *new, struct page_info *prev,
+page_list_add_prev(struct page_info *page, struct page_info *next,
                    struct page_list_head *head)
 {
-	struct page_info *next = page_list_next(prev, head);
+    struct page_info *prev;
 
+    /* If there's no next, we are at the end of the list, so add to the tail. */
     if ( !next )
-        page_list_add_tail(new, head);
-    else
-        _page_list_add(new, prev, next);
-}
-static inline void
-page_list_add_prev(struct page_info *new, struct page_info *next,
-                   struct page_list_head *head)
-{
-	struct page_info *prev = page_list_prev(next, head);
+    {
+        page_list_add_tail(page, head);
+        return;
+    }
 
+    prev = page_list_prev(next, head);
     if ( !prev )
-        page_list_add(new, head);
+        page_list_add(page, head);
     else
-        _page_list_add(new, prev, next);
+        _page_list_add(page, prev, next);
 }
 static inline bool_t
 __page_list_del_head(struct page_info *page, struct page_list_head *head,
@@ -480,16 +477,10 @@ page_list_add_tail(struct page_info *page, struct page_list_head *head)
     list_add_tail(&page->list, head);
 }
 static inline void
-page_list_add_next(struct page_info *new, struct page_info *prev,
+page_list_add_prev(struct page_info *page, struct page_info *next,
                    struct page_list_head *head)
 {
-	page_list_add_tail(new, &prev->list);
-}
-static inline void
-page_list_add_prev(struct page_info *new, struct page_info *next,
-                   struct page_list_head *head)
-{
-    page_list_add(new, &next->list);
+    list_add_tail(&page->list, &next->list);
 }
 static inline void
 page_list_del(struct page_info *page, struct page_list_head *head)

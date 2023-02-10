@@ -22,6 +22,7 @@
 #include <xen/domain_page.h>
 #include <xen/errno.h>
 #include <xen/init.h>
+#include <xen/llc_coloring.h>
 #include <xen/mm.h>
 #include <xen/param.h>
 #include <xen/sched.h>
@@ -454,6 +455,7 @@ int __cpu_up(unsigned int cpu)
 {
     int rc;
     s_time_t deadline;
+    unsigned long *smp_up_cpu_addr = &smp_up_cpu;
 
     printk("Bringing up CPU%d\n", cpu);
 
@@ -469,8 +471,12 @@ int __cpu_up(unsigned int cpu)
     /* Tell the remote CPU what its logical CPU ID is. */
     init_data.cpuid = cpu;
 
+    if ( llc_coloring_enabled )
+        smp_up_cpu_addr = (unsigned long *)virt_to_reloc_virt(&smp_up_cpu);
+
     /* Open the gate for this CPU */
-    set_value_for_secondary(smp_up_cpu, cpu_logical_map(cpu));
+    *smp_up_cpu_addr = cpu_logical_map(cpu);
+    clean_dcache(*smp_up_cpu_addr);
 
     rc = arch_cpu_up(cpu);
 

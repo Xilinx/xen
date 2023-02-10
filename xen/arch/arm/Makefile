@@ -35,6 +35,7 @@ obj-$(CONFIG_IOREQ_SERVER) += ioreq.o
 obj-y += irq.o
 obj-y += kernel.init.o
 obj-$(CONFIG_LIVEPATCH) += livepatch.o
+obj-$(CONFIG_LLC_COLORING) += llc_coloring.o
 obj-y += mem_access.o
 obj-y += mm.o
 obj-y += monitor.o
@@ -67,7 +68,6 @@ obj-$(CONFIG_SBSA_VUART_CONSOLE) += vpl011.o
 obj-y += vsmc.o
 obj-y += vpsci.o
 obj-y += vuart.o
-obj-$(CONFIG_CACHE_COLORING) += coloring.o
 
 extra-y += xen.lds
 

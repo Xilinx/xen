@@ -162,9 +162,9 @@ with the following properties:
 
     An integer specifying the number of vcpus to allocate to the guest.
 
-- colors
-    A string specifying the color configuration for the guest. Refer to
-    "docs/misc/arm/cache_coloring.rst" for syntax.
+- llc-colors
+    A string specifying the LLC color configuration for the guest.
+    Refer to "docs/misc/arm/cache_coloring.rst" for syntax.
 
 - vpl011
 

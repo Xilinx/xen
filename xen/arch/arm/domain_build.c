@@ -1,6 +1,7 @@
 #include <xen/init.h>
 #include <xen/compile.h>
 #include <xen/lib.h>
+#include <xen/llc_coloring.h>
 #include <xen/mm.h>
 #include <xen/param.h>
 #include <xen/domain_page.h>
@@ -26,7 +27,6 @@
 #include <asm/platform.h>
 #include <asm/psci.h>
 #include <asm/setup.h>
-#include <asm/coloring.h>
 #include <asm/cpufeature.h>
 #include <asm/domain_build.h>
 #include <asm/viommu.h>
@@ -37,12 +37,6 @@
 #include <xen/serial.h>
 
 #define STATIC_EVTCHN_NODE_SIZE_CELLS 2
-
-#ifdef CONFIG_CACHE_COLORING
-#define XEN_DOM0_CREATE_FLAGS CDF_privileged
-#else
-#define XEN_DOM0_CREATE_FLAGS CDF_privileged | CDF_directmap
-#endif
 
 static unsigned int __initdata opt_dom0_max_vcpus;
 integer_param("dom0_max_vcpus", opt_dom0_max_vcpus);
@@ -468,23 +462,46 @@ static bool __init allocate_bank_memory(struct domain *d,
 
 static void __init allocate_memory(struct domain *d, struct kernel_info *kinfo)
 {
-    unsigned int i;
-    paddr_t bank_size;
+    unsigned int i = 0;
+    unsigned int nr_banks = is_hardware_domain(d) ? bootinfo.mem.nr_banks : 2;
+    paddr_t bank_start, bank_size;
 
     printk(XENLOG_INFO "Allocating mappings totalling %ldMB for %pd:\n",
            /* Don't want format this as PRIpaddr (16 digit hex) */
            (unsigned long)(kinfo->unassigned_mem >> 20), d);
 
     kinfo->mem.nr_banks = 0;
-    bank_size = MIN(GUEST_RAM0_SIZE, kinfo->unassigned_mem);
-    if ( !allocate_bank_memory(d, kinfo, gaddr_to_gfn(GUEST_RAM0_BASE),
-                               bank_size) )
-        goto fail;
 
-    bank_size = MIN(GUEST_RAM1_SIZE, kinfo->unassigned_mem);
-    if ( !allocate_bank_memory(d, kinfo, gaddr_to_gfn(GUEST_RAM1_BASE),
-                               bank_size) )
-        goto fail;
+    for ( ; kinfo->unassigned_mem > 0 && nr_banks > 0; i++, nr_banks-- )
+    {
+        if ( is_hardware_domain(d) )
+        {
+            bank_start = bootinfo.mem.bank[i].start;
+            bank_size = bootinfo.mem.bank[i].size;
+        }
+        else
+        {
+            if ( i == 0 )
+            {
+                bank_start = GUEST_RAM0_BASE;
+                bank_size = GUEST_RAM0_SIZE;
+            }
+            else if ( i == 1)
+            {
+                bank_start = GUEST_RAM1_BASE;
+                bank_size = GUEST_RAM1_SIZE;
+            }
+            else
+                goto fail;
+        }
+        if ( bank_size < MB(512) )
+            continue;
+
+        bank_size = MIN(bank_size, kinfo->unassigned_mem);
+        if ( !allocate_bank_memory(d, kinfo, gaddr_to_gfn(bank_start),
+                                   bank_size) )
+            goto fail;
+    }
 
     if ( kinfo->unassigned_mem )
         goto fail;
@@ -4192,7 +4209,9 @@ void __init create_domUs(void)
     struct dt_device_node *node;
     const struct dt_device_node *cpupool_node,
                                 *chosen = dt_find_node_by_path("/chosen");
-    const char *colors_str, *viommu_str;
+    const char *llc_colors_str;
+    unsigned int *llc_colors = NULL, num_llc_colors = 0;
+    const char *viommu_str;
     int rc;
 
     BUG_ON(chosen == NULL);
@@ -4283,17 +4302,18 @@ void __init create_domUs(void)
             d_cfg.cpupool_id = pool_id;
         }
 
-        if ( coloring_legacy && IS_ENABLED(CONFIG_CACHE_COLORING) )
-            prepare_color_domain_config_legacy(node, &d_cfg.arch);
-        else if ( !dt_property_read_string(node, "colors", &colors_str) )
+        if ( llc_coloring_enabled && coloring_legacy )
+            llc_colors = llc_colors_from_legacy_bitmask(node, &num_llc_colors);
+        else if ( !dt_property_read_string(node, "llc-colors", &llc_colors_str) )
         {
-            if ( !IS_ENABLED(CONFIG_CACHE_COLORING) )
+            if ( !llc_coloring_enabled )
                 printk(XENLOG_WARNING
-                       "Property 'colors' found, but coloring is disabled\n");
+                       "'llc-colors' found, but LLC coloring is disabled\n");
             else if ( dt_find_property(node, "xen,static-mem", NULL) )
-                panic("static-mem isn't allowed when coloring is enabled\n");
+                panic("static-mem and LLC coloring are incompatible\n");
             else
-                prepare_color_domain_config(&d_cfg.arch, colors_str);
+                llc_colors = llc_colors_from_str(llc_colors_str,
+                                                 &num_llc_colors);
         }
 
         rc = dt_property_read_string(node, "viommu", &viommu_str);
@@ -4312,7 +4332,8 @@ void __init create_domUs(void)
          * very important to use the pre-increment operator to call
          * domain_create() with a domid > 0. (domid == 0 is reserved for Dom0)
          */
-        d = domain_create(++max_init_domid, &d_cfg, flags);
+        d = domain_create_llc_colored(++max_init_domid, &d_cfg, flags,
+                                      llc_colors, num_llc_colors);
         if ( IS_ERR(d) )
             panic("Error creating domain %s\n", dt_node_name(node));
 
@@ -4321,9 +4342,6 @@ void __init create_domUs(void)
 
         if ( construct_domU(d, node) != 0 )
             panic("Could not set up domain %s\n", dt_node_name(node));
-
-        if ( IS_ENABLED(CONFIG_CACHE_COLORING) )
-            domain_dump_coloring_info(d);
     }
 }
 
@@ -4365,7 +4383,7 @@ static int __init construct_dom0(struct domain *d)
     /* type must be set before allocate_memory */
     d->arch.type = kinfo.type;
 #endif
-    if ( IS_ENABLED(CONFIG_CACHE_COLORING) )
+    if ( is_domain_llc_colored(d) )
         allocate_memory(d, &kinfo);
     else
         allocate_memory_11(d, &kinfo);
@@ -4415,6 +4433,8 @@ void __init create_dom0(void)
         .grant_opts = XEN_DOMCTL_GRANT_version(opt_gnttab_max_version),
         .arch.viommu_type = XEN_DOMCTL_CONFIG_VIOMMU_NONE,
     };
+    unsigned int *llc_colors = NULL;
+    unsigned int num_llc_colors = 0, flags = CDF_privileged;
 
     /* The vGIC for DOM0 is exactly emulating the hardware GIC */
     dom0_cfg.arch.gic_version = XEN_DOMCTL_CONFIG_GIC_NATIVE;
@@ -4434,7 +4454,14 @@ void __init create_dom0(void)
     if ( iommu_enabled )
         dom0_cfg.flags |= XEN_DOMCTL_CDF_iommu;
 
-    dom0 = domain_create(0, &dom0_cfg, XEN_DOM0_CREATE_FLAGS);
+    if ( llc_coloring_enabled )
+        llc_colors = dom0_llc_colors(&num_llc_colors);
+    else
+        flags |= CDF_directmap;
+
+    dom0 = domain_create_llc_colored(0, &dom0_cfg, flags, llc_colors,
+                                     num_llc_colors);
+
     if ( IS_ERR(dom0) || (alloc_dom0_vcpu0(dom0) == NULL) )
         panic("Error creating domain 0\n");
 

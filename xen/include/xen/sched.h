@@ -610,6 +610,11 @@ struct domain
 
     /* Holding CDF_* constant. Internal flags for domain creation. */
     unsigned int cdf;
+
+#ifdef CONFIG_LLC_COLORING
+    unsigned int *llc_colors;
+    unsigned int num_llc_colors;
+#endif
 };
 
 static inline struct page_list_head *page_to_list(
@@ -692,6 +697,12 @@ static inline void domain_update_node_affinity(struct domain *d)
  * and filling in any appropriate defaults.
  */
 int arch_sanitise_domain_config(struct xen_domctl_createdomain *config);
+
+struct domain *domain_create_llc_colored(domid_t domid,
+                                         struct xen_domctl_createdomain *config,
+                                         unsigned int flags,
+                                         unsigned int *colors,
+                                         unsigned int num_colors);
 
 /*
  * Create a domain: the configuration is only necessary for real domain

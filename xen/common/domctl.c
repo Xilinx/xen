@@ -8,6 +8,7 @@
 
 #include <xen/types.h>
 #include <xen/lib.h>
+#include <xen/llc_coloring.h>
 #include <xen/err.h>
 #include <xen/mm.h>
 #include <xen/sched.h>
@@ -409,6 +410,7 @@ long do_domctl(XEN_GUEST_HANDLE_PARAM(xen_domctl_t) u_domctl)
     {
         domid_t        dom;
         static domid_t rover = 0;
+        unsigned int *llc_colors = NULL;
 
         dom = op->domain;
         if ( (dom > 0) && (dom < DOMID_FIRST_RESERVED) )
@@ -434,7 +436,13 @@ long do_domctl(XEN_GUEST_HANDLE_PARAM(xen_domctl_t) u_domctl)
             rover = dom;
         }
 
-        d = domain_create(dom, &op->u.createdomain, false);
+        if ( llc_coloring_enabled )
+            llc_colors = llc_colors_from_guest(&op->u.createdomain);
+
+        d = domain_create_llc_colored(dom, &op->u.createdomain, false,
+                                      llc_colors,
+                                      op->u.createdomain.num_llc_colors);
+
         if ( IS_ERR(d) )
         {
             ret = PTR_ERR(d);

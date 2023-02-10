@@ -32,9 +32,6 @@ config ARCH_MAP_DOMAIN_PAGE
 config HAS_ALTERNATIVE
 	bool
 
-config HAS_CACHE_COLORING
-	bool
-
 config HAS_COMPAT
 	bool
 
@@ -51,6 +48,9 @@ config HAS_IOPORTS
 	bool
 
 config HAS_KEXEC
+	bool
+
+config HAS_LLC_COLORING
 	bool
 
 config HAS_PDX

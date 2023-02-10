@@ -128,9 +128,11 @@ struct page_info
 #else
 #define PGC_static     0
 #endif
+#ifdef CONFIG_LLC_COLORING
 /* Page is cache colored */
-#define _PGC_colored      PG_shift(4)
-#define PGC_colored       PG_mask(1, 4)
+#define _PGC_colored   PG_shift(4)
+#define PGC_colored    PG_mask(1, 4)
+#endif
 /* ... */
 /* Page is broken? */
 #define _PGC_broken       PG_shift(7)
@@ -195,17 +197,8 @@ extern unsigned long total_pages;
 
 #define PDX_GROUP_SHIFT SECOND_SHIFT
 
-#ifdef CONFIG_CACHE_COLORING
-#define virt_to_boot_virt(virt) (virt - XEN_VIRT_START + BOOT_RELOC_VIRT_START)
-#define set_value_for_secondary(var, val)                       \
-    *(typeof(var) *)(virt_to_boot_virt((vaddr_t)&var)) = val;   \
-    clean_dcache(var);
-#else
-#define virt_to_boot_virt(virt) (virt)
-#define set_value_for_secondary(var, val)   \
-    var = val;                              \
-    clean_dcache(var);
-#endif
+#define virt_to_reloc_virt(virt) \
+    (((vaddr_t)virt) - XEN_VIRT_START + BOOT_RELOC_VIRT_START)
 
 /* Boot-time pagetable setup */
 extern void setup_pagetables(unsigned long boot_phys_offset, paddr_t xen_paddr);
@@ -213,8 +206,8 @@ extern void setup_pagetables(unsigned long boot_phys_offset, paddr_t xen_paddr);
 extern void *early_fdt_map(paddr_t fdt_paddr);
 /* Remove early mappings */
 extern void remove_early_mappings(void);
-/* Remove early coloring mappings */
-extern void remove_coloring_mappings(void);
+/* Remove early LLC coloring mappings */
+extern void remove_llc_coloring_mappings(void);
 /* Allocate and initialise pagetables for a secondary CPU. Sets init_ttbr to the
  * new page table */
 extern int init_secondary_pagetables(int cpu);

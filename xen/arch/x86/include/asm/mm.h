@@ -73,12 +73,9 @@
  /* Set when is using a page as a page table */
 #define _PGC_page_table   PG_shift(3)
 #define PGC_page_table    PG_mask(1, 3)
-/* Page is cache colored */
-#define _PGC_colored      PG_shift(4)
-#define PGC_colored       PG_mask(1, 4)
  /* Page is broken? */
-#define _PGC_broken       PG_shift(5)
-#define PGC_broken        PG_mask(1, 5)
+#define _PGC_broken       PG_shift(4)
+#define PGC_broken        PG_mask(1, 4)
  /* Mutually-exclusive page states: { inuse, offlining, offlined, free }. */
 #define PGC_state           PG_mask(3, 6)
 #define PGC_state_inuse     PG_mask(0, 6)

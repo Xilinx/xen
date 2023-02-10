@@ -305,7 +305,7 @@ can be maintained with the pv-shim mechanism.
 > Default: `64M`
 
 Amount of memory reserved for the buddy allocator when colored allocator is
-active. This options is parsed only when cache coloring support is enabled.
+active. This options is available only when `CONFIG_LLC_COLORING` is enabled.
 The colored allocator is meant as an alternative to the buddy allocator,
 because its allocation policy is by definition incompatible with the
 generic one. Since the Xen heap systems is not colored yet, we need to
@@ -917,18 +917,19 @@ Controls for the dom0 IOMMU setup.
 
     Incorrect use of this option may result in a malfunctioning system.
 
-### dom0-colors (arm64)
-> `= List of [ <integer> | <integer>-<integer> ]`
-
-> Default: `All available colors`
-
-Specify dom0 color configuration. If the parameter is not set, all available
-colors are chosen and the user is warned on Xen's serial console.
-
 ### dom0_ioports_disable (x86)
 > `= List of <hex>-<hex>`
 
 Specify a list of IO ports to be excluded from dom0 access.
+
+### dom0-llc-colors (arm64)
+> `= List of [ <integer> | <integer>-<integer> ]`
+
+> Default: `All available LLC colors`
+
+Specify dom0 LLC color configuration. This options is available only when
+`CONFIG_LLC_COLORING` is enabled. If the parameter is not set, all available
+colors are chosen and the user is warned on Xen serial console.
 
 ### dom0_max_vcpus
 
@@ -1667,15 +1668,25 @@ This option is intended for debugging purposes only.  Enable MSR_DEBUGCTL.LBR
 in hypervisor context to be able to dump the Last Interrupt/Exception To/From
 record with other registers.
 
+### llc-coloring (arm64)
+> `= <boolean>`
+
+> Default: `false`
+
+Flag to enable or disable LLC coloring support at runtime. This options is
+available only when `CONFIG_LLC_COLORING` is enabled. See the general
+cache coloring documentation for more info.
+
 ### llc-way-size (arm64)
 > `= <size>`
 
 > Default: `Obtained from the hardware`
 
-Specify the way size of the Last Level Cache. This parameter is only useful with
-cache coloring support enabled. It is an optional, expert-only parameter and it
-is used to calculate the number of available colors on the platform. It can be
-obtained by dividing the total LLC size by the number of its associative ways.
+Specify the way size of the Last Level Cache. This options is available only
+when `CONFIG_LLC_COLORING` is enabled. It is an optional, expert-only parameter
+and it is used to calculate the number of available LLC colors on the platform.
+It can be obtained by dividing the total LLC size by the number of its
+associative ways.
 By default, the value is automatically computed by probing the hardware, but in
 case of specific needs, it can be manually set. Those include failing probing
 and debugging/testing purposes so that it's possibile to emulate platforms with
@@ -2778,12 +2789,13 @@ In the case that x2apic is in use, this option switches between physical and
 clustered mode.  The default, given no hint from the **FADT**, is cluster
 mode.
 
-### xen-colors (arm64)
+### xen-llc-colors (arm64)
 > `= List of [ <integer> | <integer>-<integer> ]`
 
 > Default: `0: the lowermost color`
 
-Specify Xen color configuration.
+Specify Xen LLC color configuration. This options is available only when
+`CONFIG_LLC_COLORING` is enabled.
 Two colors are most likely needed on platforms where private caches are
 physically indexed, e.g. the L1 instruction cache of the Arm Cortex-A57.
 

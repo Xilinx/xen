@@ -20,6 +20,7 @@
 #include <xen/init.h>
 #include <xen/types.h>
 #include <xen/kernel.h>
+#include <xen/llc_coloring.h>
 #include <xen/mm.h>
 #include <xen/vmap.h>
 #include <xen/smp.h>
@@ -28,7 +29,6 @@
 #include <asm/alternative.h>
 #include <asm/atomic.h>
 #include <asm/byteorder.h>
-#include <asm/coloring.h>
 #include <asm/cpufeature.h>
 #include <asm/insn.h>
 #include <asm/page.h>
@@ -221,7 +221,7 @@ void __init apply_alternatives_all(void)
      * The text and inittext section are read-only. So re-map Xen to
      * be able to patch the code.
      */
-    if ( IS_ENABLED(CONFIG_CACHE_COLORING) )
+    if ( llc_coloring_enabled )
         xenmap = xen_remap_colored(xen_mfn, xen_size);
     else
         xenmap = __vmap(&xen_mfn, 1U << xen_order, 1, 1, PAGE_HYPERVISOR,

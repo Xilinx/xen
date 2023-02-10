@@ -7,6 +7,7 @@
 #include <xen/compat.h>
 #include <xen/init.h>
 #include <xen/lib.h>
+#include <xen/llc_coloring.h>
 #include <xen/ctype.h>
 #include <xen/err.h>
 #include <xen/param.h>
@@ -550,9 +551,11 @@ static int sanitise_domain_config(struct xen_domctl_createdomain *config)
     return arch_sanitise_domain_config(config);
 }
 
-struct domain *domain_create(domid_t domid,
-                             struct xen_domctl_createdomain *config,
-                             unsigned int flags)
+struct domain *domain_create_llc_colored(domid_t domid,
+                                         struct xen_domctl_createdomain *config,
+                                         unsigned int flags,
+                                         unsigned int *llc_colors,
+                                         unsigned int num_llc_colors)
 {
     struct domain *d, **pd, *old_hwdom = NULL;
     enum { INIT_watchdog = 1u<<1,
@@ -664,6 +667,10 @@ struct domain *domain_create(domid_t domid,
         d->nr_pirqs = min(d->nr_pirqs, nr_irqs);
 
         radix_tree_init(&d->pirq_tree);
+
+        if ( llc_coloring_enabled &&
+             (err = domain_llc_coloring_init(d, llc_colors, num_llc_colors)) )
+            return ERR_PTR(err);
     }
 
     if ( (err = arch_domain_create(d, config, flags)) != 0 )
@@ -768,6 +775,13 @@ struct domain *domain_create(domid_t domid,
     _domain_destroy(d);
 
     return ERR_PTR(err);
+}
+
+struct domain *domain_create(domid_t domid,
+                             struct xen_domctl_createdomain *config,
+                             unsigned int flags)
+{
+    return domain_create_llc_colored(domid, config, flags, NULL, 0);
 }
 
 void __init setup_system_domains(void)
@@ -1090,6 +1104,9 @@ static void cf_check complete_domain_destroy(struct rcu_head *head)
     struct domain *d = container_of(head, struct domain, rcu);
     struct vcpu *v;
     int i;
+
+    if ( is_domain_llc_colored(d) )
+        domain_llc_coloring_free(d);
 
     /*
      * Flush all state for the vCPU previously having run on the current CPU.

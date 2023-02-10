@@ -23,6 +23,7 @@
 #include <xen/guest_access.h>
 #include <xen/init.h>
 #include <xen/libfdt/libfdt.h>
+#include <xen/llc_coloring.h>
 #include <xen/mm.h>
 #include <xen/pfn.h>
 #include <xen/pmap.h>
@@ -33,7 +34,6 @@
 
 #include <xsm/xsm.h>
 
-#include <asm/coloring.h>
 #include <asm/fixmap.h>
 #include <asm/setup.h>
 
@@ -106,7 +106,7 @@ DEFINE_BOOT_PAGE_TABLE(boot_third);
 static DEFINE_PAGE_TABLE(xen_pgtable);
 static DEFINE_PAGE_TABLE(xen_first);
 #define THIS_CPU_PGTABLE xen_pgtable
-#ifdef CONFIG_CACHE_COLORING
+#ifdef CONFIG_LLC_COLORING
 static DEFINE_PAGE_TABLE(xen_colored_temp);
 #endif
 #else
@@ -191,6 +191,30 @@ static void __init __maybe_unused build_assertions(void)
 #undef CHECK_SAME_SLOT
 }
 
+static lpae_t *xen_map_table(mfn_t mfn)
+{
+    /*
+     * During early boot, map_domain_page() may be unusable. Use the
+     * PMAP to map temporarily a page-table.
+     */
+    if ( system_state == SYS_STATE_early_boot )
+        return pmap_map(mfn);
+
+    return map_domain_page(mfn);
+}
+
+static void xen_unmap_table(const lpae_t *table)
+{
+    /*
+     * During early boot, xen_map_table() will not use map_domain_page()
+     * but the PMAP.
+     */
+    if ( system_state == SYS_STATE_early_boot )
+        pmap_unmap(table);
+    else
+        unmap_domain_page(table);
+}
+
 void dump_pt_walk(paddr_t ttbr, paddr_t addr,
                   unsigned int root_level,
                   unsigned int nr_root_tables)
@@ -230,7 +254,7 @@ void dump_pt_walk(paddr_t ttbr, paddr_t addr,
     else
         root_table = 0;
 
-    mapping = map_domain_page(mfn_add(root_mfn, root_table));
+    mapping = xen_map_table(mfn_add(root_mfn, root_table));
 
     for ( level = root_level; ; level++ )
     {
@@ -246,23 +270,21 @@ void dump_pt_walk(paddr_t ttbr, paddr_t addr,
             break;
 
         /* For next iteration */
-        unmap_domain_page(mapping);
-        mapping = map_domain_page(lpae_get_mfn(pte));
+        xen_unmap_table(mapping);
+        mapping = xen_map_table(lpae_get_mfn(pte));
     }
 
-    unmap_domain_page(mapping);
+    xen_unmap_table(mapping);
 }
 
 void dump_hyp_walk(vaddr_t addr)
 {
     uint64_t ttbr = READ_SYSREG64(TTBR0_EL2);
-    lpae_t *pgtable = THIS_CPU_PGTABLE;
 
     printk("Walking Hypervisor VA 0x%"PRIvaddr" "
            "on CPU%d via TTBR 0x%016"PRIx64"\n",
            addr, smp_processor_id(), ttbr);
 
-    BUG_ON( virt_to_maddr(pgtable) != ttbr );
     dump_pt_walk(ttbr, addr, HYP_PT_ROOT_LEVEL, 1);
 }
 
@@ -368,11 +390,12 @@ void flush_page_to_ram(unsigned long mfn, bool sync_icache)
 
 static inline lpae_t pte_of_xenaddr(vaddr_t va)
 {
-#ifdef CONFIG_CACHE_COLORING
-    paddr_t ma = virt_to_maddr(virt_to_boot_virt(va));
-#else
-    paddr_t ma = va + phys_offset;
-#endif
+    paddr_t ma;
+
+    if ( llc_coloring_enabled )
+        ma = virt_to_maddr(virt_to_reloc_virt(va));
+    else
+        ma = va + phys_offset;
 
     return mfn_to_xen_entry(maddr_to_mfn(ma), MT_NORMAL);
 }
@@ -468,8 +491,8 @@ static void clear_table(void *table)
     clean_and_invalidate_dcache_va_range(table, PAGE_SIZE);
 }
 
-#ifdef CONFIG_CACHE_COLORING
-static void __init create_coloring_temp_mappings(paddr_t xen_paddr)
+#ifdef CONFIG_LLC_COLORING
+static void __init create_llc_coloring_mappings(paddr_t xen_paddr)
 {
     lpae_t pte;
     unsigned int i;
@@ -487,7 +510,7 @@ static void __init create_coloring_temp_mappings(paddr_t xen_paddr)
     write_pte(&boot_second[second_table_offset(BOOT_RELOC_VIRT_START)], pte);
 }
 
-void __init remove_coloring_mappings(void)
+void __init remove_llc_coloring_mappings(void)
 {
     int rc;
 
@@ -498,9 +521,9 @@ void __init remove_coloring_mappings(void)
     BUG_ON(rc);
 }
 #else
-static void __init create_coloring_temp_mappings(paddr_t xen_paddr) {}
-void __init remove_coloring_mappings(void) {}
-#endif /* CONFIG_CACHE_COLORING */
+static void __init create_llc_coloring_mappings(paddr_t xen_paddr) {}
+void __init remove_llc_coloring_mappings(void) {}
+#endif /* CONFIG_LLC_COLORING */
 
 /*
  * Boot-time pagetable setup with coloring support
@@ -523,8 +546,8 @@ void __init setup_pagetables(unsigned long boot_phys_offset, paddr_t xen_paddr)
 
     phys_offset = boot_phys_offset;
 
-    if ( IS_ENABLED(CONFIG_CACHE_COLORING) )
-        create_coloring_temp_mappings(xen_paddr);
+    if ( llc_coloring_enabled )
+        create_llc_coloring_mappings(xen_paddr);
 
 #ifdef CONFIG_ARM_64
     p = (void *) xen_pgtable;
@@ -572,28 +595,30 @@ void __init setup_pagetables(unsigned long boot_phys_offset, paddr_t xen_paddr)
     pte.pt.table = 1;
     xen_second[second_table_offset(FIXMAP_ADDR(0))] = pte;
 
-#ifdef CONFIG_CACHE_COLORING
-    ttbr = virt_to_maddr(virt_to_boot_virt((vaddr_t)xen_pgtable));
-    relocate_xen(ttbr, _start, (void *)BOOT_RELOC_VIRT_START,
-                 _end - _start);
-    /*
-     * Keep original Xen memory mapped because secondary CPUs still point to it
-     * and a few variables needs to be accessed by the master CPU in order to
-     * let them boot. This mapping will also replace the one created at the
-     * beginning of setup_pagetables.
-     */
-    map_pages_to_xen(BOOT_RELOC_VIRT_START,
-                     maddr_to_mfn(XEN_VIRT_START + phys_offset),
-                     SZ_2M >> PAGE_SHIFT, PAGE_HYPERVISOR_RW | _PAGE_BLOCK);
-
-#else
 #ifdef CONFIG_ARM_64
     ttbr = (uintptr_t) xen_pgtable + phys_offset;
 #else
     ttbr = (uintptr_t) cpu0_pgtable + phys_offset;
 #endif
-    switch_ttbr(ttbr);
-#endif
+
+    if ( llc_coloring_enabled )
+    {
+        ttbr = virt_to_maddr(virt_to_reloc_virt(ttbr - phys_offset));
+
+        relocate_xen(ttbr, _start, (void *)BOOT_RELOC_VIRT_START,
+                     _end - _start);
+        /*
+        * Keep original Xen memory mapped because secondary CPUs still point to it
+        * and a few variables needs to be accessed by the master CPU in order to
+        * let them boot. This mapping will also replace the one created at the
+        * beginning of setup_pagetables.
+        */
+        map_pages_to_xen(BOOT_RELOC_VIRT_START,
+                         maddr_to_mfn(XEN_VIRT_START + phys_offset),
+                         SZ_2M >> PAGE_SHIFT, PAGE_HYPERVISOR_RW | _PAGE_BLOCK);
+    }
+    else
+        switch_ttbr(ttbr);
 
     xen_pt_enforce_wnx();
 
@@ -620,11 +645,17 @@ static void clear_boot_pagetables(void)
 #ifdef CONFIG_ARM_64
 int init_secondary_pagetables(int cpu)
 {
+    uint64_t *init_ttbr_addr = &init_ttbr;
+
     clear_boot_pagetables();
+
+    if ( llc_coloring_enabled )
+        init_ttbr_addr = (uint64_t *)virt_to_reloc_virt(&init_ttbr);
 
     /* Set init_ttbr for this CPU coming up. All CPus share a single setof
      * pagetables, but rewrite it each time for consistency with 32 bit. */
-    set_value_for_secondary(init_ttbr, virt_to_maddr(xen_pgtable));
+    *init_ttbr_addr = virt_to_maddr(xen_pgtable);
+    clean_dcache(*init_ttbr_addr);
 
     return 0;
 }
@@ -779,30 +810,6 @@ void *ioremap_attr(paddr_t pa, size_t len, unsigned int attributes)
 void *ioremap(paddr_t pa, size_t len)
 {
     return ioremap_attr(pa, len, PAGE_HYPERVISOR_NOCACHE);
-}
-
-static lpae_t *xen_map_table(mfn_t mfn)
-{
-    /*
-     * During early boot, map_domain_page() may be unusable. Use the
-     * PMAP to map temporarily a page-table.
-     */
-    if ( system_state == SYS_STATE_early_boot )
-        return pmap_map(mfn);
-
-    return map_domain_page(mfn);
-}
-
-static void xen_unmap_table(const lpae_t *table)
-{
-    /*
-     * During early boot, xen_map_table() will not use map_domain_page()
-     * but the PMAP.
-     */
-    if ( system_state == SYS_STATE_early_boot )
-        pmap_unmap(table);
-    else
-        unmap_domain_page(table);
 }
 
 static int create_xen_table(lpae_t *entry)

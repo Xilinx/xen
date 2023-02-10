@@ -115,6 +115,7 @@
 #define BOOT_FDT_VIRT_SIZE     _AT(vaddr_t, MB(4))
 
 #define BOOT_RELOC_VIRT_START  _AT(vaddr_t,0x00a00000)
+
 #ifdef CONFIG_LIVEPATCH
 #define LIVEPATCH_VMAP_START   _AT(vaddr_t,0x00a00000)
 #define LIVEPATCH_VMAP_SIZE    _AT(vaddr_t, MB(2))

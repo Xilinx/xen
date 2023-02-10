@@ -631,7 +631,6 @@ int libxl__domain_make(libxl__gc *gc, libxl_domain_config *d_config,
     struct xs_permissions rwperm[1];
     struct xs_permissions noperm[1];
     xs_transaction_t t = 0;
-    DECLARE_HYPERCALL_BUFFER(unsigned int, colors);
 
     /* convenience aliases */
     libxl_domain_create_info *info = &d_config->c_info;
@@ -655,6 +654,8 @@ int libxl__domain_make(libxl__gc *gc, libxl_domain_config *d_config,
             .grant_opts = XEN_DOMCTL_GRANT_version(b_info->max_grant_version),
             .vmtrace_size = ROUNDUP(b_info->vmtrace_buf_kb << 10, XC_PAGE_SHIFT),
             .cpupool_id = info->poolid,
+            .num_llc_colors = b_info->num_llc_colors,
+            .llc_colors.p = b_info->llc_colors,
         };
 
         if (info->type != LIBXL_DOMAIN_TYPE_PV) {
@@ -696,16 +697,6 @@ int libxl__domain_make(libxl__gc *gc, libxl_domain_config *d_config,
             LOGED(ERROR, *domid, "fail to get domain config");
             rc = ERROR_FAIL;
             goto out;
-        }
-
-        if (d_config->b_info.num_colors) {
-            size_t bytes = sizeof(unsigned int) * d_config->b_info.num_colors;
-            colors = xc_hypercall_buffer_alloc(ctx->xch, colors, bytes);
-            memcpy(colors, d_config->b_info.colors, bytes);
-            set_xen_guest_handle(create.arch.colors, colors);
-            create.arch.num_colors = d_config->b_info.num_colors;
-            create.arch.from_guest = 1;
-            LOG(DEBUG, "Setup %u domain colors", d_config->b_info.num_colors);
         }
 
         for (;;) {
@@ -954,7 +945,6 @@ retry_transaction:
     rc = 0;
  out:
     if (t) xs_transaction_end(ctx->xsh, t, 1);
-    if (colors) xc_hypercall_buffer_free(ctx->xch, colors);
     return rc;
 }
 

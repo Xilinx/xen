@@ -44,16 +44,6 @@ static uint64_t generate_vttbr(uint16_t vmid, mfn_t root_mfn)
     return (mfn_to_maddr(root_mfn) | ((uint64_t)vmid << 48));
 }
 
-static inline struct page_info *_p2m_alloc_page(struct domain *d)
-{
-    /* If cache coloring is enabled, p2m tables are allocated using the domain
-     * coloring configuration to prevent cache interference. */
-    if ( IS_ENABLED(CONFIG_CACHE_COLORING) )
-        return alloc_domheap_page(d, MEMF_no_owner);
-    else
-        return alloc_domheap_page(NULL, 0);
-}
-
 static struct page_info *p2m_alloc_page(struct domain *d)
 {
     struct page_info *pg;
@@ -66,7 +56,7 @@ static struct page_info *p2m_alloc_page(struct domain *d)
      */
     if ( is_hardware_domain(d) )
     {
-        pg = _p2m_alloc_page(d);
+        pg = alloc_domheap_page(d, MEMF_no_owner);
         if ( pg == NULL )
         {
             printk(XENLOG_G_ERR "Failed to allocate P2M pages for hwdom.\n");
@@ -121,7 +111,7 @@ int p2m_set_allocation(struct domain *d, unsigned long pages, bool *preempted)
         if ( d->arch.paging.p2m_total_pages < pages )
         {
             /* Need to allocate more memory from domheap */
-            pg = _p2m_alloc_page(d); 
+            pg = alloc_domheap_page(d, MEMF_no_owner);
             if ( pg == NULL )
             {
                 printk(XENLOG_ERR "Failed to allocate P2M pages.\n");

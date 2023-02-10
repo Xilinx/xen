@@ -28,6 +28,20 @@ int xc_domain_create(xc_interface *xch, uint32_t *pdomid,
 {
     int err;
     DECLARE_DOMCTL;
+    DECLARE_HYPERCALL_BUFFER(uint32_t, llc_colors);
+
+    if ( config->num_llc_colors )
+    {
+        size_t bytes = sizeof(uint32_t) * config->num_llc_colors;
+
+        llc_colors = xc_hypercall_buffer_alloc(xch, llc_colors, bytes);
+        if ( llc_colors == NULL ) {
+            PERROR("Could not allocate LLC colors for xc_domain_create");
+            return -ENOMEM;
+        }
+        memcpy(llc_colors, config->llc_colors.p, bytes);
+        set_xen_guest_handle(config->llc_colors, llc_colors);
+    }
 
     domctl.cmd = XEN_DOMCTL_createdomain;
     domctl.domain = *pdomid;
@@ -38,6 +52,9 @@ int xc_domain_create(xc_interface *xch, uint32_t *pdomid,
 
     *pdomid = (uint16_t)domctl.domain;
     *config = domctl.u.createdomain;
+
+    if ( llc_colors )
+        xc_hypercall_buffer_free(xch, llc_colors);
 
     return 0;
 }

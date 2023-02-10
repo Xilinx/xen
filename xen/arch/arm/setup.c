@@ -21,6 +21,7 @@
 #include <xen/device_tree.h>
 #include <xen/domain_page.h>
 #include <xen/grant_table.h>
+#include <xen/llc_coloring.h>
 #include <xen/types.h>
 #include <xen/string.h>
 #include <xen/serial.h>
@@ -53,7 +54,6 @@
 #include <asm/setup.h>
 #include <xsm/xsm.h>
 #include <asm/acpi.h>
-#include <asm/coloring.h>
 
 struct bootinfo __initdata bootinfo;
 
@@ -465,7 +465,7 @@ static void * __init relocate_fdt(paddr_t dtb_paddr, size_t dtb_size)
     return fdt;
 }
 
-#if defined (CONFIG_ARM_32) || (CONFIG_CACHE_COLORING)
+#if defined (CONFIG_ARM_32) || defined(CONFIG_LLC_COLORING)
 /*
  * Returns the end address of the highest region in the range s..e
  * with required size and alignment that does not conflict with the
@@ -633,7 +633,7 @@ static paddr_t __init next_module(paddr_t s, paddr_t *end)
     return lowest;
 }
 
-#ifdef CONFIG_CACHE_COLORING
+#ifdef CONFIG_LLC_COLORING
 /**
  * get_xen_paddr - get physical address to relocate Xen to
  *
@@ -1092,11 +1092,11 @@ void __init start_xen(unsigned long boot_phys_offset,
     printk("Command line: %s\n", cmdline);
     cmdline_parse(cmdline);
 
-    if ( IS_ENABLED(CONFIG_CACHE_COLORING) )
+    if ( llc_coloring_enabled )
     {
-        if ( !coloring_init() )
-            panic("Xen cache coloring support: setup failed\n");
-        xen_bootmodule->size = XEN_COLOR_MAP_SIZE;
+        if ( !llc_coloring_init() )
+            panic("Xen LLC coloring support: setup failed\n");
+        xen_bootmodule->size = xen_colored_map_size(_end - _start);
         xen_bootmodule->start = get_xen_paddr(xen_bootmodule->size);
     }
 
@@ -1218,10 +1218,11 @@ void __init start_xen(unsigned long boot_phys_offset,
     /*
      * The removal is done earlier than discard_initial_modules beacuse the
      * livepatch init uses a virtual address equal to BOOT_RELOC_VIRT_START.
-     * Remove coloring mappings to expose a clear state to the livepatch module.
+     * Remove LLC coloring mappings to expose a clear state to the livepatch
+     * module.
      */
-    if ( IS_ENABLED(CONFIG_CACHE_COLORING) )
-        remove_coloring_mappings();
+    if ( llc_coloring_enabled )
+        remove_llc_coloring_mappings();
     do_initcalls();
 
     /*

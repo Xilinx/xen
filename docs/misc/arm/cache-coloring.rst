@@ -2,25 +2,30 @@ Xen cache coloring user guide
 =============================
 
 The cache coloring support in Xen allows to reserve Last Level Cache (LLC)
-partition for Dom0, DomUs and Xen itself. Currently only ARM64 is supported.
+partitions for Dom0, DomUs and Xen itself. Currently only ARM64 is supported.
 
 In order to enable and use it, few steps are needed.
 
-- Enable expert mode in Xen configuration file.
+In Kconfig:
 
-        CONFIG_EXPERT=y
-- Enable cache coloring in Xen configuration file.
+- Enable LLC coloring.
 
-        CONFIG_CACHE_COLORING=y
-- If needed, change the maximum number of colors in Xen configuration file
-  (refer to menuconfig help for value meaning and when it should be changed).
+        CONFIG_LLC_COLORING=y
+- If needed, change the maximum number of colors (refer to menuconfig help for
+  value meaning and when it should be changed).
 
-        CONFIG_MAX_CACHE_COLORS=<n>
-- If needed, change the amount of memory reserved for the buddy allocator either
-  from the Xen configuration file, via the CONFIG_BUDDY_ALLOCATOR_SIZE value,
-  or with the command line option. See `Colored allocator and buddy allocator`.
-- Assign colors to each memory pool (Xen, Dom0/DomUs) using the
-  `Color selection format`_ for `Coloring parameters`_ configuration.
+        CONFIG_NR_LLC_COLORS=<n>
+- If needed, change the amount of memory reserved for the buddy allocator
+  (see `Colored allocator and buddy allocator`_).
+
+        CONFIG_BUDDY_ALLOCATOR_SIZE=<n>
+
+Compile Xen and the toolstack and then:
+
+- Set the `llc-coloring=on` command line option.
+- If needed, set the amount of memory reserved for the buddy allocator
+  via the appropriate command line option.
+- Set `Coloring parameters and domain configurations`_.
 
 Background
 **********
@@ -73,16 +78,16 @@ How to compute the number of colors
 To compute the number of available colors for a specific platform, the size of
 an LLC way and the page size used by Xen must be known. The first parameter can
 be found in the processor manual or can be also computed dividing the total
-cache size by the number of its ways. The second parameter is the minimum amount
-of memory that can be mapped by the hypervisor, thus dividing the way size by
-the page size, the number of total cache partitions is found. So for example,
-an Arm Cortex-A53 with a 16-ways associative 1 MiB LLC, can isolate up to 16
-colors when pages are 4 KiB in size.
+cache size by the number of its ways. The second parameter is the minimum
+amount of memory that can be mapped by the hypervisor, thus dividing the way
+size by the page size, the number of total cache partitions is found. So for
+example, an Arm Cortex-A53 with a 16-ways associative 1 MiB LLC, can isolate up
+to 16 colors when pages are 4 KiB in size.
 
 Cache layout is probed automatically by Xen itself, but a possibility to
 manually set the way size it's left for the user to overcome failing situations
-or for debugging/testing purposes. See `Coloring parameters`_ section for more
-information on that.
+or for debugging/testing purposes. See `Coloring parameters and domain
+configurations`_ section for more information on that.
 
 Colors selection format
 ***********************
@@ -110,21 +115,22 @@ Examples:
 |  0                  | [0]                               |
 +---------------------+-----------------------------------+
 
-Coloring parameters
-*******************
+Coloring parameters and domain configurations
+*********************************************
 
-LLC way size (as previously discussed), Xen colors and Dom0 colors can be set
-using the appropriate command line parameters. See the relevant documentation in
-"docs/misc/xen-command-line.pandoc".
+LLC way size (as previously discussed) and Dom0 colors can be set using the
+appropriate command line parameters. See the relevant documentation
+in "docs/misc/xen-command-line.pandoc".
 
 DomUs colors can be set either in the xl configuration file (relative
 documentation at "docs/man/xl.cfg.pod.5.in") or via Device Tree, also for
-Dom0less configurations, as in the following example:
+Dom0less configurations (relative documentation in
+"docs/misc/arm/device-tree/booting.txt"), as in the following example:
 
 .. raw:: html
 
     <pre>
-        xen,xen-bootargs = "console=dtuart dtuart=serial0 dom0_mem=1G dom0_max_vcpus=1 sched=null llc-way-size=64K xen-colors=0-1 dom0-colors=2-6";
+        xen,xen-bootargs = "console=dtuart dtuart=serial0 dom0_mem=1G dom0_max_vcpus=1 sched=null llc-coloring=on llc-way-size=64K xen-llc-colors=0-1 dom0-llc-colors=2-6";
         xen,dom0-bootargs "console=hvc0 earlycon=xen earlyprintk=xen root=/dev/ram0"
 
         dom0 {
@@ -142,7 +148,7 @@ Dom0less configurations, as in the following example:
             #size-cells = <0x1>;
             compatible = "xen,domain";
             memory = <0x0 0x40000>;
-            colors = "4-8,10,11,12";
+            llc-colors = "4-8,10,11,12";
             cpus = <0x1>;
             vpl011 = <0x1>;
 
@@ -159,11 +165,8 @@ Dom0less configurations, as in the following example:
         };
     </pre>
 
-Please refer to the relative documentation in
-"docs/misc/arm/device-tree/booting.txt".
-
-Note that if no color configuration is provided for domains, they fallback to
-the default one, which corresponds simply to all available colors.
+**Note:** If no color configuration is provided for a domain, the default one,
+which corresponds to all available colors, is used instead.
 
 Colored allocator and buddy allocator
 *************************************
@@ -174,11 +177,19 @@ The colored allocator is meant as an alternative to the buddy allocator because
 its allocation policy is by definition incompatible with the generic one. Since
 the Xen heap is not colored yet, we need to support the coexistence of the two
 allocators and some memory must be left for the buddy one.
-The buddy allocator memory can be reserved from the Xen configuration file or
-with the help of a command-line option.
+The buddy allocator memory can be reserved from the Xen Kconfig or with the
+help of a command-line option.
 
 Known issues and limitations
 ****************************
+
+"xen,static-mem" isn't supported when coloring is enabled
+#########################################################
+
+In the domain configuration, "xen,static-mem" allows memory to be statically
+allocated to the domain. This isn't possibile when LLC coloring is enabled,
+because that memory can't be guaranteed to use only colors assigned to the
+domain.
 
 Cache coloring is intended only for embedded systems
 ####################################################
@@ -187,23 +198,6 @@ The current implementation aims to satisfy the need of predictability in
 embedded systems with small amount of memory to be managed in a colored way.
 Given that, some shortcuts are taken in the development. Expect worse
 performances on larger systems.
-
-The maximum number of colors supported is 32768
-###############################################
-
-The upper bound of the CONFIG_MAX_CACHE_COLORS range (which is an upper bound
-too) is set to 2^15 = 32768 colors because of some limitation on the domain
-configuration structure size used in domain creation. "uint16_t" is the biggest
-integer type that fit the constraint and 2^15 is the biggest power of 2 it can
-easily represent. This value is big enough for the generic case, though.
-
-"xen,static-mem" isn't supported when coloring is enabled
-#########################################################
-
-In the domain configuration, "xen,static-mem" allows memory to be statically
-allocated to the domain. This isn't possibile when cache coloring is enabled,
-because that memory can't be guaranteed to be of the same colors assigned to
-that domain.
 
 Colored allocator can only make use of order-0 pages
 ####################################################
