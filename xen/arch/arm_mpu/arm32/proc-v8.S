@@ -9,7 +9,20 @@
 #include <asm/arm32/processor.h>
 #include <asm/sysregs.h>
 
+#define XPAR_CPU_CORTEXR52_0_TIMESTAMP_CLK_FREQ  800000U
+
 cr52_init:
+        /*
+         * Set counter frequency  800 KHZ
+         *
+         * Set counter frequency, CNTFRQ
+         */
+        ldr     r0,=XPAR_CPU_CORTEXR52_0_TIMESTAMP_CLK_FREQ
+        mrc     15,0,r1,c14,c0,0  /* Read CNTFRQ */
+        cmp     r1,#0
+        /* Set only if the frequency read is 0 */
+        mcreq   15,0,r0,c14,c0,0  /* Write CNTFRQ */
+
         mov pc, lr
 
         .section ".proc.info", #alloc

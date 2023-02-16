@@ -52,6 +52,13 @@ config NO_PLAT
 	---help---
 	Do not enable specific support for any platform.
 
+config VERSAL_NET
+	bool "Versal-Net Support"
+	default y
+	depends on AARCH32_V8R
+	help
+		This option enables AARCH32_V8R profile for Versal-net. SMP is not supported.
+
 endchoice
 
 config ALL64_PLAT

@@ -12,5 +12,6 @@ obj-$(CONFIG_ALL64_PLAT) += brcm-raspberry-pi.o
 obj-$(CONFIG_ALL64_PLAT) += xilinx-versal.o
 obj-$(CONFIG_ALL64_PLAT) += xilinx-eemi.o
 obj-$(CONFIG_ALL64_PLAT) += xilinx-versal-eemi.o
+obj-$(CONFIG_VERSAL_NET) += amd-versal-net.o
 obj-$(CONFIG_MPSOC_PLATFORM)  += xilinx-zynqmp.o
 obj-$(CONFIG_MPSOC_PLATFORM)  += xilinx-zynqmp-eemi.o
