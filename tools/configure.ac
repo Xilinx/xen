@@ -216,7 +216,7 @@ AC_ARG_WITH([system-qemu],
         device model instead of building and installing our own version]),[
     case $withval in
         yes)
-            qemu_xen=n ; qemu_xen_path="qemu-system-i386"
+            qemu_xen=n ; qemu_xen_path="qemu-system-aarch64"
             qemu_xen_systemd="/usr/bin/env $qemu_xen_path" ;;
         no)
             qemu_xen=y ;;
@@ -234,7 +234,7 @@ AC_ARG_WITH([system-qemu],
     esac
 ])
 AS_IF([test "x$qemu_xen" = "xy"], [
-    qemu_xen_path="$LIBEXEC_BIN/qemu-system-i386"
+    qemu_xen_path="$LIBEXEC_BIN/qemu-system-aarch64"
     qemu_xen_systemd="$qemu_xen_path"
 ])
 AC_DEFINE_UNQUOTED([QEMU_XEN_PATH], ["$qemu_xen_path"], [Qemu Xen path])

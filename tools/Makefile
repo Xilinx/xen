@@ -231,7 +231,7 @@ subdir-all-qemu-xen-dir: qemu-xen-dir-find
 		virtfs='' ; \
 	fi ; \
 	PKG_CONFIG_PATH=$(XEN_ROOT)/tools/pkg-config$${PKG_CONFIG_PATH:+:$${PKG_CONFIG_PATH}} \
-	$$source/configure --enable-xen --target-list=i386-softmmu \
+	$$source/configure --enable-xen --target-list=aarch64-softmmu \
 		$(QEMU_XEN_ENABLE_DEBUG) \
 		$$enable_trace_backend \
 		--prefix=$(prefix) \
