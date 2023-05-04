@@ -2351,6 +2351,14 @@ static int __init make_hwdom_viommu_node(const struct kernel_info *kinfo)
         if ( res )
             return res;
 
+        prop = dt_get_property(iommu, "dma-coherent", NULL);
+        if ( prop )
+        {
+            res = fdt_property(fdt, "dma-coherent", NULL, 0);
+            if ( res )
+                return res;
+        }
+
         iommu_data->hwdom_node_created = true;
 
         fdt_end_node(fdt);
@@ -2405,6 +2413,10 @@ static int __init make_vsmmuv3_node(const struct kernel_info *kinfo)
     set_interrupt(intr, GUEST_VSMMU_SPI, 0xf, DT_IRQ_TYPE_LEVEL_HIGH);
 
     res = fdt_property_interrupts(kinfo, &intr, 1);
+    if ( res )
+        return res;
+
+    res = fdt_property(fdt, "dma-coherent", NULL, 0);
     if ( res )
         return res;
 

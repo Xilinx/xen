@@ -990,6 +990,9 @@ static int make_vsmmuv3_node(libxl__gc *gc, void *fdt,
     res = fdt_property_interrupts(gc, fdt, &intr, 1);
     if (res) return res;
 
+    res = fdt_property(fdt, "dma-coherent", NULL, 0);
+    if (res) return res;
+
     res = fdt_end_node(fdt);
     if (res) return res;
 
