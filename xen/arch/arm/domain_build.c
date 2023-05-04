@@ -2061,6 +2061,14 @@ static int __init make_hwdom_viommu_node(const struct kernel_info *kinfo)
         if ( res )
             return res;
 
+        prop = dt_get_property(iommu, "dma-coherent", NULL);
+        if ( prop )
+        {
+            res = fdt_property(fdt, "dma-coherent", NULL, 0);
+            if ( res )
+                return res;
+        }
+
         iommu_data->hwdom_node_created = true;
 
         fdt_end_node(fdt);

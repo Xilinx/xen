@@ -1027,6 +1027,10 @@ static int __init make_vsmmuv3_node(const struct kernel_info *kinfo)
     if ( res )
         return res;
 
+    res = fdt_property(fdt, "dma-coherent", NULL, 0);
+    if ( res )
+        return res;
+
     res = fdt_end_node(fdt);
 
     return res;
