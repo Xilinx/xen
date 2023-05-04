@@ -641,7 +641,7 @@ static int vsmmuv3_mmio_read(struct vcpu *v, mmio_info_t *info,
     {
     case VREG32(ARM_SMMU_IDR0):
         reg  = FIELD_PREP(IDR0_S1P, 1) | FIELD_PREP(IDR0_TTF, 2) |
-            FIELD_PREP(IDR0_COHACC, 0) | FIELD_PREP(IDR0_ASID16, 1) |
+            FIELD_PREP(IDR0_COHACC, 1) | FIELD_PREP(IDR0_ASID16, 1) |
             FIELD_PREP(IDR0_TTENDIAN, 0) | FIELD_PREP(IDR0_STALL_MODEL, 1) |
             FIELD_PREP(IDR0_ST_LVL, 1) | FIELD_PREP(IDR0_TERM_MODEL, 1);
         *r = vreg_reg32_extract(reg, info);
