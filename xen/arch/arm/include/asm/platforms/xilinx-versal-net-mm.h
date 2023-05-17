@@ -1,0 +1,62 @@
+#ifndef __ASM_ARM_PLATFORMS_XILINX_VERSAL_NET_MM_H
+#define __ASM_ARM_PLATFORMS_XILINX_VERSAL_NET_MM_H
+
+/*
+ * Selected set of memory mapped definitions of device nodes.
+ */
+#define MM_DEV_SWDT_LPD_0           (0xea420000U)
+#define MM_DEV_SWDT_LPD_1           (0xea430000U)
+
+#define MM_DEV_IPI_PSM              (0xeb310000U)
+#define MM_DEV_IPI_PMC              (0xeb320000U)
+#define MM_DEV_IPI_0                (0xeb330000U)
+#define MM_DEV_IPI_1                (0xeb340000U)
+#define MM_DEV_IPI_2                (0xeb350000U)
+#define MM_DEV_IPI_3                (0xeb360000U)
+#define MM_DEV_IPI_4                (0xeb370000U)
+#define MM_DEV_IPI_5                (0xeb380000U)
+#define MM_DEV_IPI_PMC_NOBUF        (0xeb390000U)
+#define MM_DEV_IPI_6                (0xeb3a0000U)
+
+#define MM_DEV_ADMA_0               (0xebd00000U)
+#define MM_DEV_ADMA_1               (0xebd10000U)
+#define MM_DEV_ADMA_2               (0xebd20000U)
+#define MM_DEV_ADMA_3               (0xebd30000U)
+#define MM_DEV_ADMA_4               (0xebd40000U)
+#define MM_DEV_ADMA_5               (0xebd50000U)
+#define MM_DEV_ADMA_6               (0xebd60000U)
+#define MM_DEV_ADMA_7               (0xebd70000U)
+
+#define MM_DEV_SWDT_FPD_0           (0xecc10000U)
+#define MM_DEV_SWDT_FPD_1           (0xecd10000U)
+#define MM_DEV_SWDT_FPD_2           (0xece10000U)
+#define MM_DEV_SWDT_FPD_3           (0xecf10000U)
+
+#define MM_DEV_I2C_PMC              (0xf1000000U)
+#define MM_DEV_OSPI                 (0xf1010000U)
+#define MM_DEV_GPIO_PMC             (0xf1020000U)
+#define MM_DEV_QSPI                 (0xf1030000U)
+#define MM_DEV_SDIO_0               (0xf1040000U)
+#define MM_DEV_SDIO_1               (0xf1050000U)
+#define MM_DEV_AMS_ROOT             (0xf1270000U)
+#define MM_DEV_RTC                  (0xf12a0000U)
+#define MM_DEV_UART_0               (0xf1920000U)
+#define MM_DEV_UART_1               (0xf1930000U)
+#define MM_DEV_I2C_0                (0xf1940000U)
+#define MM_DEV_I3C_0                (0xf1948000U)
+#define MM_DEV_I2C_1                (0xf1950000U)
+#define MM_DEV_I3C_1                (0xf1958000U)
+#define MM_DEV_SPI_0                (0xf1960000U)
+#define MM_DEV_SPI_1                (0xf1970000U)
+#define MM_DEV_CAN_FD_0             (0xf1980000U)
+#define MM_DEV_CAN_FD_1             (0xf1990000U)
+#define MM_DEV_GPIO                 (0xf19d0000U)
+#define MM_DEV_GEM_0                (0xf19e0000U)
+#define MM_DEV_GEM_1                (0xf19f0000U)
+#define MM_DEV_TTC_0                (0xf1dc0000U)
+#define MM_DEV_TTC_1                (0xf1dd0000U)
+#define MM_DEV_TTC_2                (0xf1de0000U)
+#define MM_DEV_TTC_3                (0xf1df0000U)
+#define MM_DEV_USB_0                (0xf1e00000U)
+#define MM_DEV_USB_1                (0xf1e10000U)
+#endif /* __ASM_ARM_PLATFORMS_XILINX_VERSAL_NET_MM_H */
