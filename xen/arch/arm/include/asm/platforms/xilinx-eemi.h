@@ -2,6 +2,7 @@
 #define __ASM_ARM_PLATFORMS_XILINX_EEMI_H
 
 #include <asm/platforms/xilinx-versal-eemi.h>
+#include <asm/platforms/xilinx-versal-net-eemi.h>
 #include <asm/platforms/xilinx-zynqmp-eemi.h>
 
 /**
