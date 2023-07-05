@@ -10,7 +10,7 @@ config AARCH32_V8R
 	select STATIC_MEMORY
 	depends on ARM_32
 	help
-	  This option enables Armv8-R profile for Arm32. SMP is not supported.
+	  This option enables Armv8-R profile for Arm32.
 
 config ARM_64
 	def_bool y
