@@ -417,6 +417,7 @@ static int vpl011_mmio_read(struct vcpu *v,
         goto read_as_zero;
     }
 
+    ASSERT_UNREACHABLE();
     return 1;
 
 read_as_zero:
