@@ -2,6 +2,7 @@
 /*
  * xen/arch/arm/vpci.c
  */
+#include <xen/lib.h>
 #include <xen/sched.h>
 #include <xen/vpci.h>
 
@@ -117,8 +118,15 @@ int domain_vpci_init(struct domain *d)
             return ret;
     }
     else
+    {
+        if ( !IS_ENABLED(CONFIG_HAS_VPCI_GUEST_SUPPORT) )
+        {
+            gdprintk(XENLOG_ERR, "vPCI requested but guest support not enabled\n");
+            return -EINVAL;
+        }
         register_mmio_handler(d, &vpci_mmio_handler,
                               GUEST_VPCI_ECAM_BASE, GUEST_VPCI_ECAM_SIZE, NULL);
+    }
 
     return 0;
 }

@@ -805,6 +805,11 @@ struct domain *domain_create(domid_t domid,
     radix_tree_init(&d->pirq_tree);
 #endif
 
+    err = -EINVAL;
+    if ( !is_hardware_domain(d) && (config->flags & XEN_DOMCTL_CDF_vpci) &&
+         !IS_ENABLED(CONFIG_HAS_VPCI_GUEST_SUPPORT) )
+        goto fail;
+
     if ( (err = arch_domain_create(d, config, flags)) != 0 )
         goto fail;
     init_status |= INIT_arch;

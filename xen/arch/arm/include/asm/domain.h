@@ -29,6 +29,8 @@ enum domain_type {
 #define is_64bit_domain(d) (0)
 #endif
 
+#define arch_needs_vpci(d) (!is_hardware_domain(d))
+
 /*
  * Is the domain using the host memory layout?
  *
