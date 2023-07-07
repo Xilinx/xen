@@ -1706,7 +1706,7 @@ int libxl__arch_build_dom_finish(libxl__gc *gc,
     }
 
     ret = xc_dom_vuart_init(CTX->xch,
-                            XEN_DOMCTL_VUART_TYPE_VPL011,
+                            XEN_DOMCTL_VUART_TYPE_SBSA_UART,
                             dom->guest_domid,
                             dom->console_domid,
                             dom->vuart_gfn,
