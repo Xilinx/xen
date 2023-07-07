@@ -172,11 +172,11 @@ config NEW_VGIC
 	problems with the standard emulation.
 	At the moment this implementation is not security supported.
 
-config SBSA_VUART_CONSOLE
-	bool "Emulated SBSA UART console support"
+config VPL011_CONSOLE
+	bool "Emulated PL011/SBSA UART console support"
 	default y
 	help
-	  Allows a guest to use SBSA Generic UART as a console. The
+	  Allows a guest to use PL011 or SBSA Generic UART as a console. The
 	  SBSA Generic UART implements a subset of ARM PL011 UART.
 
 config HWDOM_VUART

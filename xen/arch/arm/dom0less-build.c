@@ -222,7 +222,7 @@ static int __init make_gic_domU_node(struct kernel_info *kinfo)
     }
 }
 
-#ifdef CONFIG_SBSA_VUART_CONSOLE
+#ifdef CONFIG_VPL011_CONSOLE
 static int __init make_vpl011_uart_node(struct kernel_info *kinfo)
 {
     void *fdt = kinfo->fdt;
@@ -973,7 +973,7 @@ static int __init prepare_dtb_domU(struct domain *d, struct kernel_info *kinfo)
     if ( kinfo->vpl011 )
     {
         ret = -EINVAL;
-#ifdef CONFIG_SBSA_VUART_CONSOLE
+#ifdef CONFIG_VPL011_CONSOLE
         ret = make_vpl011_uart_node(kinfo);
 #endif
         if ( ret )
