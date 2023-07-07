@@ -359,7 +359,7 @@ int __init init_vuart(struct domain *d, struct kernel_info *kinfo,
      */
     if ( kinfo->arch.vpl011 )
     {
-        rc = domain_vpl011_init(d, NULL);
+        rc = domain_vpl011_init(d, NULL, kinfo->arch.vpl011 == VUART_TYPE_SBSA);
         if ( rc < 0 )
             return rc;
     }
