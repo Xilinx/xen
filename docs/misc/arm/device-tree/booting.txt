@@ -168,8 +168,16 @@ with the following properties:
 
 - vpl011
 
-    An empty property to enable/disable a virtual pl011 for the guest to
-    use. The virtual pl011 uses SPI number 0 (see GUEST_VPL011_SPI).
+    A string property specifying virtual pl011 emulation type.
+    Possible property values are:
+
+    - "sbsa_uart" (or missing property value)
+    SBSA UART emulation.
+
+    - "pl011"
+    PL011 emulation.
+
+    The virtual pl011 uses SPI number 0 (see GUEST_VPL011_SPI).
     Please note that the SPI used for the virtual pl011 could clash with the
     physical SPI of a physical device assigned to the guest.
 
