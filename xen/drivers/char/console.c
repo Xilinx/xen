@@ -38,7 +38,7 @@
 #include <xen/consoled.h>
 #include <asm/guest.h>
 #endif
-#ifdef CONFIG_SBSA_VUART_CONSOLE
+#ifdef CONFIG_VPL011_CONSOLE
 #include <asm/vpl011.h>
 #endif
 
@@ -516,7 +516,7 @@ static void __serial_rx(char c, struct cpu_user_regs *regs)
         send_global_virq(VIRQ_CONSOLE);
         break;
 
-#ifdef CONFIG_SBSA_VUART_CONSOLE
+#ifdef CONFIG_VPL011_CONSOLE
     default:
     {
         struct domain *d = rcu_lock_domain_by_any_id(console_rx - 1);

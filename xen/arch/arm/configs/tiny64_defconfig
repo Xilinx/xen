@@ -6,7 +6,7 @@ CONFIG_ARM=y
 #
 # CONFIG_GICV3 is not set
 # CONFIG_MEM_ACCESS is not set
-# CONFIG_SBSA_VUART_CONSOLE is not set
+# CONFIG_VPL011_CONSOLE is not set
 
 #
 # Common Features
