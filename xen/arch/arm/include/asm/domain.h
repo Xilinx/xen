@@ -111,7 +111,7 @@ struct arch_domain
         uint8_t privileged_call_enabled : 1;
     } monitor;
 
-#ifdef CONFIG_SBSA_VUART_CONSOLE
+#ifdef CONFIG_VPL011_CONSOLE
     struct vpl011 vpl011;
 #endif
 
