@@ -888,9 +888,7 @@ static int make_hypervisor_node(libxl__gc *gc, void *fdt,
     return 0;
 }
 
-static int make_vpl011_uart_node(libxl__gc *gc, void *fdt,
-                                 const struct arch_info *ainfo,
-                                 struct xc_dom_image *dom)
+static int make_vpl011_uart_node(libxl__gc *gc, void *fdt)
 {
     int res;
     gic_interrupt intr;
@@ -1420,7 +1418,7 @@ next_resize:
         FDT( make_hypervisor_node(gc, fdt, vers) );
 
         if (info->arch_arm.vuart == LIBXL_VUART_TYPE_SBSA_UART)
-            FDT( make_vpl011_uart_node(gc, fdt, ainfo, dom) );
+            FDT( make_vpl011_uart_node(gc, fdt) );
 
         if (info->tee == LIBXL_TEE_TYPE_OPTEE)
             FDT( make_optee_node(gc, fdt) );
