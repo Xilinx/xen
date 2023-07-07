@@ -37,7 +37,7 @@
 #ifdef CONFIG_X86
 #include <asm/guest.h>
 #endif
-#ifdef CONFIG_SBSA_VUART_CONSOLE
+#ifdef CONFIG_VPL011_CONSOLE
 #include <asm/vpl011.h>
 #endif
 
@@ -607,7 +607,7 @@ static void __serial_rx(char c)
     if ( !d )
         return;
 
-#ifdef CONFIG_SBSA_VUART_CONSOLE
+#ifdef CONFIG_VPL011_CONSOLE
     /* Prioritize vpl011 if enabled for this domain */
     if ( d->arch.vpl011.base_addr )
     {

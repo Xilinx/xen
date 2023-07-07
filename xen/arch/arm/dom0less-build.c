@@ -186,7 +186,7 @@ int __init make_intc_domU_node(struct kernel_info *kinfo)
     }
 }
 
-#ifdef CONFIG_SBSA_VUART_CONSOLE
+#ifdef CONFIG_VPL011_CONSOLE
 static int __init make_vpl011_uart_node(struct kernel_info *kinfo)
 {
     void *fdt = kinfo->fdt;
@@ -245,7 +245,7 @@ int __init make_arch_nodes(struct kernel_info *kinfo)
 
     if ( kinfo->arch.vpl011 )
     {
-#ifdef CONFIG_SBSA_VUART_CONSOLE
+#ifdef CONFIG_VPL011_CONSOLE
         ret = make_vpl011_uart_node(kinfo);
 #endif
         if ( ret )
