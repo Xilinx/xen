@@ -8,7 +8,7 @@
 #define XEN_WANT_FLEX_CONSOLE_RING 1
 
 /* We assume the PL011 default of "1/2 way" for the FIFO trigger level. */
-#define SBSA_UART_FIFO_LEVEL (SBSA_UART_FIFO_SIZE / 2)
+#define VPL011_FIFO_LEVEL (VPL011_FIFO_SIZE / 2)
 
 #include <xen/errno.h>
 #include <xen/event.h>
@@ -101,7 +101,7 @@ static void vpl011_write_data_xen(struct domain *d, uint8_t data)
     }
     else
     {
-        if ( intf->out_prod == SBSA_UART_OUT_BUF_SIZE - 2 ||
+        if ( intf->out_prod == VPL011_OUT_BUF_SIZE - 2 ||
              data == '\n' )
         {
             if ( data != '\n' )
@@ -171,7 +171,7 @@ static uint8_t vpl011_read_data_xen(struct domain *d)
         }
 
         /* If the FIFO is more than half empty, we clear the RX interrupt. */
-        if ( fifo_level < sizeof(intf->in) - SBSA_UART_FIFO_LEVEL )
+        if ( fifo_level < sizeof(intf->in) - VPL011_FIFO_LEVEL )
             vpl011->uartris &= ~RXI;
 
         vpl011_update_interrupt_status(d);
@@ -230,7 +230,7 @@ static uint8_t vpl011_read_data(struct domain *d)
         }
 
         /* If the FIFO is more than half empty, we clear the RX interrupt. */
-        if ( fifo_level < sizeof(intf->in) - SBSA_UART_FIFO_LEVEL )
+        if ( fifo_level < sizeof(intf->in) - VPL011_FIFO_LEVEL )
             vpl011->uartris &= ~RXI;
 
         vpl011_update_interrupt_status(d);
@@ -259,12 +259,12 @@ static void vpl011_update_tx_fifo_status(struct vpl011 *vpl011,
                                          unsigned int fifo_level)
 {
     struct xencons_interface *intf = vpl011->backend.dom.ring_buf;
-    unsigned int fifo_threshold = sizeof(intf->out) - SBSA_UART_FIFO_LEVEL;
+    unsigned int fifo_threshold = sizeof(intf->out) - VPL011_FIFO_LEVEL;
 
     /* No TX FIFO handling when backend is in Xen */
     ASSERT(vpl011->backend_in_domain);
 
-    BUILD_BUG_ON(sizeof(intf->out) < SBSA_UART_FIFO_SIZE);
+    BUILD_BUG_ON(sizeof(intf->out) < VPL011_FIFO_SIZE);
 
     /*
      * Set the TXI bit only when there is space for fifo_size/2 bytes which
@@ -315,7 +315,7 @@ static void vpl011_write_data(struct domain *d, uint8_t data)
 
             /*
              * This bit is set only when FIFO becomes full. This ensures that
-             * the SBSA UART driver can write the early console data as fast as
+             * the UART driver can write the early console data as fast as
              * possible, without waiting for the BUSY bit to get cleared before
              * writing each byte.
              */
@@ -526,7 +526,7 @@ static void vpl011_data_avail(struct domain *d,
         vpl011->uartfr |= RXFF;
 
     /* Assert the RX interrupt if the FIFO is more than half way filled. */
-    if ( in_fifo_level >= in_size - SBSA_UART_FIFO_LEVEL )
+    if ( in_fifo_level >= in_size - VPL011_FIFO_LEVEL )
         vpl011->uartris |= RXI;
 
     /*
@@ -545,7 +545,7 @@ static void vpl011_data_avail(struct domain *d,
 
         /*
          * Clear the BUSY bit as soon as space becomes available
-         * so that the SBSA UART driver can start writing more data
+         * so that the UART driver can start writing more data
          * without any further delay.
          */
         vpl011->uartfr &= ~BUSY;
@@ -594,7 +594,7 @@ void vpl011_rx_char_xen(struct domain *d, char c)
                                    in_cons,
                                    sizeof(intf->in));
 
-    vpl011_data_avail(d, in_fifo_level, sizeof(intf->in), 0, SBSA_UART_FIFO_SIZE);
+    vpl011_data_avail(d, in_fifo_level, sizeof(intf->in), 0, VPL011_FIFO_SIZE);
     VPL011_UNLOCK(d, flags);
 }
 
