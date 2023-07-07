@@ -56,6 +56,18 @@
 #define ICR    (0x44)
 #define DMACR  (0x48)
 
+/* PL011 peripheral IDs */
+#define PERIPH_ID0 (0xfe0)
+#define PERIPH_ID1 (0xfe4)
+#define PERIPH_ID2 (0xfe8)
+#define PERIPH_ID3 (0xfec)
+
+/* PL011 cell IDs */
+#define CELL_ID0 (0xff0)
+#define CELL_ID1 (0xff4)
+#define CELL_ID2 (0xff8)
+#define CELL_ID3 (0xffc)
+
 /* CR bits */
 #define CTSEN  (1<<15) /* automatic CTS hardware flow control */
 #define RTSEN  (1<<14) /* automatic RTS hardware flow control */

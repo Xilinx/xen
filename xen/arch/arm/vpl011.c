@@ -7,9 +7,6 @@
 
 #define XEN_WANT_FLEX_CONSOLE_RING 1
 
-/* We assume the PL011 default of "1/2 way" for the FIFO trigger level. */
-#define VPL011_FIFO_LEVEL (VPL011_FIFO_SIZE / 2)
-
 #include <xen/errno.h>
 #include <xen/event.h>
 #include <xen/guest_access.h>
@@ -25,6 +22,12 @@
 #include <asm/vgic-emul.h>
 #include <asm/vpl011.h>
 #include <asm/vreg.h>
+
+/* PL011 peripheral IDs (ID2 = 0x34 -> UART revision r1p5) */
+static const char pl011_periph_id[] = { 0x11, 0x10, 0x34, 0x00 };
+
+/* PL011 cell IDs */
+static const char pl011_cell_id[] = { 0x0d, 0xf0, 0x05, 0xb1 };
 
 /*
  * Since pl011 registers are 32-bit registers, all registers
@@ -67,6 +70,122 @@ static void vpl011_update_interrupt_status(struct domain *d)
 #else
     vgic_inject_irq(d, NULL, vpl011->virq, uartmis);
 #endif
+}
+
+static inline bool vpl011_fifo_enabled(const struct vpl011 *vpl011)
+{
+    /*
+     * For SBSA UART, FIFO is always enabled.
+     * For PL011, FIFO is enabled if FEN bit of LCR_H register is set.
+     */
+    return ( (vpl011->sbsa) ? true : !!(vpl011->uartlcr & FEN) );
+}
+
+/*
+ * Below two helpers are used to return the current RX/TX threshold, on which
+ * interrupt assertion/de-assertion depends. @in_size, @out_size parameters
+ * are used to pass sizes of TX, RX buffers which can be bigger than the PL011
+ * FIFO size (32 bytes) for performance reasons, in which case only the last
+ * VPL011_FIFO_SIZE bytes are used to calculate current threshold. When FIFO
+ * is disabled, it acts as a one-byte holding register. Therefore, the trigger
+ * level (based on the part of the ring buffer used to emulate FIFO):
+ * - for RX is (VPL011_FIFO_SIZE - 1), so that IRQ is asserted after receiving
+ *   a character and de-asserted when it is gone,
+ * - for TX is VPL011_FIFO_SIZE, so that IRQ is asserted as long as there is
+ *   a place for a character and de-asserted after write.
+ */
+static unsigned int vpl011_get_rx_threshold(const struct vpl011 *vpl011,
+                                            XENCONS_RING_IDX in_size)
+{
+    ASSERT(in_size >= VPL011_FIFO_SIZE);
+
+    if ( vpl011_fifo_enabled(vpl011) )
+        return in_size - vpl011->rx_fifo_level;
+
+    return in_size - (VPL011_FIFO_SIZE - 1);
+}
+
+static unsigned int vpl011_get_tx_threshold(const struct vpl011 *vpl011,
+                                            XENCONS_RING_IDX out_size)
+{
+    ASSERT(out_size >= VPL011_FIFO_SIZE);
+
+    if ( vpl011_fifo_enabled(vpl011) )
+        return out_size - vpl011->tx_fifo_level;
+
+    return out_size - VPL011_FIFO_SIZE;
+}
+
+static void vpl011_update_fifo_level(struct vpl011 *vpl011)
+{
+    /* ARM DDI 0183G, Table 3-13 */
+    static const unsigned int levels[] = {
+        (VPL011_FIFO_SIZE / 8),
+        (VPL011_FIFO_SIZE / 4),
+        (VPL011_FIFO_SIZE / 2),
+        ((VPL011_FIFO_SIZE * 3) / 4),
+        ((VPL011_FIFO_SIZE * 7) / 8)
+    };
+    unsigned int flsel;
+
+    ASSERT(!vpl011->sbsa);
+
+    /* Bits 0:2 store TX FIFO level select */
+    flsel = vpl011->uartifls & 0x7;
+    if ( flsel <= 4 )
+        vpl011->tx_fifo_level = VPL011_FIFO_SIZE - levels[flsel];
+
+    /* Bits 3:5 store RX FIFO level select */
+    flsel = (vpl011->uartifls & 0x38) >> 3;
+    if ( flsel <= 4 )
+        vpl011->rx_fifo_level = VPL011_FIFO_SIZE - levels[flsel];
+}
+
+void vpl011_reset_fifo(struct domain *d)
+{
+    struct vpl011 *vpl011 = &d->arch.vpl011;
+    XENCONS_RING_IDX in_prod;
+
+    ASSERT(!vpl011->sbsa);
+    ASSERT(spin_is_locked(&vpl011->lock));
+
+    /*
+     * FIFO reset caused by setting/clearing FEN bit of LCR_H register should
+     * normally occur when there is no data in the FIFOs (otherwise there will
+     * be a loss of characters) which can be assessed by checking TXFE/BUSY
+     * and RXFE bits. However, due to performance reasons we handle BUSY bit
+     * differently (when backend is in domain) which can lead to character loss
+     * if a guest relies on BUSY bit and not TXFE. Therefore, we only reset
+     * RX FIFO state by levelling ring index of consumer with producer (it is
+     * expected that guest waits for RXFE to become set before resetting FIFO).
+     */
+    if ( !vpl011->backend_in_domain )
+    {
+        struct vpl011_xen_backend *intf = vpl011->backend.xen;
+
+        in_prod = intf->in_prod;
+
+        smp_mb();
+
+        intf->in_cons = in_prod;
+    }
+    else
+    {
+        struct xencons_interface *intf = vpl011->backend.dom.ring_buf;
+
+        in_prod = intf->in_prod;
+
+        smp_mb();
+
+        intf->in_cons = in_prod;
+
+        /* Send an event to console backend to notify the above change */
+        notify_via_xen_event_channel(d, vpl011->evtchn);
+    }
+
+    /* Guests might expect to see these flags resetted after FIFO reset */
+    vpl011->uartfr &= ~(RXFF | TXFF);
+    vpl011->uartfr |= (RXFE | TXFE);
 }
 
 /*
@@ -170,8 +289,8 @@ static uint8_t vpl011_read_data_xen(struct domain *d)
             vpl011->uartris &= ~RTI;
         }
 
-        /* If the FIFO is more than half empty, we clear the RX interrupt. */
-        if ( fifo_level < sizeof(intf->in) - VPL011_FIFO_LEVEL )
+        /* If the FIFO is less than RX threshold, we clear the RX interrupt. */
+        if ( fifo_level < vpl011_get_rx_threshold(vpl011, sizeof(intf->in)) )
             vpl011->uartris &= ~RXI;
 
         vpl011_update_interrupt_status(d);
@@ -229,8 +348,8 @@ static uint8_t vpl011_read_data(struct domain *d)
             vpl011->uartris &= ~RTI;
         }
 
-        /* If the FIFO is more than half empty, we clear the RX interrupt. */
-        if ( fifo_level < sizeof(intf->in) - VPL011_FIFO_LEVEL )
+        /* If the FIFO is less than RX threshold, we clear the RX interrupt. */
+        if ( fifo_level < vpl011_get_rx_threshold(vpl011, sizeof(intf->in)) )
             vpl011->uartris &= ~RXI;
 
         vpl011_update_interrupt_status(d);
@@ -259,7 +378,6 @@ static void vpl011_update_tx_fifo_status(struct vpl011 *vpl011,
                                          unsigned int fifo_level)
 {
     struct xencons_interface *intf = vpl011->backend.dom.ring_buf;
-    unsigned int fifo_threshold = sizeof(intf->out) - VPL011_FIFO_LEVEL;
 
     /* No TX FIFO handling when backend is in Xen */
     ASSERT(vpl011->backend_in_domain);
@@ -267,10 +385,10 @@ static void vpl011_update_tx_fifo_status(struct vpl011 *vpl011,
     BUILD_BUG_ON(sizeof(intf->out) < VPL011_FIFO_SIZE);
 
     /*
-     * Set the TXI bit only when there is space for fifo_size/2 bytes which
+     * Set the TXI bit only when there is space for TX threshold bytes which
      * is the trigger level for asserting/de-assterting the TX interrupt.
      */
-    if ( fifo_level <= fifo_threshold )
+    if ( fifo_level <= vpl011_get_tx_threshold(vpl011, sizeof(intf->out)) )
         vpl011->uartris |= TXI;
     else
         vpl011->uartris &= ~TXI;
@@ -378,6 +496,66 @@ static int vpl011_mmio_read(struct vcpu *v,
         VPL011_UNLOCK(d, flags);
         return 1;
 
+   case ILPR:
+        if ( vpl011->sbsa ) goto unhandled;
+
+        if ( !vpl011_reg32_check_access(dabt) ) goto bad_width;
+
+        VPL011_LOCK(d, flags);
+        *r = vreg_reg32_extract(vpl011->uartilpr, info);
+        VPL011_UNLOCK(d, flags);
+        return 1;
+
+    case IBRD:
+        if ( vpl011->sbsa ) goto unhandled;
+
+        if ( !vpl011_reg32_check_access(dabt) ) goto bad_width;
+
+        VPL011_LOCK(d, flags);
+        *r = vreg_reg32_extract(vpl011->uartibrd, info);
+        VPL011_UNLOCK(d, flags);
+        return 1;
+
+    case FBRD:
+        if ( vpl011->sbsa ) goto unhandled;
+
+        if ( !vpl011_reg32_check_access(dabt) ) goto bad_width;
+
+        VPL011_LOCK(d, flags);
+        *r = vreg_reg32_extract(vpl011->uartfbrd, info);
+        VPL011_UNLOCK(d, flags);
+        return 1;
+
+    case LCR_H:
+        if ( vpl011->sbsa ) goto unhandled;
+
+        if ( !vpl011_reg32_check_access(dabt) ) goto bad_width;
+
+        VPL011_LOCK(d, flags);
+        *r = vreg_reg32_extract(vpl011->uartlcr, info);
+        VPL011_UNLOCK(d, flags);
+        return 1;
+
+    case CR:
+        if ( vpl011->sbsa ) goto unhandled;
+
+        if ( !vpl011_reg32_check_access(dabt) ) goto bad_width;
+
+        VPL011_LOCK(d, flags);
+        *r = vreg_reg32_extract(vpl011->uartcr, info);
+        VPL011_UNLOCK(d, flags);
+        return 1;
+
+    case IFLS:
+        if ( vpl011->sbsa ) goto unhandled;
+
+        if ( !vpl011_reg32_check_access(dabt) ) goto bad_width;
+
+        VPL011_LOCK(d, flags);
+        *r = vreg_reg32_extract(vpl011->uartifls, info);
+        VPL011_UNLOCK(d, flags);
+        return 1;
+
     case RIS:
         if ( !vpl011_reg32_check_access(dabt) ) goto bad_width;
 
@@ -409,6 +587,37 @@ static int vpl011_mmio_read(struct vcpu *v,
         /* Only write is valid. */
         return 0;
 
+    case DMACR:
+        if ( vpl011->sbsa ) goto unhandled;
+
+        if ( !vpl011_reg32_check_access(dabt) ) goto bad_width;
+
+        VPL011_LOCK(d, flags);
+        *r = vreg_reg32_extract(vpl011->uartdmacr, info);
+        VPL011_UNLOCK(d, flags);
+        return 1;
+
+    case PERIPH_ID0 ... PERIPH_ID3:
+        if ( vpl011->sbsa || (vpl011_reg % 4) ) goto unhandled;
+
+        if ( !vpl011_reg32_check_access(dabt) ) goto bad_width;
+
+        VPL011_LOCK(d, flags);
+        *r = pl011_periph_id[(vpl011_reg - PERIPH_ID0) >> 2];
+        VPL011_UNLOCK(d, flags);
+        return 1;
+
+    case CELL_ID0 ... CELL_ID3:
+        if ( vpl011->sbsa || (vpl011_reg % 4) ) goto unhandled;
+
+        if ( !vpl011_reg32_check_access(dabt) ) goto bad_width;
+
+        VPL011_LOCK(d, flags);
+        *r = pl011_cell_id[(vpl011_reg - CELL_ID0) >> 2];
+        VPL011_UNLOCK(d, flags);
+        return 1;
+
+unhandled:
     default:
         gprintk(XENLOG_ERR, "vpl011: unhandled read r%d offset %#08x\n",
                 dabt.reg, vpl011_reg);
@@ -468,6 +677,72 @@ static int vpl011_mmio_write(struct vcpu *v,
     case MIS:
         goto write_ignore;
 
+    case ILPR:
+        if ( vpl011->sbsa ) goto unhandled;
+
+        if ( !vpl011_reg32_check_access(dabt) ) goto bad_width;
+
+        VPL011_LOCK(d, flags);
+        vreg_reg32_update(&vpl011->uartilpr, r, info);
+        VPL011_UNLOCK(d, flags);
+        return 1;
+
+    case IBRD:
+        if ( vpl011->sbsa ) goto unhandled;
+
+        if ( !vpl011_reg32_check_access(dabt) ) goto bad_width;
+
+        VPL011_LOCK(d, flags);
+        vreg_reg32_update(&vpl011->uartibrd, r, info);
+        VPL011_UNLOCK(d, flags);
+        return 1;
+
+    case FBRD:
+        if ( vpl011->sbsa ) goto unhandled;
+
+        if ( !vpl011_reg32_check_access(dabt) ) goto bad_width;
+
+        VPL011_LOCK(d, flags);
+        vreg_reg32_update(&vpl011->uartfbrd, r, info);
+        VPL011_UNLOCK(d, flags);
+        return 1;
+
+    case LCR_H:
+        if ( vpl011->sbsa ) goto unhandled;
+
+        if ( !vpl011_reg32_check_access(dabt) ) goto bad_width;
+
+        VPL011_LOCK(d, flags);
+
+        /* Reset FIFOs on FIFO enable/disable */
+        if ( (vpl011->uartlcr ^ r) & FEN )
+            vpl011_reset_fifo(d);
+
+        vreg_reg32_update(&vpl011->uartlcr, r, info);
+        VPL011_UNLOCK(d, flags);
+        return 1;
+
+    case CR:
+        if ( vpl011->sbsa ) goto unhandled;
+
+        if ( !vpl011_reg32_check_access(dabt) ) goto bad_width;
+
+        VPL011_LOCK(d, flags);
+        vreg_reg32_update(&vpl011->uartcr, r, info);
+        VPL011_UNLOCK(d, flags);
+        return 1;
+
+    case IFLS:
+        if ( vpl011->sbsa ) goto unhandled;
+
+        if ( !vpl011_reg32_check_access(dabt) ) goto bad_width;
+
+        VPL011_LOCK(d, flags);
+        vreg_reg32_update(&vpl011->uartifls, r, info);
+        vpl011_update_fifo_level(vpl011);
+        VPL011_UNLOCK(d, flags);
+        return 1;
+
     case IMSC:
         if ( !vpl011_reg32_check_access(dabt) ) goto bad_width;
 
@@ -486,6 +761,23 @@ static int vpl011_mmio_write(struct vcpu *v,
         VPL011_UNLOCK(d, flags);
         return 1;
 
+    case DMACR:
+        if ( vpl011->sbsa ) goto unhandled;
+
+        if ( !vpl011_reg32_check_access(dabt) ) goto bad_width;
+
+        VPL011_LOCK(d, flags);
+        vreg_reg32_update(&vpl011->uartdmacr, r, info);
+        VPL011_UNLOCK(d, flags);
+        return 1;
+
+    case PERIPH_ID0 ... PERIPH_ID3:
+    case CELL_ID0 ... CELL_ID3:
+        if ( vpl011->sbsa ) goto unhandled;
+
+        goto write_ignore;
+
+unhandled:
     default:
         gprintk(XENLOG_ERR, "vpl011: unhandled write r%d offset %#08x\n",
                 dabt.reg, vpl011_reg);
@@ -525,8 +817,8 @@ static void vpl011_data_avail(struct domain *d,
     if ( in_fifo_level == in_size )
         vpl011->uartfr |= RXFF;
 
-    /* Assert the RX interrupt if the FIFO is more than half way filled. */
-    if ( in_fifo_level >= in_size - VPL011_FIFO_LEVEL )
+    /* Assert the RX interrupt if the FIFO crossed RX threshold. */
+    if ( in_fifo_level >= vpl011_get_rx_threshold(vpl011, in_size) )
         vpl011->uartris |= RXI;
 
     /*
@@ -728,6 +1020,22 @@ int domain_vpl011_init(struct domain *d,
     vpl011->sbsa = sbsa;
 
     vpl011->uartfr = TXFE | RXFE;
+
+    /*
+     * Initial TX/RX FIFO trigger level is set to 1/2 way. This stays constant
+     * for SBSA UART but can be changed for PL011.
+     */
+    vpl011->tx_fifo_level = (VPL011_FIFO_SIZE / 2);
+    vpl011->rx_fifo_level = (VPL011_FIFO_SIZE / 2);
+
+    /* Additional reset state as required by PL011 */
+    if ( !sbsa )
+    {
+        vpl011->uartcr = TXE | RXE;
+
+        /* TXIFLSEL and RXIFLSEL set to 1/2 way */
+        vpl011->uartifls = 0x12;
+    }
 
     spin_lock_init(&vpl011->lock);
 
