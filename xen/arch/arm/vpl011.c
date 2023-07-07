@@ -630,7 +630,9 @@ static void vpl011_notification(struct vcpu *v, unsigned int port)
     VPL011_UNLOCK(d, flags);
 }
 
-int domain_vpl011_init(struct domain *d, struct vpl011_init_info *info)
+int domain_vpl011_init(struct domain *d,
+                       struct vpl011_init_info *info,
+                       bool sbsa)
 {
     int rc;
     struct vpl011 *vpl011 = &d->arch.vpl011;
@@ -722,6 +724,8 @@ int domain_vpl011_init(struct domain *d, struct vpl011_init_info *info)
         rc = -EINVAL;
         goto out1;
     }
+
+    vpl011->sbsa = sbsa;
 
     vpl011->uartfr = TXFE | RXFE;
 

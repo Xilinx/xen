@@ -3719,7 +3719,7 @@ static int __init construct_domU(struct domain *d,
      */
     if ( kinfo.vpl011 )
     {
-        rc = domain_vpl011_init(d, NULL);
+        rc = domain_vpl011_init(d, NULL, kinfo.vpl011 == VUART_TYPE_SBSA);
         if ( rc < 0 )
             return rc;
     }

@@ -40,6 +40,7 @@ struct vpl011_xen_backend {
 
 struct vpl011 {
     bool backend_in_domain;
+    bool sbsa;                  /* SBSA UART or PL011 emulation */
     union {
         struct {
             void *ring_buf;
@@ -67,12 +68,14 @@ struct vpl011_init_info {
 
 #ifdef CONFIG_VPL011_CONSOLE
 int domain_vpl011_init(struct domain *d,
-                       struct vpl011_init_info *info);
+                       struct vpl011_init_info *info,
+                       bool sbsa);
 void domain_vpl011_deinit(struct domain *d);
 void vpl011_rx_char_xen(struct domain *d, char c);
 #else
 static inline int domain_vpl011_init(struct domain *d,
-                                     struct vpl011_init_info *info)
+                                     struct vpl011_init_info *info,
+                                     bool sbsa)
 {
     return -ENOSYS;
 }
