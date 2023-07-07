@@ -2624,6 +2624,43 @@ static int __init make_gic_domU_node(struct kernel_info *kinfo)
 }
 
 #ifdef CONFIG_VPL011_CONSOLE
+static int __init make_vpl011_clk_node(struct kernel_info *kinfo)
+{
+    void *fdt = kinfo->fdt;
+    int res;
+
+    res = fdt_begin_node(fdt, "pl011-clk");
+    if ( res )
+        return res;
+
+    res = fdt_property_cell(fdt, "#clock-cells", 0);
+    if ( res )
+        return res;
+
+    res = fdt_property_string(fdt, "compatible", "fixed-clock");
+    if ( res )
+        return res;
+
+    /*
+     * This clock is used as both UARTCLK and PCLK. 7.3728MHz was selected
+     * to make the divisor calculations simpler for the guest (i.e. FBRD
+     * register is 0 for most of the common bit rates).
+     */
+    res = fdt_property_u32(fdt, "clock-frequency", 7372800);
+    if ( res )
+        return res;
+
+    res = fdt_property_cell(fdt, "phandle", GUEST_PHANDLE_VPL011_CLK);
+    if ( res )
+        return res;
+
+    res = fdt_end_node(fdt);
+    if ( res )
+        return res;
+
+    return 0;
+}
+
 static int __init make_vpl011_uart_node(struct kernel_info *kinfo)
 {
     void *fdt = kinfo->fdt;
@@ -2632,12 +2669,18 @@ static int __init make_vpl011_uart_node(struct kernel_info *kinfo)
     __be32 reg[GUEST_ROOT_ADDRESS_CELLS + GUEST_ROOT_SIZE_CELLS];
     __be32 *cells;
     struct domain *d = kinfo->d;
+    bool sbsa = (kinfo->vpl011 == VUART_TYPE_SBSA);
 
-    res = domain_fdt_begin_node(fdt, "sbsa-uart", d->arch.vpl011.base_addr);
+    res = domain_fdt_begin_node(fdt, sbsa ? "sbsa-uart" : "pl011",
+                                d->arch.vpl011.base_addr);
     if ( res )
         return res;
 
-    res = fdt_property_string(fdt, "compatible", "arm,sbsa-uart");
+    if ( sbsa )
+        res = fdt_property_string(fdt, "compatible", "arm,sbsa-uart");
+    else
+        res = fdt_property(fdt, "compatible", "arm,pl011\0arm,primecell", 23);
+
     if ( res )
         return res;
 
@@ -2656,13 +2699,36 @@ static int __init make_vpl011_uart_node(struct kernel_info *kinfo)
     if ( res )
         return res;
 
+    if ( !sbsa )
+    {
+        /*
+         * Two phandles (for UARTCLK and PCLK) need to be present under clocks
+         * property but they can refer to the same clock.
+         */
+        __be32 clocks[] = {
+            cpu_to_fdt32(GUEST_PHANDLE_VPL011_CLK),
+            cpu_to_fdt32(GUEST_PHANDLE_VPL011_CLK),
+        };
+
+        res = fdt_property(fdt, "clocks", clocks, sizeof(clocks));
+        if ( res )
+            return res;
+
+        res = fdt_property(fdt, "clock-names", "uartclk\0apb_pclk", 17);
+        if ( res )
+            return res;
+    }
+
     res = fdt_property_cell(fdt, "interrupt-parent",
                             kinfo->phandle_gic);
     if ( res )
         return res;
 
-    /* Use a default baud rate of 115200. */
-    fdt_property_u32(fdt, "current-speed", 115200);
+    if ( sbsa )
+    {
+        /* Use a default baud rate of 115200. */
+        fdt_property_u32(fdt, "current-speed", 115200);
+    }
 
     res = fdt_end_node(fdt);
     if ( res )
@@ -3072,6 +3138,12 @@ static int __init prepare_dtb_domU(struct domain *d, struct kernel_info *kinfo)
     {
         ret = -EINVAL;
 #ifdef CONFIG_VPL011_CONSOLE
+        if ( kinfo->vpl011 == VUART_TYPE_PL011 )
+        {
+            ret = make_vpl011_clk_node(kinfo);
+            if ( ret )
+                goto err;
+        }
         ret = make_vpl011_uart_node(kinfo);
 #endif
         if ( ret )
@@ -3550,6 +3622,7 @@ static int __init construct_domU(struct domain *d,
 {
     struct kernel_info kinfo = {};
     const char *dom0less_enhanced;
+    const char *vpl011;
     int rc;
     u64 mem;
     u32 p2m_mem_mb;
@@ -3578,7 +3651,24 @@ static int __init construct_domU(struct domain *d,
     printk("*** LOADING DOMU cpus=%u memory=%#"PRIx64"KB ***\n",
            d->max_vcpus, mem);
 
-    kinfo.vpl011 = dt_property_read_bool(node, "vpl011");
+    rc = dt_property_read_string(node, "vpl011", &vpl011);
+    if ( !rc )
+    {
+        if ( !strcmp(vpl011, "sbsa_uart") )
+            kinfo.vpl011 = VUART_TYPE_SBSA;
+        else if ( !strcmp(vpl011, "pl011") )
+            kinfo.vpl011 = VUART_TYPE_PL011;
+        else
+        {
+            printk("Invalid \"vpl011\" property value (%s)\n", vpl011);
+            return -EINVAL;
+        }
+    }
+    else if ( rc == -ENODATA )
+    {
+        /* Handle missing property value */
+        kinfo.vpl011 = dt_property_read_bool(node, "vpl011");
+    }
 
     rc = dt_property_read_string(node, "xen,enhanced", &dom0less_enhanced);
     if ( rc == -EILSEQ ||

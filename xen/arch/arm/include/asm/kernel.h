@@ -28,6 +28,13 @@
 #define DOM0LESS_XENSTORE        BIT(1, U)
 #define DOM0LESS_ENHANCED        (DOM0LESS_ENHANCED_NO_XS | DOM0LESS_XENSTORE)
 
+/* Supported vpl011 types */
+enum vpl011_type {
+    VUART_TYPE_NONE,
+    VUART_TYPE_SBSA,     /* Expose SBSA UART (subset of PL011) */
+    VUART_TYPE_PL011,    /* Expose PL011 */
+};
+
 struct kernel_info {
 #ifdef CONFIG_ARM_64
     enum domain_type type;
@@ -54,7 +61,7 @@ struct kernel_info {
     paddr_t initrd_paddr;
 
     /* Enable pl011 emulation */
-    bool vpl011;
+    enum vpl011_type vpl011;
 
     /* Enable/Disable PV drivers interfaces */
     uint16_t dom0less_feature;
