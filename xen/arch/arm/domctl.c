@@ -41,7 +41,7 @@ static int handle_vuart_init(struct domain *d,
     if ( vuart_op->type != XEN_DOMCTL_VUART_TYPE_SBSA_UART )
         return -EOPNOTSUPP;
 
-    rc = domain_vpl011_init(d, &info);
+    rc = domain_vpl011_init(d, &info, true);
 
     if ( !rc )
         vuart_op->evtchn = info.evtchn;
