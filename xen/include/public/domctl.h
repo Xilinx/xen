@@ -1148,9 +1148,8 @@ struct xen_domctl_vuart_op {
 #define XEN_DOMCTL_VUART_OP_INIT  0
         uint32_t cmd;           /* XEN_DOMCTL_VUART_OP_* */
 #define XEN_DOMCTL_VUART_TYPE_SBSA_UART 0
-        uint32_t type;          /* IN - type of vuart.
-                                 *      Currently only SBSA UART is supported.
-                                 */
+#define XEN_DOMCTL_VUART_TYPE_PL011     1
+        uint32_t type;          /* IN - type of vuart. */
         uint64_aligned_t  gfn;  /* IN - guest gfn to be used as a
                                  *      ring buffer.
                                  */
