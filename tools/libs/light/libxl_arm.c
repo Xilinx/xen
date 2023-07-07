@@ -93,10 +93,11 @@ int libxl__arch_domain_prepare_config(libxl__gc *gc,
     int rc;
 
     /*
-     * If pl011 vuart is enabled then increment the nr_spis to allow allocation
-     * of SPI VIRQ for pl011.
+     * If PL011/SBSA vuart is enabled then increment the nr_spis to allow
+     * allocation of SPI VIRQ for the vuart.
      */
-    if (d_config->b_info.arch_arm.vuart == LIBXL_VUART_TYPE_SBSA_UART) {
+    if ((d_config->b_info.arch_arm.vuart == LIBXL_VUART_TYPE_SBSA_UART) ||
+        (d_config->b_info.arch_arm.vuart == LIBXL_VUART_TYPE_PL011)) {
         nr_spis += (GUEST_VPL011_SPI - 32) + 1;
         vuart_irq = GUEST_VPL011_SPI;
         vuart_enabled = true;
@@ -888,15 +889,52 @@ static int make_hypervisor_node(libxl__gc *gc, void *fdt,
     return 0;
 }
 
-static int make_vpl011_uart_node(libxl__gc *gc, void *fdt)
+static int make_vpl011_clk_node(libxl__gc *gc, void *fdt)
+{
+    int res;
+
+    res = fdt_begin_node(fdt, "pl011-clk");
+    if (res) return res;
+
+    res = fdt_property_cell(fdt, "#clock-cells", 0);
+    if (res) return res;
+
+    res = fdt_property_compat(gc, fdt, 1, "fixed-clock");
+    if (res) return res;
+
+    /*
+     * This clock is used as both UARTCLK and PCLK. 7.3728MHz was selected
+     * to make the divisor calculations simpler for the guest (i.e. FBRD
+     * register is 0 for most of the common bit rates).
+     */
+    fdt_property_u32(fdt, "clock-frequency", 7372800);
+
+    res = fdt_property_cell(fdt, "phandle", GUEST_PHANDLE_VPL011_CLK);
+    if (res) return res;
+
+    res = fdt_end_node(fdt);
+    if (res) return res;
+
+    return 0;
+}
+
+static int make_vpl011_uart_node(libxl__gc *gc, void *fdt, bool sbsa)
 {
     int res;
     gic_interrupt intr;
 
-    res = fdt_begin_node(fdt, "sbsa-pl011");
+    if (sbsa)
+        res = fdt_begin_node(fdt, "sbsa-pl011");
+    else
+        res = fdt_begin_node(fdt, "pl011");
+
     if (res) return res;
 
-    res = fdt_property_compat(gc, fdt, 1, "arm,sbsa-uart");
+    if (sbsa)
+        res = fdt_property_compat(gc, fdt, 1, "arm,sbsa-uart");
+    else
+        res = fdt_property_compat(gc, fdt, 2, "arm,pl011", "arm,primecell");
+
     if (res) return res;
 
     res = fdt_property_regs(gc, fdt, GUEST_ROOT_ADDRESS_CELLS, GUEST_ROOT_SIZE_CELLS,
@@ -909,8 +947,24 @@ static int make_vpl011_uart_node(libxl__gc *gc, void *fdt)
     res = fdt_property_interrupts(gc, fdt, &intr, 1);
     if (res) return res;
 
-    /* Use a default baud rate of 115200. */
-    fdt_property_u32(fdt, "current-speed", 115200);
+    if (!sbsa) {
+        /*
+         * Two phandles (for UARTCLK and PCLK) need to be present under clocks
+         * property but they can refer to the same clock.
+         */
+        res = fdt_property_values(gc, fdt, "clocks", 2,
+                                  GUEST_PHANDLE_VPL011_CLK,
+                                  GUEST_PHANDLE_VPL011_CLK);
+        if (res) return res;
+
+        res = fdt_property(fdt, "clock-names", "uartclk\0apb_pclk", 17);
+        if (res) return res;
+    }
+
+    if (sbsa) {
+        /* Use a default baud rate of 115200. */
+        fdt_property_u32(fdt, "current-speed", 115200);
+    }
 
     res = fdt_end_node(fdt);
     if (res) return res;
@@ -1418,7 +1472,11 @@ next_resize:
         FDT( make_hypervisor_node(gc, fdt, vers) );
 
         if (info->arch_arm.vuart == LIBXL_VUART_TYPE_SBSA_UART)
-            FDT( make_vpl011_uart_node(gc, fdt) );
+            FDT( make_vpl011_uart_node(gc, fdt, true) );
+        else if (info->arch_arm.vuart == LIBXL_VUART_TYPE_PL011) {
+            FDT( make_vpl011_clk_node(gc, fdt) );
+            FDT( make_vpl011_uart_node(gc, fdt, false) );
+        }
 
         if (info->tee == LIBXL_TEE_TYPE_OPTEE)
             FDT( make_optee_node(gc, fdt) );
@@ -1699,14 +1757,22 @@ int libxl__arch_build_dom_finish(libxl__gc *gc,
                                  libxl__domain_build_state *state)
 {
     int rc = 0, ret;
+    uint32_t vuart_type;
 
-    if (info->arch_arm.vuart != LIBXL_VUART_TYPE_SBSA_UART) {
+    switch (info->arch_arm.vuart) {
+    case LIBXL_VUART_TYPE_SBSA_UART:
+        vuart_type = XEN_DOMCTL_VUART_TYPE_SBSA_UART;
+        break;
+    case LIBXL_VUART_TYPE_PL011:
+        vuart_type = XEN_DOMCTL_VUART_TYPE_PL011;
+        break;
+    default:
         rc = 0;
         goto out;
     }
 
     ret = xc_dom_vuart_init(CTX->xch,
-                            XEN_DOMCTL_VUART_TYPE_SBSA_UART,
+                            vuart_type,
                             dom->guest_domid,
                             dom->console_domid,
                             dom->vuart_gfn,
