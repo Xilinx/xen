@@ -1164,6 +1164,7 @@ static int make_virtio_mmio_node(libxl__gc *gc, void *fdt,
     int res;
     gic_interrupt intr;
     const char *name = GCSPRINTF("virtio@%"PRIx64, base);
+    uint32_t iommus_prop[2];
 
     res = fdt_begin_node(fdt, name);
     if (res) return res;
@@ -1182,15 +1183,11 @@ static int make_virtio_mmio_node(libxl__gc *gc, void *fdt,
     res = fdt_property(fdt, "dma-coherent", NULL, 0);
     if (res) return res;
 
-    if (backend_domid != LIBXL_TOOLSTACK_DOMID) {
-        uint32_t iommus_prop[2];
+    iommus_prop[0] = cpu_to_fdt32(GUEST_PHANDLE_IOMMU);
+    iommus_prop[1] = cpu_to_fdt32(backend_domid);
 
-        iommus_prop[0] = cpu_to_fdt32(GUEST_PHANDLE_IOMMU);
-        iommus_prop[1] = cpu_to_fdt32(backend_domid);
-
-        res = fdt_property(fdt, "iommus", iommus_prop, sizeof(iommus_prop));
-        if (res) return res;
-    }
+    res = fdt_property(fdt, "iommus", iommus_prop, sizeof(iommus_prop));
+    if (res) return res;
 
     res = fdt_end_node(fdt);
     if (res) return res;
@@ -1566,8 +1563,7 @@ next_resize:
             libxl_device_disk *disk = &d_config->disks[i];
 
             if (disk->specification == LIBXL_DISK_SPECIFICATION_VIRTIO) {
-                if (disk->backend_domid != LIBXL_TOOLSTACK_DOMID &&
-                    !iommu_created) {
+                if (!iommu_created) {
                     FDT( make_xen_iommu_node(gc, fdt) );
                     iommu_created = true;
                 }
@@ -1581,8 +1577,7 @@ next_resize:
             libxl_device_nic *nic = &d_config->nics[i];
 
             if (nic->model != NULL && !strcmp(nic->model, "virtio-net")) {
-                if (nic->backend_domid != LIBXL_TOOLSTACK_DOMID &&
-                    !iommu_created) {
+                if (!iommu_created) {
                     FDT( make_xen_iommu_node(gc, fdt) );
                     iommu_created = true;
                 }

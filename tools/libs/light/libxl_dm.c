@@ -2006,6 +2006,8 @@ static int libxl__build_device_model_args_new(libxl__gc *gc,
                     flexarray_append(dm_args, "-drive");
                     flexarray_append(dm_args, GCSPRINTF("if=none,id=image,format=%s,"
                                 "file=%s", format, disks[i].pdev_path));
+                    flexarray_append(dm_args, "-global");
+                    flexarray_append(dm_args, "virtio-mmio.force-legacy=false");
                     continue;
                 } else if (b_info->type == LIBXL_DOMAIN_TYPE_HVM &&
                     b_info->u.hvm.hdtype == LIBXL_HDTYPE_AHCI) {
