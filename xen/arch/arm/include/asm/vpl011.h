@@ -49,11 +49,19 @@ struct vpl011 {
         struct vpl011_xen_backend *xen;
     } backend;
     uint32_t    uartfr;         /* Flag register */
+    uint32_t    uartilpr;       /* IrDA counter register */
+    uint32_t    uartibrd;       /* Integer baud rate register */
+    uint32_t    uartfbrd;       /* Fractional baud rate register */
+    uint32_t    uartlcr;        /* Line control register */
+    uint32_t    uartifls;       /* Interrupt FIFO level select register */
     uint32_t    uartcr;         /* Control register */
     uint32_t    uartimsc;       /* Interrupt mask register*/
     uint32_t    uarticr;        /* Interrupt clear register */
     uint32_t    uartris;        /* Raw interrupt status register */
     uint32_t    shadow_uartmis; /* shadow masked interrupt register */
+    uint32_t    uartdmacr;      /* DMA control register */
+    uint32_t    tx_fifo_level;  /* TX FIFO trigger level */
+    uint32_t    rx_fifo_level;  /* RX FIFO trigger level */
     paddr_t     base_addr;
     unsigned int virq;
     spinlock_t  lock;
