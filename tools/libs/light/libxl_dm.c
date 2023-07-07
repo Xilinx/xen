@@ -1832,7 +1832,11 @@ static int libxl__build_device_model_args_new(libxl__gc *gc,
     switch (b_info->type) {
     case LIBXL_DOMAIN_TYPE_PVH:
     case LIBXL_DOMAIN_TYPE_PV:
+#if defined(__arm__) || defined(__aarch64__)
+        flexarray_append(dm_args, "xenpvh");
+#else
         flexarray_append(dm_args, "xenpv");
+#endif
         for (i = 0; b_info->extra_pv && b_info->extra_pv[i] != NULL; i++)
             flexarray_append(dm_args, b_info->extra_pv[i]);
         break;
@@ -3432,7 +3436,11 @@ void libxl__spawn_qdisk_backend(libxl__egc *egc, libxl__dm_spawn_state *dmss)
     flexarray_vappend(dm_args, "-name",
                       GCSPRINTF("domain-%u", domid), NULL);
     flexarray_append(dm_args, "-nographic");
+#if defined(__arm__) || defined(__aarch64__)
+    flexarray_vappend(dm_args, "-M", "xenpvh", NULL);
+#else
     flexarray_vappend(dm_args, "-M", "xenpv", NULL);
+#endif
     flexarray_vappend(dm_args, "-monitor", "/dev/null", NULL);
     flexarray_vappend(dm_args, "-serial", "/dev/null", NULL);
     flexarray_vappend(dm_args, "-parallel", "/dev/null", NULL);
