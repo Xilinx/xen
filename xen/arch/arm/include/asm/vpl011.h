@@ -28,12 +28,12 @@
 #define VPL011_LOCK(d,flags) spin_lock_irqsave(&(d)->arch.vpl011.lock, flags)
 #define VPL011_UNLOCK(d,flags) spin_unlock_irqrestore(&(d)->arch.vpl011.lock, flags)
 
-#define SBSA_UART_FIFO_SIZE 32
+#define VPL011_FIFO_SIZE 32
 /* Same size as VUART_BUF_SIZE, used in vuart.c */
-#define SBSA_UART_OUT_BUF_SIZE 128
+#define VPL011_OUT_BUF_SIZE 128
 struct vpl011_xen_backend {
-    char in[SBSA_UART_FIFO_SIZE];
-    char out[SBSA_UART_OUT_BUF_SIZE];
+    char in[VPL011_FIFO_SIZE];
+    char out[VPL011_OUT_BUF_SIZE];
     XENCONS_RING_IDX in_cons, in_prod;
     XENCONS_RING_IDX out_prod;
 };
