@@ -1514,12 +1514,11 @@ next_resize:
             libxl_device_disk *disk = &d_config->disks[i];
 
             if (disk->specification == LIBXL_DISK_SPECIFICATION_VIRTIO) {
-                if (disk->backend_domid != LIBXL_TOOLSTACK_DOMID)
-                    iommu_needed = true;
+                iommu_needed = true;
 
                 FDT( make_virtio_mmio_node(gc, fdt, disk->base, disk->irq,
                                            disk->backend_domid,
-                                           disk->backend_domid != LIBXL_TOOLSTACK_DOMID) );
+                                           true) );
             }
         }
 
@@ -1527,12 +1526,11 @@ next_resize:
             libxl_device_nic *nic = &d_config->nics[i];
 
             if (nic->model != NULL && !strcmp(nic->model, "virtio-net")) {
-                if (nic->backend_domid != LIBXL_TOOLSTACK_DOMID)
-                    iommu_needed = true;
+                iommu_needed = true;
 
                 FDT( make_virtio_mmio_node(gc, fdt, nic->base, nic->irq,
                                            nic->backend_domid,
-                                           nic->backend_domid != LIBXL_TOOLSTACK_DOMID) );
+                                           true) );
             }
         }
 
