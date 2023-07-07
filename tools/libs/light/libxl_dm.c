@@ -1590,7 +1590,7 @@ static int libxl__build_device_model_args_new(libxl__gc *gc,
 
                 flexarray_append(dm_args, "-device");
                 flexarray_append(dm_args,
-                   GCSPRINTF("%s,id=nic%d,netdev=net%d,mac=%s",
+                   GCSPRINTF("%s,id=nic%d,netdev=net%d,mac=%s,iommu_platform=on",
                              model, nics[i].devid,
                              nics[i].devid, smac));
                 flexarray_append(dm_args, "-netdev");
@@ -2002,7 +2002,7 @@ static int libxl__build_device_model_args_new(libxl__gc *gc,
 
                 if (disks[i].specification == LIBXL_DISK_SPECIFICATION_VIRTIO) {
                     flexarray_append(dm_args, "-device");
-                    flexarray_append(dm_args, "virtio-blk-device,drive=image");
+                    flexarray_append(dm_args, "virtio-blk-device,drive=image,iommu_platform=on");
                     flexarray_append(dm_args, "-drive");
                     flexarray_append(dm_args, GCSPRINTF("if=none,id=image,format=%s,"
                                 "file=%s", format, disks[i].pdev_path));
