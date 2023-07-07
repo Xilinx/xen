@@ -8,6 +8,13 @@
 
 #include <asm/domain.h>
 
+/* Supported vpl011 types */
+enum vpl011_type {
+    VUART_TYPE_NONE,
+    VUART_TYPE_SBSA,     /* Expose SBSA UART (subset of PL011) */
+    VUART_TYPE_PL011,    /* Expose PL011 */
+};
+
 struct arch_kernel_info
 {
 #ifdef CONFIG_ARM_64
@@ -15,7 +22,7 @@ struct arch_kernel_info
 #endif
 
     /* Enable pl011 emulation */
-    bool vpl011;
+    enum vpl011_type vpl011;
 };
 
 #endif /* #ifdef __ARCH_ARM_KERNEL_H__ */
