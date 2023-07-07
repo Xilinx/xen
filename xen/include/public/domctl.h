@@ -1147,9 +1147,9 @@ struct xen_domctl_psr_alloc {
 struct xen_domctl_vuart_op {
 #define XEN_DOMCTL_VUART_OP_INIT  0
         uint32_t cmd;           /* XEN_DOMCTL_VUART_OP_* */
-#define XEN_DOMCTL_VUART_TYPE_VPL011 0
+#define XEN_DOMCTL_VUART_TYPE_SBSA_UART 0
         uint32_t type;          /* IN - type of vuart.
-                                 *      Currently only vpl011 supported.
+                                 *      Currently only SBSA UART is supported.
                                  */
         uint64_aligned_t  gfn;  /* IN - guest gfn to be used as a
                                  *      ring buffer.
