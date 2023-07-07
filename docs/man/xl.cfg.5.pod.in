@@ -3055,12 +3055,19 @@ natively or via hardware backwards compatibility support.
 
 =item B<vuart="uart">
 
-To enable vuart console, user must specify the following option in the
-VM config file:
+Type of vuart console. Currently, the following types are supported:
 
-vuart = "sbsa_uart"
+=over 4
 
-Currently, only the "sbsa_uart" model is supported for ARM.
+=item B<sbsa_uart>
+
+Emulate SBSA UART
+
+=item B<pl011>
+
+Emulate PL011
+
+=back
 
 =back
 

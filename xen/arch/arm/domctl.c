@@ -31,6 +31,7 @@ static int handle_vuart_init(struct domain *d,
 {
     int rc;
     struct vpl011_init_info info;
+    bool sbsa;
 
     info.console_domid = vuart_op->console_domid;
     info.gfn = _gfn(vuart_op->gfn);
@@ -38,10 +39,19 @@ static int handle_vuart_init(struct domain *d,
     if ( d->creation_finished )
         return -EPERM;
 
-    if ( vuart_op->type != XEN_DOMCTL_VUART_TYPE_SBSA_UART )
+    switch ( vuart_op->type )
+    {
+    case XEN_DOMCTL_VUART_TYPE_SBSA_UART:
+        sbsa = true;
+        break;
+    case XEN_DOMCTL_VUART_TYPE_PL011:
+        sbsa = false;
+        break;
+    default:
         return -EOPNOTSUPP;
+    }
 
-    rc = domain_vpl011_init(d, &info, true);
+    rc = domain_vpl011_init(d, &info, sbsa);
 
     if ( !rc )
         vuart_op->evtchn = info.evtchn;

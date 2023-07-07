@@ -276,6 +276,7 @@ libxl_checkpointed_stream = Enumeration("checkpointed_stream", [
 libxl_vuart_type = Enumeration("vuart_type", [
     (0, "unknown"),
     (1, "sbsa_uart"),
+    (2, "pl011"),
     ])
 
 libxl_vkb_backend = Enumeration("vkb_backend", [
