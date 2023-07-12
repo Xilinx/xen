@@ -199,6 +199,7 @@ primary_switched:
         b     launch
 ENDPROC(start)
 
+.align 6;
 GLOBAL(init_secondary)
         cpsid aif                    /* Disable all interrupts */
 
