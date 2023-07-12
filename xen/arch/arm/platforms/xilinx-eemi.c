@@ -353,7 +353,7 @@ bool xilinx_eemi(struct cpu_user_regs *regs, const uint32_t fid,
         /*
          * Allow pll clock nodes to passthrough since there is no device binded to them
          */
-        if ( clock_id_is_pll(nodeid, clk_end) )
+        if ( clock_id_is_pll(get_user_reg(regs, 1), clk_end) )
         {
             goto forward_to_fw;
         }
