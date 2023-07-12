@@ -237,6 +237,7 @@ GLOBAL(init_secondary)
         ldr   r0, =secondary_switched
         mov   pc, r0
 secondary_switched:
+#ifndef CONFIG_HAS_MPU
         /*
          * Non-boot CPUs need to move on to the proper pagetables, which were
          * setup in init_secondary_pagetables.
@@ -254,6 +255,7 @@ secondary_switched:
         mcr   CP32(r0, BPIALL)       /* Flush branch predictor */
         dsb                          /* Ensure completion of TLB+BP flush */
         isb
+#endif
 
 #ifdef CONFIG_EARLY_PRINTK
         /* Use a virtual address to access the UART. */
