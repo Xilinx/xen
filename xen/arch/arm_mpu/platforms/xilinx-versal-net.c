@@ -43,9 +43,11 @@ static bool versal_net_smc(struct cpu_user_regs *regs)
 
 	return versal_net_eemi(regs);
 }
+#endif /* !CONFIG_HAS_MPU */
 
 static int versal_net_init(void)
 {
+#ifndef CONFIG_HAS_MPU
     struct arm_smccc_res res;
 
     /*
@@ -65,10 +67,16 @@ static int versal_net_init(void)
         printk("Versal-net firmware Error registering SGI\n");
         return res.a0;
     }
+#else /* CONFIG_HAS_MPU */
+
+    WRITE_SYSREG(XPAR_PSU_CORTEXR52_0_TIMESTAMP_CLK_FREQ, CNTFRQ_EL0);
+
+#endif /* CONFIG_HAS_MPU */
 
     return 0;
 }
 
+#ifndef CONFIG_HAS_MPU
 static bool versal_net_sgi(void)
 {
     struct domain *d;
@@ -103,10 +111,10 @@ static __init int versal_net_init_time(void)
 
 PLATFORM_START(xilinx_versal_net, "Xilinx Versal-net")
     .compatible = versal_net_dt_compat,
+    .init = versal_net_init,
 #ifdef CONFIG_HAS_MPU
     .init_time = versal_net_init_time,
 #else /* !CONFIG_HAS_MPU */
-    .init = versal_net_init,
     .smc = versal_net_smc,
     .sgi = versal_net_sgi,
 #endif /* !CONFIG_HAS_MPU */
