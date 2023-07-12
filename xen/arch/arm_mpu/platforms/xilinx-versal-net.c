@@ -14,6 +14,7 @@
 #include <asm/platforms/xilinx-versal-net-eemi.h>
 #include <asm/smccc.h>
 #endif /* !CONFIG_HAS_MPU */
+#include <xen/delay.h>
 
 #define LPD_RST_TIMESTAMP                       0xEB5E035CU
 #define XIOU_SCNTRS_BASEADDR                    0xEB5B0000U
@@ -23,6 +24,8 @@
 #define XIOU_SCNTRS_FREQ_REG_OFFSET             0x20U
 
 #define XPAR_PSU_CORTEXR52_0_TIMESTAMP_CLK_FREQ         100000000U
+#define PSX_RPU_CLUSTER_CORE1_CFG0                      0xEB58C000
+#define PSX_RPU_CLUSTER_CORE1_VECTABLE                  0xEB58C010
 
 static const char * const versal_net_dt_compat[] __initconst =
 {
@@ -107,6 +110,41 @@ static __init int versal_net_init_time(void)
 
     return 0;
 }
+
+static __init int versal_net_cpu_up(int cpu)
+{
+    uint32_t __iomem *cpu_reset_addr =
+                            ioremap_nocache(PSX_RPU_CLUSTER_CORE1_CFG0, 4);
+    uint32_t __iomem *cpu_vec_addr =
+                            ioremap_nocache(PSX_RPU_CLUSTER_CORE1_VECTABLE, 4);
+
+    /* Write the address of the secondary cpu vector table */
+    writel(__pa(init_secondary), cpu_vec_addr);
+
+    /* Put the core in reset mode */
+    writel(1, cpu_reset_addr);
+
+    /*
+     * Add delay between the writes to the RPU registers, so that the effect
+     * takes place. Thisn needs to be revisited later.
+     */
+    mdelay(200);
+
+    /* Wake up the core out of reset mode */
+    writel(0, cpu_reset_addr);
+    __iowmb();
+
+    /*
+     * Add delay between the writes to the RPU registers, so that the effect
+     * takes place. Thisn needs to be revisited later.
+     */
+    mdelay(200);
+
+    iounmap(cpu_reset_addr);
+    iounmap(cpu_vec_addr);
+
+    return 0;
+}
 #endif /* CONFIG_HAS_MPU */
 
 PLATFORM_START(xilinx_versal_net, "Xilinx Versal-net")
@@ -114,6 +152,7 @@ PLATFORM_START(xilinx_versal_net, "Xilinx Versal-net")
     .init = versal_net_init,
 #ifdef CONFIG_HAS_MPU
     .init_time = versal_net_init_time,
+    .cpu_up = versal_net_cpu_up,
 #else /* !CONFIG_HAS_MPU */
     .smc = versal_net_smc,
     .sgi = versal_net_sgi,
