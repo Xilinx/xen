@@ -36,7 +36,7 @@ static int handle_vuart_init(struct domain *d,
     if ( d->creation_finished )
         return -EPERM;
 
-    if ( vuart_op->type != XEN_DOMCTL_VUART_TYPE_VPL011 )
+    if ( vuart_op->type != XEN_DOMCTL_VUART_TYPE_PL011 )
         return -EOPNOTSUPP;
 
     rc = domain_vpl011_init(d, &info);
