@@ -774,6 +774,16 @@ static int cf_check init_header(struct pci_dev *pdev)
         return -EOPNOTSUPP;
     }
 
+    rc = vpci_add_register(pdev->vpci, vpci_hw_read16, NULL, PCI_VENDOR_ID,
+                           2, NULL);
+    if ( rc )
+        return rc;
+
+    rc = vpci_add_register(pdev->vpci, vpci_hw_read16, NULL, PCI_DEVICE_ID,
+                           2, NULL);
+    if ( rc )
+        return rc;
+
     /*
      * Setup a handler for the command register.
      *
