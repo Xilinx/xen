@@ -925,6 +925,17 @@ static int cf_check init_header(struct pci_dev *pdev)
             return rc;
     }
 
+    rc = vpci_add_register(pdev->vpci, vpci_hw_read8,
+                           is_hwdom ? vpci_hw_write8 : NULL, PCI_INTERRUPT_LINE,
+                           1, NULL);
+    if ( rc )
+        return rc;
+
+    rc = vpci_add_register(pdev->vpci, vpci_hw_read8, NULL, PCI_INTERRUPT_PIN,
+                           1, NULL);
+    if ( rc )
+        return rc;
+
     if ( pdev->ignore_bars )
         return 0;
 
