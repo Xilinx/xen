@@ -913,6 +913,16 @@ static int cf_check init_header(struct pci_dev *pdev)
                                PCI_CARDBUS_CIS, 4, NULL);
         if ( rc )
             return rc;
+
+        rc = vpci_add_register(pdev->vpci, vpci_hw_read16, NULL,
+                               PCI_SUBSYSTEM_VENDOR_ID, 2, NULL);
+        if ( rc )
+            return rc;
+
+        rc = vpci_add_register(pdev->vpci, vpci_hw_read16, NULL,
+                               PCI_SUBSYSTEM_ID, 2, NULL);
+        if ( rc )
+            return rc;
     }
 
     if ( pdev->ignore_bars )
