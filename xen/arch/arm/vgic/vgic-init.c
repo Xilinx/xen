@@ -239,6 +239,11 @@ void domain_vgic_free(struct domain *d)
     dist->nr_spis = 0;
 }
 
+int domain_vgic_late_init(struct domain *d)
+{
+    return 0;
+}
+
 int vcpu_vgic_free(struct vcpu *v)
 {
     struct vgic_cpu *vgic_cpu = &v->arch.vgic;

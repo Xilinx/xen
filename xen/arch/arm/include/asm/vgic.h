@@ -231,6 +231,8 @@ struct vgic_ops {
     int (*vcpu_init)(struct vcpu *v);
     /* Domain specific initialization of vGIC */
     int (*domain_init)(struct domain *d);
+    /* Domain specific initialization of vGIC, late */
+    int (*domain_late_init)(struct domain *d);
     /* Release resources that were allocated by domain_init */
     void (*domain_free)(struct domain *d);
     /* vGIC sysreg/cpregs emulate */
@@ -358,6 +360,7 @@ bool vgic_evtchn_irq_pending(struct vcpu *v);
 
 int domain_vgic_register(struct domain *d, unsigned int *mmio_count);
 int domain_vgic_init(struct domain *d, unsigned int nr_spis);
+int domain_vgic_late_init(struct domain *d);
 void domain_vgic_free(struct domain *d);
 int vcpu_vgic_init(struct vcpu *v);
 int vcpu_vgic_free(struct vcpu *v);

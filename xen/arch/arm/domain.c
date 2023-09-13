@@ -873,6 +873,12 @@ int arch_domain_soft_reset(struct domain *d)
 
 void arch_domain_creation_finished(struct domain *d)
 {
+    if ( domain_vgic_late_init(d) )
+    {
+        printk(XENLOG_INFO "Late vGIC initialization failed\n");
+        domain_crash(d);
+    }
+
     p2m_domain_creation_finished(d);
 }
 
