@@ -319,9 +319,14 @@ int pci_host_iterate_bridges_and_count(struct domain *d,
     {
         int ret;
 
-        ret = cb(d, bridge);
-        if ( ret < 0 )
-            return ret;
+        if ( cb )
+        {
+            ret = cb(d, bridge);
+            if ( ret < 0 )
+                return ret;
+        }
+        else
+            ret = 1;
         count += ret;
     }
     return count;

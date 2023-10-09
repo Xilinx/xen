@@ -147,5 +147,14 @@ static inline int pci_get_new_domain_nr(void)
     return -1;
 }
 
+struct pci_host_bridge;
+
+static inline int pci_host_iterate_bridges_and_count(
+    struct domain *d,
+    int (*cb)(struct domain *d, struct pci_host_bridge *bridge))
+{
+    return 0;
+}
+
 #endif  /*!CONFIG_HAS_PCI*/
 #endif /* __ARM_PCI_H__ */
