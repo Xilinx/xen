@@ -811,7 +811,7 @@ static bool emulation_flags_ok(const struct domain *d, unsigned int emflags,
         {
             .caps   = CAP_HVM | CAP_DOMU,
             .min    = X86_EMU_LAPIC | X86_EMU_IOAPIC | X86_EMU_PM,
-            .opt_cdf = GENMASK(31, 0) & ~XEN_DOMCTL_CDF_vpci,
+            .opt_cdf = GENMASK(31, 0),
         },
 
         /* HVM domU */

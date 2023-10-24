@@ -34,6 +34,7 @@ config X86
 	select HAS_UBSAN
 	select HAS_VMAP
 	select HAS_VPCI if HVM
+	select HAS_VPCI_GUEST_SUPPORT if HVM
 	select NEEDS_LIBELF
 	select SYSTEM_SUSPEND_ALWAYS_ON if INTEL
 

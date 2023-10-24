@@ -16,6 +16,7 @@ int libxl__arch_domain_prepare_config(libxl__gc *gc,
     case LIBXL_DOMAIN_TYPE_PVH:
         config->arch.emulation_flags = XEN_X86_EMU_LAPIC | XEN_X86_EMU_IOAPIC |
             XEN_X86_EMU_PM;
+        config->flags |= XEN_DOMCTL_CDF_vpci;
         break;
     case LIBXL_DOMAIN_TYPE_PV:
         config->arch.emulation_flags = 0;
@@ -907,14 +908,6 @@ int libxl__arch_passthrough_mode_setdefault(libxl__gc *gc,
 {
     int rc;
     libxl_domain_create_info *const c_info = &d_config->c_info;
-
-    if (c_info->passthrough != LIBXL_PASSTHROUGH_DISABLED &&
-        c_info->type == LIBXL_DOMAIN_TYPE_PVH) {
-        LOGD(ERROR, domid,
-             "passthrough not yet supported for x86 PVH guests\n");
-        rc = ERROR_INVAL;
-        goto out;
-    }
 
     const char *whynot_pt_share =
         c_info->type == LIBXL_DOMAIN_TYPE_PV ? "not valid for PV domain" :
