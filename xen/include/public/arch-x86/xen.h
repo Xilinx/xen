@@ -281,15 +281,13 @@ struct xen_arch_domainconfig {
 #define XEN_X86_EMU_PIT             (1U<<_XEN_X86_EMU_PIT)
 #define _XEN_X86_EMU_USE_PIRQ       9
 #define XEN_X86_EMU_USE_PIRQ        (1U<<_XEN_X86_EMU_USE_PIRQ)
-#define _XEN_X86_EMU_VPCI           10
-#define XEN_X86_EMU_VPCI            (1U<<_XEN_X86_EMU_VPCI)
+/* Note: Bit 10 was previously used for XEN_X86_EMU_VPCI. Re-use with care. */
 
 #define XEN_X86_EMU_ALL             (XEN_X86_EMU_LAPIC | XEN_X86_EMU_HPET |  \
                                      XEN_X86_EMU_PM | XEN_X86_EMU_RTC |      \
                                      XEN_X86_EMU_IOAPIC | XEN_X86_EMU_PIC |  \
                                      XEN_X86_EMU_VGA | XEN_X86_EMU_IOMMU |   \
-                                     XEN_X86_EMU_PIT | XEN_X86_EMU_USE_PIRQ |\
-                                     XEN_X86_EMU_VPCI)
+                                     XEN_X86_EMU_PIT | XEN_X86_EMU_USE_PIRQ)
     uint32_t emulation_flags;
 
 /*
