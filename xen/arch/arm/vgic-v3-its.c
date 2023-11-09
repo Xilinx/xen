@@ -1563,16 +1563,47 @@ static int vgic_v3_its_init_virtual(struct domain *d, paddr_t guest_addr,
 
     if ( is_iommu_enabled(its->d) )
     {
-        mfn_t mfn = maddr_to_mfn(its->doorbell_address);
-        unsigned int flush_flags = 0;
-        int ret = iommu_map(its->d, _dfn(mfn_x(mfn)), mfn, 1, IOMMUF_writable,
-                            &flush_flags);
-        if ( ret < 0 )
+        mfn_t mfn;
+        unsigned int flush_flags;
+        int ret;
+
+        if ( is_hardware_domain(d) )
         {
-            gprintk(XENLOG_ERR,
-                    "GICv3: Map ITS translation register %pd failed.\n",
-                    its->d);
-            return ret;
+            mfn = maddr_to_mfn(its->doorbell_address);
+            flush_flags = 0;
+            ret = iommu_map(its->d, _dfn(mfn_x(mfn)), mfn, 1, IOMMUF_writable,
+                            &flush_flags);
+            if ( ret < 0 )
+            {
+                gprintk(XENLOG_ERR,
+                        "GICv3: Map ITS translation register %pd failed.\n",
+                        its->d);
+                return ret;
+            }
+        }
+        else
+        {
+            struct host_its *hw_its;
+            dfn_t dfn = _dfn(mfn_x(maddr_to_mfn(its->doorbell_address)));
+
+            list_for_each_entry(hw_its, &host_its_list, entry)
+            {
+                mfn = maddr_to_mfn(hw_its->addr + ITS_DOORBELL_OFFSET);
+                flush_flags = 0;
+                ret = iommu_map(its->d, dfn, mfn, 1, IOMMUF_writable,
+                                &flush_flags);
+
+                if ( ret < 0 )
+                {
+                    gprintk(XENLOG_ERR,
+                            "GICv3: Map ITS translation register %pd failed.\n",
+                            its->d);
+                    return ret;
+                }
+
+                /* XXX: At the moment we only support a single hardware ITS */
+                break;
+            }
         }
     }
 
