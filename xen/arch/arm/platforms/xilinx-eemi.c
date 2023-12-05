@@ -240,6 +240,7 @@ bool xilinx_eemi(struct cpu_user_regs *regs, const uint32_t fid,
     case EEMI_FID(PM_PINCTRL_GET_FUNCTION):
     case EEMI_FID(PM_PINCTRL_CONFIG_PARAM_GET):
     case EEMI_FID(PM_PINCTRL_CONFIG_PARAM_SET):
+    case EEMI_FID(PM_SECURE_AES):
         if ( !is_hardware_domain(current->domain) )
         {
             gprintk(XENLOG_WARNING, "eemi: fn=%u No access\n", pm_fn);
