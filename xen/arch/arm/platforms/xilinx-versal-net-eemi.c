@@ -562,7 +562,6 @@ static const struct pm_clk2node pm_clk_node_map[] = {
 
 bool versal_net_eemi(struct cpu_user_regs *regs)
 {
-    struct arm_smccc_res res;
     uint32_t fid = get_user_reg(regs, 0);
     uint32_t nodeid = get_user_reg(regs, 1);
     uint32_t pm_fn = EEMI_PM_FID(fid);
@@ -570,10 +569,6 @@ bool versal_net_eemi(struct cpu_user_regs *regs)
 
     switch (fid)
     {
-    /* These calls are safe and always allowed.  */
-    case EEMI_FID(PM_FEATURE_CHECK):
-        goto forward_to_fw;
-
     /* Mediated MMIO access.  */
     case EEMI_FID(PM_MMIO_WRITE):
     case EEMI_FID(PM_MMIO_READ):
@@ -630,24 +625,6 @@ bool versal_net_eemi(struct cpu_user_regs *regs)
                            ARRAY_SIZE(pm_clk_node_map),
                            VERSAL_NET_PM_CLK_END_IDX);
     }
-
-forward_to_fw:
-    /* Re-encode pm args.  */
-    arm_smccc_1_1_smc(get_user_reg(regs, 0),
-                      get_user_reg(regs, 1),
-                      get_user_reg(regs, 2),
-                      get_user_reg(regs, 3),
-                      get_user_reg(regs, 4),
-                      get_user_reg(regs, 5),
-                      get_user_reg(regs, 6),
-                      get_user_reg(regs, 7),
-                      &res);
-
-    set_user_reg(regs, 0, res.a0);
-    set_user_reg(regs, 1, res.a1);
-    set_user_reg(regs, 2, res.a2);
-    set_user_reg(regs, 3, res.a3);
-    return true;
 
 done:
     set_user_reg(regs, 0, ret);
