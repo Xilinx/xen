@@ -329,6 +329,18 @@ bool xilinx_eemi(struct cpu_user_regs *regs, const uint32_t fid,
         }
         goto forward_to_fw;
 
+    /*
+     * To avoid the need for guests to specify the clk_ignore_unused property,
+     * we ignore requests to disable the clock. This prevents one domain from
+     * disabling clocks that might be in use by another domain, potentially
+     * causing issues if the latter is already utilizing a device or if the
+     * firmware + clock controller nodes have not been passthroughed (in such
+     * case there would be no PM_CLOCK_ENABLE call).
+     */
+    case EEMI_FID(PM_CLOCK_DISABLE):
+        ret = XST_PM_SUCCESS;
+        goto done;
+
     case EEMI_FID(PM_CLOCK_ENABLE):
         /*
          * First, check if the Clock is already enabled.
@@ -342,7 +354,6 @@ bool xilinx_eemi(struct cpu_user_regs *regs, const uint32_t fid,
             ret = XST_PM_SUCCESS;
             goto done;
         }
-    case EEMI_FID(PM_CLOCK_DISABLE):
     case EEMI_FID(PM_CLOCK_SETDIVIDER):
     case EEMI_FID(PM_CLOCK_SETPARENT):
         if ( !clock_id_is_valid(nodeid, clk_end) )
