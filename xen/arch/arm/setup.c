@@ -12,6 +12,7 @@
 #include <xen/device_tree.h>
 #include <xen/domain_page.h>
 #include <xen/grant_table.h>
+#include <xen/llc-coloring.h>
 #include <xen/types.h>
 #include <xen/string.h>
 #include <xen/serial.h>
@@ -1118,6 +1119,12 @@ void __init start_xen(unsigned long boot_phys_offset,
     cmdline = boot_fdt_cmdline(device_tree_flattened);
     printk("Command line: %s\n", cmdline);
     cmdline_parse(cmdline);
+
+    if ( llc_coloring_enabled )
+    {
+        if ( !llc_coloring_init() )
+            panic("Xen LLC coloring support: setup failed\n");
+    }
 
     setup_mm();
 
