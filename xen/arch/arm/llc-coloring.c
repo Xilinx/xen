@@ -30,6 +30,9 @@ static unsigned int __ro_after_init nr_colors = CONFIG_NR_LLC_COLORS;
 static unsigned int __ro_after_init dom0_colors[CONFIG_NR_LLC_COLORS];
 static unsigned int __ro_after_init dom0_num_colors;
 
+#define mfn_color_mask              (nr_colors - 1)
+#define mfn_to_color(mfn)           (mfn_x(mfn) & mfn_color_mask)
+
 /*
  * Parse the coloring configuration given in the buf string, following the
  * syntax below.
@@ -310,6 +313,16 @@ int domain_set_llc_colors_from_str(struct domain *d, const char *str)
     }
 
     return domain_check_colors(d);
+}
+
+unsigned int page_to_llc_color(const struct page_info *pg)
+{
+    return mfn_to_color(page_to_mfn(pg));
+}
+
+unsigned int get_nr_llc_colors(void)
+{
+    return nr_colors;
 }
 
 /*

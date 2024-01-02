@@ -36,6 +36,10 @@ void domain_dump_llc_colors(struct domain *d);
 int domain_set_llc_colors_domctl(struct domain *d,
                                  const struct xen_domctl_set_llc_colors *config);
 
+struct page_info;
+unsigned int page_to_llc_color(const struct page_info *pg);
+unsigned int get_nr_llc_colors(void);
+
 #endif /* __COLORING_H__ */
 
 /*
