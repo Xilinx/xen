@@ -604,6 +604,11 @@ struct domain
 
     /* Holding CDF_* constant. Internal flags for domain creation. */
     unsigned int cdf;
+
+#ifdef CONFIG_LLC_COLORING
+    unsigned int *llc_colors;
+    unsigned int num_llc_colors;
+#endif
 };
 
 static inline struct page_list_head *page_to_list(

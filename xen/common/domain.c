@@ -7,6 +7,7 @@
 #include <xen/compat.h>
 #include <xen/init.h>
 #include <xen/lib.h>
+#include <xen/llc-coloring.h>
 #include <xen/ctype.h>
 #include <xen/err.h>
 #include <xen/param.h>
@@ -1135,6 +1136,9 @@ static void cf_check complete_domain_destroy(struct rcu_head *head)
     struct domain *d = container_of(head, struct domain, rcu);
     struct vcpu *v;
     int i;
+
+    if ( is_domain_llc_colored(d) )
+        domain_llc_coloring_free(d);
 
     /*
      * Flush all state for the vCPU previously having run on the current CPU.

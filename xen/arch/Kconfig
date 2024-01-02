@@ -31,3 +31,19 @@ config NR_NUMA_NODES
 	  associated with multiple-nodes management. It is the upper bound of
 	  the number of NUMA nodes that the scheduler, memory allocation and
 	  other NUMA-aware components can handle.
+
+config LLC_COLORING
+	bool "Last Level Cache (LLC) coloring" if EXPERT
+	depends on HAS_LLC_COLORING
+
+config NR_LLC_COLORS
+	int "Maximum number of LLC colors"
+	default 128
+	depends on LLC_COLORING
+	help
+	  Controls the build-time size of various arrays associated with LLC
+	  coloring. Refer to cache coloring documentation for how to compute the
+	  number of colors supported by the platform. This is only an upper
+	  bound. The runtime value is autocomputed or manually set via cmdline.
+	  The default value corresponds to an 8 MiB 16-ways LLC, which should be
+	  more than what needed in the general case.
