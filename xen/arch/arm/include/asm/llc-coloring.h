@@ -14,6 +14,7 @@
 #include <xen/init.h>
 
 bool __init llc_coloring_init(void);
+int dom0_set_llc_colors(struct domain *d);
 
 #endif /* __ASM_ARM_COLORING_H__ */
 

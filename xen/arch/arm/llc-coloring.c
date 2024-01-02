@@ -26,6 +26,63 @@ size_param("llc-way-size", llc_way_size);
 /* Number of colors available in the LLC */
 static unsigned int __ro_after_init nr_colors = CONFIG_NR_LLC_COLORS;
 
+static unsigned int __ro_after_init dom0_colors[CONFIG_NR_LLC_COLORS];
+static unsigned int __ro_after_init dom0_num_colors;
+
+/*
+ * Parse the coloring configuration given in the buf string, following the
+ * syntax below.
+ *
+ * COLOR_CONFIGURATION ::= COLOR | RANGE,...,COLOR | RANGE
+ * RANGE               ::= COLOR-COLOR
+ *
+ * Example: "0,2-6,15-16" represents the set of colors: 0,2,3,4,5,6,15,16.
+ */
+static int parse_color_config(const char *buf, unsigned int *colors,
+                              unsigned int *num_colors)
+{
+    const char *s = buf;
+
+    if ( !colors || !num_colors )
+        return -EINVAL;
+
+    *num_colors = 0;
+
+    while ( *s != '\0' )
+    {
+        if ( *s != ',' )
+        {
+            unsigned int color, start, end;
+
+            start = simple_strtoul(s, &s, 0);
+
+            if ( *s == '-' )    /* Range */
+            {
+                s++;
+                end = simple_strtoul(s, &s, 0);
+            }
+            else                /* Single value */
+                end = start;
+
+            if ( start > end || (end - start) > UINT_MAX - *num_colors ||
+                 *num_colors + (end - start) >= nr_colors )
+                return -EINVAL;
+            for ( color = start; color <= end; color++ )
+                colors[(*num_colors)++] = color;
+        }
+        else
+            s++;
+    }
+
+    return *s ? -EINVAL : 0;
+}
+
+static int __init parse_dom0_colors(const char *s)
+{
+    return parse_color_config(s, dom0_colors, &dom0_num_colors);
+}
+custom_param("dom0-llc-colors", parse_dom0_colors);
+
 /* Return the LLC way size by probing the hardware */
 static unsigned int __init get_llc_way_size(void)
 {
@@ -102,6 +159,28 @@ static void dump_coloring_info(unsigned char key)
     printk("Number of LLC colors supported: %u\n", nr_colors);
 }
 
+static bool check_colors(unsigned int *colors, unsigned int num_colors)
+{
+    unsigned int i;
+
+    if ( num_colors > nr_colors )
+    {
+        printk(XENLOG_ERR "Number of LLC colors requested > %u\n", nr_colors);
+        return false;
+    }
+
+    for ( i = 0; i < num_colors; i++ )
+    {
+        if ( colors[i] >= nr_colors )
+        {
+            printk(XENLOG_ERR "LLC color %u >= %u\n", colors[i], nr_colors);
+            return false;
+        }
+    }
+
+    return true;
+}
+
 bool __init llc_coloring_init(void)
 {
     if ( !llc_way_size && !(llc_way_size = get_llc_way_size()) )
@@ -148,6 +227,55 @@ void domain_dump_llc_colors(struct domain *d)
 {
     printk("Domain %pd has %u LLC colors: ", d, d->num_llc_colors);
     print_colors(d->llc_colors, d->num_llc_colors);
+}
+
+static int domain_alloc_colors(struct domain *d, unsigned int num_colors)
+{
+    d->num_llc_colors = num_colors;
+
+    if ( !num_colors )
+        return 0;
+
+    d->llc_colors = xmalloc_array(unsigned int, num_colors);
+    if ( !d->llc_colors )
+    {
+        printk("Can't allocate LLC colors for domain %pd\n", d);
+        return -1;
+    }
+
+    return 0;
+}
+
+static int domain_check_colors(struct domain *d)
+{
+    unsigned int i;
+
+    if ( !d->num_llc_colors )
+    {
+        printk(XENLOG_WARNING
+               "LLC color config not found for %pd. Using default\n", d);
+        if ( domain_alloc_colors(d, nr_colors) )
+            return -ENOMEM;
+        for ( i = 0; i < nr_colors; i++ )
+            d->llc_colors[i] = i;
+    }
+    else if ( !check_colors(d->llc_colors, d->num_llc_colors) )
+    {
+        printk(XENLOG_ERR "Bad LLC color config for %pd\n", d);
+        return -EINVAL;
+    }
+
+    return 0;
+}
+
+int dom0_set_llc_colors(struct domain *d)
+{
+    if ( domain_alloc_colors(d, dom0_num_colors) )
+        return -ENOMEM;
+
+    memcpy(d->llc_colors, dom0_colors, sizeof(unsigned int) * dom0_num_colors);
+
+    return domain_check_colors(d);
 }
 
 /*
