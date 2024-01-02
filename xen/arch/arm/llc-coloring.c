@@ -295,6 +295,23 @@ int domain_set_llc_colors_domctl(struct domain *d,
     return domain_check_colors(d);
 }
 
+int domain_set_llc_colors_from_str(struct domain *d, const char *str)
+{
+    int err;
+
+    if ( domain_alloc_colors(d, nr_colors) )
+        return -ENOMEM;
+
+    err = parse_color_config(str, d->llc_colors, &d->num_llc_colors);
+    if ( err )
+    {
+        printk(XENLOG_ERR "Error parsing LLC color configuration.");
+        return err;
+    }
+
+    return domain_check_colors(d);
+}
+
 /*
  * Local variables:
  * mode: C

@@ -3983,6 +3983,7 @@ void __init create_domUs(void)
     const struct dt_device_node *cpupool_node,
                                 *chosen = dt_find_node_by_path("/chosen");
     const char *viommu_str;
+    const char *llc_colors_str = NULL;
 
     BUG_ON(chosen == NULL);
     dt_for_each_child_node(chosen, node)
@@ -4137,6 +4138,13 @@ void __init create_domUs(void)
                 panic("Unknown vIOMMU %s\n", viommu_str);
         }
 
+        dt_property_read_string(node, "llc-colors", &llc_colors_str);
+        if ( llc_coloring_enabled && !llc_colors_str )
+            panic("'llc-colors' is required when LLC coloring is enabled\n");
+        else if ( !llc_coloring_enabled && llc_colors_str)
+            printk(XENLOG_WARNING
+                   "'llc-colors' found, but LLC coloring is disabled\n");
+
         /*
          * The variable max_init_domid is initialized with zero, so here it's
          * very important to use the pre-increment operator to call
@@ -4146,6 +4154,11 @@ void __init create_domUs(void)
         if ( IS_ERR(d) )
             panic("Error creating domain %s (rc = %ld)\n",
                   dt_node_name(node), PTR_ERR(d));
+
+        if ( llc_coloring_enabled &&
+             (rc = domain_set_llc_colors_from_str(d, llc_colors_str)) )
+            panic("Error initializing LLC coloring for domain %s (rc = %d)\n",
+                  dt_node_name(node), rc);
 
         d->is_console = true;
         dt_device_set_used_by(node, d->domain_id);

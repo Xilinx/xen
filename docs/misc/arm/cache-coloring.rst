@@ -10,7 +10,7 @@ If needed, change the maximum number of colors with
 ``CONFIG_NR_LLC_COLORS=<n>``.
 
 Compile Xen and the toolstack and then configure it via
-`Command line parameters`_.
+`Command line parameters`_. For DomUs follow `DomUs configuration`_.
 
 Background
 **********
@@ -113,6 +113,52 @@ Examples:
 +-------------------+-----------------------------+
 | 0                 | [0]                         |
 +-------------------+-----------------------------+
+
+DomUs configuration
+*******************
+
+DomUs colors can be set via Device Tree, also for Dom0less configurations
+(documentation at `docs/misc/arm/device-tree/booting.txt`) using the
+``llc-colors`` option. For example:
+
+::
+
+    xen,xen-bootargs = "console=dtuart dtuart=serial0 dom0_mem=1G dom0_max_vcpus=1 sched=null llc-coloring=on llc-way-size=64K dom0-llc-colors=2-6";
+    xen,dom0-bootargs "console=hvc0 earlycon=xen earlyprintk=xen root=/dev/ram0"
+
+    dom0 {
+        compatible = "xen,linux-zimage" "xen,multiboot-module";
+        reg = <0x0 0x1000000 0x0 15858176>;
+    };
+
+    dom0-ramdisk {
+        compatible = "xen,linux-initrd" "xen,multiboot-module";
+        reg = <0x0 0x2000000 0x0 20638062>;
+    };
+
+    domU0 {
+        #address-cells = <0x1>;
+        #size-cells = <0x1>;
+        compatible = "xen,domain";
+        memory = <0x0 0x40000>;
+        llc-colors = "4-8,10,11,12";
+        cpus = <0x1>;
+        vpl011 = <0x1>;
+
+        module@2000000 {
+            compatible = "multiboot,kernel", "multiboot,module";
+            reg = <0x2000000 0xffffff>;
+            bootargs = "console=ttyAMA0";
+        };
+
+        module@30000000 {
+            compatible = "multiboot,ramdisk", "multiboot,module";
+            reg = <0x3000000 0xffffff>;
+        };
+    };
+
+**Note:** If no color configuration is provided for a domain, the default one,
+which corresponds to all available colors, is used instead.
 
 Known issues and limitations
 ****************************
