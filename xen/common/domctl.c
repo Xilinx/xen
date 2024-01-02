@@ -8,6 +8,7 @@
 
 #include <xen/types.h>
 #include <xen/lib.h>
+#include <xen/llc-coloring.h>
 #include <xen/err.h>
 #include <xen/mm.h>
 #include <xen/sched.h>
@@ -858,6 +859,16 @@ long do_domctl(XEN_GUEST_HANDLE_PARAM(xen_domctl_t) u_domctl)
         if ( ret == -ERESTART )
             ret = hypercall_create_continuation(
                 __HYPERVISOR_domctl, "h", u_domctl);
+        break;
+
+    case XEN_DOMCTL_set_llc_colors:
+        if ( !llc_coloring_enabled )
+            break;
+
+        ret = domain_set_llc_colors_domctl(d, &op->u.set_llc_colors);
+        if ( ret == -EEXIST )
+            printk(XENLOG_ERR
+                   "Can't set LLC colors on an already created domain\n");
         break;
 
     default:

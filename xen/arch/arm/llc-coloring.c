@@ -9,6 +9,7 @@
  *    Carlo Nonato <carlo.nonato@minervasys.tech>
  */
 #include <xen/errno.h>
+#include <xen/guest_access.h>
 #include <xen/keyhandler.h>
 #include <xen/llc-coloring.h>
 #include <xen/param.h>
@@ -274,6 +275,22 @@ int dom0_set_llc_colors(struct domain *d)
         return -ENOMEM;
 
     memcpy(d->llc_colors, dom0_colors, sizeof(unsigned int) * dom0_num_colors);
+
+    return domain_check_colors(d);
+}
+
+int domain_set_llc_colors_domctl(struct domain *d,
+                                 const struct xen_domctl_set_llc_colors *config)
+{
+    if ( d->num_llc_colors )
+        return -EEXIST;
+
+    if ( domain_alloc_colors(d, config->num_llc_colors) )
+        return -ENOMEM;
+
+    if ( copy_from_guest(d->llc_colors, config->llc_colors,
+                         config->num_llc_colors) )
+        return -EFAULT;
 
     return domain_check_colors(d);
 }

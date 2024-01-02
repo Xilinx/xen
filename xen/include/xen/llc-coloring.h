@@ -33,6 +33,9 @@ extern bool llc_coloring_enabled;
 void domain_llc_coloring_free(struct domain *d);
 void domain_dump_llc_colors(struct domain *d);
 
+int domain_set_llc_colors_domctl(struct domain *d,
+                                 const struct xen_domctl_set_llc_colors *config);
+
 #endif /* __COLORING_H__ */
 
 /*
