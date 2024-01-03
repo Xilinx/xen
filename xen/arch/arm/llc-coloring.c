@@ -18,6 +18,9 @@
 #include <asm/processor.h>
 #include <asm/sysregs.h>
 
+#define XEN_DEFAULT_COLOR       0
+#define XEN_DEFAULT_NUM_COLORS  1
+
 bool __ro_after_init llc_coloring_enabled;
 boolean_param("llc-coloring", llc_coloring_enabled);
 
@@ -29,6 +32,9 @@ static unsigned int __ro_after_init nr_colors = CONFIG_NR_LLC_COLORS;
 
 static unsigned int __ro_after_init dom0_colors[CONFIG_NR_LLC_COLORS];
 static unsigned int __ro_after_init dom0_num_colors;
+
+static unsigned int __ro_after_init xen_colors[CONFIG_NR_LLC_COLORS];
+static unsigned int __ro_after_init xen_num_colors;
 
 #define mfn_color_mask              (nr_colors - 1)
 #define mfn_to_color(mfn)           (mfn_x(mfn) & mfn_color_mask)
@@ -86,6 +92,12 @@ static int __init parse_dom0_colors(const char *s)
     return parse_color_config(s, dom0_colors, &dom0_num_colors);
 }
 custom_param("dom0-llc-colors", parse_dom0_colors);
+
+static int __init parse_xen_colors(const char *s)
+{
+    return parse_color_config(s, xen_colors, &xen_num_colors);
+}
+custom_param("xen-llc-colors", parse_xen_colors);
 
 /* Return the LLC way size by probing the hardware */
 static unsigned int __init get_llc_way_size(void)
@@ -161,6 +173,8 @@ static void dump_coloring_info(unsigned char key)
     printk("'%c' pressed -> dumping LLC coloring general info\n", key);
     printk("LLC way size: %u KiB\n", llc_way_size >> 10);
     printk("Number of LLC colors supported: %u\n", nr_colors);
+    printk("Xen has %u LLC colors: ", xen_num_colors);
+    print_colors(xen_colors, xen_num_colors);
 }
 
 static bool check_colors(unsigned int *colors, unsigned int num_colors)
@@ -214,6 +228,21 @@ bool __init llc_coloring_init(void)
     {
         printk(XENLOG_ERR "Number of LLC colors (%u) not in range [2, %u]\n",
                nr_colors, CONFIG_NR_LLC_COLORS);
+        return false;
+    }
+
+    if ( !xen_num_colors )
+    {
+        printk(XENLOG_WARNING
+               "Xen LLC color config not found. Using default color: %u\n",
+               XEN_DEFAULT_COLOR);
+        xen_colors[0] = XEN_DEFAULT_COLOR;
+        xen_num_colors = XEN_DEFAULT_NUM_COLORS;
+    }
+
+    if ( !check_colors(xen_colors, xen_num_colors) )
+    {
+        printk(XENLOG_ERR "Bad LLC color config for Xen\n");
         return false;
     }
 
