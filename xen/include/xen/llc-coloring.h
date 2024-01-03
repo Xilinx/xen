@@ -21,7 +21,27 @@
 extern bool llc_coloring_enabled;
 #define llc_coloring_enabled (llc_coloring_enabled)
 #endif
-
+#else
+static inline void *xen_remap_colored(mfn_t xen_fn, paddr_t xen_size)
+{
+    return NULL;
+}
+static inline int domain_set_llc_colors_from_str(struct domain *d, const char *str)
+{
+    return -ENOSYS;
+}
+static inline int dom0_set_llc_colors(struct domain *d)
+{
+    return 0;
+}
+static inline bool llc_coloring_init(void)
+{
+    return false;
+}
+static inline paddr_t xen_colored_map_size(paddr_t size)
+{
+    return 0;
+}
 #endif
 
 #ifndef llc_coloring_enabled

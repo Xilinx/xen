@@ -610,10 +610,10 @@ void __init setup_pagetables(unsigned long boot_phys_offset, paddr_t xen_paddr)
     pte.pt.table = 1;
     xen_second[second_table_offset(FIXMAP_ADDR(0))] = pte;
 
+#ifdef CONFIG_ARM_64
     if ( llc_coloring_enabled )
         ttbr = virt_to_maddr(virt_to_reloc_virt(xen_pgtable));
     else
-#ifdef CONFIG_ARM_64
         ttbr = (uintptr_t) xen_pgtable + phys_offset;
 #else
         ttbr = (uintptr_t) cpu0_pgtable + phys_offset;
