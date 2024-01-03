@@ -11,6 +11,7 @@
 
 #include <xen/types.h>
 #include <xen/init.h>
+#include <xen/llc-coloring.h>
 #include <xen/mm.h>
 #include <xen/smp.h>
 #include <asm/cpufeature.h>
@@ -39,9 +40,13 @@ static uint32_t psci_cpu_on_nr;
 int call_psci_cpu_on(int cpu)
 {
     struct arm_smccc_res res;
+    vaddr_t init_secondary_addr = (vaddr_t)init_secondary;
 
-    arm_smccc_smc(psci_cpu_on_nr, cpu_logical_map(cpu), __pa(init_secondary),
-                  &res);
+    if ( llc_coloring_enabled )
+        init_secondary_addr = virt_to_reloc_virt(init_secondary);
+
+    arm_smccc_smc(psci_cpu_on_nr, cpu_logical_map(cpu),
+                  __pa(init_secondary_addr), &res);
 
     return PSCI_RET(res);
 }

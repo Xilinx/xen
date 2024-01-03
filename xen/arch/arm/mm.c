@@ -14,6 +14,7 @@
 #include <xen/guest_access.h>
 #include <xen/init.h>
 #include <xen/libfdt/libfdt.h>
+#include <xen/llc-coloring.h>
 #include <xen/mm.h>
 #include <xen/pfn.h>
 #include <xen/pmap.h>
@@ -104,6 +105,10 @@ DEFINE_PER_CPU(lpae_t *, xen_pgtable);
 #define THIS_CPU_PGTABLE this_cpu(xen_pgtable)
 /* Root of the trie for cpu0, other CPU's PTs are dynamically allocated */
 static DEFINE_PAGE_TABLE(cpu0_pgtable);
+#endif
+ 
+#ifdef CONFIG_LLC_COLORING
+static DEFINE_PAGE_TABLE(xen_colored_temp);
 #endif
 
 /* Common pagetable leaves */
@@ -395,7 +400,12 @@ void flush_page_to_ram(unsigned long mfn, bool sync_icache)
 
 lpae_t pte_of_xenaddr(vaddr_t va)
 {
-    paddr_t ma = va + phys_offset;
+    paddr_t ma;
+
+    if ( llc_coloring_enabled )
+        ma = virt_to_maddr(virt_to_reloc_virt(va));
+    else
+        ma = va + phys_offset;
 
     return mfn_to_xen_entry(maddr_to_mfn(ma), MT_NORMAL);
 }
@@ -488,15 +498,64 @@ static void clear_table(void *table)
     clean_and_invalidate_dcache_va_range(table, PAGE_SIZE);
 }
 
-/* Boot-time pagetable setup.
- * Changes here may need matching changes in head.S */
-void __init setup_pagetables(unsigned long boot_phys_offset)
+#ifdef CONFIG_LLC_COLORING
+static void __init create_llc_coloring_mappings(paddr_t xen_paddr)
+{
+    lpae_t pte;
+    unsigned int i;
+    mfn_t mfn = maddr_to_mfn(xen_paddr);
+
+    for_each_xen_colored_mfn( mfn, i )
+    {
+        pte = mfn_to_xen_entry(mfn, MT_NORMAL);
+        pte.pt.table = 1; /* level 3 mappings always have this bit set */
+        xen_colored_temp[i] = pte;
+    }
+
+    pte = mfn_to_xen_entry(virt_to_mfn(xen_colored_temp), MT_NORMAL);
+    pte.pt.table = 1;
+    write_pte(&boot_second[second_table_offset(BOOT_RELOC_VIRT_START)], pte);
+}
+
+void __init remove_llc_coloring_mappings(void)
+{
+    int rc;
+
+    /* destroy the _PAGE_BLOCK mapping */
+    rc = modify_xen_mappings(BOOT_RELOC_VIRT_START,
+                             BOOT_RELOC_VIRT_START + SZ_2M,
+                             _PAGE_BLOCK);
+    BUG_ON(rc);
+}
+#else
+static void __init create_llc_coloring_mappings(paddr_t xen_paddr) {}
+void __init remove_llc_coloring_mappings(void) {}
+#endif /* CONFIG_LLC_COLORING */
+
+/*
+ * Boot-time pagetable setup with coloring support
+ * Changes here may need matching changes in head.S
+ *
+ * The coloring support consists of:
+ * - Create a temporary colored mapping that conforms to Xen color selection.
+ * - pte_of_xenaddr takes care of translating the virtual addresses to the
+ *   new colored physical space and the returns the pte, so that the page table
+ *   initialization can remain the same.
+ * - Copy Xen to the new colored physical space by exploiting the temporary
+ *   mapping.
+ * - Update TTBR0_EL2 with the new root page table address.
+ *
+ */
+void __init setup_pagetables(unsigned long boot_phys_offset, paddr_t xen_paddr)
 {
     uint64_t ttbr;
     lpae_t pte, *p;
     int i;
 
     phys_offset = boot_phys_offset;
+
+    if ( llc_coloring_enabled )
+        create_llc_coloring_mappings(xen_paddr);
 
     arch_setup_page_tables();
 
@@ -551,12 +610,15 @@ void __init setup_pagetables(unsigned long boot_phys_offset)
     pte.pt.table = 1;
     xen_second[second_table_offset(FIXMAP_ADDR(0))] = pte;
 
+    if ( llc_coloring_enabled )
+        ttbr = virt_to_maddr(virt_to_reloc_virt(xen_pgtable));
+    else
 #ifdef CONFIG_ARM_64
-    ttbr = (uintptr_t) xen_pgtable + phys_offset;
+        ttbr = (uintptr_t) xen_pgtable + phys_offset;
 #else
-    ttbr = (uintptr_t) cpu0_pgtable + phys_offset;
+        ttbr = (uintptr_t) cpu0_pgtable + phys_offset;
 #endif
-
+ 
     switch_ttbr(ttbr);
 
     xen_pt_enforce_wnx();
@@ -564,6 +626,18 @@ void __init setup_pagetables(unsigned long boot_phys_offset)
 #ifdef CONFIG_ARM_32
     per_cpu(xen_pgtable, 0) = cpu0_pgtable;
 #endif
+
+    /*
+    * Keep original Xen memory mapped because secondary CPUs still point to it
+    * and a few variables needs to be accessed by the master CPU in order to
+    * let them boot. This mapping will also replace the one created at the
+    * beginning of setup_pagetables.
+    */
+    if ( llc_coloring_enabled )
+        map_pages_to_xen(BOOT_RELOC_VIRT_START,
+                         maddr_to_mfn(XEN_VIRT_START + phys_offset),
+                         SZ_2M >> PAGE_SHIFT, PAGE_HYPERVISOR_RW | _PAGE_BLOCK);
+
 }
 
 static void clear_boot_pagetables(void)
@@ -584,12 +658,17 @@ static void clear_boot_pagetables(void)
 #ifdef CONFIG_ARM_64
 int init_secondary_pagetables(int cpu)
 {
+    uint64_t *init_ttbr_addr = &init_ttbr;
+
     clear_boot_pagetables();
+
+    if ( llc_coloring_enabled )
+        init_ttbr_addr = (uint64_t *)virt_to_reloc_virt(&init_ttbr);
 
     /* Set init_ttbr for this CPU coming up. All CPus share a single setof
      * pagetables, but rewrite it each time for consistency with 32 bit. */
-    init_ttbr = (uintptr_t) xen_pgtable + phys_offset;
-    clean_dcache(init_ttbr);
+    *init_ttbr_addr = virt_to_maddr(xen_pgtable);
+    clean_dcache(*init_ttbr_addr);
     return 0;
 }
 #else

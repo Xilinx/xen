@@ -14,6 +14,7 @@
 #include <xen/llc-coloring.h>
 #include <xen/param.h>
 #include <xen/types.h>
+#include <xen/vmap.h>
 
 #include <asm/processor.h>
 #include <asm/sysregs.h>
@@ -38,6 +39,7 @@ static unsigned int __ro_after_init xen_num_colors;
 
 #define mfn_color_mask              (nr_colors - 1)
 #define mfn_to_color(mfn)           (mfn_x(mfn) & mfn_color_mask)
+#define mfn_set_color(mfn, color)   ((mfn_x(mfn) & ~mfn_color_mask) | (color))
 
 /*
  * Parse the coloring configuration given in the buf string, following the
@@ -352,6 +354,48 @@ unsigned int page_to_llc_color(const struct page_info *pg)
 unsigned int get_nr_llc_colors(void)
 {
     return nr_colors;
+}
+
+paddr_t xen_colored_map_size(paddr_t size)
+{
+    return ROUNDUP(size * nr_colors, XEN_PADDR_ALIGN);
+}
+
+mfn_t xen_colored_mfn(mfn_t mfn)
+{
+    unsigned int i, color = mfn_to_color(mfn);
+
+    for( i = 0; i < xen_num_colors; i++ )
+    {
+        if ( color == xen_colors[i] )
+            return mfn;
+        else if ( color < xen_colors[i] )
+            return mfn_set_color(mfn, xen_colors[i]);
+    }
+
+    /* Jump to next color space (nr_colors mfns) and use the first color */
+    return mfn_set_color(mfn_add(mfn, nr_colors), xen_colors[0]);
+}
+
+void *xen_remap_colored(mfn_t xen_mfn, paddr_t xen_size)
+{
+    unsigned int i;
+    void *xenmap;
+    mfn_t *xen_colored_mfns;
+
+    xen_colored_mfns = xmalloc_array(mfn_t, xen_size >> PAGE_SHIFT);
+    if ( !xen_colored_mfns )
+        panic("Can't allocate LLC colored MFNs\n");
+
+    for_each_xen_colored_mfn( xen_mfn, i )
+    {
+        xen_colored_mfns[i] = xen_mfn;
+    }
+
+    xenmap = vmap(xen_colored_mfns, xen_size >> PAGE_SHIFT);
+    xfree(xen_colored_mfns);
+
+    return xenmap;
 }
 
 /*
