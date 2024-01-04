@@ -249,6 +249,7 @@ bool __init llc_coloring_init(void)
     }
 
     register_keyhandler('K', dump_coloring_info, "dump LLC coloring info", 1);
+    dump_coloring_info('K');
 
     return true;
 }
@@ -299,6 +300,7 @@ static int domain_check_colors(struct domain *d)
         printk(XENLOG_ERR "Bad LLC color config for %pd\n", d);
         return -EINVAL;
     }
+    domain_dump_llc_colors(d);
 
     return 0;
 }
