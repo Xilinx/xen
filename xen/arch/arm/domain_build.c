@@ -3977,6 +3977,50 @@ static int __init construct_domU(struct domain *d,
     return rc;
 }
 
+static __init int prepare_color_domain_config_legacy(struct dt_device_node *node,
+                                                     char *str)
+{
+    u32 len;
+    int cell, k, i, j = 0;
+    const u32 *cells;
+    u32 col_val;
+    unsigned int colors[CONFIG_NR_LLC_COLORS];
+
+    cells = dt_get_property(node, "colors", &len);
+    if ( cells != NULL && len > 0 )
+    {
+        for ( k = 0, cell = len/4 - 1; cell >= 0; cell--, k++ )
+        {
+            col_val = be32_to_cpup(&cells[cell]);
+            if ( col_val )
+            {
+                /* Calculate number of bit set */
+                for ( i = 0; i < 32; i++)
+                {
+                    if ( col_val & (1 << i) )
+                    {
+                        colors[j++] = i;
+                    }
+                }
+            }
+        }
+    }
+
+    for ( i = 0, k = 0; i < j; i++ )
+    {
+        char temp[5];
+        snprintf(temp, sizeof(temp), "%u", colors[i]);
+        memcpy(&str[k], temp, strlen(temp));
+        k+=strlen(temp);
+        str[k] = ',';
+        k++;
+    }
+    if ( k > 0 )
+        str[k-1] = '\0';
+
+    return j;
+}
+
 void __init create_domUs(void)
 {
     struct dt_device_node *node;
@@ -3984,6 +4028,8 @@ void __init create_domUs(void)
                                 *chosen = dt_find_node_by_path("/chosen");
     const char *viommu_str;
     const char *llc_colors_str = NULL;
+    /* rough estimate of the number of characters needed */
+    char legacy_colors[CONFIG_NR_LLC_COLORS*3];
 
     BUG_ON(chosen == NULL);
     dt_for_each_child_node(chosen, node)
@@ -4138,7 +4184,12 @@ void __init create_domUs(void)
                 panic("Unknown vIOMMU %s\n", viommu_str);
         }
 
-        dt_property_read_string(node, "llc-colors", &llc_colors_str);
+        
+        rc = prepare_color_domain_config_legacy(node, legacy_colors);
+        if ( rc > 0 )
+            llc_colors_str = &legacy_colors[0];
+        else
+            dt_property_read_string(node, "llc-colors", &llc_colors_str);
         if ( llc_coloring_enabled && !llc_colors_str )
             panic("'llc-colors' is required when LLC coloring is enabled\n");
         else if ( !llc_coloring_enabled && llc_colors_str)

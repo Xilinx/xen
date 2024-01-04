@@ -26,8 +26,10 @@ bool __ro_after_init llc_coloring_enabled;
 boolean_param("llc-coloring", llc_coloring_enabled);
 
 /* Size of an LLC way */
-static unsigned int __ro_after_init llc_way_size;
+static unsigned int __ro_after_init llc_way_size, way_size;
 size_param("llc-way-size", llc_way_size);
+integer_param("way_size", way_size);
+
 /* Number of colors available in the LLC */
 static unsigned int __ro_after_init nr_colors = CONFIG_NR_LLC_COLORS;
 
@@ -95,11 +97,25 @@ static int __init parse_dom0_colors(const char *s)
 }
 custom_param("dom0-llc-colors", parse_dom0_colors);
 
+static int __init parse_dom0_colors_legacy(const char *s)
+{
+    llc_coloring_enabled = true;
+    return parse_color_config(s, dom0_colors, &dom0_num_colors);
+}
+custom_param("dom0_colors", parse_dom0_colors_legacy);
+
 static int __init parse_xen_colors(const char *s)
 {
     return parse_color_config(s, xen_colors, &xen_num_colors);
 }
 custom_param("xen-llc-colors", parse_xen_colors);
+
+static int __init parse_xen_colors_legacy(const char *s)
+{
+    llc_coloring_enabled = true;
+    return parse_color_config(s, xen_colors, &xen_num_colors);
+}
+custom_param("xen_colors", parse_xen_colors_legacy);
 
 /* Return the LLC way size by probing the hardware */
 static unsigned int __init get_llc_way_size(void)
@@ -203,6 +219,9 @@ static bool check_colors(unsigned int *colors, unsigned int num_colors)
 
 bool __init llc_coloring_init(void)
 {
+    if ( way_size != 0 )
+        llc_way_size = way_size + 1;
+
     if ( !llc_way_size && !(llc_way_size = get_llc_way_size()) )
     {
         printk(XENLOG_ERR

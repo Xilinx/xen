@@ -48,6 +48,10 @@ static inline paddr_t xen_colored_map_size(paddr_t size)
 #define llc_coloring_enabled (false)
 #endif
 
+#ifndef CONFIG_NR_LLC_COLORS
+#define CONFIG_NR_LLC_COLORS 2
+#endif
+
 #define is_domain_llc_colored(d) (llc_coloring_enabled)
 
 void domain_llc_coloring_free(struct domain *d);
