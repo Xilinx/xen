@@ -1385,14 +1385,6 @@ void __init start_xen(unsigned long boot_phys_offset,
 
     setup_virt_paging();
 
-    /*
-     * The removal is done earlier than discard_initial_modules beacuse the
-     * livepatch init uses a virtual address equal to BOOT_RELOC_VIRT_START.
-     * Remove LLC coloring mappings to expose a clear state to the livepatch
-     * module.
-     */
-    if ( llc_coloring_enabled )
-        remove_llc_coloring_mappings();
     do_initcalls();
 
     /*

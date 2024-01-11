@@ -106,10 +106,6 @@ DEFINE_PER_CPU(lpae_t *, xen_pgtable);
 /* Root of the trie for cpu0, other CPU's PTs are dynamically allocated */
 static DEFINE_PAGE_TABLE(cpu0_pgtable);
 #endif
- 
-#ifdef CONFIG_LLC_COLORING
-static DEFINE_PAGE_TABLE(xen_colored_temp);
-#endif
 
 /* Common pagetable leaves */
 /* Second level page table used to cover Xen virtual address space */
@@ -121,6 +117,10 @@ DEFINE_BOOT_PAGE_TABLE(xen_fixmap);
  * as appropriate.
  */
 static DEFINE_PAGE_TABLES(xen_xenmap, XEN_NR_ENTRIES(2));
+
+#ifdef CONFIG_LLC_COLORING
+static DEFINE_PAGE_TABLES(xen_colored_temp, XEN_NR_ENTRIES(2));
+#endif
 
 /* Non-boot CPUs use this to find the correct pagetables. */
 uint64_t init_ttbr;
@@ -148,6 +148,7 @@ static void __init __maybe_unused build_assertions(void)
     BUILD_BUG_ON(XEN_VIRT_START & ~SECOND_MASK);
     BUILD_BUG_ON(FIXMAP_ADDR(0) & ~SECOND_MASK);
     BUILD_BUG_ON(BOOT_RELOC_VIRT_START & ~SECOND_MASK);
+    BUILD_BUG_ON(BOOT_RELOC_VIRT_SIZE != XEN_VIRT_SIZE);
     /* 1GB aligned regions */
 #ifdef CONFIG_ARM_32
     BUILD_BUG_ON(XENHEAP_VIRT_START & ~FIRST_MASK);
@@ -472,6 +473,9 @@ void __init remove_early_mappings(void)
                              BOOT_FDT_VIRT_START + BOOT_FDT_VIRT_SIZE,
                              _PAGE_BLOCK);
     BUG_ON(rc);
+
+    if ( llc_coloring_enabled )
+        remove_llc_coloring_mappings();
 }
 
 /*
@@ -505,6 +509,7 @@ static void __init create_llc_coloring_mappings(paddr_t xen_paddr)
     unsigned int i;
     mfn_t mfn = maddr_to_mfn(xen_paddr);
 
+    /* Third level entries */
     for_each_xen_colored_mfn( mfn, i )
     {
         pte = mfn_to_xen_entry(mfn, MT_NORMAL);
@@ -512,9 +517,16 @@ static void __init create_llc_coloring_mappings(paddr_t xen_paddr)
         xen_colored_temp[i] = pte;
     }
 
-    pte = mfn_to_xen_entry(virt_to_mfn(xen_colored_temp), MT_NORMAL);
-    pte.pt.table = 1;
-    write_pte(&boot_second[second_table_offset(BOOT_RELOC_VIRT_START)], pte);
+    /* Second level entries */
+    for ( i = 0; i < XEN_NR_ENTRIES(2); i++ )
+    {
+        vaddr_t va = BOOT_RELOC_VIRT_START + (i << XEN_PT_LEVEL_SHIFT(2));
+
+        mfn = virt_to_mfn(xen_colored_temp + i * XEN_PT_LPAE_ENTRIES);
+        pte = mfn_to_xen_entry(mfn, MT_NORMAL);
+        pte.pt.table = 1;
+        write_pte(&boot_second[second_table_offset(va)], pte);
+    }
 }
 
 void __init remove_llc_coloring_mappings(void)
@@ -523,7 +535,7 @@ void __init remove_llc_coloring_mappings(void)
 
     /* destroy the _PAGE_BLOCK mapping */
     rc = modify_xen_mappings(BOOT_RELOC_VIRT_START,
-                             BOOT_RELOC_VIRT_START + SZ_2M,
+                             BOOT_RELOC_VIRT_START + BOOT_RELOC_VIRT_SIZE,
                              _PAGE_BLOCK);
     BUG_ON(rc);
 }
@@ -636,7 +648,8 @@ void __init setup_pagetables(unsigned long boot_phys_offset, paddr_t xen_paddr)
     if ( llc_coloring_enabled )
         map_pages_to_xen(BOOT_RELOC_VIRT_START,
                          maddr_to_mfn(XEN_VIRT_START + phys_offset),
-                         SZ_2M >> PAGE_SHIFT, PAGE_HYPERVISOR_RW | _PAGE_BLOCK);
+                         BOOT_RELOC_VIRT_SIZE >> PAGE_SHIFT,
+                         PAGE_HYPERVISOR_RW | _PAGE_BLOCK);
 
 }
 

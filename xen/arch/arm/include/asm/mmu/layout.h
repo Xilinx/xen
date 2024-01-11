@@ -29,7 +29,8 @@
  *   2M -  10M   Xen text, data, bss
  *  10M -  12M   Fixmap: special-purpose 4K mapping slots
  *  12M -  16M   Early boot mapping of FDT
- *  16M -  18M   Livepatch vmap (if compiled in)
+ *  16M -  24M   LLC coloring mapping
+ *  24M -  26M   Livepatch vmap (if compiled in)
  *
  *   1G -   2G   VMAP: ioremap and early_ioremap
  *
@@ -72,9 +73,10 @@
 #define BOOT_FDT_VIRT_SIZE      _AT(vaddr_t, MB(4))
 
 #define BOOT_RELOC_VIRT_START   (BOOT_FDT_VIRT_START + BOOT_FDT_VIRT_SIZE)
+#define BOOT_RELOC_VIRT_SIZE    XEN_VIRT_SIZE
 
 #ifdef CONFIG_LIVEPATCH
-#define LIVEPATCH_VMAP_START    (BOOT_FDT_VIRT_START + BOOT_FDT_VIRT_SIZE)
+#define LIVEPATCH_VMAP_START    (BOOT_RELOC_VIRT_START + BOOT_RELOC_VIRT_SIZE)
 #define LIVEPATCH_VMAP_SIZE    _AT(vaddr_t, MB(2))
 #endif
 
