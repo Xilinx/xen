@@ -1212,6 +1212,88 @@ void __init add_discovered_pci_devices(void)
     pcidevs_unlock();
 }
 
+static void __init cf_check reserve_bar_range(struct pci_dev *pdev, uint8_t reg,
+                                              uint64_t addr, uint64_t size,
+                                              bool is_64bit, bool prefetch)
+{
+    if ( pci_check_bar(pdev, maddr_to_mfn(addr),
+                       maddr_to_mfn(addr + size - 1)) )
+        pci_reserve_bar_range(pdev, addr, size, prefetch);
+}
+
+static void __init cf_check get_new_bar_addr(struct pci_dev *pdev, uint8_t reg,
+                                             uint64_t addr, uint64_t size,
+                                             bool is_64bit, bool prefetch)
+{
+    if ( !pci_check_bar(pdev, maddr_to_mfn(addr),
+                        maddr_to_mfn(addr + size - 1)) )
+    {
+        uint16_t cmd = pci_conf_read16(pdev->sbdf, PCI_COMMAND);
+
+        addr = pci_get_new_bar_addr(pdev, size, is_64bit, prefetch);
+
+        pci_conf_write16(pdev->sbdf, PCI_COMMAND,
+                         cmd & ~(PCI_COMMAND_MEMORY | PCI_COMMAND_IO));
+
+        pci_conf_write32(pdev->sbdf, reg,
+                         (addr & GENMASK(31, 0)) |
+                         (is_64bit ? PCI_BASE_ADDRESS_MEM_TYPE_64 : 0));
+
+        if ( is_64bit )
+            pci_conf_write32(pdev->sbdf, reg + 4, addr >> 32);
+
+        pci_conf_write16(pdev->sbdf, PCI_COMMAND, cmd);
+    }
+}
+
+static int __init cf_check bars_iterate(struct pci_seg *pseg, void *arg)
+{
+    struct pci_dev *pdev;
+    unsigned int i, ret, num_bars = PCI_HEADER_NORMAL_NR_BARS;
+    uint64_t addr, size;
+    void (*cb)(struct pci_dev *, uint8_t, uint64_t, uint64_t, bool, bool) = arg;
+
+    list_for_each_entry ( pdev, &pseg->alldevs_list, alldevs_list )
+    {
+        if ( (pci_conf_read8(pdev->sbdf, PCI_HEADER_TYPE) & 0x7f) ==
+             PCI_HEADER_TYPE_NORMAL )
+        {
+            for ( i = 0; i < num_bars; i += ret )
+            {
+                uint8_t reg = PCI_BASE_ADDRESS_0 + i * 4;
+                bool prefetch;
+
+                if ( (pci_conf_read32(pdev->sbdf, reg) & PCI_BASE_ADDRESS_SPACE)
+                     == PCI_BASE_ADDRESS_SPACE_IO )
+                {
+                    ret = 1;
+                    continue;
+                }
+
+                ret = pci_size_mem_bar(pdev->sbdf, reg, &addr, &size,
+                                      (i == num_bars - 1) ? PCI_BAR_LAST : 0);
+
+                if ( !size )
+                    continue;
+                prefetch = !!(pci_conf_read32(pdev->sbdf, reg) &
+                              PCI_BASE_ADDRESS_MEM_PREFETCH);
+
+                cb(pdev, reg, addr, size, ret == 2, prefetch);
+            }
+        }
+    }
+
+    return 0;
+}
+
+void __init pci_fixup_bars(void)
+{
+    pcidevs_lock();
+    pci_segments_iterate(bars_iterate, reserve_bar_range);
+    pci_segments_iterate(bars_iterate, get_new_bar_addr);
+    pcidevs_unlock();
+}
+
 struct setup_hwdom {
     struct domain *d;
     int (*handler)(uint8_t devfn, struct pci_dev *pdev);
