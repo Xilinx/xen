@@ -68,6 +68,8 @@ struct pci_host_bridge {
     struct pci_config_window* cfg;   /* Pointer to the bridge config window */
     const struct pci_ops *ops;
     uint64_t its_msi_base;
+    struct rangeset *bar_ranges;
+    struct rangeset *bar_ranges_prefetch;
 };
 
 struct pci_ops {
