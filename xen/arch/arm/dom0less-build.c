@@ -287,6 +287,8 @@ static int __init domU_assign_pci_device(struct domain *d,
     while ( count > 0 )
     {
         u32 seg, bus, devfn;
+        pci_sbdf_t sbdf;
+        unsigned int i, ret;
 
         seg = dt_next_cell(1, &cell);
         bus = dt_next_cell(1, &cell);
@@ -300,6 +302,12 @@ static int __init domU_assign_pci_device(struct domain *d,
             return -EINVAL;
         }
 
+        sbdf = PCI_SBDF(seg, bus, devfn);
+
+        if ( (pci_conf_read8(sbdf, PCI_HEADER_TYPE) & 0x7f) !=
+             PCI_HEADER_TYPE_NORMAL )
+            return -EINVAL;
+
         printk(XENLOG_INFO
                "Assign PCI device %04x:%02x:%02x.%x to domain domU%d\n", seg,
                bus, PCI_SLOT(devfn), PCI_FUNC(devfn), d->domain_id);
@@ -312,6 +320,24 @@ static int __init domU_assign_pci_device(struct domain *d,
             return rc;
         }
         count -= 3;
+
+        for ( i = 0; i < PCI_HEADER_NORMAL_NR_BARS; i += ret )
+        {
+            uint64_t addr, size;
+            uint8_t reg = PCI_BASE_ADDRESS_0 + i * 4;
+
+            ret = pci_size_mem_bar(sbdf, reg, &addr, &size,
+                                  (i == PCI_HEADER_NORMAL_NR_BARS - 1)
+                                      ? PCI_BAR_LAST : 0);
+
+            if ( !size )
+                continue;
+
+            rc = iomem_permit_access(d, paddr_to_pfn(addr),
+                                     paddr_to_pfn(PAGE_ALIGN(addr + size - 1)));
+            if ( rc )
+                return rc;
+        }
     }
 
     rc = make_vpci_node(kinfo->fdt);
