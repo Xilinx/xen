@@ -300,6 +300,65 @@ err_exit:
     return err;
 }
 
+static int __init set_bridge_mem_base_limit(const struct dt_device_node *dev,
+                                            uint32_t flags, uint64_t addr,
+                                            uint64_t len, void *data)
+{
+    pci_sbdf_t sbdf = *(pci_sbdf_t *)data;
+    uint16_t base, limit;
+
+    if ( !dt_range_is_memory(flags) )
+        return 0;
+
+    base = (uint16_t)((addr >> 16) & GENMASK(15, 4));
+    limit = (uint16_t)(((addr + len - 1) >> 16 ) & GENMASK(15, 4));
+
+    if ( dt_range_is_prefetchable(flags) )
+    {
+        uint32_t base_hi = (addr >> 32) & GENMASK(31, 0);
+        uint32_t limit_hi = ((addr + len - 1) >> 32 ) & GENMASK(31, 0);
+
+        pci_conf_write16(sbdf, PCI_PREF_MEMORY_BASE, base);
+        pci_conf_write16(sbdf, PCI_PREF_MEMORY_LIMIT, limit);
+        pci_conf_write32(sbdf, PCI_PREF_BASE_UPPER32, base_hi);
+        pci_conf_write32(sbdf, PCI_PREF_LIMIT_UPPER32, limit_hi);
+    }
+    else
+    {
+        pci_conf_write16(sbdf, PCI_MEMORY_BASE, base);
+        pci_conf_write16(sbdf, PCI_MEMORY_LIMIT, limit);
+    }
+
+    return 0;
+}
+
+int __init pci_init_bridge(pci_sbdf_t sbdf)
+{
+    struct pci_host_bridge *bridge = pci_find_host_bridge(sbdf.seg, sbdf.bus);
+
+    if ( !bridge )
+        return -ENODEV;
+
+    if ( (pci_conf_read8(sbdf, PCI_HEADER_TYPE) & 0x7f) !=
+         PCI_HEADER_TYPE_BRIDGE )
+        return -EINVAL;
+
+    /* Configure host bridge with the bus range */
+    pci_conf_write8(sbdf, PCI_PRIMARY_BUS, bridge->cfg->busn_start);
+    pci_conf_write8(sbdf, PCI_SECONDARY_BUS, bridge->cfg->busn_start + 1);
+    pci_conf_write8(sbdf, PCI_SUBORDINATE_BUS, bridge->cfg->busn_end);
+
+    dt_for_each_range(bridge->dt_node, set_bridge_mem_base_limit, &sbdf);
+
+    /* Enable SERR# */
+    pci_conf_write16(sbdf, PCI_BRIDGE_CONTROL, PCI_BRIDGE_CTL_SERR);
+
+    /* Enable memory decoding and bus mastering */
+    pci_conf_write16(sbdf, PCI_COMMAND, PCI_COMMAND_MASTER | PCI_COMMAND_MEMORY);
+
+    return 0;
+}
+
 /*
  * Get host bridge node given a device attached to it.
  */
