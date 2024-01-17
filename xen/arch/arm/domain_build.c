@@ -483,25 +483,69 @@ static bool __init allocate_bank_memory(struct domain *d,
     return true;
 }
 
+/* Forward declaration */
+static int __init find_unallocated_memory(const struct kernel_info *kinfo,
+                                          struct meminfo *ext_regions);
+
 static void __init allocate_memory(struct domain *d, struct kernel_info *kinfo)
 {
-    unsigned int i;
-    paddr_t bank_size;
+    unsigned int i = 0;
+    unsigned int nr_banks = 2;
+    paddr_t bank_start, bank_size;
+    struct meminfo *hwdom_free_mem = NULL;
 
     printk(XENLOG_INFO "Allocating mappings totalling %ldMB for %pd:\n",
            /* Don't want format this as PRIpaddr (16 digit hex) */
            (unsigned long)(kinfo->unassigned_mem >> 20), d);
 
     kinfo->mem.nr_banks = 0;
-    bank_size = MIN(GUEST_RAM0_SIZE, kinfo->unassigned_mem);
-    if ( !allocate_bank_memory(d, kinfo, gaddr_to_gfn(GUEST_RAM0_BASE),
-                               bank_size) )
-        goto fail;
 
-    bank_size = MIN(GUEST_RAM1_SIZE, kinfo->unassigned_mem);
-    if ( !allocate_bank_memory(d, kinfo, gaddr_to_gfn(GUEST_RAM1_BASE),
-                               bank_size) )
-        goto fail;
+    /* Use host memory layout for hwdom if LLC coloring is enabled */
+    if ( is_hardware_domain(d) )
+    {
+        ASSERT(is_domain_llc_colored(d));
+
+        hwdom_free_mem = xzalloc(struct meminfo);
+        if ( !hwdom_free_mem )
+            goto fail;
+
+        if ( find_unallocated_memory(kinfo, hwdom_free_mem) )
+            goto fail;
+
+        nr_banks = hwdom_free_mem->nr_banks;
+    }
+
+    for ( ; kinfo->unassigned_mem > 0 && nr_banks > 0; i++, nr_banks-- )
+    {
+        if ( is_hardware_domain(d) )
+        {
+            bank_start = hwdom_free_mem->bank[i].start;
+            bank_size = hwdom_free_mem->bank[i].size;
+
+            if ( bank_size < min_t(paddr_t, kinfo->unassigned_mem, MB(128)) )
+                continue;
+        }
+        else
+        {
+            if ( i == 0 )
+            {
+                bank_start = GUEST_RAM0_BASE;
+                bank_size = GUEST_RAM0_SIZE;
+            }
+            else if ( i == 1 )
+            {
+                bank_start = GUEST_RAM1_BASE;
+                bank_size = GUEST_RAM1_SIZE;
+            }
+            else
+                goto fail;
+        }
+
+        bank_size = MIN(bank_size, kinfo->unassigned_mem);
+        if ( !allocate_bank_memory(d, kinfo, gaddr_to_gfn(bank_start),
+                                   bank_size) )
+            goto fail;
+    }
 
     if ( kinfo->unassigned_mem )
         goto fail;
@@ -517,6 +561,7 @@ static void __init allocate_memory(struct domain *d, struct kernel_info *kinfo)
                (unsigned long)(kinfo->mem.bank[i].size >> 20));
     }
 
+    xfree(hwdom_free_mem);
     return;
 
 fail:
@@ -1888,7 +1933,7 @@ static int __init make_hypervisor_node(struct domain *d,
         if ( !ext_regions )
             return -ENOMEM;
 
-        if ( is_domain_direct_mapped(d) )
+        if ( domain_use_host_layout(d) )
         {
             if ( !is_iommu_enabled(d) )
                 res = find_unallocated_memory(kinfo, ext_regions);
@@ -3700,7 +3745,7 @@ static void __init find_gnttab_region(struct domain *d,
      * Only use the text section as it's always present and will contain
      * enough space for a large grant table
      */
-    if ( is_domain_direct_mapped(d) )
+    if ( domain_use_host_layout(d) )
     {
         kinfo->gnttab_start = __pa(_stext);
         kinfo->gnttab_size = gnttab_dom0_frames() << PAGE_SHIFT;
