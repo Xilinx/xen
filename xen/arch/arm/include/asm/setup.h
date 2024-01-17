@@ -68,7 +68,7 @@ int map_device_irqs_to_domain(struct domain *d, struct dt_device_node *dev,
 int map_irq_to_domain(struct domain *d, unsigned int irq,
                       bool need_mapping, const char *devname);
 
-int map_range_to_domain(const struct dt_device_node *dev,
+int map_range_to_domain(const struct dt_device_node *dev, uint32_t flags,
                         uint64_t addr, uint64_t len, void *data);
 
 extern const char __ro_after_init_start[], __ro_after_init_end[];
