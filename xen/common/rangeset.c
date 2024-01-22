@@ -356,6 +356,41 @@ int rangeset_claim_range(struct rangeset *r, unsigned long size,
     return 0;
 }
 
+int rangeset_find_aligned_range(struct rangeset *r, unsigned long size,
+                                unsigned long min, unsigned long *s)
+{
+    struct range *x;
+
+    /* Power of 2 check */
+    if ( (size & (size - 1)) != 0 )
+    {
+        *s = 0;
+        return -EINVAL;
+    }
+
+    read_lock(&r->lock);
+
+    for ( x = first_range(r); x; x = next_range(r, x) )
+    {
+        /* Assumes size is a power of 2 */
+        unsigned long start_aligned = (x->s + size - 1) & ~(size - 1);
+
+        if ( x->e > start_aligned &&
+             (x->e - start_aligned) >= size &&
+             start_aligned >= min )
+        {
+            read_unlock(&r->lock);
+            *s = start_aligned;
+            return 0;
+        }
+    }
+
+    read_unlock(&r->lock);
+    *s = 0;
+
+    return -ENOSPC;
+}
+
 int rangeset_consume_ranges(struct rangeset *r,
                             int (*cb)(unsigned long s, unsigned long e,
                                       void *ctxt, unsigned long *c),
