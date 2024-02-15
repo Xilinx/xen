@@ -245,6 +245,8 @@ int iommu_do_dt_domctl(struct xen_domctl *domctl, struct domain *d,
  */
 int iommu_remove_dt_device(struct dt_device_node *np);
 
+#define NO_IOMMU    1
+
 #endif /* HAS_DEVICE_TREE */
 
 #ifdef CONFIG_ARM
