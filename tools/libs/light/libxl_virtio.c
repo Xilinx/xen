@@ -32,7 +32,18 @@ static int libxl__device_virtio_setdefault(libxl__gc *gc, uint32_t domid,
     libxl_defbool_setdefault(&virtio->grant_usage,
                              virtio->backend_domid != LIBXL_TOOLSTACK_DOMID);
 
+    if (virtio->backend_type == LIBXL_VIRTIO_BACKEND_UNKNOWN)
+        virtio->backend_type = LIBXL_VIRTIO_BACKEND_QEMU;
+
     return 0;
+}
+
+static int libxl__device_virtio_dm_needed(void *e, unsigned domid)
+{
+    libxl_device_virtio *elem = e;
+
+    return elem->backend_type == LIBXL_VIRTIO_BACKEND_QEMU &&
+           elem->backend_domid == domid;
 }
 
 static int libxl__device_from_virtio(libxl__gc *gc, uint32_t domid,
@@ -55,7 +66,8 @@ static int libxl__set_xenstore_virtio(libxl__gc *gc, uint32_t domid,
                                       flexarray_t *back, flexarray_t *front,
                                       flexarray_t *ro_front)
 {
-    const char *transport = libxl_virtio_transport_to_string(virtio->transport);
+    const char *transport = libxl_virtio_transport_to_string(virtio->transport),
+               *backend = libxl_virtio_backend_to_string(virtio->backend_type);
 
     if (virtio->transport == LIBXL_VIRTIO_TRANSPORT_MMIO) {
         flexarray_append_pair(back, "irq", GCSPRINTF("%u", virtio->u.mmio.irq));
@@ -74,6 +86,7 @@ static int libxl__set_xenstore_virtio(libxl__gc *gc, uint32_t domid,
     }
     flexarray_append_pair(back, "type", GCSPRINTF("%s", virtio->type));
     flexarray_append_pair(back, "transport", GCSPRINTF("%s", transport));
+    flexarray_append_pair(back, "backend_type", GCSPRINTF("%s", backend));
     flexarray_append_pair(back, "grant_usage",
                           libxl_defbool_val(virtio->grant_usage) ? "1" : "0");
 
@@ -168,6 +181,19 @@ static int libxl__virtio_from_xenstore(libxl__gc *gc, const char *libxl_path,
 
     tmp = NULL;
     rc = libxl__xs_read_checked(gc, XBT_NULL,
+                                GCSPRINTF("%s/backend_type", be_path), &tmp);
+    if (rc) goto out;
+
+    if (tmp) {
+        rc = libxl_virtio_backend_from_string(tmp, &virtio->backend_type);
+        if (rc) {
+            LOG(ERROR, "Unable to parse xenstore node %s/backend_type", be_path);
+            goto out;
+        }
+    }
+
+    tmp = NULL;
+    rc = libxl__xs_read_checked(gc, XBT_NULL,
                                 GCSPRINTF("%s/grant_usage", be_path), &tmp);
     if (rc) goto out;
 
@@ -200,6 +226,7 @@ static LIBXL_DEFINE_UPDATE_DEVID(virtio)
 #define libxl_device_virtio_compare NULL
 
 DEFINE_DEVICE_TYPE_STRUCT(virtio, VIRTIO, virtios,
+    .dm_needed = libxl__device_virtio_dm_needed,
     .set_xenstore_config = (device_set_xenstore_config_fn_t)
                            libxl__set_xenstore_virtio,
     .from_xenstore = (device_from_xenstore_fn_t)libxl__virtio_from_xenstore,

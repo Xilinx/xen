@@ -285,6 +285,12 @@ libxl_virtio_transport = Enumeration("virtio_transport", [
     (2, "PCI"),
     ])
 
+libxl_virtio_backend = Enumeration("virtio_backend", [
+    (0, "UNKNOWN"),
+    (1, "QEMU"),
+    (2, "STANDALONE"),
+    ])
+
 libxl_passthrough = Enumeration("passthrough", [
     (0, "default"),
     (1, "disabled"),
@@ -794,6 +800,7 @@ libxl_device_vkb = Struct("device_vkb", [
 libxl_device_virtio = Struct("device_virtio", [
     ("backend_domid", libxl_domid),
     ("backend_domname", string),
+    ("backend_type", libxl_virtio_backend),
     ("type", string),
     ("u", KeyedUnion(None, libxl_virtio_transport, "transport",
               [("unknown", None),

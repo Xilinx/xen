@@ -1639,6 +1639,15 @@ are supported. This option is mandatory.
 The Virtio device with transport "pci" must be identified by its B<BDF>.
 See L<xl-pci-configuration(5)> for more details about the format for B<BDF>.
 
+=item B<backend_type=STRING>
+
+Specifies the software implementation of the backend implementation to use.
+This option doesn't affect the guest's view of the Virtio device.
+
+Both "qemu" and "standalone" are supported. The only difference is
+that for the former the toolstack assists with configuring and launching
+the device-model. If this option is missing, then "qemu" value will be used.
+
 =item B<grant_usage=BOOLEAN>
 
 If this option is B<true>, the Xen grants are always enabled.
