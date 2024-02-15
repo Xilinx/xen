@@ -49,7 +49,7 @@
  * registers will be enabled.
  */
 #ifdef CONFIG_PARTIAL_EMULATION
-bool __ro_after_init partial_emulation = false;
+bool __ro_after_init partial_emulation = true;
 boolean_param("partial-emulation", partial_emulation);
 #endif
 
