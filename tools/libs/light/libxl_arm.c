@@ -1215,6 +1215,7 @@ static int make_vpci_node(libxl__gc *gc, void *fdt,
 }
 
 #define PCI_IRQ_MAP_MIN_STRIDE   8
+#define PCI_IOMMU_MAP_STRIDE 4
 
 static int create_virtio_pci_irq_map(libxl__gc *gc, void *fdt,
                                      libxl_virtio_pci_host *host)
@@ -1284,6 +1285,65 @@ static int create_virtio_pci_irq_map(libxl__gc *gc, void *fdt,
     return 0;
 }
 
+/* XXX Consider reusing libxl__realloc() to avoid an extra loop */
+static int create_virtio_pci_iommu_map(libxl__gc *gc, void *fdt,
+                                       libxl_virtio_pci_host *host,
+                                       libxl_domain_config *d_config)
+{
+    uint32_t *full_iommu_map, *iommu_map;
+    unsigned int i, len, ntranslated = 0;
+    int res;
+
+    for (i = 0; i < d_config->num_virtios; i++) {
+        libxl_device_virtio *virtio = &d_config->virtios[i];
+
+        if (libxl_defbool_val(virtio->grant_usage) &&
+            virtio->transport == LIBXL_VIRTIO_TRANSPORT_PCI &&
+            virtio->u.pci.host_id == host->id) {
+            ntranslated++;
+        }
+    }
+
+    if (!ntranslated)
+        return 0;
+
+    len = ntranslated * sizeof(uint32_t) * PCI_IOMMU_MAP_STRIDE;
+    full_iommu_map = libxl__malloc(gc, len);
+    iommu_map = full_iommu_map;
+
+    /* See Linux Documentation/devicetree/bindings/pci/pci-iommu.txt */
+    for (i = 0; i < d_config->num_virtios; i++) {
+        libxl_device_virtio *virtio = &d_config->virtios[i];
+
+        if (libxl_defbool_val(virtio->grant_usage) &&
+            virtio->transport == LIBXL_VIRTIO_TRANSPORT_PCI &&
+            virtio->u.pci.host_id == host->id) {
+            uint16_t bdf = (virtio->u.pci.bus << 8) |
+                (virtio->u.pci.dev << 3) | virtio->u.pci.func;
+            unsigned int j = 0;
+
+            /* rid_base (1 cell) */
+            iommu_map[j++] = cpu_to_fdt32(bdf);
+
+            /* iommu_phandle (1 cell) */
+            iommu_map[j++] = cpu_to_fdt32(GUEST_PHANDLE_IOMMU);
+
+            /* iommu_base (1 cell) */
+            iommu_map[j++] = cpu_to_fdt32(virtio->backend_domid);
+
+            /* length (1 cell) */
+            iommu_map[j++] = cpu_to_fdt32(1 << 3);
+
+            iommu_map += PCI_IOMMU_MAP_STRIDE;
+        }
+    }
+
+    res = fdt_property(fdt, "iommu-map", full_iommu_map, len);
+    if (res) return res;
+
+    return 0;
+}
+
 /* TODO Consider reusing make_vpci_node() */
 static int make_virtio_pci_node(libxl__gc *gc, void *fdt,
                                 libxl_virtio_pci_host *host,
@@ -1330,6 +1390,10 @@ static int make_virtio_pci_node(libxl__gc *gc, void *fdt,
 
     /* Legacy PCI interrupts (#INTA - #INTD) */
     res = create_virtio_pci_irq_map(gc, fdt, host);
+    if (res) return res;
+
+    /* xen,grant-dma bindings */
+    res = create_virtio_pci_iommu_map(gc, fdt, host, d_config);
     if (res) return res;
 
     res = fdt_end_node(fdt);
