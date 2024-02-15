@@ -13,6 +13,7 @@
 
 #define DOMNAME_PATH   "/local/domain/0/name"
 #define DOMID_PATH     "/local/domain/0/domid"
+#define DM_PATH     "/local/domain/0/device-model"
 
 static int clear_domid_history(void)
 {
@@ -115,6 +116,12 @@ int main(int argc, char **argv)
     if (!xs_write(xsh, XBT_NULL, DOMNAME_PATH, "Domain-0",
                   strlen("Domain-0"))) {
         fprintf(stderr, "cannot set domain name for Dom0\n");
+        rc = 1;
+        goto out;
+    }
+
+    if (!xs_mkdir(xsh, XBT_NULL, DM_PATH)) {
+        fprintf(stderr, "cannot create device model entry for Dom0\n");
         rc = 1;
         goto out;
     }
