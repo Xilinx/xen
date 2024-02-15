@@ -1193,8 +1193,10 @@ static int libxl__build_device_model_args_new(libxl__gc *gc,
     const libxl_domain_build_info *b_info = &guest_config->b_info;
     const libxl_device_disk *disks = guest_config->disks;
     const libxl_device_nic *nics = guest_config->nics;
+    const libxl_device_virtio *virtio_devices = guest_config->virtios;
     const int num_disks = guest_config->num_disks;
     const int num_nics = guest_config->num_nics;
+    const int num_virtios = guest_config->num_virtios;
     const libxl_vnc_info *vnc = libxl__dm_vnc(guest_config);
     const libxl_sdl_info *sdl = dm_sdl(guest_config);
     const char *keymap = dm_keymap(guest_config);
@@ -1571,6 +1573,28 @@ static int libxl__build_device_model_args_new(libxl__gc *gc,
 
     if (b_info->type != LIBXL_DOMAIN_TYPE_PV) {
         int ioemu_nics = 0;
+
+        for (i = 0; i < num_virtios; i++) {
+            if (b_info->type == LIBXL_DOMAIN_TYPE_PVH &&
+                virtio_devices[i].backend_type == LIBXL_VIRTIO_BACKEND_QEMU &&
+                virtio_devices[i].transport == LIBXL_VIRTIO_TRANSPORT_PCI) {
+                libxl_virtio_pci_host *host = &b_info->virtio_pci_hosts[i];
+                flexarray_append(dm_args, "-machine");
+                flexarray_append(dm_args,
+                                 GCSPRINTF("pci-ecam-base-addr=0x%lx,"
+                                           "pci-ecam-size=0x%lx,"
+                                           "pci-mmio-base-addr=0x%lx,"
+                                           "pci-mmio-size=0x%lx,"
+                                           "pci-prefetch-base-addr=0x%lx,"
+                                           "pci-prefetch-size=0x%lx",
+                                           host->ecam_base,
+                                           host->ecam_size,
+                                           host->mem_base,
+                                           host->mem_size,
+                                           host->prefetch_mem_base,
+                                           host->prefetch_mem_size));
+            }
+        }
 
         for (i = 0; i < num_nics; i++) {
             if (nics[i].nictype == LIBXL_NIC_TYPE_VIF_IOEMU) {
