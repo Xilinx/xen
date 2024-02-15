@@ -644,7 +644,7 @@ unsigned int pci_size_mem_bar(pci_sbdf_t sbdf, unsigned int pos,
     return is64bits ? 2 : 1;
 }
 
-int pci_add_device(u16 seg, u8 bus, u8 devfn,
+int pci_add_device(struct domain *d, u16 seg, u8 bus, u8 devfn,
                    const struct pci_dev_info *info, nodeid_t node)
 {
     struct pci_seg *pseg;
@@ -666,7 +666,7 @@ int pci_add_device(u16 seg, u8 bus, u8 devfn,
             pf_is_extfn = pdev->info.is_extfn;
         pcidevs_unlock();
         if ( !pdev )
-            pci_add_device(seg, info->physfn.bus, info->physfn.devfn,
+            pci_add_device(d, seg, info->physfn.bus, info->physfn.devfn,
                            NULL, node);
         type = "virtual function";
     }
@@ -675,9 +675,12 @@ int pci_add_device(u16 seg, u8 bus, u8 devfn,
     else
         type = "device";
 
-    ret = xsm_resource_plug_pci(XSM_PRIV, (seg << 16) | (bus << 8) | devfn);
-    if ( ret )
-        return ret;
+    if ( d != dom_io )
+    {
+        ret = xsm_resource_plug_pci(XSM_PRIV, (seg << 16) | (bus << 8) | devfn);
+        if ( ret )
+            return ret;
+    }
 
     ret = -ENOMEM;
 
@@ -747,9 +750,9 @@ int pci_add_device(u16 seg, u8 bus, u8 devfn,
     ret = 0;
     if ( !pdev->domain )
     {
-        pdev->domain = hardware_domain;
-        write_lock(&hardware_domain->pci_lock);
-        list_add(&pdev->domain_list, &hardware_domain->pdev_list);
+        pdev->domain = d;
+        write_lock(&d->pci_lock);
+        list_add(&pdev->domain_list, &pdev->domain->pdev_list);
 
         /*
          * For devices not discovered by Xen during boot, add vPCI handlers
@@ -759,25 +762,30 @@ int pci_add_device(u16 seg, u8 bus, u8 devfn,
         if ( ret )
         {
             list_del(&pdev->domain_list);
-            write_unlock(&hardware_domain->pci_lock);
+            write_unlock(&d->pci_lock);
             pdev->domain = NULL;
             printk(XENLOG_ERR "Setup of vPCI failed: %d\n", ret);
             goto out;
         }
-        write_unlock(&hardware_domain->pci_lock);
+        write_unlock(&d->pci_lock);
         ret = iommu_add_device(pdev);
         if ( ret )
         {
-            write_lock(&hardware_domain->pci_lock);
+            write_lock(&d->pci_lock);
             vpci_deassign_device(pdev);
             list_del(&pdev->domain_list);
-            write_unlock(&hardware_domain->pci_lock);
+            write_unlock(&d->pci_lock);
             pdev->domain = NULL;
             goto out;
         }
     }
-    else
+    else if ( pdev->domain == d )
         iommu_enable_device(pdev);
+    else
+    {
+        ret = -EINVAL;
+        goto out;
+    }
 
     pci_enable_acs(pdev);
 

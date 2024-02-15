@@ -445,8 +445,8 @@ ret_t do_physdev_op(int cmd, XEN_GUEST_HANDLE_PARAM(void) arg)
         if ( copy_from_guest(&manage_pci, arg, 1) != 0 )
             break;
 
-        ret = pci_add_device(0, manage_pci.bus, manage_pci.devfn,
-                             NULL, NUMA_NO_NODE);
+        ret = pci_add_device(hardware_domain, 0, manage_pci.bus,
+                             manage_pci.devfn, NULL, NUMA_NO_NODE);
         break;
     }
 
@@ -476,7 +476,7 @@ ret_t do_physdev_op(int cmd, XEN_GUEST_HANDLE_PARAM(void) arg)
         pdev_info.is_virtfn = manage_pci_ext.is_virtfn;
         pdev_info.physfn.bus = manage_pci_ext.physfn.bus;
         pdev_info.physfn.devfn = manage_pci_ext.physfn.devfn;
-        ret = pci_add_device(0, manage_pci_ext.bus,
+        ret = pci_add_device(hardware_domain, 0, manage_pci_ext.bus,
                              manage_pci_ext.devfn,
                              &pdev_info, NUMA_NO_NODE);
         break;
