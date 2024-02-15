@@ -475,6 +475,28 @@ typedef uint64_t xen_callback_t;
 #define GUEST_VPCI_MEM_ADDR                 xen_mk_ullong(0x23000000)
 #define GUEST_VPCI_MEM_SIZE                 xen_mk_ullong(0x10000000)
 
+/*
+ * 8 MB is reserved for virtio-pci configuration space based on calculation
+ * 8 bridges x 32 devices x 8 functions x 4 KB = 8 MB
+ */
+#define GUEST_VIRTIO_PCI_ECAM_BASE          xen_mk_ullong(0x33000000)
+#define GUEST_VIRTIO_PCI_TOTAL_ECAM_SIZE    xen_mk_ullong(0x00800000)
+#define GUEST_VIRTIO_PCI_HOST_ECAM_SIZE     xen_mk_ullong(0x00100000)
+
+/* 32 MB is reserved for virtio-pci memory based on calculation
+ * 8 bridges x 32 devices x 8 functions x 16 KB per virtio-pci device = 32 MB
+ */
+#define GUEST_VIRTIO_PCI_ADDR_TYPE_MEM    xen_mk_ullong(0x02000000)
+#define GUEST_VIRTIO_PCI_MEM_ADDR         xen_mk_ullong(0x33800000)
+#define GUEST_VIRTIO_PCI_MEM_SIZE         xen_mk_ullong(0x02000000)
+
+/* 32 MB is reserved for virtio-pci Prefetch memory based on calculation
+ * 8 bridges x 32 devices x 8 functions x 16 KB per virtio-pci device = 32 MB
+ */
+#define GUEST_VIRTIO_PCI_ADDR_TYPE_PREFETCH_MEM    xen_mk_ullong(0x42000000)
+#define GUEST_VIRTIO_PCI_PREFETCH_MEM_ADDR         xen_mk_ullong(0x35800000)
+#define GUEST_VIRTIO_PCI_PREFETCH_MEM_SIZE         xen_mk_ullong(0x02000000)
+
 /* Guest TPM device */
 #define GUEST_TPM_BASE    xen_mk_ullong(0x0c000000)
 #define GUEST_TPM_SIZE    xen_mk_ullong(0x00005000)
@@ -528,6 +550,10 @@ typedef uint64_t xen_callback_t;
 
 #define GUEST_VIRTIO_MMIO_SPI_FIRST   34
 #define GUEST_VIRTIO_MMIO_SPI_LAST    44
+
+/* 8 bridges x 4 #INTA..#INTD interrupts = 32 SPIs to reserve for virtio-pci */
+#define GUEST_VIRTIO_PCI_SPI_FIRST   44
+#define GUEST_VIRTIO_PCI_SPI_LAST    76
 
 /* PSCI functions */
 #define PSCI_cpu_suspend 0
