@@ -2087,7 +2087,7 @@ void __init init_color_heap_pages(struct page_info *pg, unsigned long nr_pages)
 
     if ( nr_pages )
         printk(XENLOG_DEBUG
-               "Init color heap with %lu pages starting from: %#"PRIx64"\n",
+               "Init color heap with %lu pages starting from: %#"PRIpaddr"\n",
                nr_pages, page_to_maddr(pg));
 
     for ( i = 0; i < nr_pages; i++ )

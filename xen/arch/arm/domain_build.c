@@ -532,11 +532,13 @@ static void __init allocate_memory(struct domain *d, struct kernel_info *kinfo)
                 bank_start = GUEST_RAM0_BASE;
                 bank_size = GUEST_RAM0_SIZE;
             }
+#ifndef CONFIG_ARM_PA_BITS_32
             else if ( i == 1 )
             {
                 bank_start = GUEST_RAM1_BASE;
                 bank_size = GUEST_RAM1_SIZE;
             }
+#endif
             else
                 goto fail;
         }
