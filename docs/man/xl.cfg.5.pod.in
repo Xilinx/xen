@@ -806,6 +806,29 @@ Specify the backend domain name or id, defaults to dom0.
 
 =back
 
+=item B<Virtio-Console>
+
+B<(ARM only)> Virtio-console is supprted as an B<emulated> device by QEMU
+backend for PV. There are multiple configuration available for virtio-console
+in QEMU example ringbuf, file, pipe, stdio, pty and serial. Virtio-console in
+QEMU has B<dependency> on virtio-pci bus. Please enable virtio-pci option in
+domain config file.
+
+Here are few example to use virtio-console with QEMU as backend:
+=over 4
+=item <virtio-console backend as stdio writing to a file foo.txt>
+device_model_args=  [ '-device virtio-serial,id=ser0 -chardev stdio,logfile=foo.txt,id=foo,signal=off,mux=on -serial chardev:foo -device virtconsole,chardev=foo,bus=ser0.0,name=fooserial' ]
+
+=item <virtio-console backend as a pty>
+device_model_args= [ '-device virtio-serial,id=ser0 -chardev pty,id=foo,signal=off,mux=on -serial chardev:foo -device virtconsole,chardev=foo,bus=ser0.0,name=fooserial' ]
+
+B<virtio-console with grants>
+To use grants, append B<disable-legacy=on,iommu_platform=on> with virtio-serial
+device argument above.
+=back
+
+Please check QEMU documentation for chardev to see how to use other modes for
+chardev.
 =item B<pvcalls=[ "backend=domain-id", ... ]>
 
 Creates a Xen pvcalls connection to handle pvcalls requests from
