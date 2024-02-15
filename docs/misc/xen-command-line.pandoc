@@ -2011,7 +2011,7 @@ This option is ignored in **pv-shim** mode.
 ### partial-emulation (arm)
 > `= <boolean>`
 
-> Default: `false`
+> Default: `true`
 
 Flag to enable or disable partial emulation of system/coprocessor registers.
 Only effective if CONFIG_PARTIAL_EMULATION is enabled.
