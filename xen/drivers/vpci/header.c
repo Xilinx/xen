@@ -657,10 +657,7 @@ static int cf_check init_header(struct pci_dev *pdev)
             rc = vpci_add_register(pdev->vpci, vpci_hw_read32, bar_write, reg,
                                    4, &bars[i]);
             if ( rc )
-            {
-                pci_conf_write16(pdev->sbdf, PCI_COMMAND, cmd);
-                return rc;
-            }
+                goto fail;
 
             continue;
         }
@@ -680,10 +677,7 @@ static int cf_check init_header(struct pci_dev *pdev)
         rc = pci_size_mem_bar(pdev->sbdf, reg, &addr, &size,
                               (i == num_bars - 1) ? PCI_BAR_LAST : 0);
         if ( rc < 0 )
-        {
-            pci_conf_write16(pdev->sbdf, PCI_COMMAND, cmd);
-            return rc;
-        }
+            goto fail;
 
         if ( size == 0 )
         {
@@ -698,10 +692,7 @@ static int cf_check init_header(struct pci_dev *pdev)
         rc = vpci_add_register(pdev->vpci, vpci_hw_read32, bar_write, reg, 4,
                                &bars[i]);
         if ( rc )
-        {
-            pci_conf_write16(pdev->sbdf, PCI_COMMAND, cmd);
-            return rc;
-        }
+            goto fail;
     }
 
     /* Check expansion ROM. */
@@ -723,6 +714,10 @@ static int cf_check init_header(struct pci_dev *pdev)
     }
 
     return (cmd & PCI_COMMAND_MEMORY) ? modify_bars(pdev, cmd, false) : 0;
+
+ fail:
+    pci_conf_write16(pdev->sbdf, PCI_COMMAND, cmd);
+    return rc;
 }
 REGISTER_VPCI_INIT(init_header, VPCI_PRIORITY_MIDDLE);
 
