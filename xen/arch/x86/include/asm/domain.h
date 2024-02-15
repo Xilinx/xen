@@ -503,6 +503,11 @@ struct arch_domain
 #define has_vpit(d)        (!!((d)->arch.emulation_flags & X86_EMU_PIT))
 #define has_pirq(d)        (!!((d)->arch.emulation_flags & X86_EMU_USE_PIRQ))
 
+/* TODO: re-visit when vPCI is enabled for PVH domUs. */
+#define arch_needs_vpci(d) ({                       \
+    const struct domain *d_ = (d);                  \
+    is_hardware_domain(d_) && is_hvm_domain(d_); })
+
 #define gdt_ldt_pt_idx(v) \
       ((v)->vcpu_id >> (PAGETABLE_ORDER - GDT_LDT_VCPU_SHIFT))
 #define pv_gdt_ptes(v) \

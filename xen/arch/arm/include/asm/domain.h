@@ -31,6 +31,8 @@ enum domain_type {
 
 #define is_domain_direct_mapped(d) ((d)->cdf & CDF_directmap)
 
+#define arch_needs_vpci(d) (!is_hardware_domain(d))
+
 /*
  * Is the domain using the host memory layout?
  *

@@ -1612,6 +1612,15 @@ void iommu_dev_iotlb_flush_timeout(struct domain *d, struct pci_dev *pdev)
     pcidevs_unlock();
 }
 
+static bool needs_vpci(const struct domain *d)
+{
+    if ( d == dom_io )
+        /* xl pci-assignable-add assigns PCI devices to domIO */
+        return false;
+
+    return arch_needs_vpci(d);
+}
+
 int iommu_do_pci_domctl(
     struct xen_domctl *domctl, struct domain *d,
     XEN_GUEST_HANDLE_PARAM(xen_domctl_t) u_domctl)
@@ -1687,6 +1696,14 @@ int iommu_do_pci_domctl(
         seg = machine_sbdf >> 16;
         bus = PCI_BUS(machine_sbdf);
         devfn = PCI_DEVFN(machine_sbdf);
+
+        if ( needs_vpci(d) && !has_vpci(d) )
+        {
+            printk(XENLOG_G_WARNING "Cannot assign %pp to %pd: vPCI support not enabled\n",
+                   &PCI_SBDF(seg, bus, devfn), d);
+            ret = -EPERM;
+            break;
+        }
 
         pcidevs_lock();
         ret = device_assigned(seg, bus, devfn);
