@@ -159,9 +159,6 @@ void do_sysreg(struct cpu_user_regs *regs,
      *
      * Unhandled:
      *    MDCCINT_EL1
-     *    DBGDTR_EL0
-     *    DBGDTRRX_EL0
-     *    DBGDTRTX_EL0
      *    OSDTRRX_EL1
      *    OSDTRTX_EL1
      *    OSECCR_EL1
@@ -173,10 +170,32 @@ void do_sysreg(struct cpu_user_regs *regs,
         return handle_raz_wi(regs, regidx, hsr.sysreg.read, hsr, 1);
     case HSR_SYSREG_MDCCSR_EL0:
         /*
+         * Xen doesn't expose a real (or emulated) Debug Communications Channel
+         * (DCC) to a domain. Yet the Arm ARM implies this is not an optional
+         * feature. So some domains may start to probe it. For instance, the
+         * HVC_DCC driver in Linux (since f377775dc083 and at least up to v6.7),
+         * will try to write some characters and check if the transmit buffer
+         * has emptied.
+         *
+         * By setting TX status bit (only if partial emulation is enabled) to
+         * indicate the transmit buffer is full, we would hint the OS that the
+         * DCC is probably not working.
+         *
+         * Bit 29: TX full
+         *
          * Accessible at EL0 only if MDSCR_EL1.TDCC is set to 0. We emulate that
          * register as RAZ/WI above. So RO at both EL0 and EL1.
          */
-        return handle_ro_raz(regs, regidx, hsr.sysreg.read, hsr, 0);
+        return handle_ro_read_val(regs, regidx, hsr.sysreg.read, hsr, 0,
+                                  partial_emulation ? (1U << 29) : 0);
+
+    case HSR_SYSREG_DBGDTR_EL0:
+    /* DBGDTR[TR]X_EL0 share the same encoding */
+    case HSR_SYSREG_DBGDTRTX_EL0:
+        if ( !partial_emulation )
+            goto fail;
+        return handle_raz_wi(regs, regidx, hsr.sysreg.read, hsr, 0);
+
     HSR_SYSREG_DBG_CASES(DBGBVR):
     HSR_SYSREG_DBG_CASES(DBGBCR):
     HSR_SYSREG_DBG_CASES(DBGWVR):
@@ -394,6 +413,7 @@ void do_sysreg(struct cpu_user_regs *regs,
      * And all other unknown registers.
      */
     default:
+ fail:
         {
             const struct hsr_sysreg sysreg = hsr.sysreg;
 
