@@ -4199,6 +4199,11 @@ _hidden void libxl__spawn_qdisk_backend(libxl__egc *egc,
                                         libxl__dm_spawn_state *dmss);
 _hidden int libxl__destroy_qdisk_backend(libxl__gc *gc, uint32_t domid);
 
+
+_hidden int libxl__save_dm_virtio_pci_host(libxl__gc *gc,
+                                           uint32_t domid,
+                                           libxl_virtio_pci_host *host);
+
 /*----- Domain creation -----*/
 
 

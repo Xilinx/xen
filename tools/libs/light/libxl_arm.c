@@ -19,6 +19,10 @@
  * config file for the one not conforming with the proposed value).
  */
 #define VIRTIO_MMIO_DEV_SIZE   xen_mk_ullong(0x200)
+#define VIRTIO_PCI_HOST_MEM_SIZE            xen_mk_ullong(0x400000)
+#define VIRTIO_PCI_HOST_PREFETCH_MEM_SIZE   xen_mk_ullong(0x400000)
+#define VIRTIO_PCI_HOST_NUM_SPIS            4
+#define VIRTIO_PCI_MAX_HOSTS                8
 
 static uint64_t alloc_virtio_mmio_base(libxl__gc *gc, uint64_t *virtio_mmio_base)
 {
@@ -68,17 +72,105 @@ static const char *gicv_to_string(libxl_gic_version gic_version)
     }
 }
 
+static int alloc_virtio_pci_host(libxl__gc *gc,
+                                 uint32_t backend_domid,
+                                 uint32_t *host_id,
+                                 unsigned int *num_hosts,
+                                 libxl_virtio_pci_host *hosts)
+{
+    unsigned int i;
+
+    BUILD_BUG_ON(VIRTIO_PCI_MAX_HOSTS !=
+                 GUEST_VIRTIO_PCI_TOTAL_ECAM_SIZE / GUEST_VIRTIO_PCI_HOST_ECAM_SIZE);
+    BUILD_BUG_ON(VIRTIO_PCI_MAX_HOSTS !=
+                 GUEST_VIRTIO_PCI_MEM_SIZE / VIRTIO_PCI_HOST_MEM_SIZE);
+    BUILD_BUG_ON(VIRTIO_PCI_MAX_HOSTS !=
+                 GUEST_VIRTIO_PCI_PREFETCH_MEM_SIZE / VIRTIO_PCI_HOST_PREFETCH_MEM_SIZE);
+    BUILD_BUG_ON(VIRTIO_PCI_MAX_HOSTS !=
+                 (GUEST_VIRTIO_PCI_SPI_LAST - GUEST_VIRTIO_PCI_SPI_FIRST) / VIRTIO_PCI_HOST_NUM_SPIS);
+
+    if (*num_hosts > VIRTIO_PCI_MAX_HOSTS)
+        return ERROR_INVAL;
+
+    for (i = 0; i < *num_hosts; i++) {
+        if (hosts[i].backend_domid == backend_domid) {
+            *host_id = hosts[i].id;
+
+            LOG(DEBUG, "Reuse host #%u: "
+                        "ECAM: 0x%"PRIx64"-0x%"PRIx64" "
+                        "MEM: 0x%"PRIx64"-0x%"PRIx64" "
+                        "PREFETCH_MEM: 0x%"PRIx64"-0x%"PRIx64" "
+                        "IRQ: %u-%u",
+                        hosts[i].id,
+                        hosts[i].ecam_base,
+                        hosts[i].ecam_base + hosts[i].ecam_size - 1,
+                        hosts[i].mem_base,
+                        hosts[i].mem_base + hosts[i].mem_size - 1,
+                        hosts[i].prefetch_mem_base,
+                        hosts[i].prefetch_mem_base + hosts[i].prefetch_mem_size - 1,
+                        hosts[i].irq_first,
+                        hosts[i].irq_first + hosts[i].num_irqs - 1);
+
+            return 0;
+        }
+    }
+
+    if (i == VIRTIO_PCI_MAX_HOSTS) {
+        LOG(ERROR, "Ran out of reserved resources for virtio-pci host\n");
+        return ERROR_FAIL;
+    }
+
+    hosts[i].backend_domid = backend_domid;
+    hosts[i].id = i;
+    hosts[i].ecam_base = GUEST_VIRTIO_PCI_ECAM_BASE +
+        i * GUEST_VIRTIO_PCI_HOST_ECAM_SIZE;
+    hosts[i].ecam_size = GUEST_VIRTIO_PCI_HOST_ECAM_SIZE;
+    hosts[i].mem_base = GUEST_VIRTIO_PCI_MEM_ADDR +
+        i * VIRTIO_PCI_HOST_MEM_SIZE;
+    hosts[i].mem_size = VIRTIO_PCI_HOST_MEM_SIZE;
+    hosts[i].prefetch_mem_base = GUEST_VIRTIO_PCI_PREFETCH_MEM_ADDR +
+        i * VIRTIO_PCI_HOST_PREFETCH_MEM_SIZE;
+    hosts[i].prefetch_mem_size = VIRTIO_PCI_HOST_PREFETCH_MEM_SIZE;
+    hosts[i].irq_first = GUEST_VIRTIO_PCI_SPI_FIRST +
+        i * VIRTIO_PCI_HOST_NUM_SPIS;
+    hosts[i].num_irqs = VIRTIO_PCI_HOST_NUM_SPIS;
+
+    *host_id = hosts[i].id;
+
+    (*num_hosts)++;
+
+    LOG(DEBUG, "Allocate host #%u: "
+                "ECAM: 0x%"PRIx64"-0x%"PRIx64" "
+                "MEM: 0x%"PRIx64"-0x%"PRIx64" "
+                "PREFETCH_MEM: 0x%"PRIx64"-0x%"PRIx64" "
+                "IRQ: %u-%u",
+                hosts[i].id,
+                hosts[i].ecam_base,
+                hosts[i].ecam_base + hosts[i].ecam_size - 1,
+                hosts[i].mem_base,
+                hosts[i].mem_base + hosts[i].mem_size - 1,
+                hosts[i].prefetch_mem_base,
+                hosts[i].prefetch_mem_base + hosts[i].prefetch_mem_size - 1,
+                hosts[i].irq_first,
+                hosts[i].irq_first + hosts[i].num_irqs - 1);
+
+    return 0;
+}
+
 int libxl__arch_domain_prepare_config(libxl__gc *gc,
                                       libxl_domain_config *d_config,
                                       struct xen_domctl_createdomain *config)
 {
     uint32_t nr_spis = 0;
     unsigned int i;
-    uint32_t vuart_irq, vsmmu_irq = 0;
-    bool vuart_enabled = false, virtio_enabled = false, vsmmu_enabled = false;
+    uint32_t vuart_irq, vsmmu_irq = 0, virtio_pci_irq_last = 0;
+    bool vuart_enabled = false, virtio_mmio_enabled = false;
+    bool vsmmu_enabled = false;
     uint64_t virtio_mmio_base = GUEST_VIRTIO_MMIO_BASE + VIRTIO_MMIO_DEV_SIZE *
         (GUEST_VIRTIO_MMIO_SPI_LAST - GUEST_VIRTIO_MMIO_SPI_FIRST);
     uint32_t virtio_mmio_irq = GUEST_VIRTIO_MMIO_SPI_LAST;
+    unsigned int num_virtio_pci_hosts = 0;
+    libxl_virtio_pci_host virtio_pci_hosts[VIRTIO_PCI_MAX_HOSTS] = {0};
     int rc;
 
     /*
@@ -126,11 +218,17 @@ int libxl__arch_domain_prepare_config(libxl__gc *gc,
     for (i = 0; i < d_config->num_virtios; i++) {
         libxl_device_virtio *virtio = &d_config->virtios[i];
 
-        if (virtio->transport != LIBXL_VIRTIO_TRANSPORT_MMIO)
-            continue;
-
-        rc = alloc_virtio_mmio_params(gc, &virtio->base, &virtio->irq,
-                                      &virtio_mmio_base, &virtio_mmio_irq);
+        if (virtio->transport != LIBXL_VIRTIO_TRANSPORT_MMIO) {
+            rc = alloc_virtio_pci_host(gc,
+                                       virtio->backend_domid,
+                                       &virtio->u.pci.host_id,
+                                       &num_virtio_pci_hosts,
+                                       virtio_pci_hosts);
+        } else {
+            rc = alloc_virtio_mmio_params(gc, &virtio->u.mmio.base,
+                                          &virtio->u.mmio.irq,
+                                          &virtio_mmio_base, &virtio_mmio_irq);
+        }
 
         if (rc)
             return rc;
@@ -142,13 +240,24 @@ int libxl__arch_domain_prepare_config(libxl__gc *gc,
      * The resulting "nr_spis" needs to cover the highest possible SPI.
      */
     if (virtio_mmio_irq != GUEST_VIRTIO_MMIO_SPI_LAST) {
-        virtio_enabled = true;
+        virtio_mmio_enabled = true;
 
         /*
          * Assumes that "virtio_mmio_irq" is the highest allocated irq, which is
          * updated from alloc_virtio_mmio_irq() currently.
          */
         nr_spis = MAX(nr_spis, (GUEST_VIRTIO_MMIO_SPI_LAST - 32 + 1));
+    }
+
+    if (num_virtio_pci_hosts) {
+        libxl_virtio_pci_host *host = &virtio_pci_hosts[num_virtio_pci_hosts - 1];
+
+        /*
+         * Assumes that latest allocated host contains the highest allocated
+         * irq range.
+         */
+        virtio_pci_irq_last = host->irq_first + host->num_irqs - 1;
+        nr_spis = max(nr_spis, virtio_pci_irq_last - 32 + 1);
     }
 
     for (i = 0; i < d_config->b_info.num_irqs; i++) {
@@ -171,10 +280,14 @@ int libxl__arch_domain_prepare_config(libxl__gc *gc,
         }
 
         /* The same check as for vpl011 */
-        if (virtio_enabled &&
+        if (virtio_mmio_enabled &&
             (irq >= GUEST_VIRTIO_MMIO_SPI_FIRST &&
-             irq <= GUEST_VIRTIO_MMIO_SPI_LAST)) {
+             irq <= virtio_pci_irq_last)) {
             LOG(ERROR, "Physical IRQ %u conflicting with Virtio MMIO IRQ range\n", irq);
+            return ERROR_FAIL;
+        } else if (num_virtio_pci_hosts &&
+            (irq >= GUEST_VIRTIO_PCI_SPI_FIRST && irq <= virtio_pci_irq_last)) {
+            LOG(ERROR, "Physical IRQ %u conflicting with Virtio PCI IRQ range\n", irq);
             return ERROR_FAIL;
         }
 
@@ -190,6 +303,14 @@ int libxl__arch_domain_prepare_config(libxl__gc *gc,
 
         if (nr_spis <= spi)
             nr_spis = spi + 1;
+    }
+
+    if (num_virtio_pci_hosts) {
+        d_config->b_info.num_virtio_pci_hosts = num_virtio_pci_hosts;
+        d_config->b_info.virtio_pci_hosts = libxl__calloc(NOGC,
+            num_virtio_pci_hosts, sizeof(*d_config->b_info.virtio_pci_hosts));
+        memcpy(d_config->b_info.virtio_pci_hosts, virtio_pci_hosts,
+            sizeof(*d_config->b_info.virtio_pci_hosts) * num_virtio_pci_hosts);
     }
 
     LOG(DEBUG, "Configure the domain");
@@ -1093,6 +1214,130 @@ static int make_vpci_node(libxl__gc *gc, void *fdt,
     return 0;
 }
 
+#define PCI_IRQ_MAP_MIN_STRIDE   8
+
+static int create_virtio_pci_irq_map(libxl__gc *gc, void *fdt,
+                                     libxl_virtio_pci_host *host)
+{
+    uint32_t *full_irq_map, *irq_map;
+    size_t len;
+    unsigned int slot, pin;
+    int res, cells;
+
+    res = fdt_property_cell(fdt, "#interrupt-cells", 1);
+    if (res) return res;
+
+    /* assume GIC node to be present, due to
+     * make_gicv2_node()/make_gicv3_node() get called earlier
+     */
+    res = fdt_node_offset_by_phandle(fdt, GUEST_PHANDLE_GIC);
+    if (res < 0)
+        return res;
+
+    res = fdt_address_cells(fdt, res);
+    /* handle case of make_gicv2_node() setting #address-cells to 0 */
+    if (res == -FDT_ERR_BADNCELLS)
+        res = 0;
+    else if (res < 0)
+        return res;
+
+    cells = res;
+    len = sizeof(uint32_t) * host->num_irqs * host->num_irqs *
+          (PCI_IRQ_MAP_MIN_STRIDE + cells);
+    irq_map = full_irq_map = libxl__malloc(gc, len);
+
+    for (slot = 0; slot < host->num_irqs; slot++) {
+        for (pin = 0; pin < host->num_irqs; pin++) {
+            uint32_t irq = host->irq_first + ((pin + slot) % host->num_irqs);
+            unsigned int i = 0;
+
+            /* PCI address (3 cells) */
+            irq_map[i++] = cpu_to_fdt32(PCI_DEVFN(slot, 0) << 8);
+            irq_map[i++] = cpu_to_fdt32(0);
+            irq_map[i++] = cpu_to_fdt32(0);
+
+            /* PCI interrupt (1 cell) */
+            irq_map[i++] = cpu_to_fdt32(pin + 1);
+
+            /* GIC phandle (1 cell) */
+            irq_map[i++] = cpu_to_fdt32(GUEST_PHANDLE_GIC);
+
+            /* GIC unit address, set 0 because vgic itself handles vpci IRQs */
+            for (int c = cells; c--; irq_map[i++] = cpu_to_fdt32(0));
+
+            /* GIC interrupt (3 cells) */
+            irq_map[i++] = cpu_to_fdt32(0); /* SPI */
+            irq_map[i++] = cpu_to_fdt32(irq - 32);
+            irq_map[i++] = cpu_to_fdt32(DT_IRQ_TYPE_LEVEL_HIGH);
+
+            irq_map += PCI_IRQ_MAP_MIN_STRIDE + cells;
+        }
+    }
+
+    res = fdt_property(fdt, "interrupt-map", full_irq_map, len);
+    if (res) return res;
+
+    res = fdt_property_values(gc, fdt, "interrupt-map-mask", 4,
+                              PCI_DEVFN(3, 0) << 8, 0, 0, 0x7);
+    if (res) return res;
+
+    return 0;
+}
+
+/* TODO Consider reusing make_vpci_node() */
+static int make_virtio_pci_node(libxl__gc *gc, void *fdt,
+                                libxl_virtio_pci_host *host,
+                                libxl_domain_config *d_config)
+{
+    int res;
+    const char *name = GCSPRINTF("pcie@%"PRIx64, host->ecam_base);
+
+    res = fdt_begin_node(fdt, name);
+    if (res) return res;
+
+    res = fdt_property_compat(gc, fdt, 1, "pci-host-ecam-generic");
+    if (res) return res;
+
+    res = fdt_property_string(fdt, "device_type", "pci");
+    if (res) return res;
+
+    res = fdt_property_regs(gc, fdt, GUEST_ROOT_ADDRESS_CELLS,
+        GUEST_ROOT_SIZE_CELLS, 1, host->ecam_base, host->ecam_size);
+    if (res) return res;
+
+    res = fdt_property_values(gc, fdt, "bus-range", 2, 0, 0);
+    if (res) return res;
+
+    res = fdt_property_cell(fdt, "#address-cells", 3);
+    if (res) return res;
+
+    res = fdt_property_cell(fdt, "#size-cells", 2);
+    if (res) return res;
+
+    res = fdt_property_string(fdt, "status", "okay");
+    if (res) return res;
+
+    res = fdt_property_vpci_ranges(gc, fdt, GUEST_ROOT_ADDRESS_CELLS,
+        GUEST_ROOT_SIZE_CELLS, 2,
+        GUEST_VIRTIO_PCI_ADDR_TYPE_MEM, host->mem_base, host->mem_size,
+        GUEST_VIRTIO_PCI_ADDR_TYPE_PREFETCH_MEM, host->prefetch_mem_base,
+        host->prefetch_mem_size);
+    if (res) return res;
+
+    /* The same property as for virtio-mmio device */
+    res = fdt_property(fdt, "dma-coherent", NULL, 0);
+    if (res) return res;
+
+    /* Legacy PCI interrupts (#INTA - #INTD) */
+    res = create_virtio_pci_irq_map(gc, fdt, host);
+    if (res) return res;
+
+    res = fdt_end_node(fdt);
+    if (res) return res;
+
+    return 0;
+}
+
 static int make_xen_iommu_node(libxl__gc *gc, void *fdt)
 {
     int res;
@@ -1659,20 +1904,26 @@ next_resize:
         for (i = 0; i < d_config->num_virtios; i++) {
             libxl_device_virtio *virtio = &d_config->virtios[i];
 
-            if (virtio->transport != LIBXL_VIRTIO_TRANSPORT_MMIO)
-                continue;
-
             if (libxl_defbool_val(virtio->grant_usage))
                 iommu_needed = true;
 
-            FDT( make_virtio_mmio_node_device(gc, fdt, virtio->base,
-                                              virtio->irq, virtio->type,
+            if (virtio->transport != LIBXL_VIRTIO_TRANSPORT_MMIO)
+                continue;
+
+            FDT( make_virtio_mmio_node_device(gc, fdt, virtio->u.mmio.base,
+                                              virtio->u.mmio.irq, virtio->type,
                                               virtio->backend_domid,
                                               libxl_defbool_val(virtio->grant_usage)) );
         }
 
+        for (i = 0; i < d_config->b_info.num_virtio_pci_hosts; i++) {
+            libxl_virtio_pci_host *host = &d_config->b_info.virtio_pci_hosts[i];
+
+            FDT( make_virtio_pci_node(gc, fdt, host, d_config) );
+        }
+
         /*
-         * The iommu node should be created only once for all virtio-mmio
+         * The iommu node should be created only once for all virtio
          * devices.
          */
         if (iommu_needed)

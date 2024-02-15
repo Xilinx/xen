@@ -1298,8 +1298,9 @@ int libxl__domain_config_setdefault(libxl__gc *gc,
     }
 
     for (i = 0; i < d_config->num_virtios; i++) {
-        ret = libxl__virtio_devtype.set_default(gc, domid,
-                                                &d_config->virtios[i], false);
+        libxl_device_virtio *virtio = &d_config->virtios[i];
+
+        ret = libxl__virtio_devtype.set_default(gc, domid, virtio, false);
         if (ret) {
             LOGD(ERROR, domid, "Unable to set virtio defaults for device %d", i);
             goto error_out;
@@ -1816,6 +1817,19 @@ static void domcreate_launch_dm(libxl__egc *egc, libxl__multidev *multidev,
     for (i = 0; i < d_config->num_virtios; i++)
         libxl__device_add(gc, domid, &libxl__virtio_devtype,
                           &d_config->virtios[i]);
+    /*
+     * This should be done before spawning device model, but after
+     * the creation of "device-model" directory in Xenstore.
+     */
+    for (i = 0; i < d_config->b_info.num_virtio_pci_hosts; i++) {
+        libxl_virtio_pci_host *host = &d_config->b_info.virtio_pci_hosts[i];
+
+        ret = libxl__save_dm_virtio_pci_host(gc, domid, host);
+        if (ret) {
+            LOGD(ERROR, domid, "Unable to save virtio_pci_host for device model");
+            goto error_out;
+        }
+    }
 
     switch (d_config->c_info.type) {
     case LIBXL_DOMAIN_TYPE_HVM:

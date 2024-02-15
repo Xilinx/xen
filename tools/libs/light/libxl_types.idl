@@ -282,6 +282,7 @@ libxl_vkb_backend = Enumeration("vkb_backend", [
 libxl_virtio_transport = Enumeration("virtio_transport", [
     (0, "UNKNOWN"),
     (1, "MMIO"),
+    (2, "PCI"),
     ])
 
 libxl_passthrough = Enumeration("passthrough", [
@@ -571,6 +572,19 @@ libxl_altp2m_mode = Enumeration("altp2m_mode", [
     (3, "limited"),
     ], init_val = "LIBXL_ALTP2M_MODE_DISABLED")
 
+libxl_virtio_pci_host = Struct("virtio_pci_host", [
+    ("backend_domid",     libxl_domid),
+    ("id",                uint32),
+    ("ecam_base",         uint64),
+    ("ecam_size",         uint64),
+    ("mem_base",          uint64),
+    ("mem_size",          uint64),
+    ("prefetch_mem_base", uint64),
+    ("prefetch_mem_size", uint64),
+    ("irq_first",         uint32),
+    ("num_irqs",          uint32),
+    ])
+
 libxl_domain_build_info = Struct("domain_build_info",[
     ("max_vcpus",       integer),
     ("avail_vcpus",     libxl_bitmap),
@@ -645,6 +659,7 @@ libxl_domain_build_info = Struct("domain_build_info",[
     ("apic",             libxl_defbool),
     ("dm_restrict",      libxl_defbool),
     ("tee",              libxl_tee_type),
+    ("virtio_pci_hosts", Array(libxl_virtio_pci_host, "num_virtio_pci_hosts")),
     ("tpm",              libxl_defbool),
     ("u", KeyedUnion(None, libxl_domain_type, "type",
                 [("hvm", Struct(None, [("firmware",         string),
@@ -780,13 +795,22 @@ libxl_device_virtio = Struct("device_virtio", [
     ("backend_domid", libxl_domid),
     ("backend_domname", string),
     ("type", string),
-    ("transport", libxl_virtio_transport),
+    ("u", KeyedUnion(None, libxl_virtio_transport, "transport",
+              [("unknown", None),
+               # Note that virtio-mmio parameters (irq and base) are for internal
+               # use by libxl and can't be modified.
+               ("mmio", Struct(None, [("irq", uint32),
+                                      ("base", uint64),
+                                     ])),
+               ("pci", Struct(None,  [("func", uint8),
+                                      ("dev", uint8),
+                                      ("bus", uint8),
+                                      ("domain", uint16),
+                                      ("host_id", uint32),
+                                     ])),
+              ])),
     ("grant_usage", libxl_defbool),
     ("devid", libxl_devid),
-    # Note that virtio-mmio parameters (irq and base) are for internal
-    # use by libxl and can't be modified.
-    ("irq", uint32),
-    ("base", uint64)
     ])
 
 libxl_device_disk = Struct("device_disk", [

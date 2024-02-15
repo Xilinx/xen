@@ -1217,6 +1217,24 @@ static int parse_virtio_config(libxl_device_virtio *virtio, char *token)
         if (rc) return rc;
     } else if (MATCH_OPTION("grant_usage", token, oparg)) {
         libxl_defbool_set(&virtio->grant_usage, strtoul(oparg, NULL, 0));
+    } else if (MATCH_OPTION("bdf", token, oparg)) {
+        /*
+         * TODO:
+         * We pretend that we are ordinary PCI device to reuse BDF parsing
+         * logic. This needs to be properly reused by adjusting parse_bdf().
+         */
+        libxl_device_pci pci;
+
+        rc = xlu_pci_parse_bdf(NULL, &pci, oparg);
+        if (rc) {
+            fprintf(stderr, "Unable to parse BDF `%s' for virtio-pci\n", oparg);
+            return -1;
+        }
+
+        virtio->u.pci.domain = pci.domain;
+        virtio->u.pci.bus = pci.bus;
+        virtio->u.pci.dev = pci.dev;
+        virtio->u.pci.func = pci.func;
     } else {
         fprintf(stderr, "Unknown string \"%s\" in virtio spec\n", token);
         return -1;
@@ -1238,6 +1256,7 @@ static void parse_virtio_list(const XLU_Config *config,
         while ((item = xlu_cfg_get_listitem(virtios, entry)) != NULL) {
             libxl_device_virtio *virtio;
             char *p;
+            bool bdf_present = false;
 
             virtio = ARRAY_EXTEND_INIT(d_config->virtios, d_config->num_virtios,
                                        libxl_device_virtio_init);
@@ -1260,6 +1279,8 @@ static void parse_virtio_list(const XLU_Config *config,
                         strcat(str, p2);
                         p = str;
                     }
+                } else if (MATCH_OPTION("bdf", p, oparg)) {
+                    bdf_present = true;
                 }
 
                 rc = parse_virtio_config(virtio, p);
@@ -1268,6 +1289,21 @@ static void parse_virtio_list(const XLU_Config *config,
                 free(str);
                 str = NULL;
                 p = strtok(NULL, ",");
+            }
+
+            if (virtio->transport == LIBXL_VIRTIO_TRANSPORT_UNKNOWN) {
+                fprintf(stderr, "Unspecified transport for virtio\n");
+                rc = ERROR_FAIL; goto out;
+            }
+
+            if (virtio->transport == LIBXL_VIRTIO_TRANSPORT_PCI &&
+                !bdf_present) {
+                fprintf(stderr, "BDF must be specified for virtio-pci\n");
+                rc = ERROR_FAIL; goto out;
+            } else if (virtio->transport == LIBXL_VIRTIO_TRANSPORT_MMIO &&
+                bdf_present) {
+                fprintf(stderr, "BDF must not be specified for virtio-mmio\n");
+                rc = ERROR_FAIL; goto out;
             }
 
             entry++;

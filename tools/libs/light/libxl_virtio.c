@@ -57,8 +57,21 @@ static int libxl__set_xenstore_virtio(libxl__gc *gc, uint32_t domid,
 {
     const char *transport = libxl_virtio_transport_to_string(virtio->transport);
 
-    flexarray_append_pair(back, "irq", GCSPRINTF("%u", virtio->irq));
-    flexarray_append_pair(back, "base", GCSPRINTF("%#"PRIx64, virtio->base));
+    if (virtio->transport == LIBXL_VIRTIO_TRANSPORT_MMIO) {
+        flexarray_append_pair(back, "irq", GCSPRINTF("%u", virtio->u.mmio.irq));
+        flexarray_append_pair(back, "base", GCSPRINTF("%#"PRIx64, virtio->u.mmio.base));
+    } else {
+        /*
+         * TODO:
+         * Probably we will also need to store PCI Host bridge details (irq and
+         * mem ranges) this particular PCI device belongs to if emulator cannot
+         * or should not rely on what is described at include/public/arch-arm.h
+         */
+        flexarray_append_pair(back, "bdf", GCSPRINTF("%04x:%02x:%02x.%01x",
+                              virtio->u.pci.domain, virtio->u.pci.bus,
+                              virtio->u.pci.dev, virtio->u.pci.func));
+        flexarray_append_pair(back, "host_id", GCSPRINTF("%u", virtio->u.pci.host_id));
+    }
     flexarray_append_pair(back, "type", GCSPRINTF("%s", virtio->type));
     flexarray_append_pair(back, "transport", GCSPRINTF("%s", transport));
     flexarray_append_pair(back, "grant_usage",
@@ -84,33 +97,72 @@ static int libxl__virtio_from_xenstore(libxl__gc *gc, const char *libxl_path,
     rc = libxl__backendpath_parse_domid(gc, be_path, &virtio->backend_domid);
     if (rc) goto out;
 
-    rc = libxl__xs_read_checked(gc, XBT_NULL,
-				GCSPRINTF("%s/irq", be_path), &tmp);
-    if (rc) goto out;
-
-    if (tmp) {
-        virtio->irq = strtoul(tmp, NULL, 0);
+    tmp = libxl__xs_read(gc, XBT_NULL, GCSPRINTF("%s/transport", be_path));
+    if (!tmp) {
+        LOG(ERROR, "Missing xenstore node %s/transport", be_path);
+        rc = ERROR_INVAL;
+        goto out;
     }
 
-    tmp = NULL;
-    rc = libxl__xs_read_checked(gc, XBT_NULL,
-				GCSPRINTF("%s/base", be_path), &tmp);
-    if (rc) goto out;
-
-    if (tmp) {
-        virtio->base = strtoul(tmp, NULL, 0);
+    rc = libxl_virtio_transport_from_string(tmp, &virtio->transport);
+    if (rc) {
+        LOG(ERROR, "Unable to parse xenstore node %s/transport", be_path);
+        goto out;
     }
 
-    tmp = NULL;
-    rc = libxl__xs_read_checked(gc, XBT_NULL,
-				GCSPRINTF("%s/transport", be_path), &tmp);
-    if (rc) goto out;
+    if (virtio->transport != LIBXL_VIRTIO_TRANSPORT_MMIO &&
+        virtio->transport != LIBXL_VIRTIO_TRANSPORT_PCI) {
+        LOG(ERROR, "Unexpected transport for virtio");
+        rc = ERROR_INVAL;
+        goto out;
+    }
 
-    if (tmp) {
-        if (!strcmp(tmp, "mmio")) {
-            virtio->transport = LIBXL_VIRTIO_TRANSPORT_MMIO;
-        } else {
-            return ERROR_INVAL;
+    if (virtio->transport == LIBXL_VIRTIO_TRANSPORT_MMIO) {
+        tmp = NULL;
+        rc = libxl__xs_read_checked(gc, XBT_NULL,
+                                    GCSPRINTF("%s/irq", be_path), &tmp);
+        if (rc) goto out;
+
+        if (tmp) {
+            virtio->u.mmio.irq = strtoul(tmp, NULL, 0);
+        }
+
+        tmp = NULL;
+        rc = libxl__xs_read_checked(gc, XBT_NULL,
+                                    GCSPRINTF("%s/base", be_path), &tmp);
+        if (rc) goto out;
+
+        if (tmp) {
+            virtio->u.mmio.base = strtoul(tmp, NULL, 0);
+        }
+    } else {
+        unsigned int domain, bus, dev, func;
+
+        tmp = NULL;
+        rc = libxl__xs_read_checked(gc, XBT_NULL,
+                                    GCSPRINTF("%s/bdf", be_path), &tmp);
+        if (rc) goto out;
+
+        if (tmp) {
+            if (sscanf(tmp, "%04x:%02x:%02x.%01x",
+                &domain, &bus, &dev, &func) != 4) {
+                rc = ERROR_INVAL;
+                goto out;
+            }
+
+            virtio->u.pci.domain = domain;
+            virtio->u.pci.bus = bus;
+            virtio->u.pci.dev = dev;
+            virtio->u.pci.func = func;
+        }
+
+        tmp = NULL;
+        rc = libxl__xs_read_checked(gc, XBT_NULL,
+                                    GCSPRINTF("%s/host_id", be_path), &tmp);
+        if (rc) goto out;
+
+        if (tmp) {
+            virtio->u.pci.host_id = strtoul(tmp, NULL, 0);
         }
     }
 

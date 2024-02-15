@@ -1631,8 +1631,13 @@ hexadecimal format, without the "0x" prefix and all in lower case, like
 
 =item B<transport=STRING>
 
-Specifies the transport mechanism for the Virtio device, only "mmio" is
-supported for now.
+Specifies the transport mechanism for the Virtio device, both "mmio" and "pci"
+are supported. This option is mandatory.
+
+=item B<bdf=STRING>
+
+The Virtio device with transport "pci" must be identified by its B<BDF>.
+See L<xl-pci-configuration(5)> for more details about the format for B<BDF>.
 
 =item B<grant_usage=BOOLEAN>
 
