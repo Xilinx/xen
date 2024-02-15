@@ -494,6 +494,20 @@ typedef uint64_t xen_callback_t;
 #define GUEST_RAM1_BASE   xen_mk_ullong(0x0200000000) /* 952GB of RAM @ 8GB */
 #define GUEST_RAM1_SIZE   xen_mk_ullong(0xee00000000)
 
+/* Virtio PCI - Ordered by decreasing size to keep things aligned */
+#define GUEST_VIRTIO_PCI_PREFETCH_MEM_TYPE  xen_mk_ullong(0x43000000)
+#define GUEST_VIRTIO_PCI_PREFETCH_MEM_BASE  xen_mk_ullong(0x0f000000000)
+#define GUEST_VIRTIO_PCI_PREFETCH_MEM_SIZE  xen_mk_ullong(0x100000000)
+
+#define GUEST_VIRTIO_PCI_ECAM_BASE      (GUEST_VIRTIO_PCI_PREFETCH_MEM_BASE + \
+                                         GUEST_VIRTIO_PCI_PREFETCH_MEM_SIZE)
+#define GUEST_VIRTIO_PCI_ECAM_SIZE      xen_mk_ullong(0x10000000)
+
+#define GUEST_VIRTIO_PCI_MEM_TYPE         xen_mk_ullong(0x02000000)
+#define GUEST_VIRTIO_PCI_MEM_BASE         (GUEST_VIRTIO_PCI_ECAM_BASE + \
+                                           GUEST_VIRTIO_PCI_ECAM_SIZE)
+#define GUEST_VIRTIO_PCI_MEM_SIZE         xen_mk_ullong(0x00002000000)
+
 #define GUEST_RAM_BASE    GUEST_RAM0_BASE /* Lowest RAM address */
 /* Largest amount of actual RAM, not including holes */
 #define GUEST_RAM_MAX     (GUEST_RAM0_SIZE + GUEST_RAM1_SIZE)
@@ -528,6 +542,9 @@ typedef uint64_t xen_callback_t;
  */
 #define GUEST_FFA_NOTIF_PEND_INTR_ID      8
 #define GUEST_FFA_SCHEDULE_RECV_INTR_ID   9
+
+#define GUEST_VIRTIO_PCI_SPI_FIRST   44
+#define GUEST_VIRTIO_PCI_SPI_LAST    48
 
 /* PSCI functions */
 #define PSCI_cpu_suspend 0
