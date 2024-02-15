@@ -471,7 +471,6 @@ struct arch_domain
 #define X86_EMU_VGA      XEN_X86_EMU_VGA
 #define X86_EMU_IOMMU    XEN_X86_EMU_IOMMU
 #define X86_EMU_USE_PIRQ XEN_X86_EMU_USE_PIRQ
-#define X86_EMU_VPCI     XEN_X86_EMU_VPCI
 #else
 #define X86_EMU_LAPIC    0
 #define X86_EMU_HPET     0
@@ -482,7 +481,6 @@ struct arch_domain
 #define X86_EMU_VGA      0
 #define X86_EMU_IOMMU    0
 #define X86_EMU_USE_PIRQ 0
-#define X86_EMU_VPCI     0
 #endif
 
 #define X86_EMU_PIT     XEN_X86_EMU_PIT
@@ -492,8 +490,7 @@ struct arch_domain
                                  X86_EMU_PM | X86_EMU_RTC |             \
                                  X86_EMU_IOAPIC | X86_EMU_PIC |         \
                                  X86_EMU_VGA | X86_EMU_IOMMU |          \
-                                 X86_EMU_PIT | X86_EMU_USE_PIRQ |       \
-                                 X86_EMU_VPCI)
+                                 X86_EMU_PIT | X86_EMU_USE_PIRQ)
 
 #define has_vlapic(d)      (!!((d)->arch.emulation_flags & X86_EMU_LAPIC))
 #define has_vhpet(d)       (!!((d)->arch.emulation_flags & X86_EMU_HPET))
@@ -505,7 +502,6 @@ struct arch_domain
 #define has_viommu(d)      (!!((d)->arch.emulation_flags & X86_EMU_IOMMU))
 #define has_vpit(d)        (!!((d)->arch.emulation_flags & X86_EMU_PIT))
 #define has_pirq(d)        (!!((d)->arch.emulation_flags & X86_EMU_USE_PIRQ))
-#define has_vpci(d)        (!!((d)->arch.emulation_flags & X86_EMU_VPCI))
 
 #define gdt_ldt_pt_idx(v) \
       ((v)->vcpu_id >> (PAGETABLE_ORDER - GDT_LDT_VCPU_SHIFT))
