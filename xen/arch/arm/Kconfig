@@ -200,6 +200,15 @@ config PARTIAL_EMULATION
 	  emulated to their complete functionality. Enabling this might result in
 	  unwanted/non-spec compliant behavior.
 
+config PCI_PASSTHROUGH
+	bool "PCI passthrough" if EXPERT
+	depends on ARM_64
+	select HAS_PCI
+	select HAS_VPCI
+	default n
+	help
+	  This option enables PCI device passthrough
+
 endmenu
 
 menu "ARM errata workaround via the alternative framework"
