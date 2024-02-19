@@ -1660,7 +1660,7 @@ static inline unsigned int vgic_v3_max_rdist_count(struct domain *d)
 static int vgic_v3_domain_init(struct domain *d)
 {
     struct vgic_rdist_region *rdist_regions;
-    int rdist_count, i, ret;
+    int rdist_count, i;
 
     /* Allocate memory for Re-distributor regions */
     rdist_count = vgic_v3_max_rdist_count(d);
@@ -1728,10 +1728,6 @@ static int vgic_v3_domain_init(struct domain *d)
         d->arch.vgic.intid_bits = vgic_v3_hw.intid_bits;
     }
 
-    ret = vgic_v3_its_init_domain(d);
-    if ( ret )
-        return ret;
-
     /* Register mmio handle for the Distributor */
     register_mmio_handler(d, &vgic_distr_mmio_handler, d->arch.vgic.dbase,
                           SZ_64K, NULL);
@@ -1752,6 +1748,11 @@ static int vgic_v3_domain_init(struct domain *d)
     d->arch.vgic.ctlr = VGICD_CTLR_DEFAULT;
 
     return 0;
+}
+
+static int vgic_v3_domain_late_init(struct domain *d)
+{
+    return vgic_v3_its_init_domain(d);
 }
 
 static void vgic_v3_domain_free(struct domain *d)
@@ -1799,6 +1800,7 @@ static int vgic_v3_lpi_get_priority(struct domain *d, uint32_t vlpi)
 static const struct vgic_ops v3_ops = {
     .vcpu_init   = vgic_v3_vcpu_init,
     .domain_init = vgic_v3_domain_init,
+    .domain_late_init = vgic_v3_domain_late_init,
     .domain_free = vgic_v3_domain_free,
     .emulate_reg  = vgic_v3_emulate_reg,
     .lpi_to_pending = vgic_v3_lpi_to_pending,

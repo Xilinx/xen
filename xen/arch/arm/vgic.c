@@ -194,6 +194,14 @@ void domain_vgic_free(struct domain *d)
     xfree(d->arch.vgic.allocated_irqs);
 }
 
+int domain_vgic_late_init(struct domain *d)
+{
+    if ( d->arch.vgic.handler->domain_late_init )
+        return d->arch.vgic.handler->domain_late_init(d);
+
+    return 0;
+}
+
 int vcpu_vgic_init(struct vcpu *v)
 {
     int i;
