@@ -231,6 +231,21 @@ static int pci_bus_find_domain_nr(struct dt_device_node *dev)
     return domain;
 }
 
+static int add_bar_range(const struct dt_device_node *dev, uint32_t flags,
+                         uint64_t addr, uint64_t len, void *data)
+{
+    struct pci_host_bridge *bridge = data;
+
+    if ( !dt_range_is_memory(flags) )
+        return 0;
+
+    if ( dt_range_is_prefetchable(flags) )
+        return rangeset_add_range(bridge->bar_ranges_prefetch, addr,
+                                  addr + len - 1);
+    else
+        return rangeset_add_range(bridge->bar_ranges, addr, addr + len - 1);
+}
+
 int pci_host_common_probe(struct dt_device_node *dev,
                           const struct pci_ecam_ops *ops)
 {
@@ -268,6 +283,14 @@ int pci_host_common_probe(struct dt_device_node *dev,
     pci_add_host_bridge(bridge);
     pci_add_segment(bridge->segment);
     pci_set_msi_base(bridge);
+
+    bridge->bar_ranges = rangeset_new(NULL, "BAR ranges",
+                                      RANGESETF_prettyprint_hex);
+    bridge->bar_ranges_prefetch = rangeset_new(NULL,
+                                               "BAR ranges (prefetchable)",
+                                               RANGESETF_prettyprint_hex);
+    if ( bridge->bar_ranges && bridge->bar_ranges_prefetch )
+        dt_for_each_range(bridge->dt_node, add_bar_range, bridge);
 
     return 0;
 
