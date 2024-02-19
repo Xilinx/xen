@@ -997,7 +997,7 @@ int dt_device_get_paddr(const struct dt_device_node *dev, unsigned int index,
 
 int dt_for_each_range(const struct dt_device_node *dev,
                       int (*cb)(const struct dt_device_node *dev,
-                                uint64_t addr, uint64_t length,
+                                uint32_t flags, uint64_t addr, uint64_t length,
                                 void *data),
                       void *data)
 {
@@ -1062,13 +1062,15 @@ int dt_for_each_range(const struct dt_device_node *dev,
     {
         uint64_t a, s;
         int ret;
+        __be32 flags;
 
+        memcpy(&flags, ranges, sizeof(flags));
         memcpy(addr, ranges + na, 4 * pna);
 
         a = __dt_translate_address(dev, addr, "ranges");
         s = dt_read_number(ranges + na + pna, ns);
 
-        ret = cb(dev, a, s, data);
+        ret = cb(dev, __be32_to_cpu(flags), a, s, data);
         if ( ret )
         {
             dt_dprintk(" -> callback failed=%d\n", ret);

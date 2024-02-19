@@ -1730,7 +1730,8 @@ out:
 }
 
 static int __init handle_pci_range(const struct dt_device_node *dev,
-                                   uint64_t addr, uint64_t len, void *data)
+                                   uint32_t flags, uint64_t addr, uint64_t len,
+                                   void *data)
 {
     struct rangeset *mem_holes = data;
     paddr_t start, end;
