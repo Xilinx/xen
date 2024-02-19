@@ -20,6 +20,7 @@
 #include <xen/pci_ids.h>
 #include <xen/list.h>
 #include <xen/prefetch.h>
+#include <xen/iocap.h>
 #include <xen/iommu.h>
 #include <xen/irq.h>
 #include <xen/param.h>
@@ -1667,6 +1668,7 @@ static int __init _assign_hwdom_pci_devices(struct pci_seg *pseg, void *arg)
 
         if ( is_pci_endpoint && (pdev->domain == dom_io) )
         {
+            unsigned int i, rc;
             ret = assign_device(hardware_domain, pdev->seg, pdev->bus,
                                 pdev->devfn, 0);
             if ( ret < 0 )
@@ -1675,6 +1677,24 @@ static int __init _assign_hwdom_pci_devices(struct pci_seg *pseg, void *arg)
                        "%pp: Failure assigning the discovered pci device "
                        "(Error %d)\n", &pdev->sbdf, ret);
                 break;
+            }
+
+            for ( i = 0; i < PCI_HEADER_NORMAL_NR_BARS; i += rc )
+            {
+                uint64_t addr, size;
+                uint8_t reg = PCI_BASE_ADDRESS_0 + i * 4;
+
+                rc = pci_size_mem_bar(pdev->sbdf, reg, &addr, &size,
+                                      (i == PCI_HEADER_NORMAL_NR_BARS - 1)
+                                          ? PCI_BAR_LAST : 0);
+
+                if ( !size )
+                    continue;
+
+                ret = iomem_permit_access(hardware_domain, paddr_to_pfn(addr),
+                                     paddr_to_pfn(PAGE_ALIGN(addr + size - 1)));
+                if ( ret )
+                    break;
             }
         }
     }
