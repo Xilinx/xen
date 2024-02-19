@@ -18,6 +18,9 @@ ret_t pci_physdev_op(int cmd, XEN_GUEST_HANDLE_PARAM(void) arg)
         struct pci_dev_info pdev_info;
         nodeid_t node = NUMA_NO_NODE;
 
+        if ( hwdom_uses_vpci() )
+            return 0;
+
         ret = -EFAULT;
         if ( copy_from_guest(&add, arg, 1) != 0 )
             break;
@@ -53,6 +56,9 @@ ret_t pci_physdev_op(int cmd, XEN_GUEST_HANDLE_PARAM(void) arg)
 
     case PHYSDEVOP_pci_device_remove: {
         struct physdev_pci_device dev;
+
+        if ( hwdom_uses_vpci() )
+            return 0;
 
         ret = -EFAULT;
         if ( copy_from_guest(&dev, arg, 1) != 0 )
