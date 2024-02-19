@@ -35,6 +35,8 @@ void __iomem *pci_ecam_map_bus(struct pci_host_bridge *bridge,
 
     busn -= cfg->busn_start;
     base = cfg->win + (busn << ops->bus_shift);
+    if ((busn << ops->bus_shift) + (sbdf.devfn << devfn_shift) + where >= cfg->size)
+        return NULL;
 
     return base + (sbdf.devfn << devfn_shift) + where;
 }
