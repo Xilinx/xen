@@ -61,4 +61,10 @@ static inline bool pci_check_bar(const struct pci_dev *pdev,
     return is_memory_hole(start, end);
 }
 
+/* Unlike ARM, HW domain does not ever use vpci for x86 */
+static inline bool hwdom_uses_vpci(void)
+{
+    return false;
+}
+
 #endif /* __X86_PCI_H__ */
