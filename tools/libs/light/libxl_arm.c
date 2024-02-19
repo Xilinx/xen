@@ -1259,6 +1259,9 @@ static int make_vpci_node(libxl__gc *gc, void *fdt,
                               0, 0x10000);
     if (res) return res;
 
+    res = fdt_property_cell(fdt, "linux,pci-domain", 0);
+    if (res) return res;
+
     res = fdt_end_node(fdt);
     if (res) return res;
 
@@ -1445,6 +1448,9 @@ static int make_virtio_pci_node(libxl__gc *gc, void *fdt,
 
     /* xen,grant-dma bindings */
     res = create_virtio_pci_iommu_map(gc, fdt, host, d_config);
+    if (res) return res;
+
+    res = fdt_property_cell(fdt, "linux,pci-domain", 1);
     if (res) return res;
 
     res = fdt_end_node(fdt);
