@@ -2671,8 +2671,9 @@ int xc_domain_set_llc_colors(xc_interface *xch, uint32_t domid,
                              unsigned int num_llc_colors);
 
 #if defined(__arm__) || defined(__aarch64__)
-int xc_dt_overlay(xc_interface *xch, void *overlay_fdt,
-                  uint32_t overlay_fdt_size, uint8_t overlay_op);
+int xc_dt_overlay(xc_interface *xch, uint32_t domain_id, void *overlay_fdt,
+                  uint32_t overlay_fdt_size, uint8_t overlay_op,
+                  bool domain_mapping);
 #endif
 
 /* Compat shims */

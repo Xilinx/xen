@@ -1270,20 +1270,47 @@ int main_dt_overlay(int argc, char **argv)
 {
     const char *overlay_ops = NULL;
     const char *overlay_config_file = NULL;
+    uint32_t domain_id = 0;
     void *overlay_dtb = NULL;
     int rc;
+    bool auto_mode = true;
+    bool domain_mapping = false;
     uint8_t op;
     int overlay_dtb_size = 0;
     const int overlay_add_op = 1;
     const int overlay_remove_op = 2;
 
-    if (argc < 2) {
+    if (argc < 3) {
         help("dt_overlay");
         return EXIT_FAILURE;
     }
 
+    if (argc > 5) {
+        fprintf(stderr, "Too many arguments\n");
+        return ERROR_FAIL;
+    }
+
     overlay_ops = argv[1];
     overlay_config_file = argv[2];
+
+    if (!strcmp(argv[argc - 1], "-e"))
+        auto_mode = false;
+
+    if (argc == 4 || !auto_mode) {
+        domain_id = find_domain(argv[argc-1]);
+        domain_mapping = true;
+    }
+
+    if (argc == 5 || !auto_mode) {
+        domain_id = find_domain(argv[argc-2]);
+        domain_mapping = true;
+    }
+
+    /* User didn't prove any overlay operation. */
+    if (overlay_ops == NULL) {
+        fprintf(stderr, "No overlay operation mode provided\n");
+        return ERROR_FAIL;
+    }
 
     if (strcmp(overlay_ops, "add") == 0)
         op = overlay_add_op;
@@ -1309,7 +1336,8 @@ int main_dt_overlay(int argc, char **argv)
         return ERROR_FAIL;
     }
 
-    rc = libxl_dt_overlay(ctx, overlay_dtb, overlay_dtb_size, op);
+    rc = libxl_dt_overlay(ctx, domain_id, overlay_dtb, overlay_dtb_size, op,
+                          auto_mode, domain_mapping);
 
     free(overlay_dtb);
 

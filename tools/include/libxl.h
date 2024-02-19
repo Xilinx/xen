@@ -2529,8 +2529,12 @@ libxl_device_pci *libxl_device_pci_list(libxl_ctx *ctx, uint32_t domid,
 void libxl_device_pci_list_free(libxl_device_pci* list, int num);
 
 #if defined(__arm__) || defined(__aarch64__)
-int libxl_dt_overlay(libxl_ctx *ctx, void *overlay,
-                     uint32_t overlay_size, uint8_t overlay_op);
+#define LIBXL_DT_OVERLAY_ADD                   1
+#define LIBXL_DT_OVERLAY_REMOVE                2
+
+int libxl_dt_overlay(libxl_ctx *ctx, uint32_t domain_id, void *overlay,
+                     uint32_t overlay_size, uint8_t overlay_op, bool auto_mode,
+                     bool domain_mapping);
 #endif
 
 /*

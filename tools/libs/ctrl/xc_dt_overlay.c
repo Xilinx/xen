@@ -20,15 +20,18 @@
 
 #include "xc_private.h"
 
-int xc_dt_overlay(xc_interface *xch, void *overlay_fdt,
-                  uint32_t overlay_fdt_size, uint8_t overlay_op)
+int xc_dt_overlay(xc_interface *xch, uint32_t domid, void *overlay_fdt,
+                  uint32_t overlay_fdt_size, uint8_t overlay_op,
+                  bool domain_mapping)
 {
     int err;
     struct xen_sysctl sysctl = {
         .cmd = XEN_SYSCTL_dt_overlay,
         .u.dt_overlay = {
+            .domain_id = domid,
             .overlay_op = overlay_op,
             .overlay_fdt_size = overlay_fdt_size,
+            .domain_mapping = domain_mapping,
         }
     };
 

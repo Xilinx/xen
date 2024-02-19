@@ -41,8 +41,9 @@ static int check_overlay_fdt(libxl__gc *gc, void *fdt, size_t size)
     return 0;
 }
 
-int libxl_dt_overlay(libxl_ctx *ctx, void *overlay_dt, uint32_t overlay_dt_size,
-                     uint8_t overlay_op)
+int libxl_dt_overlay(libxl_ctx *ctx, uint32_t domid, void *overlay_dt,
+                     uint32_t overlay_dt_size, uint8_t overlay_op,
+                     bool auto_mode, bool domain_mapping)
 {
     int rc;
     int r;
@@ -57,10 +58,18 @@ int libxl_dt_overlay(libxl_ctx *ctx, void *overlay_dt, uint32_t overlay_dt_size,
         rc = 0;
     }
 
-    r = xc_dt_overlay(ctx->xch, overlay_dt, overlay_dt_size, overlay_op);
+    /* Check if user entered a valid domain id. */
+    rc = libxl_domain_info(CTX, NULL, domid);
+    if (rc == ERROR_DOMAIN_NOTFOUND) {
+        LOGD(ERROR, domid, "Non-existant domain.");
+        return ERROR_FAIL;
+    }
+
+    r = xc_dt_overlay(ctx->xch, domid, overlay_dt, overlay_dt_size, overlay_op,
+                      domain_mapping);
 
     if (r) {
-        LOG(ERROR, "%s: Adding/Removing overlay dtb failed.", __func__);
+        LOG(ERROR, "domain%d: Adding/Removing overlay dtb failed.", domid);
         rc = ERROR_FAIL;
     }
 
