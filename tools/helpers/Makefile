@@ -58,7 +58,6 @@ init-dom0less: $(INIT_DOM0LESS_OBJS)
 get_overlay: $(SHARE_OVERLAY_OBJS)
 	$(CC) $(LDFLAGS) -o $@ $< $(LDLIBS_libxenvchan) $(LDLIBS_libxenstore) $(LDLIBS_libxenctrl) $(LDLIBS_libxengnttab) $(APPEND_LDFLAGS)
 
-
 .PHONY: install
 install: all
 	$(INSTALL_DIR) $(DESTDIR)$(LIBEXEC_BIN)
@@ -67,6 +66,7 @@ install: all
 .PHONY: uninstall
 uninstall:
 	for i in $(TARGETS); do rm -f $(DESTDIR)$(LIBEXEC_BIN)/$$i; done
+	$(RM) $(DESTDIR)$(LIBEXEC_BIN)/get_overlay.sh
 
 .PHONY: clean
 clean:
