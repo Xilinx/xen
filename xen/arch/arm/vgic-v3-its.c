@@ -1477,6 +1477,21 @@ static int vgic_v3_its_init_virtual(struct domain *d, paddr_t guest_addr,
 
     register_mmio_handler(d, &vgic_its_mmio_handler, guest_addr, SZ_64K, its);
 
+    if ( is_iommu_enabled(its->d) )
+    {
+        mfn_t mfn = maddr_to_mfn(its->doorbell_address);
+        unsigned int flush_flags = 0;
+        int ret = iommu_map(its->d, _dfn(mfn_x(mfn)), mfn, 1, IOMMUF_writable,
+                            &flush_flags);
+        if ( ret < 0 )
+        {
+            gprintk(XENLOG_ERR,
+                    "GICv3: Map ITS translation register %pd failed.\n",
+                    its->d);
+            return ret;
+        }
+    }
+
     /* Register the virtual ITS to be able to clean it up later. */
     list_add_tail(&its->vits_list, &d->arch.vgic.vits_list);
 
