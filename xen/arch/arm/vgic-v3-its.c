@@ -276,6 +276,99 @@ static uint64_t its_cmd_mask_field(uint64_t *its_cmd, unsigned int word,
     return (its_cmd[word] >> shift) & GENMASK(size - 1, 0);
 }
 
+#ifdef CONFIG_HAS_PCI
+static uint32_t dt_msi_map_id(uint32_t id_in)
+{
+    uint32_t id_out = id_in;
+    const struct pci_host_bridge *bridge;
+    int rc;
+
+    bridge = pci_find_host_bridge(PCI_SEG(id_in), PCI_BUS(id_in));
+    if ( unlikely(!bridge) )
+        return -ENODEV;
+
+    rc = dt_map_id(bridge->dt_node, id_in, "msi-map", "msi-map-mask",
+                   NULL, &id_out);
+    if ( rc )
+        return rc;
+
+    return id_out;
+}
+
+static uint32_t its_get_host_devid(struct domain *d, uint32_t guest_devid)
+{
+    uint32_t host_devid = guest_devid;
+
+    if ( !pci_passthrough_enabled )
+        return guest_devid;
+
+    if ( !is_hardware_domain(d) )
+    {
+        pci_sbdf_t __maybe_unused sbdf = {
+            .sbdf = guest_devid,
+        };
+        const struct pci_dev *pdev;
+
+        pcidevs_lock();
+        for_each_pdev( d, pdev )
+        {
+            /* Replace virtual SBDF with the physical one. */
+#ifdef CONFIG_HAS_VPCI_GUEST_SUPPORT
+            if ( pdev->vpci->guest_sbdf.sbdf == sbdf.sbdf )
+#endif
+            {
+                host_devid = dt_msi_map_id(pdev->sbdf.sbdf);
+            }
+        }
+        pcidevs_unlock();
+    }
+
+    return host_devid;
+}
+
+paddr_t its_get_host_doorbell(struct virt_its *its, uint32_t guest_devid)
+{
+    const struct pci_host_bridge *bridge;
+    const struct pci_dev *pdev;
+    uint32_t host_devid = guest_devid;
+    pci_sbdf_t __maybe_unused sbdf = {
+        .sbdf = guest_devid,
+    };
+
+    if ( !pci_passthrough_enabled )
+        return its->doorbell_address;
+
+    pcidevs_lock();
+    for_each_pdev( its->d, pdev )
+    {
+#ifdef CONFIG_HAS_VPCI_GUEST_SUPPORT
+        if ( pdev->vpci->guest_sbdf.sbdf == sbdf.sbdf )
+#endif
+        {
+            /* Replace virtual SBDF with the physical one. */
+            host_devid = pdev->sbdf.sbdf;
+        }
+    }
+    pcidevs_unlock();
+
+    bridge = pci_find_host_bridge(PCI_SEG(host_devid), PCI_BUS(host_devid));
+    if ( unlikely(!bridge) )
+        return -ENODEV;
+
+    return bridge->its_msi_base + ITS_DOORBELL_OFFSET;
+}
+#else
+static uint32_t its_get_host_devid(struct domain *d, uint32_t guest_devid)
+{
+    return guest_devid;
+}
+
+paddr_t its_get_host_doorbell(struct virt_its *its, uint32_t host_devid)
+{
+    return its->doorbell_address;
+}
+#endif
+
 #define its_cmd_get_command(cmd)        its_cmd_mask_field(cmd, 0,  0,  8)
 #define its_cmd_get_deviceid(cmd)       its_cmd_mask_field(cmd, 0, 32, 32)
 #define its_cmd_get_size(cmd)           its_cmd_mask_field(cmd, 1,  0,  5)
@@ -518,7 +611,6 @@ static int its_handle_invall(struct virt_its *its, uint64_t *cmdptr)
      * However this command is very rare, also we don't expect many
      * LPIs to be actually mapped, so it's fine for Dom0 to use.
      */
-    ASSERT(is_hardware_domain(its->d));
 
     /*
      * If no redistributor has its LPIs enabled yet, we can't access the
@@ -629,14 +721,6 @@ static void its_unmap_device(struct virt_its *its, uint32_t devid)
     if ( its_get_itt(its, devid, &itt) )
         goto out;
 
-    /*
-     * For DomUs we need to check that the number of events per device
-     * is really limited, otherwise looping over all events can take too
-     * long for a guest. This ASSERT can then be removed if that is
-     * covered.
-     */
-    ASSERT(is_hardware_domain(its->d));
-
     for ( evid = 0; evid < DEV_TABLE_ITT_SIZE(itt); evid++ )
         /* Don't care about errors here, clean up as much as possible. */
         its_discard_event(its, devid, evid);
@@ -648,10 +732,12 @@ out:
 static int its_handle_mapd(struct virt_its *its, uint64_t *cmdptr)
 {
     /* size and devid get validated by the functions called below. */
-    uint32_t devid = its_cmd_get_deviceid(cmdptr);
+    uint32_t guest_devid = its_cmd_get_deviceid(cmdptr);
+    uint32_t host_devid = its_get_host_devid(its->d, guest_devid);
     unsigned int size = its_cmd_get_size(cmdptr) + 1;
     bool valid = its_cmd_get_validbit(cmdptr);
     paddr_t itt_addr = its_cmd_get_ittaddr(cmdptr);
+    paddr_t host_doorbell_address;
     int ret;
 
     /* Sanitize the number of events. */
@@ -660,7 +746,7 @@ static int its_handle_mapd(struct virt_its *its, uint64_t *cmdptr)
 
     if ( !valid )
         /* Discard all events and remove pending LPIs. */
-        its_unmap_device(its, devid);
+        its_unmap_device(its, guest_devid);
 
     /*
      * There is no easy and clean way for Xen to know the ITS device ID of a
@@ -670,26 +756,24 @@ static int its_handle_mapd(struct virt_its *its, uint64_t *cmdptr)
      * Eventually this will be replaced with a dedicated hypercall to
      * announce pass-through of devices.
      */
-    if ( is_hardware_domain(its->d) )
-    {
 
-        /*
-         * Dom0's ITSes are mapped 1:1, so both addresses are the same.
-         * Also the device IDs are equal.
-         */
-        ret = gicv3_its_map_guest_device(its->d, its->doorbell_address, devid,
-                                         its->doorbell_address, devid,
-                                         BIT(size, UL), valid);
-        if ( ret && valid )
-            return ret;
-    }
+    if ( !is_hardware_domain(its->d) )
+        host_doorbell_address = its_get_host_doorbell(its, guest_devid);
+    else
+        host_doorbell_address = its->doorbell_address;
+
+    ret = gicv3_its_map_guest_device(its->d, host_doorbell_address, host_devid,
+                                     its->doorbell_address, guest_devid,
+                                     BIT(size, UL), valid);
+    if ( ret && valid )
+        return ret;
 
     spin_lock(&its->its_lock);
 
     if ( valid )
-        ret = its_set_itt_address(its, devid, itt_addr, size);
+        ret = its_set_itt_address(its, guest_devid, itt_addr, size);
     else
-        ret = its_set_itt_address(its, devid, INVALID_PADDR, 1);
+        ret = its_set_itt_address(its, guest_devid, INVALID_PADDR, 1);
 
     spin_unlock(&its->its_lock);
 
@@ -1177,7 +1261,6 @@ static bool vgic_v3_verify_its_status(struct virt_its *its, bool status)
      * an LPI), which should go away with proper per-IRQ locking.
      * So for now we ignore this issue and rely on Dom0 not doing bad things.
      */
-    ASSERT(is_hardware_domain(its->d));
 
     return true;
 }
@@ -1520,6 +1603,8 @@ unsigned int vgic_v3_its_count(const struct domain *d)
 int vgic_v3_its_init_domain(struct domain *d)
 {
     int ret;
+    static unsigned int devid_bits = 0xff;
+    static unsigned int evid_bits = 0xff;
 
     INIT_LIST_HEAD(&d->arch.vgic.vits_list);
     spin_lock_init(&d->arch.vgic.its_devices_lock);
@@ -1543,7 +1628,21 @@ int vgic_v3_its_init_domain(struct domain *d)
                 return ret;
             else
                 d->arch.vgic.has_its = true;
+
+            if ( hw_its->devid_bits > devid_bits )
+                devid_bits = hw_its->devid_bits;
+            if ( hw_its->evid_bits > evid_bits )
+                evid_bits = hw_its->evid_bits;
         }
+    }
+    else
+    {
+        ret = vgic_v3_its_init_virtual(d, GUEST_GICV3_ITS_BASE,
+                                       devid_bits, evid_bits);
+        if ( ret )
+            return ret;
+        else
+            d->arch.vgic.has_its = true;
     }
 
     return 0;
@@ -1562,7 +1661,7 @@ void vgic_v3_its_free_domain(struct domain *d)
         list_del(&pos->vits_list);
         xfree(pos);
     }
-
+    gicv3_its_unmap_all_guest_device(d);
     ASSERT(RB_EMPTY_ROOT(&d->arch.vgic.its_devices));
 }
 
