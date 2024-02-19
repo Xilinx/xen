@@ -169,6 +169,8 @@ int gicv3_its_make_hwdom_dt_nodes(const struct domain *d,
                                   const struct dt_device_node *gic,
                                   void *fdt);
 
+int gicv3_its_make_emulated_dt_node(void *fdt);
+
 /*
  * Map a device on the host by allocating an ITT on the host (ITS).
  * "nr_event" specifies how many events (interrupts) this device will need.
@@ -268,6 +270,11 @@ static inline void vgic_v3_its_free_domain(struct domain *d)
 static inline int gicv3_its_make_hwdom_dt_nodes(const struct domain *d,
                                                 const struct dt_device_node *gic,
                                                 void *fdt)
+{
+    return 0;
+}
+
+static inline int gicv3_its_make_emulated_dt_node(void *fdt)
 {
     return 0;
 }
