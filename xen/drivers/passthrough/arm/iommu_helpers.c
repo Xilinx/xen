@@ -41,11 +41,8 @@ int __must_check arm_iommu_map_page(struct domain *d, dfn_t dfn, mfn_t mfn,
      * returned by the hypercall is the MFN (not the IPA). For device
      * protected by an IOMMU, Xen needs to add a 1:1 mapping in the domain
      * p2m to allow DMA request to work.
-     * This is only valid when the domain is directed mapped. Hence this
-     * function should only be used by gnttab code with gfn == mfn == dfn.
+     * For ITS doorbell mappings, translation (dfn != mfn) is allowed.
      */
-    BUG_ON(!is_domain_direct_mapped(d));
-    BUG_ON(mfn_x(mfn) != dfn_x(dfn));
 
     /* We only support readable and writable flags */
     if ( !(flags & (IOMMUF_readable | IOMMUF_writable)) )
@@ -57,7 +54,7 @@ int __must_check arm_iommu_map_page(struct domain *d, dfn_t dfn, mfn_t mfn,
      * The function guest_physmap_add_entry replaces the current mapping
      * if there is already one...
      */
-    return guest_physmap_add_entry(d, _gfn(dfn_x(dfn)), _mfn(dfn_x(dfn)),
+    return guest_physmap_add_entry(d, _gfn(dfn_x(dfn)), mfn,
                                    IOMMUF_order(flags), t);
 }
 
