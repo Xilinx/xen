@@ -22,6 +22,7 @@
 #define pci_to_dev(pcidev) (&(pcidev)->arch.dev)
 
 extern bool pci_passthrough_enabled;
+extern bool pci_scan_enabled;
 
 /* Arch pci dev struct */
 struct arch_pci_dev {
@@ -117,6 +118,11 @@ static always_inline bool is_pci_passthrough_enabled(void)
     return pci_passthrough_enabled;
 }
 
+static inline bool is_pci_scan_enabled(void)
+{
+    return pci_scan_enabled;
+}
+
 void arch_pci_init_pdev(struct pci_dev *pdev);
 
 int pci_get_new_domain_nr(void);
@@ -141,6 +147,11 @@ pci_msi_conf_write_intercept(struct pci_dev *pdev, unsigned int reg,
 struct arch_pci_dev { };
 
 static always_inline bool is_pci_passthrough_enabled(void)
+{
+    return false;
+}
+
+static inline bool is_pci_scan_enabled(void)
 {
     return false;
 }

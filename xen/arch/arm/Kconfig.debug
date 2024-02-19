@@ -308,3 +308,10 @@ config EARLY_PRINTK_INC
 	default "debug-mvebu.inc" if EARLY_UART_MVEBU
 	default "debug-pl011.inc" if EARLY_UART_PL011
 	default "debug-scif.inc" if EARLY_UART_SCIF
+
+config PCI_DEVICE_DEBUG
+	bool "PCI device debug messages"
+	depends on HAS_PCI
+	help
+		PCI device debug
+		If unsure say N
