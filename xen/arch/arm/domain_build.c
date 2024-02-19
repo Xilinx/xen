@@ -4440,6 +4440,9 @@ void __init create_domUs(void)
             printk(XENLOG_WARNING
                    "'llc-colors' found, but LLC coloring is disabled\n");
 
+        if ( is_pci_scan_enabled() )
+            d_cfg.flags |= XEN_DOMCTL_CDF_vpci;
+
         /*
          * The variable max_init_domid is initialized with zero, so here it's
          * very important to use the pre-increment operator to call
