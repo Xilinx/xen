@@ -13,7 +13,37 @@
 #include <xen/types.h>
 
 struct domain;
-struct rangeset;
+
+struct rangeset {
+    /* Owning domain and threaded list of rangesets. */
+    struct list_head rangeset_list;
+    struct domain   *domain;
+
+    /* Ordered list of ranges contained in this set, and protecting lock. */
+    struct list_head range_list;
+
+    /* Number of ranges that can be allocated */
+    long             nr_ranges;
+    rwlock_t         lock;
+
+    /* Pretty-printing name. */
+    char             name[32];
+
+    /* RANGESETF flags. */
+    unsigned int     flags;
+};
+
+/* An inclusive range [s,e] and pointer to next range in ascending order. */
+struct range {
+    struct list_head list;
+    unsigned long s, e;
+};
+
+/* Return the lowest range in the set r, or NULL if r is empty. */
+struct range *first_range(struct rangeset *r);
+
+/* Return range following x in ascending order, or NULL if x is the highest. */
+struct range *next_range(struct rangeset *r, struct range *x);
 
 /*
  * Initialise/destroy per-domain rangeset information.

@@ -12,31 +12,6 @@
 #include <xen/rangeset.h>
 #include <xsm/xsm.h>
 
-/* An inclusive range [s,e] and pointer to next range in ascending order. */
-struct range {
-    struct list_head list;
-    unsigned long s, e;
-};
-
-struct rangeset {
-    /* Owning domain and threaded list of rangesets. */
-    struct list_head rangeset_list;
-    struct domain   *domain;
-
-    /* Ordered list of ranges contained in this set, and protecting lock. */
-    struct list_head range_list;
-
-    /* Number of ranges that can be allocated */
-    long             nr_ranges;
-    rwlock_t         lock;
-
-    /* Pretty-printing name. */
-    char             name[32];
-
-    /* RANGESETF flags. */
-    unsigned int     flags;
-};
-
 /*****************************
  * Private range functions hide the underlying linked-list implemnetation.
  */
@@ -57,8 +32,7 @@ static struct range *find_range(
     return x;
 }
 
-/* Return the lowest range in the set r, or NULL if r is empty. */
-static struct range *first_range(
+struct range *first_range(
     struct rangeset *r)
 {
     if ( list_empty(&r->range_list) )
@@ -66,8 +40,7 @@ static struct range *first_range(
     return list_entry(r->range_list.next, struct range, list);
 }
 
-/* Return range following x in ascending order, or NULL if x is the highest. */
-static struct range *next_range(
+struct range *next_range(
     struct rangeset *r, struct range *x)
 {
     if ( x->list.next == &r->range_list )
