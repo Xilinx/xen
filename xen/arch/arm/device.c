@@ -303,7 +303,8 @@ static int map_device_children(const struct dt_device_node *dev,
  *  - Map the IRQs and iomem regions to DOM0
  */
 int handle_device(struct domain *d, struct dt_device_node *dev, p2m_type_t p2mt,
-                  struct rangeset *iomem_ranges, struct rangeset *irq_ranges)
+                  struct rangeset *iomem_ranges, struct rangeset *irq_ranges,
+                  bool device_mapping)
 {
     unsigned int naddr;
     unsigned int i;
@@ -320,9 +321,10 @@ int handle_device(struct domain *d, struct dt_device_node *dev, p2m_type_t p2mt,
     struct map_range_data mr_data = {
         .d = d,
         .p2mt = p2mt,
-        .skip_mapping = !own_device ||
+        .skip_mapping = (!own_device ||
                         (has_vpci(d) &&
-                        (device_get_class(dev) == DEVICE_PCI_HOSTBRIDGE)),
+                        (device_get_class(dev) == DEVICE_PCI_HOSTBRIDGE))) &&
+                        !device_mapping,
         .iomem_ranges = iomem_ranges,
         .irq_ranges = irq_ranges
     };

@@ -2869,7 +2869,7 @@ static int __init handle_node(struct domain *d, struct kernel_info *kinfo,
                "WARNING: Path %s is reserved, skip the node as we may re-use the path.\n",
                path);
 
-    res = handle_device(d, node, p2mt, NULL, NULL);
+    res = handle_device(d, node, p2mt, NULL, NULL, false);
     if ( res)
         return res;
 

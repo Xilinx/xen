@@ -169,7 +169,8 @@ u32 device_tree_get_u32(const void *fdt, int node,
                         const char *prop_name, u32 dflt);
 
 int handle_device(struct domain *d, struct dt_device_node *dev, p2m_type_t p2mt,
-                  struct rangeset *iomem_ranges, struct rangeset *irq_ranges);
+                  struct rangeset *iomem_ranges, struct rangeset *irq_ranges,
+                  bool device_mapping);
 
 int map_device_irqs_to_domain(struct domain *d, struct dt_device_node *dev,
                               bool need_mapping, struct rangeset *irq_ranges);

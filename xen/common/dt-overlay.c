@@ -356,24 +356,134 @@ static int overlay_get_nodes_info(const void *fdto, char **nodes_full_path)
     return 0;
 }
 
+static int remove_all_irqs(struct rangeset *irq_ranges,
+                           struct domain *d, bool domain_mapping)
+{
+    struct range *x;
+    int rc = 0;
+
+    read_lock(&irq_ranges->lock);
+
+    for ( x = first_range(irq_ranges); x != NULL;
+          x = next_range(irq_ranges, x) )
+    {
+        /*
+         * Handle invalid use cases 1:
+         * Where user assigned the nodes to dom0 along with their irq
+         * mappings but now just wants to remove the nodes entry from Xen device
+         * device tree without unmapping the irq.
+         */
+        if ( !domain_mapping && vgic_get_hw_irq_desc(d, NULL, x->s) )
+        {
+            printk(XENLOG_ERR "Removing node from device tree without releasing it's IRQ/IOMMU is not allowed\n");
+            rc = -EINVAL;
+            goto out;
+        }
+
+        /*
+         * IRQ should always have access unless there are duplication of
+         * of irqs in device tree. There are few cases of xen device tree
+         * where there are duplicate interrupts for the same node.
+         */
+        if (!irq_access_permitted(d, x->s))
+            continue;
+        /*
+         * TODO: We don't handle shared IRQs for now. So, it is assumed that
+         * the IRQs was not shared with another domain.
+         */
+        rc = irq_deny_access(d, x->s);
+        if ( rc )
+        {
+            printk(XENLOG_ERR "unable to revoke access for irq %ld\n", x->s);
+            goto out;
+        }
+
+        if ( domain_mapping )
+        {
+            rc = release_guest_irq(d, x->s);
+            if ( rc )
+            {
+                printk(XENLOG_ERR "unable to release irq %ld\n", x->s);
+                goto out;
+            }
+        }
+    }
+
+out:
+    read_unlock(&irq_ranges->lock);
+    return rc;
+}
+
+static int remove_all_iomems(struct rangeset *iomem_ranges,
+                             struct domain *d,
+                             bool domain_mapping)
+{
+    struct range *x;
+    int rc = 0;
+    p2m_type_t t;
+    mfn_t mfn;
+
+    read_lock(&iomem_ranges->lock);
+
+    for ( x = first_range(iomem_ranges); x != NULL;
+          x = next_range(iomem_ranges, x) )
+    {
+        mfn = p2m_lookup(d, _gfn(x->s), &t);
+        if ( mfn_x(mfn) == 0 || mfn_x(mfn) == ~0UL )
+        {
+            rc = -EINVAL;
+            goto out;
+        }
+
+        rc = iomem_deny_access(d, x->s, x->e);
+        if ( rc )
+        {
+            printk(XENLOG_ERR "Unable to remove dom%d access to"
+                   " 0x%"PRIx64" - 0x%"PRIx64"\n",
+                   d->domain_id,
+                   x->s, x->e);
+            goto out;
+        }
+
+        rc = unmap_mmio_regions(d, _gfn(x->s), x->e - x->s,
+                                _mfn(x->s));
+        if ( rc )
+            goto out;
+    }
+
+out:
+    read_unlock(&iomem_ranges->lock);
+    return rc;
+}
+
 /* Check if node itself can be removed and remove node from IOMMU. */
-static int remove_node_resources(struct dt_device_node *device_node)
+static int remove_node_resources(struct dt_device_node *device_node,
+                                 struct domain *d, bool domain_mapping)
 {
     int rc = 0;
     unsigned int len;
     domid_t domid;
 
-    domid = dt_device_used_by(device_node);
-
-    dt_dprintk("Checking if node %s is used by any domain\n",
-               device_node->full_name);
-
-    /* Remove the node if only it's assigned to hardware domain or domain io. */
-    if ( domid != hardware_domain->domain_id && domid != DOMID_IO )
+    if ( !d )
     {
-        printk(XENLOG_ERR "Device %s is being used by domain %u. Removing nodes failed\n",
-               device_node->full_name, domid);
-        return -EINVAL;
+        domid = dt_device_used_by(device_node);
+
+        /*
+         * We also check if device is assigned to DOMID_IO as when a domain
+         * is destroyed device is assigned to DOMID_IO or for the case when
+         * device was never mapped to a running domain.
+         */
+        if ( domid != hardware_domain->domain_id && domid != DOMID_IO )
+        {
+            printk(XENLOG_ERR "Device %s is being assigned to %u. Device is assigned to %d\n",
+                   device_node->full_name, DOMID_IO, domid);
+            return -EINVAL;
+        }
+
+        /*
+         * Device is assigned to hardware domain.
+         */
+         d = hardware_domain;
     }
 
     /* Check if iommu property exists. */
@@ -392,7 +502,8 @@ static int remove_node_resources(struct dt_device_node *device_node)
 
 /* Remove all descendants from IOMMU. */
 static int
-remove_descendant_nodes_resources(const struct dt_device_node *device_node)
+remove_descendant_nodes_resources(const struct dt_device_node *device_node,
+                                  struct domain *d, bool domain_mapping)
 {
     int rc = 0;
     struct dt_device_node *child_node;
@@ -402,12 +513,13 @@ remove_descendant_nodes_resources(const struct dt_device_node *device_node)
     {
         if ( child_node->child )
         {
-            rc = remove_descendant_nodes_resources(child_node);
+            rc = remove_descendant_nodes_resources(child_node, d,
+                                                   domain_mapping);
             if ( rc )
                 return rc;
         }
 
-        rc = remove_node_resources(child_node);
+        rc = remove_node_resources(child_node, d, domain_mapping);
         if ( rc )
             return rc;
     }
@@ -416,12 +528,13 @@ remove_descendant_nodes_resources(const struct dt_device_node *device_node)
 }
 
 /* Remove nodes from dt_host. */
-static int remove_nodes(const struct overlay_track *tracker)
+static int remove_nodes(const struct overlay_track *tracker,
+                        struct domain *d)
 {
     int rc = 0;
     struct dt_device_node *overlay_node;
     unsigned int j;
-    struct domain *d = hardware_domain;
+    bool domain_mapping = (d != NULL);
 
     for ( j = 0; j < tracker->num_nodes; j++ )
     {
@@ -433,11 +546,19 @@ static int remove_nodes(const struct overlay_track *tracker)
             return -EINVAL;
         }
 
-        rc = remove_descendant_nodes_resources(overlay_node);
+        rc = remove_descendant_nodes_resources(overlay_node, d, domain_mapping);
         if ( rc )
             return rc;
 
-        rc = remove_node_resources(overlay_node);
+        rc = remove_node_resources(overlay_node, d, domain_mapping);
+        if ( rc )
+            return rc;
+
+        rc = remove_all_irqs(tracker->irq_ranges, d, domain_mapping);
+        if ( rc )
+            return rc;
+
+        rc = remove_all_iomems(tracker->iomem_ranges, d, domain_mapping);
         if ( rc )
             return rc;
 
@@ -480,7 +601,8 @@ static int remove_nodes(const struct overlay_track *tracker)
  * while destroying the domain.
  */
 static long handle_remove_overlay_nodes(const void *overlay_fdt,
-                                        uint32_t overlay_fdt_size)
+                                        uint32_t overlay_fdt_size,
+                                        struct domain *d)
 {
     int rc;
     struct overlay_track *entry, *temp, *track;
@@ -519,7 +641,7 @@ static long handle_remove_overlay_nodes(const void *overlay_fdt,
 
     }
 
-    rc = remove_nodes(entry);
+    rc = remove_nodes(entry, d);
     if ( rc )
     {
         printk(XENLOG_ERR "Removing node failed\n");
@@ -559,12 +681,21 @@ static void free_nodes_full_path(unsigned int num_nodes, char **nodes_full_path)
     xfree(nodes_full_path);
 }
 
-static long add_nodes(struct overlay_track *tr, char **nodes_full_path)
+static long add_nodes(struct overlay_track *tr, char **nodes_full_path,
+                      struct domain *d)
 
 {
     int rc;
     unsigned int j;
     struct dt_device_node *overlay_node;
+    bool domain_mapping = (d != NULL);
+
+    /*
+     * If domain is NULL, then we add the devices into hardware domain and skip
+     * IRQs/IOMMUs mapping.
+     */
+    if ( d == NULL )
+        d = hardware_domain;
 
     for ( j = 0; j < tr->num_nodes; j++ )
     {
@@ -608,8 +739,6 @@ static long add_nodes(struct overlay_track *tr, char **nodes_full_path)
             return rc;
         }
 
-        write_unlock(&dt_host_lock);
-
         prev_node->allnext = next_node;
 
         overlay_node = dt_find_node_by_path(overlay_node->full_name);
@@ -617,17 +746,22 @@ static long add_nodes(struct overlay_track *tr, char **nodes_full_path)
         {
             /* Sanity check. But code will never come here. */
             ASSERT_UNREACHABLE();
+            write_unlock(&dt_host_lock);
             return -EFAULT;
         }
 
-        rc = handle_device(hardware_domain, overlay_node, p2m_mmio_direct_c,
+        rc = handle_device(d, overlay_node, p2m_mmio_direct_c,
                            tr->iomem_ranges,
-                           tr->irq_ranges);
+                           tr->irq_ranges,
+                           domain_mapping);
         if ( rc )
         {
             printk(XENLOG_ERR "Adding IRQ and IOMMU failed\n");
+            write_unlock(&dt_host_lock);
             return rc;
         }
+
+        write_unlock(&dt_host_lock);
 
         /* Keep overlay_node address in tracker. */
         tr->nodes_address[j] = (unsigned long)overlay_node;
@@ -642,7 +776,8 @@ static long add_nodes(struct overlay_track *tr, char **nodes_full_path)
  * to hardware domain done by handle_node().
  */
 static long handle_add_overlay_nodes(void *overlay_fdt,
-                                     uint32_t overlay_fdt_size)
+                                     uint32_t overlay_fdt_size,
+                                     struct domain *d)
 {
     int rc;
     unsigned int j;
@@ -787,7 +922,7 @@ static long handle_add_overlay_nodes(void *overlay_fdt,
         goto err;
     }
 
-    rc = add_nodes(tr, nodes_full_path);
+    rc = add_nodes(tr, nodes_full_path, d);
     if ( rc )
     {
         printk(XENLOG_ERR "Adding nodes failed. Removing the partially added nodes.\n");
@@ -809,7 +944,7 @@ static long handle_add_overlay_nodes(void *overlay_fdt,
  */
  remove_node:
     tr->num_nodes = j;
-    rc = remove_nodes(tr);
+    rc = remove_nodes(tr, d);
 
     if ( rc )
     {
@@ -854,6 +989,7 @@ long dt_overlay_sysctl(struct xen_sysctl_dt_overlay *op)
 {
     long ret;
     void *overlay_fdt;
+    struct domain *d = NULL;
 
     if ( op->overlay_op != XEN_SYSCTL_DT_OVERLAY_ADD &&
          op->overlay_op != XEN_SYSCTL_DT_OVERLAY_REMOVE )
@@ -879,12 +1015,25 @@ long dt_overlay_sysctl(struct xen_sysctl_dt_overlay *op)
         return -EFAULT;
     }
 
+    /*
+     * If domain_mapping == false, domain_id can be ignored as we don't need to
+     * map resource to any domain.
+     *
+     * If domain_mapping == true, domain_id, get the target domain for the
+     * mapping.
+     */
+    if ( op->domain_mapping )
+        d = rcu_lock_domain_by_id(op->domain_id);
+
     if ( op->overlay_op == XEN_SYSCTL_DT_OVERLAY_REMOVE )
-        ret = handle_remove_overlay_nodes(overlay_fdt, op->overlay_fdt_size);
+        ret = handle_remove_overlay_nodes(overlay_fdt, op->overlay_fdt_size, d);
     else
-        ret = handle_add_overlay_nodes(overlay_fdt, op->overlay_fdt_size);
+        ret = handle_add_overlay_nodes(overlay_fdt, op->overlay_fdt_size, d);
 
     xfree(overlay_fdt);
+
+    if ( op->domain_mapping )
+        rcu_unlock_domain(d);
 
     return ret;
 }

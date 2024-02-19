@@ -1200,7 +1200,9 @@ struct xen_sysctl_dt_overlay {
 #define XEN_SYSCTL_DT_OVERLAY_ADD                   1
 #define XEN_SYSCTL_DT_OVERLAY_REMOVE                2
     uint8_t overlay_op;                     /* IN: Add or remove. */
-    uint8_t pad[3];                         /* IN: Must be zero. */
+    bool domain_mapping;                    /* IN: True of False. */
+    uint8_t pad[2];                         /* IN: Must be zero. */
+    uint32_t domain_id;
 };
 #endif
 
