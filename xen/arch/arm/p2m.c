@@ -133,7 +133,8 @@ static inline int p2m_remove_mapping(struct domain *d,
         mfn_t mfn_return = p2m_get_entry(p2m, gfn_add(start_gfn, i), &t, NULL,
                                          &cur_order, NULL);
 
-        if ( p2m_is_any_ram(t) &&
+        if ( !mfn_eq(mfn, INVALID_MFN) &&
+             p2m_is_any_ram(t) &&
              (!mfn_valid(mfn) || !mfn_eq(mfn_add(mfn, i), mfn_return)) )
         {
             rc = -EILSEQ;

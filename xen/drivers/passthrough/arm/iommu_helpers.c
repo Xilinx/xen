@@ -63,14 +63,7 @@ int __must_check arm_iommu_unmap_page(struct domain *d, dfn_t dfn,
                                       unsigned int order,
                                       unsigned int *flush_flags)
 {
-    /*
-     * This function should only be used by gnttab code when the domain
-     * is direct mapped (i.e. gfn == mfn == dfn).
-     */
-    if ( !is_domain_direct_mapped(d) )
-        return -EINVAL;
-
-    return guest_physmap_remove_page(d, _gfn(dfn_x(dfn)), _mfn(dfn_x(dfn)),
+    return guest_physmap_remove_page(d, _gfn(dfn_x(dfn)), INVALID_MFN,
                                      order);
 }
 
