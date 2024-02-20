@@ -48,7 +48,7 @@ static int assign_virtual_sbdf(struct pci_dev *pdev)
 
     ASSERT(rw_is_write_locked(&pdev->domain->pci_lock));
 
-    if ( is_hardware_domain(d) )
+    if ( !has_vpci_bridge(d) )
         return 0;
 
     /*
@@ -89,7 +89,7 @@ bool vpci_translate_virtual_device(const struct domain *d, pci_sbdf_t *sbdf)
 {
     const struct pci_dev *pdev;
 
-    ASSERT(!is_hardware_domain(d));
+    ASSERT(has_vpci_bridge(d));
     ASSERT(rw_is_locked(&d->pci_lock));
 
     for_each_pdev ( d, pdev )
@@ -489,7 +489,7 @@ uint32_t vpci_read(pci_sbdf_t sbdf, unsigned int reg, unsigned int size)
     if ( !pdev || !pdev->vpci )
     {
         read_unlock(&d->pci_lock);
-        if ( is_hardware_domain(d) )
+        if ( !has_vpci_bridge(d) )
             return vpci_read_hw(sbdf, reg, size);
         else
             return ~0U;
@@ -615,7 +615,7 @@ void vpci_write(pci_sbdf_t sbdf, unsigned int reg, unsigned int size,
         write_unlock(&d->pci_lock);
 
         if ( !ro_map || !test_bit(sbdf.bdf, ro_map) )
-            if ( is_hardware_domain(d) )
+            if ( !has_vpci_bridge(d) )
                 vpci_write_hw(sbdf, reg, size, data);
 
         return;

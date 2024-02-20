@@ -618,7 +618,7 @@ static int cf_check init_msix(struct pci_dev *pdev)
         return rc;
     }
 
-    if ( !is_hardware_domain(d) )
+    if ( !has_vpci_bridge(d) )
     {
         unsigned long val;
 

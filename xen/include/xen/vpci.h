@@ -342,6 +342,15 @@ static inline bool vpci_translate_virtual_device(const struct domain *d,
 }
 #endif
 
+#ifdef CONFIG_ARM
+#include <asm/pci.h>
+
+#define has_vpci_bridge(d) (!is_hardware_domain(d) || \
+                            (is_hardware_domain(d) && is_pci_scan_enabled()))
+#else
+#define has_vpci_bridge(d) (!is_hardware_domain(d))
+#endif
+
 #endif
 
 /*
