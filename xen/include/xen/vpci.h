@@ -341,6 +341,9 @@ static inline bool vpci_translate_virtual_device(const struct domain *d,
 }
 #endif
 
+#define has_vpci_bridge(d) (!is_hardware_domain(d) || \
+                            (is_hardware_domain(d) && is_pci_scan_enabled()))
+
 #endif
 
 /*
