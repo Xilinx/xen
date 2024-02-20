@@ -2850,7 +2850,7 @@ static int arm_smmu_assign_dev(struct domain *d, u8 devfn,
 	}
 
 #ifdef CONFIG_HAS_PCI
-	if ( dev_is_pci(dev) && !is_hardware_domain(d) )
+	if ( dev_is_pci(dev) )
 	{
 		struct pci_dev *pdev = dev_to_pci(dev);
 
