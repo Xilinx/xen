@@ -716,7 +716,7 @@ int arch_domain_create(struct domain *d,
     ASSERT(config != NULL);
 
 #ifdef CONFIG_IOREQ_SERVER
-    ioreq_domain_init(d);
+    count++;
 #endif
 
     /* p2m_init relies on some value initialized by the IOMMU subsystem */
@@ -786,6 +786,10 @@ int arch_domain_create(struct domain *d,
      */
     if ( is_hardware_domain(d) && (rc = domain_vuart_init(d)) )
         goto fail;
+
+#ifdef CONFIG_IOREQ_SERVER
+    ioreq_domain_init(d);
+#endif
 
     if ( (rc = domain_vpci_init(d)) != 0 )
         goto fail;

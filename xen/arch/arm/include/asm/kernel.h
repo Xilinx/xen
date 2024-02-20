@@ -35,6 +35,13 @@ enum vpl011_type {
     VUART_TYPE_PL011,    /* Expose PL011 */
 };
 
+/* virtio-pci types */
+enum virtio_pci_type {
+    VIRTIO_PCI_NONE,
+    VIRTIO_PCI,
+    VIRTIO_PCI_GRANTS,
+};
+
 struct kernel_info {
 #ifdef CONFIG_ARM_64
     enum domain_type type;
@@ -65,6 +72,8 @@ struct kernel_info {
 
     /* Enable/Disable PV drivers interfaces */
     uint16_t dom0less_feature;
+
+    enum virtio_pci_type virtio_pci;
 
     /* GIC phandle */
     uint32_t phandle_gic;

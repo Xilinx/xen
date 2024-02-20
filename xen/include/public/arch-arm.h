@@ -487,6 +487,10 @@ typedef uint64_t xen_callback_t;
 #define GUEST_VIRTIO_PCI_TOTAL_ECAM_SIZE    xen_mk_ullong(0x00800000)
 #define GUEST_VIRTIO_PCI_HOST_ECAM_SIZE     xen_mk_ullong(0x00100000)
 
+/* virtio-pci root complex control register */
+#define GUEST_VIRTIO_PCI_HOST_CONTROL       xen_mk_ullong(0x37800000)
+#define GUEST_VIRTIO_PCI_HOST_CONTROL_SIZE  xen_mk_ullong(0x00001000)
+
 /* 32 MB is reserved for virtio-pci memory based on calculation
  * 8 bridges x 32 devices x 8 functions x 16 KB per virtio-pci device = 32 MB
  */

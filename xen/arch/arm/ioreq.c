@@ -203,8 +203,38 @@ bool arch_ioreq_server_get_type_addr(const struct domain *d,
     return true;
 }
 
+static int virtio_pci_mmio_read(struct vcpu *v, mmio_info_t *info,
+                                register_t *r, void *p)
+{
+    spin_lock_recursive(&v->domain->ioreq_server.lock);
+
+    if ( domain_has_ioreq_server(v->domain) )
+        *r = 1; /* 1 = ready */
+    else
+        *r = 0; /* 0 = not ready */
+
+    spin_unlock_recursive(&v->domain->ioreq_server.lock);
+
+    return 1;
+}
+
+static int virtio_pci_mmio_write(struct vcpu *v, mmio_info_t *info,
+                                 register_t r, void *p)
+{
+    return 1;
+}
+
+static const struct mmio_handler_ops virtio_pci_mmio_handler = {
+    .read  = virtio_pci_mmio_read,
+    .write = virtio_pci_mmio_write,
+};
+
 void arch_ioreq_domain_init(struct domain *d)
 {
+    register_mmio_handler(d, &virtio_pci_mmio_handler,
+                          GUEST_VIRTIO_PCI_HOST_CONTROL,
+                          GUEST_VIRTIO_PCI_HOST_CONTROL_SIZE, NULL);
+
 }
 
 /*
