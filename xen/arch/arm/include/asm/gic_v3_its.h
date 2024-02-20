@@ -169,7 +169,7 @@ int gicv3_its_make_hwdom_dt_nodes(const struct domain *d,
                                   const struct dt_device_node *gic,
                                   void *fdt);
 
-int gicv3_its_make_emulated_dt_node(void *fdt);
+int gicv3_its_make_emulated_dt_node(const struct domain *d, void *fdt);
 
 /*
  * Map a device on the host by allocating an ITT on the host (ITS).
@@ -274,7 +274,7 @@ static inline int gicv3_its_make_hwdom_dt_nodes(const struct domain *d,
     return 0;
 }
 
-static inline int gicv3_its_make_emulated_dt_node(void *fdt)
+static inline int gicv3_its_make_emulated_dt_node(const struct domain *d, void *fdt)
 {
     return 0;
 }

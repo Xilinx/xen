@@ -302,7 +302,7 @@ static uint32_t its_get_host_devid(struct domain *d, uint32_t guest_devid)
     if ( !pci_passthrough_enabled )
         return guest_devid;
 
-    if ( !is_hardware_domain(d) )
+    if ( has_vpci_bridge(d) )
     {
         pci_sbdf_t __maybe_unused sbdf = {
             .sbdf = guest_devid,
@@ -757,7 +757,7 @@ static int its_handle_mapd(struct virt_its *its, uint64_t *cmdptr)
      * announce pass-through of devices.
      */
 
-    if ( !is_hardware_domain(its->d) )
+    if ( has_vpci_bridge(its->d) )
         host_doorbell_address = its_get_host_doorbell(its, guest_devid);
     else
         host_doorbell_address = its->doorbell_address;
@@ -1567,7 +1567,7 @@ static int vgic_v3_its_init_virtual(struct domain *d, paddr_t guest_addr,
         unsigned int flush_flags;
         int ret;
 
-        if ( is_hardware_domain(d) )
+        if ( !has_vpci_bridge(d) )
         {
             mfn = maddr_to_mfn(its->doorbell_address);
             flush_flags = 0;
@@ -1619,7 +1619,7 @@ unsigned int vgic_v3_its_count(const struct domain *d)
     unsigned int ret = 0;
 
     /* Only Dom0 can use emulated ITSes so far. */
-    if ( !is_hardware_domain(d) )
+    if ( has_vpci_bridge(d) )
         return 0;
 
     list_for_each_entry(hw_its, &host_its_list, entry)
@@ -1631,6 +1631,7 @@ unsigned int vgic_v3_its_count(const struct domain *d)
 /*
  * For a hardware domain, this will iterate over the host ITSes
  * and map one virtual ITS per host ITS at the same address.
+ * If pci-scan is enabled, the hardware domain will not use the real host ITSes.
  */
 int vgic_v3_its_init_domain(struct domain *d)
 {
@@ -1642,7 +1643,7 @@ int vgic_v3_its_init_domain(struct domain *d)
     spin_lock_init(&d->arch.vgic.its_devices_lock);
     d->arch.vgic.its_devices = RB_ROOT;
 
-    if ( is_hardware_domain(d) )
+    if ( !has_vpci_bridge(d) )
     {
         struct host_its *hw_its;
 
@@ -1669,7 +1670,24 @@ int vgic_v3_its_init_domain(struct domain *d)
     }
     else
     {
-        ret = vgic_v3_its_init_virtual(d, GUEST_GICV3_ITS_BASE,
+        paddr_t start = INVALID_PADDR;
+
+        if ( domain_use_host_layout(d) )
+        {
+            struct host_its *hw_its;
+
+            list_for_each_entry(hw_its, &host_its_list, entry)
+            {
+                start = hw_its->addr;
+                break;
+            }
+        }
+        else
+        {
+            start = GUEST_GICV3_ITS_BASE;
+        }
+
+        ret = vgic_v3_its_init_virtual(d, start,
                                        devid_bits, evid_bits);
         if ( ret )
             return ret;

@@ -171,7 +171,7 @@ static int __init make_gicv3_domU_node(struct kernel_info *kinfo)
 
     /* Add ITS node only if domain will use vpci */
     if ( is_pci_scan_enabled() )
-        res = gicv3_its_make_emulated_dt_node(fdt);
+        res = gicv3_its_make_emulated_dt_node(d, fdt);
     else
         res = fdt_property_cell(fdt, "#address-cells", 0);
     if ( res )
@@ -340,7 +340,7 @@ static int __init domU_assign_pci_device(struct domain *d,
         }
     }
 
-    rc = make_vpci_node(kinfo->fdt);
+    rc = make_vpci_node(d, kinfo->fdt);
     if ( rc )
         return rc;
 

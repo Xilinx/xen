@@ -1805,18 +1805,69 @@ int __init make_chosen_node(const struct kernel_info *kinfo)
 }
 
 #ifdef CONFIG_HAS_VPCI_GUEST_SUPPORT
-int __init make_vpci_node(void *fdt)
+struct vpci_param {
+   uint64_t vpci_ecam_base;
+   uint64_t vpci_ecam_size;
+   uint64_t vpci_mem_base;
+   uint64_t vpci_mem_size;
+   uint64_t vpci_mem_prefetch_base;
+   uint64_t vpci_mem_prefetch_size;
+};
+
+static int __init handle_vpci_range(const struct dt_device_node *dev,
+                                    uint32_t flags, uint64_t addr, uint64_t len,
+                                    void *data)
 {
-    const uint64_t vpci_ecam_base = GUEST_VPCI_ECAM_BASE;
-    const uint64_t vpci_ecam_size = GUEST_VPCI_ECAM_SIZE;
+    struct vpci_param *vpci = (struct vpci_param *)data;
+
+    if ( !dt_range_is_memory(flags) )
+        return 0;
+
+    if ( !dt_range_is_prefetchable(flags) )
+    {
+        vpci->vpci_mem_base = addr;
+        vpci->vpci_mem_size = len;
+    }
+    else
+    {
+        vpci->vpci_mem_prefetch_base = addr;
+        vpci->vpci_mem_prefetch_size = len;
+    }
+    return 0;
+}
+
+int __init make_vpci_node(struct domain *d, void *fdt)
+{
     /* reg is sized to be used for all the needed properties below */
     __be32 reg[((GUEST_ROOT_ADDRESS_CELLS * 2) + GUEST_ROOT_SIZE_CELLS + 1)
                * 2];
     __be32 *cells;
     char buf[22]; /* pcie@ + max 16 char address + '\0' */
     int res;
+    struct vpci_param vpci = {
+        .vpci_ecam_base = GUEST_VPCI_ECAM_BASE,
+        .vpci_ecam_size = GUEST_VPCI_ECAM_SIZE,
+        .vpci_mem_base = GUEST_VPCI_MEM_ADDR,
+        .vpci_mem_size = GUEST_VPCI_MEM_SIZE,
+        .vpci_mem_prefetch_base = GUEST_VPCI_PREFETCH_MEM_ADDR,
+        .vpci_mem_prefetch_size = GUEST_VPCI_PREFETCH_MEM_SIZE
+    };
 
-    snprintf(buf, sizeof(buf), "pcie@%"PRIx64, vpci_ecam_base);
+    if ( domain_use_host_layout(d) )
+    {
+        struct pci_host_bridge *bridge;
+
+        bridge = pci_find_host_bridge(0, 0);
+
+        vpci.vpci_ecam_base = bridge->cfg->phys_addr;
+        vpci.vpci_ecam_size = bridge->cfg->size;
+
+        res = dt_for_each_range(bridge->dt_node, handle_vpci_range, &vpci);
+        if ( res < 0 )
+            return -EINVAL;
+    }
+
+    snprintf(buf, sizeof(buf), "pcie@%"PRIx64, vpci.vpci_ecam_base);
     dt_dprintk("Create vpci node\n");
     res = fdt_begin_node(fdt, buf);
     if ( res )
@@ -1833,7 +1884,7 @@ int __init make_vpci_node(void *fdt)
     /* Create reg property */
     cells = &reg[0];
     dt_child_set_range(&cells, GUEST_ROOT_ADDRESS_CELLS, GUEST_ROOT_SIZE_CELLS,
-                       vpci_ecam_base, vpci_ecam_size);
+                       vpci.vpci_ecam_base, vpci.vpci_ecam_size);
 
     res = fdt_property(fdt, "reg", reg,
                        (GUEST_ROOT_ADDRESS_CELLS +
@@ -1867,13 +1918,13 @@ int __init make_vpci_node(void *fdt)
      */
     cells = &reg[0];
     dt_set_cell(&cells, 1, GUEST_VPCI_ADDR_TYPE_MEM);
-    dt_set_cell(&cells, GUEST_ROOT_ADDRESS_CELLS, GUEST_VPCI_MEM_ADDR);
-    dt_set_cell(&cells, GUEST_ROOT_ADDRESS_CELLS, GUEST_VPCI_MEM_ADDR);
-    dt_set_cell(&cells, GUEST_ROOT_SIZE_CELLS, GUEST_VPCI_MEM_SIZE);
+    dt_set_cell(&cells, GUEST_ROOT_ADDRESS_CELLS, vpci.vpci_mem_base);
+    dt_set_cell(&cells, GUEST_ROOT_ADDRESS_CELLS, vpci.vpci_mem_base);
+    dt_set_cell(&cells, GUEST_ROOT_SIZE_CELLS, vpci.vpci_mem_size);
     dt_set_cell(&cells, 1, GUEST_VPCI_ADDR_TYPE_PREFETCH_MEM);
-    dt_set_cell(&cells, GUEST_ROOT_ADDRESS_CELLS, GUEST_VPCI_PREFETCH_MEM_ADDR);
-    dt_set_cell(&cells, GUEST_ROOT_ADDRESS_CELLS, GUEST_VPCI_PREFETCH_MEM_ADDR);
-    dt_set_cell(&cells, GUEST_ROOT_SIZE_CELLS, GUEST_VPCI_PREFETCH_MEM_SIZE);
+    dt_set_cell(&cells, GUEST_ROOT_ADDRESS_CELLS, vpci.vpci_mem_prefetch_base);
+    dt_set_cell(&cells, GUEST_ROOT_ADDRESS_CELLS, vpci.vpci_mem_prefetch_base);
+    dt_set_cell(&cells, GUEST_ROOT_SIZE_CELLS, vpci.vpci_mem_prefetch_size);
     res = fdt_property(fdt, "ranges", reg, sizeof(reg));
     if ( res )
         return res;
@@ -1896,7 +1947,7 @@ int __init make_vpci_node(void *fdt)
     return res;
 }
 #else
-int __init make_vpci_node(void *fdt)
+int __init make_vpci_node(struct domain *d, void *fdt)
 {
     return 0;
 }
@@ -2112,7 +2163,7 @@ static int __init handle_node(struct domain *d, struct kernel_info *kinfo,
 
         if ( hwdom_uses_vpci() )
         {
-            res = make_vpci_node(kinfo->fdt);
+            res = make_vpci_node(d, kinfo->fdt);
             if ( res )
                 return res;
         }
