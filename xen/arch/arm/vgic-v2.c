@@ -674,7 +674,7 @@ static int vgic_v2_domain_init(struct domain *d)
         d->arch.vgic.csize = vgic_v2_hw.csize;
         d->arch.vgic.vbase = vgic_v2_hw.vbase;
     }
-    else if ( is_domain_direct_mapped(d) )
+    else if ( domain_use_host_layout(d) )
     {
         /*
          * For all the direct-mapped domain other than the hardware domain,

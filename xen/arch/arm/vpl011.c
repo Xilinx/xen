@@ -938,7 +938,7 @@ int domain_vpl011_init(struct domain *d,
      * The logic here should stay in sync with the one in
      * create_domUs().
      */
-    if ( is_domain_direct_mapped(d) )
+    if ( domain_use_host_layout(d) )
     {
         const struct vuart_info *uart = serial_vuart_info(SERHND_DTUART);
         int vpl011_irq = serial_irq(SERHND_DTUART);

@@ -282,7 +282,7 @@ int vgic_v2_map_resources(struct domain *d)
         dist->csize = gic_v2_hw_data.csize;
         dist->vbase = gic_v2_hw_data.vbase;
     }
-    else if ( is_domain_direct_mapped(d) )
+    else if ( domain_use_host_layout(d) )
     {
         dist->dbase = gic_v2_hw_data.dbase;
         /*
