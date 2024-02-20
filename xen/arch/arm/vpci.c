@@ -16,7 +16,7 @@ static bool vpci_sbdf_from_gpa(struct domain *d,
 
     ASSERT(sbdf);
 
-    if ( bridge )
+    if ( !has_vpci_bridge(d) )
     {
         sbdf->sbdf = VPCI_ECAM_BDF(gpa - bridge->cfg->phys_addr);
         sbdf->seg = bridge->segment;
@@ -28,7 +28,9 @@ static bool vpci_sbdf_from_gpa(struct domain *d,
          * For the passed through devices we need to map their virtual SBDF
          * to the physical PCI device being passed through.
          */
-        sbdf->sbdf = VPCI_ECAM_BDF(gpa - GUEST_VPCI_ECAM_BASE);
+        paddr_t start = domain_use_host_layout(d) ? bridge->cfg->phys_addr :
+                                                    GUEST_VPCI_ECAM_BASE;
+        sbdf->sbdf = VPCI_ECAM_BDF(gpa - start);
         read_lock(&d->pci_lock);
         translated = vpci_translate_virtual_device(d, sbdf);
         read_unlock(&d->pci_lock);
@@ -46,8 +48,6 @@ static int vpci_mmio_read(struct vcpu *v, mmio_info_t *info,
     const register_t invalid = GENMASK_ULL(access_size - 1, 0);
     /* data is needed to prevent a pointer cast on 32bit */
     unsigned long data;
-
-    ASSERT(!bridge == !is_hardware_domain(v->domain));
 
     if ( !vpci_sbdf_from_gpa(v->domain, bridge, info->gpa, &sbdf) )
     {
@@ -72,8 +72,6 @@ static int vpci_mmio_write(struct vcpu *v, mmio_info_t *info,
 {
     struct pci_host_bridge *bridge = p;
     pci_sbdf_t sbdf;
-
-    ASSERT(!bridge == !is_hardware_domain(v->domain));
 
     if ( !vpci_sbdf_from_gpa(v->domain, bridge, info->gpa, &sbdf) )
         return 1;
@@ -109,7 +107,7 @@ int domain_vpci_init(struct domain *d)
      * physical host bridge.
      * Guests get the virtual platform layout: one virtual host bridge for now.
      */
-    if ( is_hardware_domain(d) )
+    if ( !has_vpci_bridge(d) )
     {
         int ret;
 
@@ -124,8 +122,23 @@ int domain_vpci_init(struct domain *d)
             gdprintk(XENLOG_ERR, "vPCI requested but guest support not enabled\n");
             return -EINVAL;
         }
-        register_mmio_handler(d, &vpci_mmio_handler,
-                              GUEST_VPCI_ECAM_BASE, GUEST_VPCI_ECAM_SIZE, NULL);
+        if ( domain_use_host_layout(d) )
+        {
+            struct pci_host_bridge *bridge;
+
+            /* XXX: assume physical bridge is segment 0 bus 0 */
+            bridge = pci_find_host_bridge(0, 0);
+            if ( !bridge )
+                return 0;
+
+            register_mmio_handler(d, &vpci_mmio_handler,
+                                  bridge->cfg->phys_addr, bridge->cfg->size, bridge);
+        }
+        else
+        {
+            register_mmio_handler(d, &vpci_mmio_handler,
+                                  GUEST_VPCI_ECAM_BASE, GUEST_VPCI_ECAM_SIZE, NULL);
+        }
     }
 
     return 0;
@@ -143,7 +156,7 @@ unsigned int domain_vpci_get_num_mmio_handlers(struct domain *d)
     if ( !has_vpci(d) )
         return 0;
 
-    if ( is_hardware_domain(d) )
+    if ( !has_vpci_bridge(d) )
     {
         int ret = pci_host_iterate_bridges_and_count(d, vpci_get_num_handlers_cb);
 
