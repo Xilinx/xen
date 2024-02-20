@@ -540,7 +540,7 @@ struct pci_dev *pci_get_pdev(const struct domain *d, pci_sbdf_t sbdf)
      * likely going to be faster, whereas for a single segment the difference
      * shouldn't be that large.
      */
-    if ( !d || is_hardware_domain(d) )
+    if ( !d || !has_vpci_bridge(d) )
     {
         const struct pci_seg *pseg = get_pseg(sbdf.seg);
 
