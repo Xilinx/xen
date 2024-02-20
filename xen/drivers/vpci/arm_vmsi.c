@@ -36,7 +36,7 @@ int vpci_msix_arch_print(const struct vpci_msix *msix)
 
 static int vpci_get_msi_base(const struct pci_dev *pdev, uint64_t *msi_base)
 {
-    if ( is_hardware_domain(pdev->domain) )
+    if ( domain_use_host_layout(pdev->domain) )
     {
         struct pci_host_bridge *bridge;
 
