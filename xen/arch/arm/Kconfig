@@ -280,6 +280,7 @@ config PCI_PASSTHROUGH
 	select HAS_PCI
 	select HAS_VPCI
 	select HAS_VPCI_GUEST_SUPPORT
+	select HAS_PCI_MSI
 	default n
 	help
 	  This option enables PCI device passthrough

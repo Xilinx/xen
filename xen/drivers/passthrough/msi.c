@@ -1,7 +1,9 @@
 #include <xen/init.h>
 #include <xen/pci.h>
 #include <xen/msi.h>
+#ifdef CONFIG_X86
 #include <asm/hvm/io.h>
+#endif
 
 int pdev_msix_assign(struct domain *d, struct pci_dev *pdev)
 {
