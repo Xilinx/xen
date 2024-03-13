@@ -2911,7 +2911,7 @@ static int arm_smmu_assign_dev(struct domain *d, u8 devfn,
 			pdev->seg, pdev->bus, PCI_SLOT(devfn),
 			PCI_FUNC(devfn), d->domain_id);
 
-		if ( devfn != pdev->devfn || pdev->domain == d )
+		if ( devfn != pdev->devfn )
 			return 0;
 
 		ASSERT(pcidevs_locked());
