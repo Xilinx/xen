@@ -154,7 +154,7 @@ static const struct pm_access pm_node_access[] = {
     /* Only for the hardware domain.  */
     [ZYNQMP_PM_DEV_AFI] = { .hwdom_access = true },
     [ZYNQMP_PM_DEV_DDR] = { .hwdom_access = true },
-    [ZYNQMP_PM_DEV_IPI_APU] = { .hwdom_access = true },
+    [ZYNQMP_PM_DEV_IPI_APU] = { MM_IPI },
     [ZYNQMP_PM_DEV_PCAP] = { .hwdom_access = true },
     [ZYNQMP_PM_DEV_LPD] = { .hwdom_access = true },
     [ZYNQMP_PM_DEV_PL] = { .hwdom_access = true },
