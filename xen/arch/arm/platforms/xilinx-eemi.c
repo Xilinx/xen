@@ -414,7 +414,10 @@ bool xilinx_eemi(struct cpu_user_regs *regs, const uint32_t fid,
     case IPI_MAILBOX_FID(IPI_MAILBOX_ACK):
     case IPI_MAILBOX_FID(IPI_MAILBOX_ENABLE_IRQ):
     case IPI_MAILBOX_FID(IPI_MAILBOX_DISABLE_IRQ):
-        if ( !is_hardware_domain(current->domain) )
+        if ( !domain_has_node_access(current->domain,
+                                     ZYNQMP_PM_DEV_IPI_APU,
+                                     pm_node_access,
+                                     pm_node_access_size) )
         {
             gprintk(XENLOG_WARNING, "IPI mailbox: fn=%u No access\n", pm_fn);
             ret = XST_PM_NO_ACCESS;
