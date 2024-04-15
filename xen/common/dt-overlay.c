@@ -998,7 +998,7 @@ long dt_overlay_sysctl(struct xen_sysctl_dt_overlay *op)
     if ( op->overlay_fdt_size == 0 || op->overlay_fdt_size > KB(500) )
         return -EINVAL;
 
-    if ( op->pad[0] || op->pad[1] || op->pad[2] )
+    if ( op->pad[0] || op->pad[1] )
         return -EINVAL;
 
     overlay_fdt = xmalloc_bytes(op->overlay_fdt_size);
