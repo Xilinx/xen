@@ -10,8 +10,13 @@ struct arch_msix {
     spinlock_t table_lock;
 };
 
+struct msi_info {
+    pci_sbdf_t sbdf;
+};
+
 struct msi_desc {
     struct list_head list;
+    struct pci_dev *dev;
     int irq;
 };
 
