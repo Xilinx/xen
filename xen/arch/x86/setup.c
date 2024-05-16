@@ -34,6 +34,7 @@
 #include <asm/bzimage.h>
 #include <asm/cpu-policy.h>
 #include <asm/desc.h>
+#include <asm/dom0_build.h>
 #include <asm/domain-builder.h>
 #include <asm/e820.h>
 #include <asm/edd.h>
@@ -1021,7 +1022,10 @@ static struct domain *__init create_dom0(struct boot_info *bi)
 
     init_dom0_cpuid_policy(d);
 
-    if ( alloc_dom0_vcpu0(d) == NULL )
+    if ( bd->create_flags & CDF_hardware )
+        dom0_set_affinity(d);
+
+    if ( !vcpu_create(d, 0) )
         panic("Error creating %pdv0\n", d);
 
     cmdline_size = domain_cmdline_size(bi, bd);

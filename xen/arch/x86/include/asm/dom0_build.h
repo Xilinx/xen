@@ -23,6 +23,11 @@ unsigned long dom0_paging_pages(const struct domain *d,
 void dom0_update_physmap(bool compat, unsigned long pfn,
                          unsigned long mfn, unsigned long vphysmap_s);
 
+void dom0_set_affinity(struct domain *dom0);
+
+/* Forcibly removes the dom0_cpus and dom0_nodes command line overrides */
+void dom0_disable_cmdline_cpu_node_overrides(void);
+
 #endif	/* _DOM0_BUILD_H_ */
 
 /*

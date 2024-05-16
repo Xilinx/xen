@@ -211,6 +211,15 @@ custom_param("dom0_nodes", parse_dom0_nodes);
 cpumask_t __initdata dom0_cpus;
 static nodemask_t __initdata dom0_nodes;
 
+#ifdef CONFIG_DOM0LESS_BOOT
+void __init dom0_disable_cmdline_cpu_node_overrides(void)
+{
+    dom0_nr_pxms = 0;
+    dom0_nodes = node_online_map;
+    dom0_cpus = cpu_online_map;
+}
+#endif /* CONFIG_DOM0LESS_BOOT */
+
 unsigned int __init dom0_max_vcpus(void)
 {
     unsigned int i, max_vcpus, limit;
@@ -255,12 +264,10 @@ unsigned int __init dom0_max_vcpus(void)
     return max_vcpus;
 }
 
-struct vcpu *__init alloc_dom0_vcpu0(struct domain *dom0)
+void __init dom0_set_affinity(struct domain *dom0)
 {
     dom0->node_affinity = dom0_nodes;
     dom0->auto_node_affinity = !dom0_nr_pxms;
-
-    return vcpu_create(dom0, 0);
 }
 
 #ifdef CONFIG_SHADOW_PAGING

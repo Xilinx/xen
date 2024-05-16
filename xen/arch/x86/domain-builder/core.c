@@ -15,6 +15,7 @@
 #include <xen/libfdt/libfdt.h>
 
 #include <asm/bootinfo.h>
+#include <asm/dom0_build.h>
 #include <asm/domain-builder.h>
 #include <asm/pv/shim.h>
 #include <asm/setup.h>
@@ -51,8 +52,8 @@ void __init builder_late_init(struct boot_info *bi)
 
     if ( IS_ENABLED(CONFIG_DOM0LESS_BOOT) && bm->kind == BOOTMOD_FDT)
     {
-        dom0_max_vcpus();
-
+        /* Prevent cmdline from setting CPU/node masks on DTB boots. */
+        dom0_disable_cmdline_cpu_node_overrides();
         dt_parse_domains(bi);
         return;
     }
