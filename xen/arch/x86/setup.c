@@ -1020,7 +1020,7 @@ static struct domain *__init create_dom0(struct boot_info *bi)
     if ( IS_ERR(d) )
         panic("Error creating d%u: %ld\n", bd->domid, PTR_ERR(d));
 
-    init_dom0_cpuid_policy(d);
+    init_dom_cpuid_policy(d);
 
     if ( bd->create_flags & CDF_hardware )
         dom0_set_affinity(d);

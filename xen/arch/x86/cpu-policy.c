@@ -1057,20 +1057,18 @@ void recalculate_cpuid_policy(struct domain *d)
         p->extd.raw[0x19] = EMPTY_LEAF;
 }
 
-/*
- * Adjust the CPU policy for dom0.  Really, this is "the domain Xen builds
- * automatically on boot", and might not have the domid 0 (e.g. pvshim).
- */
-void __init init_dom0_cpuid_policy(struct domain *d)
+void __init init_dom_cpuid_policy(struct domain *d)
 {
     struct cpu_policy *p = d->arch.cpuid;
+    bool hwdom = is_hardware_domain(d);
+    bool ctldom = is_control_domain(d);
 
-    /* Dom0 doesn't migrate relative to Xen.  Give it ITSC if available. */
-    if ( cpu_has_itsc )
+    /* hwdom/ctldom doesn't migrate relative to Xen.  Give it ITSC if available. */
+    if ( cpu_has_itsc && (hwdom || ctldom) )
         p->extd.itsc = true;
 
     /* Apply dom0-cpuid= command line settings, if provided. */
-    if ( dom0_cpuid_cmdline )
+    if ( hwdom && dom0_cpuid_cmdline )
     {
         uint32_t fs[FSCAPINTS];
         unsigned int i;
@@ -1093,7 +1091,7 @@ void __init init_dom0_cpuid_policy(struct domain *d)
      * If the domain is getting unfiltered CPUID, don't let the guest kernel
      * play with CPUID faulting either, as Xen's CPUID path won't cope.
      */
-    if ( !opt_dom0_cpuid_faulting && is_control_domain(d) && is_pv_domain(d) )
+    if ( !opt_dom0_cpuid_faulting && ctldom && is_pv_domain(d) )
         p->platform_info.cpuid_faulting = false;
 
     recalculate_cpuid_policy(d);
