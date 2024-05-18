@@ -50,6 +50,8 @@ void arch_get_domain_info(const struct domain *d,
 #else
 #define CDF_staticmem            0
 #endif
+/* Is this the hardware? */
+#define CDF_hardware             (1U << 3)
 
 #define is_domain_direct_mapped(d) ((d)->cdf & CDF_directmap)
 #define is_domain_using_staticmem(d) ((d)->cdf & CDF_staticmem)
