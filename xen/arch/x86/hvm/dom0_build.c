@@ -1310,55 +1310,11 @@ static int __init pvh_setup_acpi(struct domain *d, paddr_t start_info)
     return 0;
 }
 
-static void __hwdom_init pvh_setup_mmcfg(struct domain *d)
-{
-    unsigned int i;
-    int rc;
-
-    for ( i = 0; i < pci_mmcfg_config_num; i++ )
-    {
-        rc = register_vpci_mmcfg_handler(d, pci_mmcfg_config[i].address,
-                                         pci_mmcfg_config[i].start_bus_number,
-                                         pci_mmcfg_config[i].end_bus_number,
-                                         pci_mmcfg_config[i].pci_segment);
-        if ( rc )
-            printk("Unable to setup MMCFG handler at %#lx for segment %u\n",
-                   pci_mmcfg_config[i].address,
-                   pci_mmcfg_config[i].pci_segment);
-    }
-}
-
 int __init dom0_construct_pvh(const struct boot_domain *bd)
 {
     paddr_t entry, start_info;
     struct domain *d = bd->d;
     int rc;
-
-    printk(XENLOG_INFO "*** Building a PVH Dom%u ***\n", d->domain_id);
-
-    if ( bd->kernel == NULL )
-        panic("Missing kernel boot module for %pd construction\n", d);
-
-    if ( is_hardware_domain(d) )
-    {
-        /*
-         * MMCFG initialization must be performed before setting domain
-         * permissions, as the MCFG areas must not be part of the domain IOMEM
-         * accessible regions.
-         */
-        pvh_setup_mmcfg(d);
-
-        /*
-         * Setup permissions early so that calls to add MMIO regions to the
-         * p2m as part of vPCI setup don't fail due to permission checks.
-         */
-        rc = dom0_setup_permissions(d);
-        if ( rc )
-        {
-            printk("%pd unable to setup permissions: %d\n", d, rc);
-            return rc;
-        }
-    }
 
     /*
      * Craft dom0 physical memory map and set the paging allocation. This must
