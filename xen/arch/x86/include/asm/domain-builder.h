@@ -3,6 +3,7 @@
 #define X86_DOMAIN_BUILDER_H
 
 struct boot_info;
+struct boot_domain;
 
 /*
  * For classic dom0 boots, module 0 is assumed to be a kernel and subsystems
@@ -14,5 +15,7 @@ struct boot_info;
  */
 void builder_init(struct boot_info *bi);
 void builder_late_init(struct boot_info *bi);
+
+int dom_construct_pvh(struct boot_domain *bd);
 
 #endif /* X86_DOMAIN_BUILDER_H */

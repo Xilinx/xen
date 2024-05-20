@@ -16,6 +16,7 @@
 #include <asm/amd.h>
 #include <asm/bootinfo.h>
 #include <asm/dom0_build.h>
+#include <asm/domain-builder.h>
 #include <asm/guest.h>
 #include <asm/hpet.h>
 #include <asm/hvm/emulate.h>
@@ -623,7 +624,7 @@ int __init dom0_setup_permissions(struct domain *d)
     return rc;
 }
 
-int __init construct_dom0(const struct boot_domain *bd)
+int __init construct_dom0(struct boot_domain *bd)
 {
     int rc;
     const struct domain *d = bd->d;
@@ -646,7 +647,7 @@ int __init construct_dom0(const struct boot_domain *bd)
     }
 
     if ( is_hvm_domain(d) )
-        rc = dom0_construct_pvh(bd);
+        rc = dom_construct_pvh(bd);
     else if ( is_pv_domain(d) )
         rc = dom0_construct_pv(bd);
     else
