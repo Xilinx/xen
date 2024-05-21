@@ -14,6 +14,8 @@ unsigned long dom_compute_nr_pages(struct boot_domain *bd,
                                    struct elf_dom_parms *parms);
 int dom0_setup_permissions(struct domain *d);
 
+void dom0_pvh_setup_e820(struct domain *d, unsigned long nr_pages);
+
 int dom0_construct_pv(struct boot_domain *bd);
 int dom0_construct_pvh(struct boot_domain *bd);
 

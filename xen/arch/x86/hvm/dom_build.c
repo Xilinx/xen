@@ -10,13 +10,16 @@
 
 #include <xen/acpi.h>
 #include <xen/init.h>
+#include <xen/softirq.h>
 #include <xen/types.h>
 
 #include <acpi/actables.h>
 
 #include <asm/bootinfo.h>
 #include <asm/dom0_build.h>
+#include <asm/domain-builder.h>
 #include <asm/hvm/io.h>
+#include <asm/paging.h>
 #include <asm/pci.h>
 
 static void __hwdom_init pvh_setup_mmcfg(struct domain *d)
@@ -35,6 +38,20 @@ static void __hwdom_init pvh_setup_mmcfg(struct domain *d)
                    pci_mmcfg_config[i].address,
                    pci_mmcfg_config[i].pci_segment);
     }
+}
+
+static void __init pvh_init_p2m(struct boot_domain *bd)
+{
+    unsigned long nr_pages = dom_compute_nr_pages(bd, NULL);
+    unsigned long paging_pages = dom_paging_pages(bd->d, nr_pages);
+    bool preempted;
+
+    dom0_pvh_setup_e820(bd->d, nr_pages);
+    do {
+        preempted = false;
+        paging_set_allocation(bd->d, paging_pages, &preempted);
+        process_pending_softirqs();
+    } while ( preempted );
 }
 
 int __init dom_construct_pvh(struct boot_domain *bd)
@@ -67,6 +84,14 @@ int __init dom_construct_pvh(struct boot_domain *bd)
             return rc;
         }
     }
+
+    /*
+     * Craft domain physical memory map and set the paging allocation. This
+     * must be done before the iommu initializion, since iommu initialization
+     * code will likely add mappings required by devices to the p2m (ie:
+     * RMRRs).
+     */
+    pvh_init_p2m(bd);
 
     return dom0_construct_pvh(bd);
 }

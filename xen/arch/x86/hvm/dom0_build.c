@@ -322,7 +322,7 @@ static int __init pvh_setup_vmx_realmode_helpers(struct domain *d)
     return 0;
 }
 
-static __init void pvh_setup_e820(struct domain *d, unsigned long nr_pages)
+void __init dom0_pvh_setup_e820(struct domain *d, unsigned long nr_pages)
 {
     struct e820entry *entry, *entry_guest;
     unsigned int i;
@@ -396,20 +396,6 @@ static __init void pvh_setup_e820(struct domain *d, unsigned long nr_pages)
         ASSERT(d->arch.nr_e820 <= e820.nr_map + 1);
     }
     ASSERT(cur_pages == nr_pages);
-}
-
-static void __init pvh_init_p2m(struct boot_domain *bd)
-{
-    unsigned long nr_pages = dom_compute_nr_pages(bd, NULL);
-    unsigned long paging_pages = dom_paging_pages(bd->d, nr_pages);
-    bool preempted;
-
-    pvh_setup_e820(bd->d, nr_pages);
-    do {
-        preempted = false;
-        paging_set_allocation(bd->d, paging_pages, &preempted);
-        process_pending_softirqs();
-    } while ( preempted );
 }
 
 static int __init pvh_populate_p2m(struct domain *d)
@@ -1315,13 +1301,6 @@ int __init dom0_construct_pvh(struct boot_domain *bd)
     paddr_t entry, start_info;
     struct domain *d = bd->d;
     int rc;
-
-    /*
-     * Craft dom0 physical memory map and set the paging allocation. This must
-     * be done before the iommu initializion, since iommu initialization code
-     * will likely add mappings required by devices to the p2m (ie: RMRRs).
-     */
-    pvh_init_p2m(bd);
 
     iommu_hwdom_init(d);
 
