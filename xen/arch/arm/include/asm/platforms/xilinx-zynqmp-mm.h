@@ -8,7 +8,7 @@
 
 /* Selected set of memory-map definitions:  */
 #define MM_IOU_S	0xff000000
-#define MM_IPI	0xff300000
+#define MM_IPI	0xff990600
 #define MM_LPD_SLCR	0xff410000
 #define MM_LPD_SLCR_SECURE	0xff4b0000
 #define MM_CRL_APB	0xff5e0000
