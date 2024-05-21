@@ -1123,7 +1123,7 @@ static int __init pvh_setup_acpi_xsdt(struct domain *d, paddr_t madt_addr,
     return rc;
 }
 
-static int __init pvh_setup_acpi(struct domain *d, paddr_t start_info)
+int __init hwdom_pvh_setup_acpi(struct domain *d, paddr_t start_info)
 {
     unsigned long pfn, nr_pages;
     paddr_t madt_paddr, xsdt_paddr, rsdp_paddr;
@@ -1281,7 +1281,7 @@ int __init dom0_construct_pvh(struct boot_domain *bd)
         return rc;
     }
 
-    rc = pvh_setup_acpi(d, start_info);
+    rc = hwdom_pvh_setup_acpi(bd->d, start_info);
     if ( rc )
     {
         printk("Failed to setup Dom%u ACPI tables: %d\n", d->domain_id, rc);
