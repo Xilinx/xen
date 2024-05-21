@@ -2,6 +2,8 @@
 #ifndef X86_DOMAIN_BUILDER_H
 #define X86_DOMAIN_BUILDER_H
 
+#include <xen/types.h>
+
 struct boot_info;
 struct boot_domain;
 struct domain;
@@ -16,6 +18,8 @@ struct domain;
  */
 void builder_init(struct boot_info *bi);
 void builder_late_init(struct boot_info *bi);
+
+int pvh_setup_cpus(struct domain *d, paddr_t entry, paddr_t start_info);
 
 void alloc_dom_vcpus(struct domain *d);
 

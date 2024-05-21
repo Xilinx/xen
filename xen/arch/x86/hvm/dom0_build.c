@@ -807,49 +807,6 @@ static int __init pvh_load_kernel(
     return 0;
 }
 
-static int __init pvh_setup_cpus(struct domain *d, paddr_t entry,
-                                 paddr_t start_info)
-{
-    struct vcpu *v = d->vcpu[0];
-    int rc;
-    /*
-     * This sets the vCPU state according to the state described in
-     * docs/misc/pvh.pandoc.
-     */
-    vcpu_hvm_context_t cpu_ctx = {
-        .mode = VCPU_HVM_MODE_32B,
-        .cpu_regs.x86_32.ebx = start_info,
-        .cpu_regs.x86_32.eip = entry,
-        .cpu_regs.x86_32.cr0 = X86_CR0_PE | X86_CR0_ET,
-        .cpu_regs.x86_32.cs_limit = ~0u,
-        .cpu_regs.x86_32.ds_limit = ~0u,
-        .cpu_regs.x86_32.es_limit = ~0u,
-        .cpu_regs.x86_32.ss_limit = ~0u,
-        .cpu_regs.x86_32.tr_limit = 0x67,
-        .cpu_regs.x86_32.cs_ar = 0xc9b,
-        .cpu_regs.x86_32.ds_ar = 0xc93,
-        .cpu_regs.x86_32.es_ar = 0xc93,
-        .cpu_regs.x86_32.ss_ar = 0xc93,
-        .cpu_regs.x86_32.tr_ar = 0x8b,
-    };
-
-    alloc_dom_vcpus(d);
-
-    rc = arch_set_info_hvm_guest(v, &cpu_ctx);
-    if ( rc )
-    {
-        printk("Unable to setup Dom%u BSP context: %d\n", d->domain_id, rc);
-        return rc;
-    }
-
-    update_domain_wallclock_time(d);
-
-    v->is_initialised = 1;
-    clear_bit(_VPF_down, &v->pause_flags);
-
-    return 0;
-}
-
 static int __init cf_check acpi_count_intr_ovr(
     struct acpi_subtable_header *header, const unsigned long end)
 {
