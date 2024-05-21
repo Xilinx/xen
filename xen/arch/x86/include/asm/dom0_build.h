@@ -20,7 +20,6 @@ int hwdom_pvh_setup_acpi(struct domain *d, paddr_t start_info);
 int dom0_pvh_populate_p2m(struct domain *d);
 
 int dom0_construct_pv(struct boot_domain *bd);
-int dom0_construct_pvh(struct boot_domain *bd);
 
 unsigned long dom_paging_pages(const struct domain *d,
                                unsigned long nr_pages);
