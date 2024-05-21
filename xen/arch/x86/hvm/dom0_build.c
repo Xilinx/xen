@@ -88,9 +88,8 @@ static int __init modify_identity_mmio(struct domain *d, unsigned long pfn,
 }
 
 /* Populate a HVM memory range using the biggest possible order. */
-static int __init pvh_populate_memory_range(struct domain *d,
-                                            unsigned long start,
-                                            unsigned long nr_pages)
+int __init pvh_populate_memory_range(struct domain *d, unsigned long start,
+                                     unsigned long nr_pages)
 {
     static const struct {
         unsigned long align;
@@ -399,7 +398,7 @@ void __init dom0_pvh_setup_e820(struct domain *d, unsigned long nr_pages)
     ASSERT(cur_pages == nr_pages);
 }
 
-static int __init pvh_populate_p2m(struct domain *d)
+int __init dom0_pvh_populate_p2m(struct domain *d)
 {
     struct vcpu *v = d->vcpu[0];
     unsigned int i;
@@ -1259,13 +1258,6 @@ int __init dom0_construct_pvh(struct boot_domain *bd)
     paddr_t entry, start_info;
     struct domain *d = bd->d;
     int rc;
-
-    rc = pvh_populate_p2m(d);
-    if ( rc )
-    {
-        printk("Failed to setup Dom%u physical memory map\n", d->domain_id);
-        return rc;
-    }
 
     rc = pvh_load_kernel(bd, &entry, &start_info);
     if ( rc )

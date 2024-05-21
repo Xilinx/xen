@@ -24,6 +24,8 @@
 #include <asm/dom0_build.h>
 #include <asm/domain-builder.h>
 #include <asm/hvm/io.h>
+#include <asm/hvm/support.h>
+#include <asm/p2m.h>
 #include <asm/paging.h>
 #include <asm/pci.h>
 
@@ -250,6 +252,38 @@ int __init pvh_setup_cpus(struct domain *d, paddr_t entry, paddr_t start_info)
     return 0;
 }
 
+static int __init hvm_populate_p2m(struct domain *d)
+{
+    unsigned int i;
+
+    /* Populate memory map. */
+    for ( i = 0; i < d->arch.nr_e820; i++ )
+    {
+        int rc;
+        unsigned long addr, size;
+
+        /*
+         * Leave any any reserved region that's not the 0xA0000-1M (populated
+         * for OVMF) or the special pages as p2m holes
+         */
+        if ( d->arch.e820[i].type != E820_RAM &&
+             d->arch.e820[i].type != E820_ACPI &&
+             d->arch.e820[i].addr != 0xA0000 &&
+             PFN_DOWN(d->arch.e820[i].addr) != START_SPECIAL_REGION )
+                continue;
+
+        addr = PFN_DOWN(d->arch.e820[i].addr);
+        size = PFN_DOWN(d->arch.e820[i].size);
+
+        rc = pvh_populate_memory_range(d, addr, size);
+        if ( rc )
+            return rc;
+
+    }
+
+    return 0;
+}
+
 int __init dom_construct_pvh(struct boot_domain *bd)
 {
     int rc;
@@ -291,6 +325,16 @@ int __init dom_construct_pvh(struct boot_domain *bd)
 
     if ( is_hardware_domain(bd->d) )
         iommu_hwdom_init(bd->d);
+
+    if ( is_hardware_domain(bd->d) )
+        rc = dom0_pvh_populate_p2m(bd->d);
+    else
+        rc = hvm_populate_p2m(bd->d);
+    if ( rc )
+    {
+        printk("Failed to setup HVM/PVH %pd physical memory map\n", bd->d);
+        return rc;
+    }
 
     return dom0_construct_pvh(bd);
 }
