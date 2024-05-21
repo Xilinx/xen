@@ -9,6 +9,7 @@
  */
 
 #include <xen/acpi.h>
+#include <xen/config.h>
 #include <xen/iommu.h>
 #include <xen/init.h>
 #include <xen/softirq.h>
@@ -16,6 +17,7 @@
 
 #include <acpi/actables.h>
 
+#include <public/hvm/e820.h>
 #include <public/hvm/hvm_vcpu.h>
 
 #include <asm/bootinfo.h>
@@ -43,13 +45,162 @@ static void __hwdom_init pvh_setup_mmcfg(struct domain *d)
     }
 }
 
+static unsigned long __init hvm_size_acpi_madt(struct domain *d)
+{
+    unsigned long size = sizeof(struct acpi_table_madt);
+
+    size += sizeof(struct acpi_madt_local_apic) * d->max_vcpus;
+
+    return size;
+}
+
+static unsigned long __init hvm_size_acpi_xsdt(struct domain *d)
+{
+    unsigned long size = sizeof(struct acpi_table_xsdt);
+    /*
+     * Start count at 0 because struct acpi_table_xsdt has one array
+     * slot already.
+     */
+    unsigned int extra_tables = 0; /* MADT */
+
+    /*
+     * No need to add or subtract anything because struct acpi_table_xsdt
+     * includes one array slot already.
+     */
+    size += extra_tables * sizeof(uint64_t);
+
+    return size;
+}
+
+static unsigned long __init hvm_size_acpi_region(struct domain *d)
+{
+    unsigned long size = sizeof(struct acpi_table_rsdp);
+
+    size += hvm_size_acpi_xsdt(d);
+    size += hvm_size_acpi_madt(d);
+
+    return ROUNDUP(size, PAGE_SIZE);
+}
+
+/* From xenguest lib */
+#define END_SPECIAL_REGION   0xff000U
+#define NR_SPECIAL_PAGES     8
+#define START_SPECIAL_REGION (END_SPECIAL_REGION - NR_SPECIAL_PAGES)
+
+#define SPECIALPAGE_PAGING   0
+#define SPECIALPAGE_ACCESS   1
+#define SPECIALPAGE_SHARING  2
+#define SPECIALPAGE_BUFIOREQ 3
+#define SPECIALPAGE_XENSTORE 4
+#define SPECIALPAGE_IOREQ    5
+#define SPECIALPAGE_IDENT_PT 6
+#define SPECIALPAGE_CONSOLE  7
+#define special_pfn(x)       (START_SPECIAL_REGION + (x))
+
+/*
+ * Allocation scheme, derived from xenlight/xenguest:
+ *
+ *                                  |  <4G MMIO Hole  |
+ * [ Low Mem ][ RDM Mem ][ >1M Mem ][ ACPI ][ Special ][ High Mem ]
+ *
+ */
+static void __init hvm_setup_e820(struct domain *d, unsigned long nr_pages)
+{
+    const uint32_t lowmem_reserved_base = 0xA0000;
+    unsigned long low_pages, ext_pages, mmio_pages, acpi_pages;
+    unsigned long page_count = 0, high_pages = 0;
+    unsigned long max_ext_pages = PFN_DOWN(HVM_BELOW_4G_MMIO_START - MB(1));
+    unsigned nr = 0, e820_entries = 5;
+
+    /* low pages: below 1MB */
+    low_pages = lowmem_reserved_base >> PAGE_SHIFT;
+    if ( low_pages > nr_pages )
+        panic("Insufficient memory for HVM/PVH domain (%pd)\n", d);
+
+    acpi_pages = hvm_size_acpi_region(d) >> PAGE_SHIFT;
+    mmio_pages = acpi_pages + NR_SPECIAL_PAGES;
+
+    /* ext pages: from 1MB to mmio hole */
+    ext_pages = nr_pages - (PFN_DOWN(MB(1)) + mmio_pages);
+    if ( ext_pages > max_ext_pages )
+        ext_pages = max_ext_pages;
+
+    /* high pages: above 4GB */
+    if ( nr_pages > (PFN_DOWN(MB(1)) + mmio_pages + ext_pages) )
+        high_pages = nr_pages - (PFN_DOWN(MB(1)) + mmio_pages + ext_pages);
+
+    /* If we should have a highmem range, add one more e820 entry */
+    if ( high_pages )
+        e820_entries++;
+
+    ASSERT(e820_entries < E820MAX);
+
+    d->arch.e820 = xzalloc_array(struct e820entry, e820_entries);
+    if ( !d->arch.e820 )
+        panic("Unable to allocate memory for boot domain e820 map\n");
+
+    /* usable: Low memory */
+    d->arch.e820[nr].addr = 0;
+    d->arch.e820[nr].size = lowmem_reserved_base;
+    d->arch.e820[nr].type = E820_RAM;
+    page_count += d->arch.e820[nr].size >> PAGE_SHIFT;
+    nr++;
+
+    /* reserved: lowmem reserved device memory */
+    d->arch.e820[nr].addr = lowmem_reserved_base;
+    d->arch.e820[nr].size = MB(1) - lowmem_reserved_base;
+    d->arch.e820[nr].type = E820_RESERVED;
+    page_count += d->arch.e820[nr].size >> PAGE_SHIFT; /* populated for OVMF */
+    nr++;
+
+    /* usable: extended memory from 1MB */
+    d->arch.e820[nr].addr = MB(1);
+    d->arch.e820[nr].size = ext_pages << PAGE_SHIFT;
+    d->arch.e820[nr].type = E820_RAM;
+    page_count += d->arch.e820[nr].size >> PAGE_SHIFT;
+    nr++;
+
+    /* reserved: ACPI entry, ACPI_INFO_PHYSICAL_ADDRESS */
+    d->arch.e820[nr].addr = 0xFC000000U;
+    d->arch.e820[nr].size = acpi_pages << PAGE_SHIFT;
+    d->arch.e820[nr].type = E820_ACPI;
+    page_count += d->arch.e820[nr].size >> PAGE_SHIFT;
+    nr++;
+
+    /* reserved: HVM special pages, X86_HVM_END_SPECIAL_REGION */
+    d->arch.e820[nr].addr = START_SPECIAL_REGION << PAGE_SHIFT;
+    d->arch.e820[nr].size = NR_SPECIAL_PAGES << PAGE_SHIFT;
+    d->arch.e820[nr].type = E820_RESERVED;
+    page_count += d->arch.e820[nr].size >> PAGE_SHIFT;
+    nr++;
+
+    /* usable: highmem */
+    if ( high_pages )
+    {
+        d->arch.e820[nr].addr = GB(4);
+        d->arch.e820[nr].size = high_pages << PAGE_SHIFT;
+        d->arch.e820[nr].type = E820_RAM;
+        page_count += d->arch.e820[nr].size >> PAGE_SHIFT;
+        nr++;
+    }
+
+    d->arch.nr_e820 = nr;
+
+    ASSERT(nr == e820_entries);
+    ASSERT(nr_pages == page_count);
+}
+
 static void __init pvh_init_p2m(struct boot_domain *bd)
 {
     unsigned long nr_pages = dom_compute_nr_pages(bd, NULL);
     unsigned long paging_pages = dom_paging_pages(bd->d, nr_pages);
     bool preempted;
 
-    dom0_pvh_setup_e820(bd->d, nr_pages);
+    if ( bd->create_flags & CDF_hardware )
+        dom0_pvh_setup_e820(bd->d, nr_pages);
+    else
+        hvm_setup_e820(bd->d, nr_pages);
+
     do {
         preempted = false;
         paging_set_allocation(bd->d, paging_pages, &preempted);
