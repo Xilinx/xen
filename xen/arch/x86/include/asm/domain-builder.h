@@ -4,6 +4,7 @@
 
 struct boot_info;
 struct boot_domain;
+struct domain;
 
 /*
  * For classic dom0 boots, module 0 is assumed to be a kernel and subsystems
@@ -15,6 +16,8 @@ struct boot_domain;
  */
 void builder_init(struct boot_info *bi);
 void builder_late_init(struct boot_info *bi);
+
+void alloc_dom_vcpus(struct domain *d);
 
 int dom_construct_pvh(struct boot_domain *bd);
 

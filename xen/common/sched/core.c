@@ -3482,18 +3482,6 @@ void wait(void)
     schedule();
 }
 
-#ifdef CONFIG_X86
-void __init sched_setup_dom0_vcpus(struct domain *d)
-{
-    unsigned int i;
-
-    for ( i = 1; i < d->max_vcpus; i++ )
-        vcpu_create(d, i);
-
-    domain_update_node_affinity(d);
-}
-#endif
-
 #ifdef CONFIG_COMPAT
 #include "compat.c"
 #endif

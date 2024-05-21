@@ -15,6 +15,7 @@
 #include <xen/vga.h>
 
 #include <asm/bootinfo.h>
+#include <asm/domain-builder.h>
 #include <asm/bzimage.h>
 #include <asm/dom0_build.h>
 #include <asm/guest.h>
@@ -826,7 +827,7 @@ static int __init dom0_construct(struct boot_domain *bd)
 
     printk("Dom%u has maximum %u VCPUs\n", d->domain_id, d->max_vcpus);
 
-    sched_setup_dom0_vcpus(d);
+    alloc_dom_vcpus(d);
 
     d->arch.paging.mode = 0;
 

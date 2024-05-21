@@ -19,6 +19,7 @@
 #include <asm/bootinfo.h>
 #include <asm/bzimage.h>
 #include <asm/dom0_build.h>
+#include <asm/domain-builder.h>
 #include <asm/hvm/support.h>
 #include <asm/io_apic.h>
 #include <asm/p2m.h>
@@ -832,7 +833,7 @@ static int __init pvh_setup_cpus(struct domain *d, paddr_t entry,
         .cpu_regs.x86_32.tr_ar = 0x8b,
     };
 
-    sched_setup_dom0_vcpus(d);
+    alloc_dom_vcpus(d);
 
     rc = arch_set_info_hvm_guest(v, &cpu_ctx);
     if ( rc )
