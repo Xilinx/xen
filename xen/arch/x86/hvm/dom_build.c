@@ -9,6 +9,7 @@
  */
 
 #include <xen/acpi.h>
+#include <xen/iommu.h>
 #include <xen/init.h>
 #include <xen/softirq.h>
 #include <xen/types.h>
@@ -92,6 +93,9 @@ int __init dom_construct_pvh(struct boot_domain *bd)
      * RMRRs).
      */
     pvh_init_p2m(bd);
+
+    if ( is_hardware_domain(bd->d) )
+        iommu_hwdom_init(bd->d);
 
     return dom0_construct_pvh(bd);
 }

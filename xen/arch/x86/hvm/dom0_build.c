@@ -1302,8 +1302,6 @@ int __init dom0_construct_pvh(struct boot_domain *bd)
     struct domain *d = bd->d;
     int rc;
 
-    iommu_hwdom_init(d);
-
     rc = pvh_populate_p2m(d);
     if ( rc )
     {
