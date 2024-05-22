@@ -19,6 +19,9 @@ struct domain;
 void builder_init(struct boot_info *bi);
 void builder_late_init(struct boot_info *bi);
 
+struct domain *arch_create_dom(struct boot_info *bi,
+                               struct boot_domain *bd);
+
 int pvh_setup_cpus(struct domain *d, paddr_t entry, paddr_t start_info);
 int pvh_populate_memory_range(struct domain *d, unsigned long start,
                               unsigned long nr_pages);
