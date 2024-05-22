@@ -332,6 +332,180 @@ static paddr_t __init find_memory(
     return INVALID_PADDR;
 }
 
+static int __init hvm_setup_acpi_madt(
+    struct domain *d, struct acpi_table_madt *madt)
+{
+    struct acpi_table_header *table;
+    struct acpi_madt_local_apic *lapic;
+    acpi_status status;
+    unsigned long size = hvm_size_acpi_madt(d);
+
+    /* Copy the native MADT table header. */
+    status = acpi_get_table(ACPI_SIG_MADT, 0, &table);
+    if ( !ACPI_SUCCESS(status) )
+    {
+        printk("Failed to get MADT ACPI table, aborting.\n");
+        return -EINVAL;
+    }
+    madt->header = *table;
+    madt->address = APIC_DEFAULT_PHYS_BASE;
+    /*
+     * NB: this is currently set to 4, which is the revision in the ACPI
+     * spec 6.1. Sadly ACPICA doesn't provide revision numbers for the
+     * tables described in the headers.
+     */
+    madt->header.revision = min_t(unsigned char, table->revision, 4);
+
+    lapic = (void *)(madt + 1);
+
+    for ( unsigned int i = 0; i < d->max_vcpus; i++ )
+    {
+        lapic->header.type = ACPI_MADT_TYPE_LOCAL_APIC;
+        lapic->header.length = sizeof(*lapic);
+        lapic->id = i * 2;
+        lapic->processor_id = i;
+        lapic->lapic_flags = ACPI_MADT_ENABLED;
+
+        lapic++;
+    }
+
+    madt->header.length = size;
+    /*
+     * Calling acpi_tb_checksum here is a layering violation, but
+     * introducing a wrapper for such simple usage seems overkill.
+     */
+    madt->header.checksum -= acpi_tb_checksum(ACPI_CAST_PTR(u8, madt), size);
+
+    return 0;
+}
+
+static int __init hvm_setup_acpi_xsdt(
+    struct domain *d, struct acpi_table_xsdt *xsdt, paddr_t madt_addr)
+{
+    struct acpi_table_header *table;
+    struct acpi_table_rsdp *rsdp;
+    unsigned long size = hvm_size_acpi_xsdt(d);
+    paddr_t xsdt_paddr;
+
+    /* Copy the native XSDT table header. */
+    rsdp = acpi_os_map_memory(acpi_os_get_root_pointer(), sizeof(*rsdp));
+    if ( !rsdp )
+    {
+        printk("Unable to map RSDP\n");
+        return -EINVAL;
+    }
+    xsdt_paddr = rsdp->xsdt_physical_address;
+    acpi_os_unmap_memory(rsdp, sizeof(*rsdp));
+    table = acpi_os_map_memory(xsdt_paddr, sizeof(*table));
+    if ( !table )
+    {
+        printk("Unable to map XSDT\n");
+        return -EINVAL;
+    }
+    xsdt->header = *table;
+    acpi_os_unmap_memory(table, sizeof(*table));
+
+    /* Add the custom MADT. */
+    xsdt->table_offset_entry[0] = madt_addr;
+
+    xsdt->header.revision = 1;
+    xsdt->header.length = size;
+    /*
+     * Calling acpi_tb_checksum here is a layering violation, but
+     * introducing a wrapper for such simple usage seems overkill.
+     */
+    xsdt->header.checksum -= acpi_tb_checksum(ACPI_CAST_PTR(u8, xsdt), size);
+
+    return 0;
+}
+
+static paddr_t __init hvm_find_acpi_region(struct domain *d, unsigned long size)
+{
+    for ( unsigned int i = 0; i < d->arch.nr_e820; i++ )
+    {
+        if ( d->arch.e820[i].type != E820_ACPI )
+            continue;
+
+        BUG_ON(d->arch.e820[i].size != size);
+
+        return d->arch.e820[i].addr;
+    }
+
+    panic("acpi region missing in e820 for %pd\n", d);
+}
+
+static int __init hvm_setup_acpi(struct domain *d, paddr_t start_info)
+{
+    paddr_t rsdp_paddr, xsdt_paddr, madt_paddr;
+    struct acpi_table_rsdp *rsdp;
+    unsigned long size = hvm_size_acpi_region(d);
+    void *table;
+    int rc;
+
+    table = xzalloc_bytes(size);
+    if ( !table )
+        return -ENOMEM;
+
+    /* RSDP */
+    rsdp = table;
+    rsdp_paddr = hvm_find_acpi_region(d, size);
+    xsdt_paddr = rsdp_paddr + sizeof(struct acpi_table_rsdp);
+
+    *rsdp = (struct acpi_table_rsdp){
+        .signature = ACPI_SIG_RSDP,
+        .revision = 2,
+        .length = sizeof(struct acpi_table_rsdp),
+        .oem_id = "XenIn\0", /* Xen-Internal */
+        .xsdt_physical_address = xsdt_paddr,
+    };
+
+    rsdp->checksum -= acpi_tb_checksum(ACPI_CAST_PTR(u8, rsdp),
+                                       ACPI_RSDP_REV0_SIZE);
+    rsdp->extended_checksum -= acpi_tb_checksum(ACPI_CAST_PTR(u8, rsdp),
+                                                sizeof(*rsdp));
+
+    /* XSDT */
+    table += sizeof(struct acpi_table_rsdp);
+    madt_paddr = xsdt_paddr + hvm_size_acpi_xsdt(d);
+
+    rc = hvm_setup_acpi_xsdt(d, table, madt_paddr);
+    if ( rc )
+    {
+        printk("Unable to construct XSDT\n");
+        goto out;
+    }
+
+    /* MADT */
+    table += hvm_size_acpi_xsdt(d);
+    rc = hvm_setup_acpi_madt(d, table);
+    if ( rc )
+    {
+        printk("Unable to construct MADT\n");
+        goto out;
+    }
+
+    /* Copy ACPI region into guest memory. */
+    rc = hvm_copy_to_guest_phys(rsdp_paddr, rsdp, size, d->vcpu[0]);
+    if ( rc != HVMTRANS_okay )
+    {
+        printk("Unable to copy RSDP into guest memory (rc=%d)\n", rc);
+        goto out;
+    }
+
+    /* Copy RSDP address to start_info. */
+    rc = hvm_copy_to_guest_phys(
+        start_info + offsetof(struct hvm_start_info, rsdp_paddr), &rsdp_paddr,
+        sizeof(((struct hvm_start_info *) NULL)->rsdp_paddr), d->vcpu[0]);
+    if ( rc != HVMTRANS_okay )
+        printk("Unable to copy RSDP address to start info (rc=%d)\n", rc);
+
+ out:
+    if ( rsdp )
+        xfree(rsdp);
+
+    return rc;
+}
+
 static bool __init check_load_address(
     const struct domain *d, const struct elf_binary *elf)
 {
@@ -682,7 +856,11 @@ int __init dom_construct_pvh(struct boot_domain *bd)
         return rc;
     }
 
-    rc = hwdom_pvh_setup_acpi(bd->d, start_info);
+    if ( is_hardware_domain(bd->d) )
+        rc = hwdom_pvh_setup_acpi(bd->d, start_info);
+    else
+        rc = hvm_setup_acpi(bd->d, start_info);
+
     if ( rc )
     {
         printk("Failed to setup Dom%u ACPI tables: %d\n", d->domain_id, rc);
