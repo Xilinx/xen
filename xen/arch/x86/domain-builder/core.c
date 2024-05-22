@@ -112,6 +112,22 @@ void __init builder_late_init(struct boot_info *bi)
     }
 }
 
+unsigned int __init builder_create_domains(struct boot_info *bi)
+{
+    unsigned int build_count = 0;
+    struct boot_domain *bd = &bi->domains[0];
+
+    if ( bd->kernel == NULL &&
+         bd->create_flags & CDF_hardware )
+        panic("%s: hw domain missing kernel\n", __func__);
+
+    arch_create_dom(bi, bd);
+    if ( bd->d )
+        build_count++;
+
+    return build_count;
+}
+
 /*
  * Local variables:
  * mode: C

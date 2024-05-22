@@ -188,7 +188,7 @@ static int8_t __initdata opt_smep = -1;
  * Initial domain place holder. Needs to be global so it can be created in
  * __start_xen and unpaused in init_done.
  */
-static struct domain *__initdata dom0;
+static struct boot_domain *__initdata hwdom;
 
 static int __init cf_check parse_smep_param(const char *s)
 {
@@ -810,7 +810,7 @@ static void noreturn init_done(void)
     if ( IS_ENABLED(CONFIG_SELF_TESTS) && cpu_has_xen_shstk )
         stub_selftest();
 
-    domain_unpause_by_systemcontroller(dom0);
+    domain_unpause_by_systemcontroller(hwdom->d);
 
     /* MUST be done prior to removing .init data. */
     unregister_init_virtual_region();
@@ -2009,9 +2009,15 @@ void asmlinkage __init noreturn __start_xen(void)
      * We're going to setup domain0 using the module(s) that we stashed safely
      * above our heap. The second module, if present, is an initrd ramdisk.
      */
-    dom0 = arch_create_dom(bi, &bi->domains[0]);
-    if ( !dom0 )
-        panic("Could not set up DOM0 guest OS\n");
+    ret = builder_create_domains(bi);
+    if ( ret <= 0 )
+        panic("Could not set up boot-time domains\n");
+    else
+        printk(XENLOG_INFO "Constructed %d boot-time domains\n", ret);
+
+    hwdom = first_boot_domain(bi, 0, CDF_hardware);
+    if ( !hwdom )
+        panic("missing hwdom");
 
     heap_init_late();
 
@@ -2024,7 +2030,7 @@ void asmlinkage __init noreturn __start_xen(void)
 
     dmi_end_boot();
 
-    setup_io_bitmap(dom0);
+    setup_io_bitmap(hwdom->d);
 
     if ( bsp_delay_spec_ctrl )
     {

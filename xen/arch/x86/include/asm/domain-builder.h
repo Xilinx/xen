@@ -18,6 +18,7 @@ struct domain;
  */
 void builder_init(struct boot_info *bi);
 void builder_late_init(struct boot_info *bi);
+unsigned int builder_create_domains(struct boot_info *bi);
 
 struct domain *arch_create_dom(struct boot_info *bi,
                                struct boot_domain *bd);

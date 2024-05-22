@@ -78,6 +78,21 @@ static inline unsigned int __init next_boot_module_index(
           (i) <= (b)->nr_modules;                       \
           (i) = next_boot_module_index(b, t, i + 1) )
 
+static inline struct boot_domain *first_boot_domain(
+    struct boot_info *bi, unsigned int options, unsigned int cdf)
+{
+    for ( unsigned int i = 0; i < bi->nr_domains; i++ )
+    {
+        struct boot_domain *bd = &bi->domains[i];
+
+        if ( (options && (bd->create_cfg.flags & options)) ||
+             (cdf     && (bd->create_flags     & cdf)) )
+            return bd;
+    }
+
+    return NULL;
+}
+
 #endif /* X86_BOOTINFO_H */
 
 /*
