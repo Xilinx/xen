@@ -746,9 +746,6 @@ static int __init pvh_load_kernel(
         last_addr = ROUNDUP(last_addr, PAGE_SIZE);
     }
 
-    /* Free temporary buffers. */
-    free_boot_modules();
-
     rc = hvm_copy_to_guest_phys(last_addr, bd->cmdline, cmdline_len, v);
     if ( rc )
     {

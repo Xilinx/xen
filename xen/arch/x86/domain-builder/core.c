@@ -125,6 +125,9 @@ unsigned int __init builder_create_domains(struct boot_info *bi)
     if ( bd->d )
         build_count++;
 
+    /* Free temporary buffers. */
+    free_boot_modules();
+
     return build_count;
 }
 

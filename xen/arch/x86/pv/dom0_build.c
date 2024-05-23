@@ -865,9 +865,6 @@ static int __init dom0_construct(struct boot_domain *bd)
         init_hypercall_page(d, _p(parms.virt_hypercall));
     }
 
-    /* Free temporary buffers. */
-    free_boot_modules();
-
     /* Set up start info area. */
     si = (start_info_t *)vstartinfo_start;
     clear_page(si);
