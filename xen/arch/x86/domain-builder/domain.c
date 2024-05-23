@@ -6,6 +6,7 @@
 #include <xen/domain.h>
 #include <xen/sched.h>
 #include <xen/err.h>
+#include <xen/event.h>
 #include <xen/grant_table.h>
 #include <xen/init.h>
 #include <xen/libelf.h>
@@ -22,6 +23,9 @@
 #include <asm/paging.h>
 #include <asm/pv/shim.h>
 #include <asm/spec_ctrl.h>
+
+#include <public/bootfdt.h>
+#include <public/domctl.h>
 
 bool __initdata acpi_force;
 static char __initdata acpi_param[10] = "";
@@ -70,6 +74,55 @@ void __init alloc_dom_vcpus(struct domain *d)
         vcpu_create(d, i);
 
     domain_update_node_affinity(d);
+}
+
+static int __init alloc_dom_evtchn(
+    const struct boot_domain *bd, const struct boot_domain *bd_remote,
+    evtchn_alloc_unbound_t *ec)
+{
+    int rc;
+
+    ec->dom = bd->domid;
+    ec->remote_dom = bd_remote->domid;
+
+    rc = evtchn_alloc_unbound(ec, 0);
+    if ( rc )
+    {
+        printk(XENLOG_WARNING "Failed allocating event channel for %pd\n",
+               bd->d);
+        return rc;
+    }
+
+    return 0;
+}
+
+static int __init alloc_xenstore_evtchn(struct boot_info *bi,
+                                        struct boot_domain *bd)
+{
+    evtchn_alloc_unbound_t evtchn_req;
+    const struct boot_domain *xsdom;
+    int rc;
+
+    xsdom = first_boot_domain(bi, XEN_DOMCTL_CDF_xs_domain, 0);
+    if ( !xsdom )
+    {
+        printk(XENLOG_WARNING "No backing xenstore domain for %pd\n", bd->d);
+        return -EINVAL;
+    }
+
+    if ( xsdom->domid == DOMID_INVALID )
+    {
+        printk(XENLOG_WARNING
+               "Xenstore domain for %pd console not constructed\n", bd->d);
+        return -EINVAL;
+    }
+
+    if ( (rc = alloc_dom_evtchn(bd, xsdom, &evtchn_req)) < 0 )
+        return rc;
+
+    bd->xenstore.evtchn = evtchn_req.port;
+
+    return 0;
 }
 
 /*
@@ -157,6 +210,9 @@ struct domain *__init arch_create_dom(struct boot_info *bi,
     }
 
     bd->d = d;
+    if ( !(bd->create_cfg.flags & XEN_DOMCTL_CDF_xs_domain) )
+        alloc_xenstore_evtchn(bi, bd);
+
     if ( construct_dom0(bd) != 0 )
         panic("Could not construct domain 0\n");
 

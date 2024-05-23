@@ -10,6 +10,7 @@
 
 #include <xen/acpi.h>
 #include <xen/config.h>
+#include <xen/event.h>
 #include <xen/iommu.h>
 #include <xen/init.h>
 #include <xen/softirq.h>
@@ -20,6 +21,8 @@
 #include <public/arch-x86/hvm/start_info.h>
 #include <public/hvm/e820.h>
 #include <public/hvm/hvm_vcpu.h>
+#include <public/hvm/params.h>
+#include <public/io/xs_wire.h>
 
 #include <asm/bootinfo.h>
 #include <asm/bzimage.h>
@@ -789,6 +792,46 @@ static int __init pvh_load_kernel(
     return 0;
 }
 
+typedef struct xenstore_domain_interface xsdom_if;
+
+static int __init alloc_xenstore_page(struct boot_domain *bd)
+{
+    enum hvm_translation_result rc;
+    paddr_t xs_addr = special_pfn(SPECIALPAGE_XENSTORE) << PAGE_SHIFT;
+    /*
+     * This is essentially hard-coding initialisation of xsdom_if
+     *
+     * Written in this convoluted fashion because we can't map the page here
+     * and allocating a full interface in the stack (>2KiB) is dubious.
+     */
+    uint32_t fields[(sizeof(xsdom_if) - offsetof(xsdom_if, req_cons)) / 4]
+        = { 0, 0, 0, 0, 0, XENSTORE_RECONNECT, 0, bd->xenstore.evtchn };
+
+    BUILD_BUG_ON(sizeof(xsdom_if) != 2 * XENSTORE_RING_SIZE + sizeof(fields));
+
+    if ( !port_is_valid(bd->d, bd->xenstore.evtchn) )
+    {
+        printk("No event channel available for %pd xenstore\n", bd->d);
+        return -EINVAL;
+    }
+
+    BUG_ON(is_hardware_domain(bd->d));
+
+    rc = hvm_copy_to_guest_phys(xs_addr + offsetof(xsdom_if, req_cons),
+                                fields, sizeof(fields), bd->d->vcpu[0]);
+    if ( rc != HVMTRANS_okay )
+    {
+        printk("Unable to set xenstore connection state (rc=%d)\n", rc);
+        return -EFAULT;
+    }
+
+    bd->xenstore.gfn = gfn_x(gaddr_to_gfn(xs_addr));
+    bd->d->arch.hvm.params[HVM_PARAM_STORE_PFN] = bd->xenstore.gfn;
+    bd->d->arch.hvm.params[HVM_PARAM_STORE_EVTCHN] = bd->xenstore.evtchn;
+
+    return 0;
+}
+
 int __init dom_construct_pvh(struct boot_domain *bd)
 {
     paddr_t entry, start_info;
@@ -866,6 +909,9 @@ int __init dom_construct_pvh(struct boot_domain *bd)
         printk("Failed to setup Dom%u ACPI tables: %d\n", d->domain_id, rc);
         return rc;
     }
+
+    if ( !is_xenstore_domain(bd->d) )
+        alloc_xenstore_page(bd);
 
     if ( opt_dom0_verbose )
     {

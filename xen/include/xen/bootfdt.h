@@ -131,6 +131,11 @@ struct boot_domain {
     /* LLC color selection string */
     const char *llc_colors_str;
 #endif
+
+    struct {
+        xen_pfn_t gfn;
+        evtchn_port_t evtchn;
+    } xenstore;
 };
 
 #define BOOTMOD_MAX_CMDLINE 1024
