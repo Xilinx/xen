@@ -112,18 +112,53 @@ void __init builder_late_init(struct boot_info *bi)
     }
 }
 
+static int  __init build_core_domains(struct boot_info *bi)
+{
+    struct boot_domain *bd;
+    unsigned int count = 0;
+
+    if ( !(bd = first_boot_domain(bi, XEN_DOMCTL_CDF_xs_domain, 0)) )
+        printk(XENLOG_WARNING "No xenstore domain was defined\n");
+    else if ( !bd->d )
+    {
+        arch_create_dom(bi, bd);
+        if ( bd->d )
+            count++;
+    }
+
+    if ( !(bd = first_boot_domain(bi, 0, CDF_hardware)) )
+        printk(XENLOG_WARNING "No hardware domain was defined\n");
+    else if ( !bd->d )
+    {
+        arch_create_dom(bi, bd);
+        if ( bd->d )
+            count++;
+    }
+
+    if ( !(bd = first_boot_domain(bi, 0, CDF_privileged)) )
+        printk(XENLOG_WARNING "No control domain was defined\n");
+    else if ( !bd->d )
+    {
+        arch_create_dom(bi, bd);
+        if ( bd->d )
+            count++;
+    }
+
+    return count;
+}
+
 unsigned int __init builder_create_domains(struct boot_info *bi)
 {
     unsigned int build_count = 0;
     struct boot_domain *bd = &bi->domains[0];
 
-    if ( bd->kernel == NULL &&
-         bd->create_flags & CDF_hardware )
+    if ( bi->nr_domains == 0 )
+        panic("%s: no domains defined\n", __func__);
+
+    if ( !bd->kernel && (bd->create_flags & CDF_hardware) )
         panic("%s: hw domain missing kernel\n", __func__);
 
-    arch_create_dom(bi, bd);
-    if ( bd->d )
-        build_count++;
+    build_count = build_core_domains(bi);
 
     /* Free temporary buffers. */
     free_boot_modules();
