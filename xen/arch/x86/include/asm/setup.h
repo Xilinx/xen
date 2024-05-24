@@ -26,7 +26,7 @@ void subarch_init_memory(void);
 void init_IRQ(void);
 
 struct boot_domain;
-int construct_dom0(struct boot_domain *bd);
+int construct_dom(struct boot_domain *bd);
 
 void setup_io_bitmap(struct domain *d);
 

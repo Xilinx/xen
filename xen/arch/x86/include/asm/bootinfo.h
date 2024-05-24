@@ -17,7 +17,11 @@
 #define MAX_NR_BOOTMODS 63
 
 /* Max number of boot domains that Xen can construct */
+#ifdef CONFIG_DOM0LESS_BOOT
+#define MAX_NR_BOOTDOMS 64
+#else
 #define MAX_NR_BOOTDOMS 1
+#endif
 
 /*
  * Xen internal representation of information provided by the

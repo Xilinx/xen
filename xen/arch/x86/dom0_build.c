@@ -641,13 +641,14 @@ int __init dom0_setup_permissions(struct domain *d)
     return rc;
 }
 
-int __init construct_dom0(struct boot_domain *bd)
+int __init construct_dom(struct boot_domain *bd)
 {
     int rc;
     const struct domain *d = bd->d;
 
     /* Sanity! */
-    BUG_ON(!pv_shim && d->domain_id != 0);
+    if ( !IS_ENABLED(CONFIG_DOM0LESS_BOOT) )
+        BUG_ON(!pv_shim && d->domain_id != 0);
     BUG_ON(d->vcpu[0] == NULL);
     BUG_ON(d->vcpu[0]->is_initialised);
 

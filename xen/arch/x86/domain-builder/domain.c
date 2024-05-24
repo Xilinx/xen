@@ -213,7 +213,7 @@ struct domain *__init arch_create_dom(struct boot_info *bi,
     if ( !(bd->create_cfg.flags & XEN_DOMCTL_CDF_xs_domain) )
         alloc_xenstore_evtchn(bi, bd);
 
-    if ( construct_dom0(bd) != 0 )
+    if ( construct_dom(bd) != 0 )
         panic("Could not construct domain 0\n");
 
     bd->cmdline = NULL;
