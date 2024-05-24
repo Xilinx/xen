@@ -427,7 +427,8 @@ static int __init dom0_construct(struct boot_domain *bd)
 
     d->max_pages = ~0U;
 
-    if ( (rc = bzimage_parse(image_base, &image_start, &image_len)) != 0 )
+    if ( (rc = bzimage_parse(image_base, &image_start,
+                             bd->kernel->arch.headroom, &image_len)) != 0 )
         return rc;
 
     if ( (rc = elf_init(&elf, image_start, image_len)) != 0 )

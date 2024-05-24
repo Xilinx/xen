@@ -635,7 +635,8 @@ static int __init pvh_load_kernel(
     struct vcpu *v = d->vcpu[0];
     int rc;
 
-    if ( (rc = bzimage_parse(image_base, &image_start, &image_len)) != 0 )
+    if ( (rc = bzimage_parse(image_base, &image_start, image->arch.headroom,
+                             &image_len)) != 0 )
     {
         printk("Error trying to detect bz compressed kernel\n");
         return rc;

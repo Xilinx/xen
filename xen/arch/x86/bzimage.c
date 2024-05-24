@@ -68,8 +68,6 @@ static __init int bzimage_check(struct setup_header *hdr, unsigned long len)
     return 1;
 }
 
-static unsigned long __initdata orig_image_len;
-
 unsigned long __init bzimage_headroom(void *image_start,
                                       unsigned long image_length)
 {
@@ -90,7 +88,6 @@ unsigned long __init bzimage_headroom(void *image_start,
     if ( elf_is_elfbinary(image_start, image_length) )
         return 0;
 
-    orig_image_len = image_length;
     headroom = output_length(image_start, image_length);
     if (gzip_check(image_start, image_length))
     {
@@ -104,12 +101,20 @@ unsigned long __init bzimage_headroom(void *image_start,
 }
 
 int __init bzimage_parse(void *image_base, void **image_start,
-                         unsigned long *image_len)
+                         unsigned long headroom, unsigned long *image_len)
 {
     struct setup_header *hdr = (struct setup_header *)(*image_start);
     int err = bzimage_check(hdr, *image_len);
-    unsigned long output_len;
+    unsigned long output_len, orig_image_len;
 
+    orig_image_len = *image_len - headroom;
+
+    /*
+     * Variable err will have one of three values:
+     *   -  < 0: a error occurred trying to inspect the contents
+     *   -  > 0: the image is a bzImage
+     *   - == 0: not a bzImage, could be raw elf or elf.gz (vmlinuz.gz)
+     */
     if ( err < 0 )
         return err;
 
@@ -117,6 +122,7 @@ int __init bzimage_parse(void *image_base, void **image_start,
     {
         *image_start += (hdr->setup_sects + 1) * 512 + hdr->payload_offset;
         *image_len = hdr->payload_length;
+        orig_image_len = hdr->payload_length;
     }
 
     if ( elf_is_elfbinary(*image_start, *image_len) )
