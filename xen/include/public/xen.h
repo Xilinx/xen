@@ -885,7 +885,7 @@ typedef struct start_info start_info_t;
 
 /* These flags are passed in the 'flags' field of start_info_t. */
 #define SIF_PRIVILEGED    (1<<0)  /* Is the domain privileged? */
-#define SIF_INITDOMAIN    (1<<1)  /* Is this the initial control domain? */
+#define SIF_INITDOMAIN    (1<<1)  /* Is this the initial hardware domain? */
 #define SIF_MULTIBOOT_MOD (1<<2)  /* Is mod_start a multiboot module? */
 #define SIF_MOD_START_PFN (1<<3)  /* Is mod_start a PFN? */
 #define SIF_VIRT_P2M_4TOOLS (1<<4) /* Do Xen tools understand a virt. mapped */

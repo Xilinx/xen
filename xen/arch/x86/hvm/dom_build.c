@@ -776,7 +776,10 @@ static int __init pvh_load_kernel(
     }
 
     start_info.magic = XEN_HVM_START_MAGIC_VALUE;
-    start_info.flags = SIF_PRIVILEGED | SIF_INITDOMAIN;
+    if ( is_control_domain(d) )
+        start_info.flags = SIF_PRIVILEGED;
+    if ( is_hardware_domain(d) )
+        start_info.flags |= SIF_INITDOMAIN;
     rc = hvm_copy_to_guest_phys(last_addr, &start_info, sizeof(start_info), v);
     if ( rc )
     {

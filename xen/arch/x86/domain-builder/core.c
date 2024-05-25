@@ -150,15 +150,33 @@ static int  __init build_core_domains(struct boot_info *bi)
 unsigned int __init builder_create_domains(struct boot_info *bi)
 {
     unsigned int build_count = 0;
-    struct boot_domain *bd = &bi->domains[0];
 
     if ( bi->nr_domains == 0 )
         panic("%s: no domains defined\n", __func__);
 
-    if ( !bd->kernel && (bd->create_flags & CDF_hardware) )
-        panic("%s: hw domain missing kernel\n", __func__);
-
     build_count = build_core_domains(bi);
+
+    BUG_ON(!IS_ENABLED(CONFIG_DOM0LESS_BOOT) && build_count != bi->nr_domains);
+
+    for ( unsigned int i = 0; i < bi->nr_domains; i++ )
+    {
+        struct boot_domain *bd = &bi->domains[i];
+
+        if ( bd->d )
+            continue;
+
+        if ( !(bd->create_cfg.flags & XEN_DOMCTL_CDF_hvm) )
+        {
+            printk(XENLOG_WARNING "don't support PV DomU, skipping %u\n", i);
+            continue;
+        }
+
+        arch_create_dom(bi, bd);
+        if ( bd->d )
+            build_count++;
+        else
+            printk(XENLOG_WARNING "failed to construct build domain %u\n", i);
+    }
 
     /* Free temporary buffers. */
     free_boot_modules();
