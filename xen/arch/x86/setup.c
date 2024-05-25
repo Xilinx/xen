@@ -797,6 +797,7 @@ static inline bool using_2M_mapping(void)
 
 static void noreturn init_done(void)
 {
+    struct boot_info *bi = &xen_boot_info;
     void *va;
     unsigned long start, end;
     int err;
@@ -810,7 +811,8 @@ static void noreturn init_done(void)
     if ( IS_ENABLED(CONFIG_SELF_TESTS) && cpu_has_xen_shstk )
         stub_selftest();
 
-    domain_unpause_by_systemcontroller(hwdom->d);
+    for ( unsigned int i = 0; i < bi->nr_domains; i++ )
+        domain_unpause_by_systemcontroller(bi->domains[i].d);
 
     /* MUST be done prior to removing .init data. */
     unregister_init_virtual_region();
