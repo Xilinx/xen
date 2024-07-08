@@ -32,6 +32,21 @@
 /* From linux kernel to set SGI in TF-A */
 #define TF_A_PM_REGISTER_SGI 0xa04
 
+/* Fix ID to pass PLM specific APIs through TF-A to firmware */
+#define PASS_THROUGH_SMC_ID	EEMI_FID(0xFFFU)
+
+/* API ID mask */
+#define XPM_API_ID_MASK	(0xFFU)
+
+/* Module ID mask */
+#define MODULE_ID_MASK	(0xFF00U)
+
+/* Extract Module ID */
+#define MODULE_ID(x)	((x & MODULE_ID_MASK) >> 8)
+
+/* XilPM module ID */
+#define XPM_MODULE_ID (0x2U)
+
 enum ipi_api_id {
     IPI_MAILBOX_OPEN = 0x1000,
     IPI_MAILBOX_RELEASE,
