@@ -563,9 +563,20 @@ static const struct pm_clk2node pm_clk_node_map[] = {
 bool versal_net_eemi(struct cpu_user_regs *regs)
 {
     uint32_t fid = get_user_reg(regs, 0);
-    uint32_t nodeid = get_user_reg(regs, 1);
-    uint32_t pm_fn = EEMI_PM_FID(fid);
+    uint32_t nodeid;
+    uint32_t pm_fn;
     enum pm_ret_status ret;
+
+    if (fid == PASS_THROUGH_SMC_ID) {
+        pm_fn = (uint32_t)get_user_reg(regs, 1);
+        if (MODULE_ID(pm_fn) == XPM_MODULE_ID)
+            pm_fn &= XPM_API_ID_MASK;
+        fid = EEMI_FID(pm_fn);
+        nodeid = (uint32_t)(get_user_reg(regs, 1) >> 32);
+    } else {
+        nodeid = (uint32_t)get_user_reg(regs, 1);
+        pm_fn = EEMI_PM_FID(fid);
+    }
 
     switch (fid)
     {
