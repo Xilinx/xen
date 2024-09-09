@@ -1022,6 +1022,16 @@ static int __init construct_domU(struct domain *d,
             kinfo.virtio_pci.mem.base = GUEST_VIRTIO_PCI_MEM_BASE;
             kinfo.virtio_pci.pf_mem.base = GUEST_VIRTIO_PCI_PREFETCH_MEM_BASE;
         }
+
+        /*
+         * Register a background PCI ECAM region returning ~0. This indicates
+         * to the OS that there are no PCI devices on the bus. Once an IOREQ
+         * client connects, the OS can rescan the bus and find devices.
+         */
+        register_mmio_bg_handler(d, true, &mmio_read_const_writes_ignored,
+                                 kinfo.virtio_pci.ecam.base,
+                                 GUEST_VIRTIO_PCI_ECAM_SIZE,
+                                 (void *) ULONG_MAX);
     }
 
     rc = dt_property_read_string(node, "xen,enhanced", &dom0less_enhanced);
