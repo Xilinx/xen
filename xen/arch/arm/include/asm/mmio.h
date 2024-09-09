@@ -70,6 +70,7 @@ struct mmio_handler_ops {
 struct mmio_handler {
     paddr_t addr;
     paddr_t size;
+    bool background;
     const struct mmio_handler_ops *ops;
     void *priv;
 };
@@ -83,9 +84,17 @@ struct vmmio {
 
 enum io_state try_handle_mmio(struct cpu_user_regs *regs,
                               mmio_info_t *info);
+void register_mmio_bg_handler(struct domain *d,
+                              bool background,
+                              const struct mmio_handler_ops *ops,
+                              paddr_t addr, paddr_t size, void *priv);
+static inline
 void register_mmio_handler(struct domain *d,
                            const struct mmio_handler_ops *ops,
-                           paddr_t addr, paddr_t size, void *priv);
+                           paddr_t addr, paddr_t size, void *priv)
+{
+    register_mmio_bg_handler(d, false, ops, addr, size, priv);
+}
 int domain_io_init(struct domain *d, unsigned int max_count);
 void domain_io_free(struct domain *d);
 
