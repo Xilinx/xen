@@ -29,6 +29,13 @@
 #define DOM0LESS_XENSTORE        BIT(1, U)
 #define DOM0LESS_ENHANCED        (DOM0LESS_ENHANCED_NO_XS | DOM0LESS_XENSTORE)
 
+/* virtio-pci types */
+enum virtio_pci_type {
+    VIRTIO_PCI_NONE,
+    VIRTIO_PCI,
+    VIRTIO_PCI_GRANTS,
+};
+
 struct kernel_info {
 #ifdef CONFIG_ARM_64
     enum domain_type type;
@@ -61,6 +68,14 @@ struct kernel_info {
 
     /* Enable/Disable PV drivers interfaces */
     uint16_t dom0less_feature;
+
+    struct {
+        enum virtio_pci_type mode;
+        struct {
+            u64 base;
+        } ecam, mem, pf_mem;
+        u32 pci_intx_irq_base;
+    } virtio_pci;
 
     /* GIC phandle */
     uint32_t phandle_gic;

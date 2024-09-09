@@ -549,6 +549,183 @@ static int __init domain_handle_dtb_bootmodule(struct domain *d,
     return res;
 }
 
+static int __init make_virtio_pci_domU_node(const struct kernel_info *kinfo)
+{
+    void *fdt = kinfo->fdt;
+    /* reg is sized to be used for all the needed properties below */
+    __be32 reg[(1 + (GUEST_ROOT_ADDRESS_CELLS * 2) + GUEST_ROOT_SIZE_CELLS)
+               * 2];
+    __be32 irq_map[4 * 4 * 8];
+    __be32 *cells;
+    char buf[22]; /* pcie@ + max 16 char address + '\0' */
+    int res;
+    int devfn, intx_pin;
+    static const char compat[] = "pci-host-ecam-generic";
+    static const char reg_names[] = "ecam";
+
+    snprintf(buf, sizeof(buf), "pcie@%" PRIx64, kinfo->virtio_pci.ecam.base);
+    dt_dprintk("Create virtio-pci node\n");
+    res = fdt_begin_node(fdt, buf);
+    if ( res )
+        return res;
+
+    res = fdt_property(fdt, "compatible", compat, sizeof(compat));
+    if ( res )
+        return res;
+
+    res = fdt_property_string(fdt, "device_type", "pci");
+    if ( res )
+        return res;
+
+    /* Create reg property */
+    cells = &reg[0];
+    dt_child_set_range(&cells, GUEST_ROOT_ADDRESS_CELLS, GUEST_ROOT_SIZE_CELLS,
+                       kinfo->virtio_pci.ecam.base, GUEST_VIRTIO_PCI_ECAM_SIZE);
+
+    res = fdt_property(fdt, "reg", reg,
+                       (GUEST_ROOT_ADDRESS_CELLS +
+                        GUEST_ROOT_SIZE_CELLS) * sizeof(*reg));
+    if ( res )
+        return res;
+
+    res = fdt_property(fdt, "reg-names", reg_names, sizeof(reg_names));
+    if ( res )
+        return res;
+
+    /* Create bus-range property */
+    cells = &reg[0];
+    dt_set_cell(&cells, 1, 0);
+    dt_set_cell(&cells, 1, 0xff);
+    res = fdt_property(fdt, "bus-range", reg, 2 * sizeof(*reg));
+    if ( res )
+        return res;
+
+    res = fdt_property_cell(fdt, "#address-cells", 3);
+    if ( res )
+        return res;
+
+    res = fdt_property_cell(fdt, "#size-cells", 2);
+    if ( res )
+        return res;
+
+    res = fdt_property_string(fdt, "status", "okay");
+    if ( res )
+        return res;
+
+    /*
+     * Create ranges property as:
+     * <(PCI bitfield) (PCI address) (CPU address) (Size)>
+     */
+    cells = &reg[0];
+    dt_set_cell(&cells, 1, GUEST_VIRTIO_PCI_MEM_TYPE);
+    dt_set_cell(&cells, GUEST_ROOT_ADDRESS_CELLS, kinfo->virtio_pci.mem.base);
+    dt_set_cell(&cells, GUEST_ROOT_ADDRESS_CELLS, kinfo->virtio_pci.mem.base);
+    dt_set_cell(&cells, GUEST_ROOT_SIZE_CELLS, GUEST_VIRTIO_PCI_MEM_SIZE);
+    dt_set_cell(&cells, 1, GUEST_VIRTIO_PCI_PREFETCH_MEM_TYPE);
+    dt_set_cell(&cells, GUEST_ROOT_ADDRESS_CELLS, kinfo->virtio_pci.pf_mem.base);
+    dt_set_cell(&cells, GUEST_ROOT_ADDRESS_CELLS, kinfo->virtio_pci.pf_mem.base);
+    dt_set_cell(&cells, GUEST_ROOT_SIZE_CELLS, GUEST_VIRTIO_PCI_PREFETCH_MEM_SIZE);
+    res = fdt_property(fdt, "ranges", reg, 14 * sizeof(*reg));
+    if ( res )
+        return res;
+
+    res = fdt_property(fdt, "dma-coherent", "", 0);
+    if ( res )
+        return res;
+
+    res = fdt_property_cell(fdt, "#interrupt-cells", 1);
+    if ( res )
+        return res;
+
+    /*
+     * PCI-to-PCI bridge specification
+     * 9.1: Interrupt routing. Table 9-1
+     *
+     * the PCI Express Base Specification, Revision 2.1
+     * 2.2.8.1: INTx interrupt signaling - Rules
+     *          the Implementation Note
+     *          Table 2-20
+     */
+    cells = &irq_map[0];
+    for (devfn = 0; devfn <= 0x18; devfn += 8) {
+        for (intx_pin = 0; intx_pin < 4; intx_pin++) {
+            int irq = GUEST_VIRTIO_PCI_SPI_FIRST - 32;
+            irq += ((intx_pin + PCI_SLOT(devfn)) % 4);
+
+            dt_set_cell(&cells, 1, devfn << 8);
+            dt_set_cell(&cells, 1, 0);
+            dt_set_cell(&cells, 1, 0);
+            dt_set_cell(&cells, 1, intx_pin + 1);
+            dt_set_cell(&cells, 1, kinfo->phandle_gic);
+            /* 3 GIC cells.  */
+            dt_set_cell(&cells, 1, 0);
+            dt_set_cell(&cells, 1, irq);
+            dt_set_cell(&cells, 1, DT_IRQ_TYPE_LEVEL_HIGH);
+        }
+    }
+
+    /* Assert we've sized irq_map correctly.  */
+    BUG_ON(cells - &irq_map[0] != ARRAY_SIZE(irq_map));
+
+    res = fdt_property(fdt, "interrupt-map", irq_map, sizeof(irq_map));
+    if ( res )
+        return res;
+
+    cells = &reg[0];
+    dt_set_cell(&cells, 1, cpu_to_be16(PCI_DEVFN(3, 0)));
+    dt_set_cell(&cells, 1, 0x0);
+    dt_set_cell(&cells, 1, 0x0);
+    dt_set_cell(&cells, 1, 0x7);
+    res = fdt_property(fdt, "interrupt-map-mask", reg, 4 * sizeof(*reg));
+    if ( res )
+        return res;
+
+    if ( kinfo->virtio_pci.mode == VIRTIO_PCI_GRANTS )
+    {
+        cells = &reg[0];
+        dt_set_cell(&cells, 1, 0x0);
+        dt_set_cell(&cells, 1, GUEST_PHANDLE_IOMMU);
+        dt_set_cell(&cells, 1, 0x0);
+        dt_set_cell(&cells, 1, 0x10000);
+        res = fdt_property(fdt, "iommu-map", reg, 4 * sizeof(*reg));
+        if ( res )
+            return res;
+    }
+
+    res = fdt_property_cell(fdt, "linux,pci-domain", 1);
+    if ( res )
+        return res;
+
+    res = fdt_end_node(fdt);
+    if ( res )
+        return res;
+
+    if ( kinfo->virtio_pci.mode == VIRTIO_PCI_GRANTS )
+    {
+        snprintf(buf, sizeof(buf), "xen_iommu");
+
+        res = fdt_begin_node(fdt, buf);
+        if ( res )
+            return res;
+
+        res = fdt_property_string(fdt, "compatible", "xen,grant-dma");
+        if ( res )
+            return res;
+
+        res = fdt_property_cell(fdt, "#iommu-cells", 1);
+        if ( res )
+            return res;
+
+        res = fdt_property_cell(fdt, "phandle", GUEST_PHANDLE_IOMMU);
+        if ( res )
+            return res;
+
+        res = fdt_end_node(fdt);
+    }
+
+    return res;
+}
+
 /*
  * The max size for DT is 2MB. However, the generated DT is small (not including
  * domU passthrough DT nodes whose size we account separately), 4KB are enough
@@ -656,6 +833,13 @@ static int __init prepare_dtb_domU(struct domain *d, struct kernel_info *kinfo)
             goto err;
     }
 
+    if ( kinfo->virtio_pci.mode )
+    {
+        ret = make_virtio_pci_domU_node(kinfo);
+        if ( ret )
+            goto err;
+    }
+
     ret = fdt_end_node(kinfo->fdt);
     if ( ret < 0 )
         goto err;
@@ -757,11 +941,24 @@ static int __init alloc_xenstore_page(struct domain *d)
     return 0;
 }
 
+static u64 __init combine_u64(u32 v[2])
+{
+    u64 v64;
+
+    v64 = v[0];
+    v64 <<= 32;
+    v64 |= v[1];
+    return v64;
+}
+
 static int __init construct_domU(struct domain *d,
                                  const struct dt_device_node *node)
 {
     struct kernel_info kinfo = KERNEL_INFO_INIT;
     const char *dom0less_enhanced;
+    const char *virtio_pci;
+    /* virtio-pci ECAM, MEM, PF-MEM each carrying 2 x Address cells.  */
+    u32 virtio_pci_ranges[3 * 2];
     int rc;
     u64 mem;
     u32 p2m_mem_mb;
@@ -791,6 +988,41 @@ static int __init construct_domU(struct domain *d,
            d->max_vcpus, mem);
 
     kinfo.vpl011 = dt_property_read_bool(node, "vpl011");
+
+    rc = dt_property_read_string(node, "virtio-pci", &virtio_pci);
+    if ( !rc )
+    {
+        if ( !strcmp(virtio_pci, "enabled") )
+            kinfo.virtio_pci.mode = VIRTIO_PCI;
+        else if ( !strcmp(virtio_pci, "grants") )
+            kinfo.virtio_pci.mode = VIRTIO_PCI_GRANTS;
+        else
+        {
+            printk("Invalid \"virtio-pci\" property value (%s)\n", virtio_pci);
+            return -EINVAL;
+        }
+    }
+    else if ( rc == -ENODATA )
+    {
+        /* Handle missing property value */
+        kinfo.virtio_pci.mode = dt_property_read_bool(node, "virtio-pci");
+    }
+
+    if ( kinfo.virtio_pci.mode != VIRTIO_PCI_NONE )
+    {
+        rc = dt_property_read_u32_array(node, "virtio-pci-ranges",
+                                        virtio_pci_ranges,
+                                        ARRAY_SIZE(virtio_pci_ranges));
+        if ( rc == 0 ) {
+            kinfo.virtio_pci.ecam.base = combine_u64(&virtio_pci_ranges[0]);
+            kinfo.virtio_pci.mem.base = combine_u64(&virtio_pci_ranges[2]);
+            kinfo.virtio_pci.pf_mem.base = combine_u64(&virtio_pci_ranges[4]);
+        } else {
+            kinfo.virtio_pci.ecam.base = GUEST_VIRTIO_PCI_ECAM_BASE;
+            kinfo.virtio_pci.mem.base = GUEST_VIRTIO_PCI_MEM_BASE;
+            kinfo.virtio_pci.pf_mem.base = GUEST_VIRTIO_PCI_PREFETCH_MEM_BASE;
+        }
+    }
 
     rc = dt_property_read_string(node, "xen,enhanced", &dom0less_enhanced);
     if ( rc == -EILSEQ ||
