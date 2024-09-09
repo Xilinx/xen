@@ -82,6 +82,8 @@ struct vmmio {
     struct mmio_handler *handlers;
 };
 
+extern const struct mmio_handler_ops mmio_read_const_writes_ignored;
+
 enum io_state try_handle_mmio(struct cpu_user_regs *regs,
                               mmio_info_t *info);
 void register_mmio_bg_handler(struct domain *d,

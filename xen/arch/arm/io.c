@@ -20,6 +20,27 @@
 
 #include "decode.h"
 
+/*
+ * Reusable mmio handler useful as background while waiting for IOREQ.
+ * Register with priv as default read value. Writes ignored.
+ */
+static int bg_read(struct vcpu *v, mmio_info_t *info, register_t *r, void *priv)
+{
+    *r = (uintptr_t) priv;
+    return 1;
+}
+
+static int bg_write(struct vcpu *v, mmio_info_t *info, register_t r, void *priv)
+{
+    return 1;
+}
+
+/* Read const value (from priv), writes ignored.  */
+const struct mmio_handler_ops mmio_read_const_writes_ignored = {
+    .read = bg_read,
+    .write = bg_write,
+};
+
 static enum io_state handle_read(const struct mmio_handler *handler,
                                  struct vcpu *v,
                                  mmio_info_t *info)
