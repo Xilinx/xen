@@ -215,51 +215,6 @@ static int check_overlay_fdt(const void *overlay_fdt, uint32_t overlay_fdt_size)
     return 0;
 }
 
-static int irq_remove_cb(unsigned long s, unsigned long e, void *dom,
-                         unsigned long *c)
-{
-    int rc;
-    struct domain *d = dom;
-
-    /*
-     * TODO: We don't handle shared IRQs for now. So, it is assumed that
-     * the IRQs was not shared with another devices.
-     * TODO: Undo the IRQ routing.
-     */
-    rc = irq_deny_access(d, s);
-    if ( rc )
-    {
-        printk(XENLOG_ERR "unable to revoke access for irq %lu\n", s);
-    }
-    else
-        *c += e - s + 1;
-
-    return rc;
-
-}
-
-static int iomem_remove_cb(unsigned long s, unsigned long e, void *dom,
-                           unsigned long *c)
-{
-    int rc;
-    struct domain *d = dom;
-
-    /*
-    * Remove mmio access.
-    * TODO: Support for remove/add the mapping in P2M.
-    */
-    rc = iomem_deny_access(d, s, e);
-    if ( rc )
-    {
-        printk(XENLOG_ERR "Unable to remove %pd access to %#lx - %#lx\n",
-               d, s, e);
-    }
-    else
-        *c += e - s + 1;
-
-    return rc;
-}
-
 /* Count number of nodes till one level of __overlay__ tag. */
 static unsigned int overlay_node_count(const void *overlay_fdt)
 {
@@ -557,14 +512,6 @@ static int remove_nodes(const struct overlay_track *tracker,
         if ( rc )
             return rc;
 
-        rc = remove_all_irqs(tracker->irq_ranges, d, domain_mapping);
-        if ( rc )
-            return rc;
-
-        rc = remove_all_iomems(tracker->iomem_ranges, d, domain_mapping);
-        if ( rc )
-            return rc;
-
         dt_dprintk("Removing node: %s\n", overlay_node->full_name);
 
         write_lock(&dt_host_lock);
@@ -582,7 +529,7 @@ static int remove_nodes(const struct overlay_track *tracker,
     /* Remove IRQ access. */
     if ( tracker->irq_ranges )
     {
-        rc = rangeset_consume_ranges(tracker->irq_ranges, irq_remove_cb, d);
+        rc = remove_all_irqs(tracker->irq_ranges, d, domain_mapping);
         if ( rc )
             return rc;
     }
@@ -590,7 +537,7 @@ static int remove_nodes(const struct overlay_track *tracker,
    /* Remove mmio access. */
     if ( tracker->iomem_ranges )
     {
-        rc = rangeset_consume_ranges(tracker->iomem_ranges, iomem_remove_cb, d);
+        rc = remove_all_iomems(tracker->iomem_ranges, d, domain_mapping);
         if ( rc )
             return rc;
     }
@@ -914,7 +861,8 @@ static long handle_add_overlay_nodes(void *overlay_fdt,
         goto err;
     }
 
-    tr->iomem_ranges = rangeset_new(hardware_domain, "Overlay: I/O Memory", 0);
+    tr->iomem_ranges = rangeset_new(hardware_domain, "Overlay: I/O Memory",
+                                    RANGESETF_prettyprint_hex);
     if (tr->iomem_ranges == NULL)
     {
         printk(XENLOG_ERR "Creating IOMMU rangeset failed");
