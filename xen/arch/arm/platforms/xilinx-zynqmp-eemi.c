@@ -301,6 +301,10 @@ static const struct pm_access pm_reset_access[] = {
     [PM_RESET_IDX(ZYNQMP_PM_RST_RPU_LS)] = { MM_RPU },
     [PM_RESET_IDX(ZYNQMP_PM_RST_PS_ONLY)] = { .hwdom_access = true },
     [PM_RESET_IDX(ZYNQMP_PM_RST_PL)] = { .hwdom_access = true },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_PS_PL0)] = { .hwdom_access = true },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_PS_PL1)] = { .hwdom_access = true },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_PS_PL2)] = { .hwdom_access = true },
+    [PM_RESET_IDX(ZYNQMP_PM_RST_PS_PL3)] = { .hwdom_access = true },
 };
 
 /*
