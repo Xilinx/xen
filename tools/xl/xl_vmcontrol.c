@@ -1759,7 +1759,7 @@ int main_dt_overlay(int argc, char **argv)
     bool is_overlay_partial = false;
 
     if (argc < 3) {
-        help("dt_overlay");
+        help("dt-overlay");
         return EXIT_FAILURE;
     }
 
