@@ -504,17 +504,23 @@ static int remove_nodes(const struct overlay_track *tracker,
             return -EINVAL;
         }
 
+        write_lock(&dt_host_lock);
+
         rc = remove_descendant_nodes_resources(overlay_node, d, domain_mapping);
         if ( rc )
+        {
+            write_unlock(&dt_host_lock);
             return rc;
+        }
 
         rc = remove_node_resources(overlay_node, d, domain_mapping);
         if ( rc )
+        {
+            write_unlock(&dt_host_lock);
             return rc;
+        }
 
         dt_dprintk("Removing node: %s\n", overlay_node->full_name);
-
-        write_lock(&dt_host_lock);
 
         rc = dt_overlay_remove_node(overlay_node);
         if ( rc )
