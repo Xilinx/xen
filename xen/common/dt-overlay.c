@@ -449,9 +449,21 @@ static int remove_node_resources(struct dt_device_node *device_node,
     {
         if ( dt_device_is_protected(device_node) )
         {
+            rc = iommu_deassign_dt_device(d, device_node);
+            if ( rc < 0 )
+            {
+                printk(XENLOG_ERR "Failed to deassign device %s from %pd (%d)\n",
+                       device_node->full_name, d, rc);
+                return rc;
+            }
+
             rc = iommu_remove_dt_device(device_node);
             if ( rc < 0 )
+            {
+                printk(XENLOG_ERR "Failed to remove device %s from IOMMU (%d)\n",
+                       device_node->full_name, rc);
                 return rc;
+            }
         }
     }
 
@@ -498,11 +510,7 @@ static int remove_nodes(const struct overlay_track *tracker,
     {
         overlay_node = (struct dt_device_node *)tracker->nodes_address[j];
         if ( overlay_node == NULL )
-        {
-            printk(XENLOG_ERR "Device %s is not present in the tree. Removing nodes failed\n",
-                   overlay_node->full_name);
             return -EINVAL;
-        }
 
         write_lock(&dt_host_lock);
 
