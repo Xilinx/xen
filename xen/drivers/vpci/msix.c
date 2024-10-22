@@ -618,6 +618,24 @@ static int cf_check init_msix(struct pci_dev *pdev)
         return rc;
     }
 
+    if ( !is_hardware_domain(d) )
+    {
+        unsigned long val;
+
+        val = pci_conf_read32(pdev->sbdf, msix_table_offset_reg(msix_offset));
+        rc = vpci_add_register(pdev->vpci, vpci_read_val, NULL,
+                               msix_table_offset_reg(msix_offset), 4,
+                               (void *)(uintptr_t)val);
+        if (rc)
+            printk("Failed to register msix_table_offset_reg(msix_offset)\n");
+        val = pci_conf_read32(pdev->sbdf, msix_pba_offset_reg(msix_offset));
+        rc = vpci_add_register(pdev->vpci, vpci_read_val, NULL,
+                               msix_pba_offset_reg(msix_offset), 4,
+                               (void *)(uintptr_t)val);
+        if (rc)
+            printk("Failed to register msix_pba_offset_reg(msix_offset)\n");
+    }
+
     msix->max_entries = max_entries;
     msix->pdev = pdev;
 
