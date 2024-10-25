@@ -232,6 +232,7 @@ bool xilinx_eemi(struct cpu_user_regs *regs, const uint32_t fid,
     case EEMI_FID(PM_SET_CONFIGURATION):
     case EEMI_FID(PM_FPGA_LOAD):
     case EEMI_FID(PM_FPGA_GET_STATUS):
+    case EEMI_FID(PM_FPGA_READ):
     case EEMI_FID(PM_SECURE_SHA):
     case EEMI_FID(PM_SECURE_RSA):
     case EEMI_FID(PM_PINCTRL_SET_FUNCTION):
