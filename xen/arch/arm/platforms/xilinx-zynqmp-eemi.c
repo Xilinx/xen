@@ -661,9 +661,6 @@ bool zynqmp_eemi(struct cpu_user_regs *regs)
     case ZYNQMP_SIP_SVC_VERSION:
         goto forward_to_fw;
 
-    case EEMI_FID(PM_FPGA_READ):
-        goto forward_to_fw;
-
     /* No MMIO access is allowed from non-secure domains */
     case EEMI_FID(PM_MMIO_WRITE):
         is_mmio_write = true;
