@@ -128,25 +128,30 @@ struct domain *__init arch_create_dom(struct boot_info *bi,
         if ( bd->kernel->arch.cmdline_pa )
             strlcpy(cmdline, __va(bd->kernel->arch.cmdline_pa), cmdline_size);
 
-        if ( bi->kextra )
-            /* kextra always includes exactly one leading space. */
-            strlcat(cmdline, bi->kextra, cmdline_size);
-
-        /* Append any extra parameters. */
-        if ( skip_ioapic_setup && !strstr(cmdline, "noapic") )
-            strlcat(cmdline, " noapic", cmdline_size);
-
-        if ( (strlen(acpi_param) == 0) && acpi_disabled )
+        /* Params from Xen cmd line apply only to control/hardware doms */
+        if ( bd->create_flags & CDF_hardware )
         {
-            printk("ACPI is disabled, notifying Domain 0 (acpi=off)\n");
-            safe_strcpy(acpi_param, "off");
+            if ( bi->kextra )
+                /* kextra always includes exactly one leading space. */
+                strlcat(cmdline, bi->kextra, cmdline_size);
+
+            /* Append any extra parameters. */
+            if ( skip_ioapic_setup && !strstr(cmdline, "noapic") )
+                strlcat(cmdline, " noapic", cmdline_size);
+
+            if ( (strlen(acpi_param) == 0) && acpi_disabled )
+            {
+                printk("ACPI is disabled, notifying Domain 0 (acpi=off)\n");
+                safe_strcpy(acpi_param, "off");
+            }
+
+            if ( (strlen(acpi_param) != 0) && !strstr(cmdline, "acpi=") )
+            {
+                strlcat(cmdline, " acpi=", cmdline_size);
+                strlcat(cmdline, acpi_param, cmdline_size);
+            }
         }
 
-        if ( (strlen(acpi_param) != 0) && !strstr(cmdline, "acpi=") )
-        {
-            strlcat(cmdline, " acpi=", cmdline_size);
-            strlcat(cmdline, acpi_param, cmdline_size);
-        }
         bd->kernel->arch.cmdline_pa = 0;
         bd->cmdline = cmdline;
     }
