@@ -1948,7 +1948,8 @@ static int libxl_device_disk_dm_needed(void *e, unsigned domid)
 {
     libxl_device_disk *elem = e;
 
-    return elem->backend == LIBXL_DISK_BACKEND_QDISK &&
+    return (elem->specification == LIBXL_DISK_SPECIFICATION_VIRTIO ||
+            elem->backend == LIBXL_DISK_BACKEND_QDISK) &&
            elem->backend_domid == domid;
 }
 
