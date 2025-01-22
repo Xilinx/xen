@@ -181,8 +181,14 @@ static XSM_INLINE int cf_check xsm_domctl(
 
 static XSM_INLINE int cf_check xsm_sysctl(XSM_DEFAULT_ARG int cmd)
 {
-    XSM_ASSERT_ACTION(XSM_PRIV);
-    return xsm_default_action(action, current->domain, NULL);
+    XSM_ASSERT_ACTION(XSM_OTHER);
+    switch ( cmd )
+    {
+    case XEN_SYSCTL_getdomaininfolist:
+        return xsm_default_action(XSM_XS_PRIV, current->domain, NULL);
+    default:
+        return xsm_default_action(XSM_PRIV, current->domain, NULL);
+    }
 }
 
 static XSM_INLINE int cf_check xsm_readconsole(XSM_DEFAULT_ARG uint32_t clear)
