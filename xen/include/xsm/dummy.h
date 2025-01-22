@@ -614,8 +614,18 @@ static XSM_INLINE int cf_check xsm_map_gmfn_foreign(
 static XSM_INLINE int cf_check xsm_hvm_param(
     XSM_DEFAULT_ARG struct domain *d, unsigned long op)
 {
-    XSM_ASSERT_ACTION(XSM_TARGET);
-    return xsm_default_action(action, current->domain, d);
+    XSM_ASSERT_ACTION(XSM_OTHER);
+    switch ( op )
+    {
+    case HVMOP_get_param:
+        /* A domain can query itself, or a DM can query its target. */
+        if ( !xsm_default_action(XSM_TARGET, current->domain, d) )
+            return 0;
+        /* Xenstore domain needs to be able to query for mapping. */
+        return xsm_default_action(XSM_XS_PRIV, current->domain, d);
+    default:
+        return xsm_default_action(XSM_TARGET, current->domain, d);
+    }
 }
 
 static XSM_INLINE int cf_check xsm_hvm_param_altp2mhvm(

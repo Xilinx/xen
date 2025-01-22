@@ -89,7 +89,7 @@ long do_hvm_op(unsigned long op, XEN_GUEST_HANDLE_PARAM(void) arg)
         if ( d == NULL )
             return -ESRCH;
 
-        rc = xsm_hvm_param(XSM_TARGET, d, op);
+        rc = xsm_hvm_param(XSM_OTHER, d, op);
         if ( rc )
             goto param_fail;
 
