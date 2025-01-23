@@ -207,6 +207,8 @@ void __init llc_coloring_init(void)
               !check_colors(xen_colors, xen_num_colors) )
         panic("Bad LLC color config for Xen\n");
 
+    dump_llc_coloring_info();
+
     arch_llc_coloring_init();
 }
 
@@ -304,6 +306,8 @@ int domain_set_llc_colors(struct domain *d,
     d->llc_colors = colors;
     d->num_llc_colors = config->num_llc_colors;
 
+    domain_dump_llc_colors(d);
+
     return 0;
 }
 
@@ -352,6 +356,8 @@ int __init domain_set_llc_colors_from_str(struct domain *d, const char *str)
         d->llc_colors = colors;
 
     d->num_llc_colors = num_colors;
+
+    domain_dump_llc_colors(d);
 
     return 0;
 }
