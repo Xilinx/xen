@@ -110,6 +110,55 @@ static void __init parse_cpu_affinity_node(const struct dt_device_node *node,
     }
 }
 
+#ifdef CONFIG_HAS_LLC_COLORING
+static int __init
+prepare_color_domain_config_legacy(const struct dt_device_node *node, char *str)
+{
+    uint32_t len;
+    int cell, k, i, j = 0;
+    const uint32_t *cells;
+    uint32_t col_val;
+    unsigned int colors[NR_LLC_COLORS];
+
+    cells = dt_get_property(node, "colors", &len);
+    if ( cells != NULL && len > 0 )
+    {
+        for ( k = 0, cell = len / 4 - 1; cell >= 0; cell--, k++ )
+        {
+            col_val = be32_to_cpu(cells[cell]);
+            if ( col_val )
+            {
+                /* Calculate number of bit set */
+                for ( i = 0; i < 32; i++ )
+                {
+                    if ( col_val & (1 << i) )
+                    {
+                        colors[j++] = i;
+                    }
+                }
+            }
+        }
+    }
+
+    for ( i = 0, k = 0; i < j; i++ )
+    {
+        char temp[5];
+        snprintf(temp, sizeof(temp), "%u", colors[i]);
+        memcpy(&str[k], temp, strlen(temp));
+        k += strlen(temp);
+        str[k] = ',';
+        k++;
+    }
+    if ( k > 0 )
+        str[k - 1] = '\0';
+
+    return j;
+}
+
+/* Max color value is NR_LLC_COLORS-1 which needs up to 4 digits + comma. */
+static char __initdata legacy_colors[NR_LLC_COLORS * 5];
+#endif
+
 int __init parse_dom0less_node(struct dt_device_node *node,
                                struct boot_domain *bd)
 {
@@ -248,7 +297,11 @@ int __init parse_dom0less_node(struct dt_device_node *node,
     }
 
 #ifdef CONFIG_HAS_LLC_COLORING
-    dt_property_read_string(node, "llc-colors", &bd->llc_colors_str);
+    if ( prepare_color_domain_config_legacy(node, legacy_colors) > 0 )
+        bd->llc_colors_str = legacy_colors;
+    else
+        dt_property_read_string(node, "llc-colors", &bd->llc_colors_str);
+
     if ( !llc_coloring_enabled && bd->llc_colors_str )
         panic("'llc-colors' found, but LLC coloring is disabled\n");
 #endif
