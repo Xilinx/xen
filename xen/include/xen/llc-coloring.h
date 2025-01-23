@@ -18,12 +18,16 @@ struct xen_domctl_set_llc_colors;
 #ifdef CONFIG_LLC_COLORING
 extern bool llc_coloring_enabled;
 
+#define NR_LLC_COLORS          (1U << CONFIG_LLC_COLORS_ORDER)
+
 void llc_coloring_init(void);
 void dump_llc_coloring_info(void);
 void domain_dump_llc_colors(const struct domain *d);
 void domain_llc_coloring_free(struct domain *d);
 #else
 #define llc_coloring_enabled false
+
+#define NR_LLC_COLORS 2
 
 static inline void llc_coloring_init(void) {}
 static inline void dump_llc_coloring_info(void) {}

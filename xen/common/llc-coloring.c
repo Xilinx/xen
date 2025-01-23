@@ -12,7 +12,6 @@
 #include <xen/sched.h>
 #include <xen/types.h>
 
-#define NR_LLC_COLORS          (1U << CONFIG_LLC_COLORS_ORDER)
 #define XEN_DEFAULT_NUM_COLORS 1
 
 /*
@@ -24,6 +23,10 @@ static int8_t __initdata opt_llc_coloring = -1;
 boolean_param("llc-coloring", opt_llc_coloring);
 
 bool __ro_after_init llc_coloring_enabled;
+
+/* Backward compatibility */
+static unsigned int __initdata llc_way_size;
+integer_param("way_size", llc_way_size);
 
 static unsigned int __initdata llc_size;
 size_param("llc-size", llc_size);
@@ -107,6 +110,23 @@ static int __init parse_xen_colors(const char *s)
 }
 custom_param("xen-llc-colors", parse_xen_colors);
 
+/* Backward compatibility */
+static int __init parse_dom0_colors_legacy(const char *s)
+{
+    opt_llc_coloring = 1;
+    return parse_color_config(s, dom0_colors, ARRAY_SIZE(dom0_colors),
+                              &dom0_num_colors);
+}
+custom_param("dom0_colors", parse_dom0_colors_legacy);
+
+static int __init parse_xen_colors_legacy(const char *s)
+{
+    opt_llc_coloring = 1;
+    return parse_color_config(s, xen_colors, ARRAY_SIZE(xen_colors),
+                              &xen_num_colors);
+}
+custom_param("xen_colors", parse_xen_colors_legacy);
+
 static void print_colors(const unsigned int colors[], unsigned int num_colors)
 {
     unsigned int i;
@@ -156,6 +176,11 @@ void __init llc_coloring_init(void)
     {
         llc_coloring_enabled = true;
         way_size = llc_size / llc_nr_ways;
+    }
+    else if ( (opt_llc_coloring != 0) && llc_way_size )
+    {
+        llc_coloring_enabled = true;
+        way_size = llc_way_size + 1;
     }
     else if ( !llc_coloring_enabled )
         return;

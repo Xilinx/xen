@@ -1399,6 +1399,50 @@ static void __init domain_vcpu_affinity(struct domain *d,
     }
 }
 
+static int __init
+prepare_color_domain_config_legacy(const struct dt_device_node *node, char *str)
+{
+    uint32_t len;
+    int cell, k, i, j = 0;
+    const uint32_t *cells;
+    uint32_t col_val;
+    unsigned int colors[NR_LLC_COLORS];
+
+    cells = dt_get_property(node, "colors", &len);
+    if ( cells != NULL && len > 0 )
+    {
+        for ( k = 0, cell = len / 4 - 1; cell >= 0; cell--, k++ )
+        {
+            col_val = be32_to_cpup(&cells[cell]);
+            if ( col_val )
+            {
+                /* Calculate number of bit set */
+                for ( i = 0; i < 32; i++ )
+                {
+                    if ( col_val & (1 << i) )
+                    {
+                        colors[j++] = i;
+                    }
+                }
+            }
+        }
+    }
+
+    for ( i = 0, k = 0; i < j; i++ )
+    {
+        char temp[5];
+        snprintf(temp, sizeof(temp), "%u", colors[i]);
+        memcpy(&str[k], temp, strlen(temp));
+        k += strlen(temp);
+        str[k] = ',';
+        k++;
+    }
+    if ( k > 0 )
+        str[k - 1] = '\0';
+
+    return j;
+}
+
 static int __init construct_domU(struct domain *d,
                                  const struct dt_device_node *node)
 {
@@ -1585,6 +1629,8 @@ void __init create_domUs(void)
                                 *chosen = dt_find_node_by_path("/chosen");
     const char *viommu_str;
     const char *llc_colors_str = NULL;
+    /* rough estimate of the number of characters needed */
+    char legacy_colors[NR_LLC_COLORS * 3];
 
     BUG_ON(chosen == NULL);
     dt_for_each_child_node(chosen, node)
@@ -1763,7 +1809,12 @@ void __init create_domUs(void)
 #endif
         }
 
-        dt_property_read_string(node, "llc-colors", &llc_colors_str);
+        rc = prepare_color_domain_config_legacy(node, legacy_colors);
+        if ( rc > 0 )
+            llc_colors_str = &legacy_colors[0];
+        else
+            dt_property_read_string(node, "llc-colors", &llc_colors_str);
+
         if ( !llc_coloring_enabled && llc_colors_str )
             panic("'llc-colors' found, but LLC coloring is disabled\n");
 
