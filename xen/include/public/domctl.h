@@ -157,6 +157,12 @@ struct xen_domctl_getdomaininfo {
 /* domain has hardware assisted paging */
 #define _XEN_DOMINF_hap       8
 #define XEN_DOMINF_hap        (1U<<_XEN_DOMINF_hap)
+/* domain is hardware domain */
+#define _XEN_DOMINF_hardware  9
+#define XEN_DOMINF_hardware   (1U<<_XEN_DOMINF_hardware)
+/* domain is privileged */
+#define _XEN_DOMINF_priv      10
+#define XEN_DOMINF_priv       (1U<<_XEN_DOMINF_priv)
  /* XEN_DOMINF_shutdown guest-supplied code.  */
 #define XEN_DOMINF_shutdownmask 255
 #define XEN_DOMINF_shutdownshift 16

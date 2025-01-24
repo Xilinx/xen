@@ -103,6 +103,8 @@ void getdomaininfo(struct domain *d, struct xen_domctl_getdomaininfo *info)
         (d->debugger_attached           ? XEN_DOMINF_debugged  : 0) |
         (is_xenstore_domain(d)          ? XEN_DOMINF_xs_domain : 0) |
         (is_hvm_domain(d)               ? XEN_DOMINF_hvm_guest : 0) |
+        (is_hardware_domain(d)          ? XEN_DOMINF_hardware  : 0) |
+        (is_control_domain(d)           ? XEN_DOMINF_priv      : 0) |
         d->shutdown_code << XEN_DOMINF_shutdownshift;
 
     xsm_security_domaininfo(d, info);
