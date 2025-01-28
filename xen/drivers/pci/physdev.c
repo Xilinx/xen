@@ -87,7 +87,7 @@ ret_t pci_physdev_op(int cmd, XEN_GUEST_HANDLE_PARAM(void) arg)
                         dev_reset.dev.bus,
                         dev_reset.dev.devfn);
 
-        ret = xsm_resource_setup_pci(XSM_PRIV, sbdf.sbdf);
+        ret = xsm_resource_setup_pci(XSM_HW_PRIV, sbdf.sbdf);
         if ( ret )
             break;
 

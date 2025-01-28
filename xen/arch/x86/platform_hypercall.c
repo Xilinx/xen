@@ -228,7 +228,7 @@ ret_t do_platform_op(
     if ( op->interface_version != XENPF_INTERFACE_VERSION )
         return -EACCES;
 
-    ret = xsm_platform_op(XSM_PRIV, op->cmd);
+    ret = xsm_platform_op(XSM_HW_PRIV, op->cmd);
     if ( ret )
         return ret;
 
