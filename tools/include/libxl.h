@@ -1011,6 +1011,22 @@ typedef struct libxl__ctx libxl_ctx;
 #define LIBXL_HAVE_DOMINFO_GPADDR_BITS 1
 
 /*
+ * LIBXL_HAVE_DOMINFO_HARDWARE
+ *
+ * If this is defined, libxl_dominfo will contain a flag called hardware
+ * indicating that the specific domain is the hardware domain.
+ */
+#define LIBXL_HAVE_DOMINFO_HARDWARE 1
+
+/*
+ * LIBXL_HAVE_DOMINFO_PRIVILEGED
+ *
+ * If this is defined, libxl_dominfo will contain a flag called privileged
+ * indicating that the specific domain is privileged.
+ */
+#define LIBXL_HAVE_DOMINFO_PRIVILEGED 1
+
+/*
  * LIBXL_HAVE_QXL
  *
  * If defined, then the libxl_vga_interface_type will contain another value:
