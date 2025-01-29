@@ -102,6 +102,9 @@ static int libxl__device_nic_setdefault(libxl__gc *gc, uint32_t domid,
         }
         break;
     case LIBXL_DOMAIN_TYPE_PVH:
+        if (!nic->nictype)
+            nic->nictype = LIBXL_NIC_TYPE_VIF;
+        break;
     case LIBXL_DOMAIN_TYPE_PV:
         if (nic->nictype == LIBXL_NIC_TYPE_VIF_IOEMU) {
             LOGD(ERROR, domid,

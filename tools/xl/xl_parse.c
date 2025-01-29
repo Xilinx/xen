@@ -1422,6 +1422,7 @@ void parse_config_data(const char *config_source,
         if (!xlu_cfg_get_string(config, "pvshim_extra", &buf, 0))
             xlu_cfg_replace_string(config, "pvshim_extra",
                                    &b_info->u.pvh.pvshim_extra, 0);
+        xlu_cfg_get_defbool(config, "virtio_pci", &b_info->u.pvh.virtio_pci, 0);
     }
 
     if (blkdev_start)

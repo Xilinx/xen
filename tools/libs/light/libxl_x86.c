@@ -1,6 +1,7 @@
 #include "libxl_internal.h"
 #include "libxl_arch.h"
 #include <xen/arch-x86/cpuid.h>
+#include <xen/hvm/e820.h>
 
 int libxl__arch_domain_prepare_config(libxl__gc *gc,
                                       libxl_domain_config *d_config,
@@ -691,9 +692,13 @@ static int domain_construct_memmap(libxl__gc *gc,
         if (d_config->rdms[i].policy != LIBXL_RDM_RESERVE_POLICY_INVALID)
             e820_entries++;
 
-    /* Add the HVM special pages to PVH memmap as RESERVED. */
-    if (d_config->b_info.type == LIBXL_DOMAIN_TYPE_PVH)
+    if (d_config->b_info.type == LIBXL_DOMAIN_TYPE_PVH) {
+        /* Add the HVM special pages to PVH memmap as RESERVED. */
         e820_entries++;
+        /* Reserve virtio pci root ECAM */
+        if (libxl_defbool_val(d_config->b_info.u.pvh.virtio_pci))
+            e820_entries++;
+    }
 
     /* If we should have a highmem range. */
     if (highmem_size)
@@ -715,6 +720,10 @@ static int domain_construct_memmap(libxl__gc *gc,
     e820[nr].addr = lowmem_start;
     e820[nr].size = dom->lowmem_end - lowmem_start;
     e820[nr].type = E820_RAM;
+    if (d_config->b_info.type == LIBXL_DOMAIN_TYPE_PVH) {
+        d_config->b_info.u.pvh.lowmem_base = e820[nr].addr;
+        d_config->b_info.u.pvh.lowmem_size = e820[nr].size;
+    }
     nr++;
 
     /* RDM mapping */
@@ -752,6 +761,29 @@ static int domain_construct_memmap(libxl__gc *gc,
         e820[nr].addr = ((uint64_t)1 << 32);
         e820[nr].size = highmem_size;
         e820[nr].type = E820_RAM;
+        if (d_config->b_info.type == LIBXL_DOMAIN_TYPE_PVH) {
+            d_config->b_info.u.pvh.highmem_base = e820[nr].addr;
+            d_config->b_info.u.pvh.highmem_size = e820[nr].size;
+        }
+        nr++;
+    }
+
+    if (d_config->b_info.type == LIBXL_DOMAIN_TYPE_PVH) {
+        if (libxl_defbool_val(d_config->b_info.u.pvh.virtio_pci)) {
+            libxl_domain_build_info *const info = &d_config->b_info;
+
+            info->u.pvh.pci_ecam_base = VIRTIO_PCI_ECAM_BASE;
+            info->u.pvh.pci_ecam_size = VIRTIO_PCI_ECAM_SIZE;
+            info->u.pvh.pci_mmio_base = VIRTIO_PCI_MMIO_BASE;
+            info->u.pvh.pci_mmio_size = VIRTIO_PCI_MMIO_SIZE;
+            info->u.pvh.pci_mmio64_base = VIRTIO_PCI_64BIT_MMIO_BASE;
+            info->u.pvh.pci_mmio64_size = VIRTIO_PCI_64BIT_MMIO_SIZE;
+            info->u.pvh.pci_intx_base = VIRTIO_PCI_INTX_BASE;
+            e820[nr].addr = info->u.pvh.pci_ecam_base;
+            e820[nr].size = info->u.pvh.pci_ecam_size;
+            e820[nr].type = E820_RESERVED;
+            nr++;
+        }
     }
 
     if (xc_domain_set_memory_map(CTX->xch, domid, e820, e820_entries) != 0) {

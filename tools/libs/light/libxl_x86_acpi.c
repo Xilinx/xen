@@ -153,6 +153,9 @@ static int init_acpi_config(libxl__gc *gc,
     config->pci_isa_irq_mask = 0;
     config->table_flags = ACPI_HAS_IOAPIC | ACPI_NO_PCAT_COMPAT;
 
+    if (libxl_defbool_val(b_info->u.pvh.virtio_pci))
+        config->table_flags |= ACPI_HAS_VIRTIO_PCI_ROOT;
+
     config->acpi_revision = 5;
 
     rc = 0;

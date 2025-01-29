@@ -451,6 +451,7 @@ int libxl__domain_build_info_setdefault(libxl__gc *gc,
                 b_info->u.pvh.pvshim_cmdline =
                     libxl__strdup(NOGC, PVSHIM_CMDLINE);
         }
+        libxl_defbool_setdefault(&b_info->u.pvh.virtio_pci, false);
 
         break;
     default:
