@@ -193,6 +193,9 @@ static XSM_INLINE int cf_check xsm_sysctl(XSM_DEFAULT_ARG int cmd)
     {
     case XEN_SYSCTL_getdomaininfolist:
         return xsm_default_action(XSM_XS_PRIV, current->domain, NULL);
+    case XEN_SYSCTL_readconsole:
+    case XEN_SYSCTL_physinfo:
+        return xsm_default_action(XSM_HW_PRIV, current->domain, NULL);
     default:
         return xsm_default_action(XSM_PRIV, current->domain, NULL);
     }
