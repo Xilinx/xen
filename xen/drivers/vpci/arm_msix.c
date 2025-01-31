@@ -48,18 +48,7 @@ static const struct mmio_handler_ops vpci_msi_mmio_handler = {
 
 int vpci_make_msix_hole(const struct pci_dev *pdev)
 {
-    struct vpci_msix *msix = pdev->vpci->msix;
-    paddr_t addr,size;
-
-    for ( int i = 0; msix && i < ARRAY_SIZE(msix->tables); i++ )
-    {
-        addr = vmsix_table_addr(pdev->vpci, VPCI_MSIX_TABLE);
-        size = vmsix_table_size(pdev->vpci, VPCI_MSIX_TABLE) - 1;
-
-        register_mmio_handler(pdev->domain, &vpci_msi_mmio_handler,
-                              addr, size, pdev->vpci);
-    }
-
+    (void) vpci_msi_mmio_handler;
     return 0;
 }
 /*

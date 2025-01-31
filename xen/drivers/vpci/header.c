@@ -397,6 +397,8 @@ static int modify_bars(const struct pci_dev *pdev, uint16_t cmd, bool rom_only)
     }
 
     /* Remove any MSIX regions if present. */
+    if ( IS_ENABLED(CONFIG_X86) )
+    {
     for ( i = 0; msix && i < ARRAY_SIZE(msix->tables); i++ )
     {
         unsigned long start = PFN_DOWN(vmsix_table_addr(pdev->vpci, i));
@@ -419,6 +421,7 @@ static int modify_bars(const struct pci_dev *pdev, uint16_t cmd, bool rom_only)
                 return rc;
             }
         }
+    }
     }
 
     /*
