@@ -859,6 +859,8 @@ static XSM_INLINE int cf_check xsm_xen_version(XSM_DEFAULT_ARG uint32_t op)
         /* These MUST always be accessible to any guest by default. */
         return xsm_default_action(XSM_HOOK, current->domain, NULL);
     default:
+        if ( is_hardware_domain(current->domain) )
+            return xsm_default_action(XSM_HW_PRIV, current->domain, NULL);
         return xsm_default_action(XSM_PRIV, current->domain, NULL);
     }
 }
