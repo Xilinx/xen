@@ -98,9 +98,12 @@ static always_inline int xsm_default_action(
     case XSM_HW_PRIV:
         if ( is_control_domain(src) && action != XSM_HW_PRIV )
             return 0;
-        if ( is_hardware_domain(src) &&
-             (action == XSM_HW_PRIV || action == XSM_DM_PRIV) )
+        if ( is_hardware_domain(src) && action != XSM_PRIV )
+        {
+            if ( target && is_control_domain(target) )
+                return -EPERM;
             return 0;
+        }
         return -EPERM;
     default:
         LINKER_BUG_ON(1);
