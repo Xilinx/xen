@@ -9,6 +9,7 @@
 #include <stdbool.h>
 #if defined(CONFIG_X86)
 #include <xen/arch-x86/guest-acpi.h>
+#include <xen/hvm/e820.h>
 #include <xen/hvm/hvm_info_table.h>
 #elif defined(CONFIG_ARM_64)
 #include <xen/arch-arm.h>
@@ -96,16 +97,114 @@ static struct option options[] = {
     { "maxcpu", 1, 0, 'c' },
 #ifdef CONFIG_X86
     { "dm-version", 1, 0, 'q' },
+    { "vpci", 1, 0, 'p' },
+    { "virtio-pci", 1, 0, 'v' },
 #endif
     { "debug", 1, 0, 'd' },
     { 0, 0, 0, 0 }
 };
+
+#ifdef CONFIG_X86
+static void add_pci_root(unsigned int seg, unsigned int nr_bus,
+          unsigned long ecam_base, unsigned long ecam_size,
+          unsigned long mmio32_base, unsigned long mmio32_size,
+          unsigned long long mmio64_base, unsigned long long mmio64_size,
+          unsigned int gsi_base)
+{
+    unsigned int link, dev;
+
+    /* Reserve ECAM in motherboard resources */
+    push_block("Device", "RES%u", seg);
+    stmt("Name", "_HID, EISAID(\"PNP0C02\")");
+    stmt("Name", "_CRS, ResourceTemplate() {"
+         "QWordMemory(ResourceProducer,"
+         "PosDecode, MinFixed, MaxFixed, NonCacheable, ReadWrite,"
+         "0x00000000,"
+         "0x%08lx,"
+         "0x%08lx,"
+         "0x00000000,"
+         "0x%08lx)"
+         "}", ecam_base, ecam_base + ecam_size - 1, ecam_size);
+    pop_block();
+
+    /* Allocate Root Bridge resources */
+    push_block("Device", "PCI%u", seg);
+    stmt("Name", "_HID, EISAID(\"PNP0A08\")"); // _HID: Hardware ID
+    stmt("Name", "_CID, EISAID(\"PNP0A03\")"); // _CID: Compatible ID
+    stmt("Name", "_SEG, %d", seg);             // _SEG: PCI Segment
+    stmt("Name", "_BBN, 0");                   // _BBN: BIOS Bus Number
+    stmt("Name", "_STR, UNICODE(\"PCIe %d Device\")", seg);
+    stmt("Name", "_CCA, 1");                   // _CCA: Cache Coherency Attr
+
+    push_block("Method", "_CBA, 0, NotSerialized"); // _CBA: Config Base Address
+    stmt("Return", "(0x%08lx)", ecam_base);
+    pop_block();
+
+    stmt("Name", "_CRS, ResourceTemplate() {"
+         "WordBusNumber (ResourceProducer,"
+         "MinFixed, MaxFixed, PosDecode,"
+         "0x0000,"                                  // Granularity
+         "0x0000,"                                  // Range Minimum
+         "0x%04x,"                                  // Range Maximum
+         "0x0000,"                                  // Translation Offset
+         "0x%04x)"                                  // Length
+         "DWordMemory (ResourceProducer,"
+         "PosDecode, MinFixed, MaxFixed, NonCacheable, ReadWrite,"
+         "0x00000000,"
+         "0x%08lx,"
+         "0x%08lx,"
+         "0x00000000,"
+         "0x%08lx)"
+         "QWordMemory (ResourceProducer,"
+         "PosDecode, MinFixed, MaxFixed, NonCacheable, ReadWrite,"
+         "0x0000000000000000,"
+         "0x%016llx,"
+         "0x%016llx,"
+         "0x0000000000000000,"
+         "0x%016llx)"
+         "}",
+         nr_bus - 1, nr_bus,
+         mmio32_base, mmio32_base + mmio32_size - 1, mmio32_size,
+         mmio64_base, mmio64_base + mmio64_size - 1, mmio64_size);
+
+    /* Map PCI device interrupt pins to GSIs */
+    indent(); printf("Name(_PRT, Package() {\n");   // _PRT: PCI Routing Table
+    indent_level++;
+    for ( dev = 1; dev < 32; dev++ ) {
+        for (link = 0; link < 4; link++) {
+            indent(); printf("Package() {0x%04xFFFF, %u, LNK%c, 0},\n",
+                             dev, link, 'A' + ((dev + link) & 3));
+       }
+    }
+    indent_level--;
+    indent(); printf("})\n");
+    /* Allocate GSIs connected to PCI interrupt pins */
+    for (link = 0; link < 4; link++) {
+        unsigned int gsi = gsi_base + link;
+        push_block("Device", "LNK%c", 'A' + link);
+        stmt("Name", "_HID, EISAID(\"PNP0C0F\")");
+        stmt("Name", "_UID, %u", link);
+        stmt("Name", "_CRS, ResourceTemplate() { "
+             "Interrupt (ResourceConsumer, Level, ActiveHigh, Exclusive)"
+             "{ %u } }", gsi);
+        stmt("Name", "_PRS, ResourceTemplate() { "
+             "Interrupt (ResourceConsumer, Level, ActiveHigh, Exclusive)"
+             "{ %u } }", gsi);
+        push_block("Method", "_SRS, 1, NotSerialized");
+        pop_block();
+        pop_block();
+    }
+
+    pop_block();
+}
+#endif /* CONFIG_X86 */
 
 int main(int argc, char **argv)
 {
     unsigned int cpu, max_cpus;
 #if defined(CONFIG_X86)
     dm_version dm_version = QEMU_XEN_TRADITIONAL;
+    bool vpci = false, virtio_pci = false;
     unsigned int slot, dev, intx, link;
 
     max_cpus = HVM_MAX_VCPUS;
@@ -150,6 +249,14 @@ int main(int argc, char **argv)
                 return -1;
             }
             break;
+        case 'p':
+            if (*optarg == 'y')
+                vpci = true;
+            break;
+        case 'v':
+            if (*optarg == 'y')
+                virtio_pci = true;
+            break;
 #endif
         case 'd':
             if (*optarg == 'y')
@@ -159,6 +266,37 @@ int main(int argc, char **argv)
             return -1;
         }
     }
+
+#ifdef CONFIG_X86
+    if (vpci)
+    {
+        /**** SSDT DefinitionBlock start ****/
+        /* (we append to existing SSDT definition block) */
+        indent_level++;
+
+        add_pci_root(VPCI_SEG, VPCI_NR_BUS,
+                     VPCI_ECAM_BASE, VPCI_ECAM_SIZE,
+                     VPCI_MMIO_BASE, VPCI_MMIO_SIZE,
+                     VPCI_64BIT_MMIO_BASE, VPCI_64BIT_MMIO_SIZE,
+                     VPCI_INTX_BASE);
+        pop_block();
+        return 0;
+    }
+    if (virtio_pci)
+    {
+        /**** SSDT DefinitionBlock start ****/
+        /* (we append to existing SSDT definition block) */
+        indent_level++;
+
+        add_pci_root(VIRTIO_PCI_SEG, VIRTIO_PCI_NR_BUS,
+                     VIRTIO_PCI_ECAM_BASE, VIRTIO_PCI_ECAM_SIZE,
+                     VIRTIO_PCI_MMIO_BASE, VIRTIO_PCI_MMIO_SIZE,
+                     VIRTIO_PCI_64BIT_MMIO_BASE, VIRTIO_PCI_64BIT_MMIO_SIZE,
+                     VIRTIO_PCI_INTX_BASE);
+        pop_block();
+        return 0;
+    }
+#endif
 
     /**** DSDT DefinitionBlock start ****/
     /* (we append to existing DSDT definition block) */

@@ -149,6 +149,19 @@ struct acpi_20_waet Waet = {
     .flags = ACPI_WAET_FLAGS
 };
 
+struct acpi_mcfg Mcfg = {
+    .header = {
+        .signature    = ACPI_MCFG_SIGNATURE,
+        .length       = 0,
+        .revision     = 0x01,
+        .oem_id       = ACPI_OEM_ID,
+        .oem_table_id = ACPI_OEM_TABLE_ID,
+        .oem_revision = ACPI_OEM_REVISION,
+        .creator_id   = ACPI_CREATOR_ID,
+        .creator_revision = ACPI_CREATOR_REVISION
+    }
+};
+
 /*
  * Local variables:
  * mode: C

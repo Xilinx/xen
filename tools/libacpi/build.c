@@ -13,6 +13,9 @@
 #include "ssdt_tpm2.h"
 #include "ssdt_pm.h"
 #include "ssdt_laptop_slate.h"
+#include "ssdt_pvh_virtio_pci.h"
+#include "ssdt_pvh_vpci.h"
+#include <xen/hvm/e820.h>
 #include <xen/hvm/hvm_info_table.h>
 #include <xen/hvm/hvm_xs_strings.h>
 #include <xen/hvm/params.h>
@@ -29,6 +32,7 @@ extern struct acpi_20_xsdt Xsdt;
 extern struct acpi_fadt Fadt;
 extern struct acpi_20_facs Facs;
 extern struct acpi_20_waet Waet;
+extern struct acpi_mcfg Mcfg;
 
 /*
  * Located at ACPI_INFO_PHYSICAL_ADDRESS.
@@ -296,6 +300,55 @@ static struct acpi_20_slit *construct_slit(struct acpi_ctxt *ctxt,
     return slit;
 }
 
+static struct acpi_mcfg *construct_mcfg(struct acpi_ctxt *ctxt,
+                                        const struct acpi_config *config)
+{
+    struct acpi_mcfg *mcfg;
+    struct acpi_mcfg_allocation *mmcfg;
+    size_t length;
+
+    length = sizeof(*mcfg);
+    if ( config->table_flags & ACPI_HAS_VPCI_ROOT )
+        length += sizeof(*mmcfg);
+    if ( config->table_flags & ACPI_HAS_VIRTIO_PCI_ROOT )
+        length += sizeof(*mmcfg);
+    mcfg = ctxt->mem_ops.alloc(ctxt, length, 16);
+    if ( !mcfg )
+        return NULL;
+
+    memset(mcfg, 0, length);
+    memcpy(mcfg, &Mcfg, sizeof(struct acpi_mcfg));
+    mcfg->header.length = length;
+
+    mmcfg = (void *)mcfg + sizeof(*mcfg);
+    if ( config->table_flags & ACPI_HAS_VPCI_ROOT )
+    {
+        mmcfg->address = VPCI_ECAM_BASE;
+        /* Fake "SGI" oem id to bypass above 4G ECAM limitation in linux */
+        if ( mmcfg->address > GB(4) )
+            memcpy(mcfg->header.oem_id, "SGI\0\0", sizeof(mcfg->header.oem_id));
+        mmcfg->pci_segment = VPCI_SEG;
+        mmcfg->start_bus_number = 0;
+        mmcfg->end_bus_number = VPCI_NR_BUS - 1;
+        mmcfg++;
+    }
+    if ( config->table_flags & ACPI_HAS_VIRTIO_PCI_ROOT )
+    {
+        mmcfg->address = VIRTIO_PCI_ECAM_BASE;
+        /* Fake "SGI" oem id to bypass above 4G ECAM limitation in linux */
+        if ( mmcfg->address > GB(4) )
+            memcpy(mcfg->header.oem_id, "SGI\0\0", sizeof(mcfg->header.oem_id));
+        mmcfg->pci_segment = VIRTIO_PCI_SEG;
+        mmcfg->start_bus_number = 0;
+        mmcfg->end_bus_number = VIRTIO_PCI_NR_BUS - 1;
+    }
+
+    set_checksum(mcfg, offsetof(struct acpi_header, checksum),
+                 mcfg->header.length);
+
+    return mcfg;
+}
+
 static int construct_passthrough_tables(struct acpi_ctxt *ctxt,
                                         unsigned long *table_ptrs,
                                         int nr_tables,
@@ -370,6 +423,15 @@ static int construct_secondary_tables(struct acpi_ctxt *ctxt,
         if ( !waet )
             return -1;
         table_ptrs[nr_tables++] = ctxt->mem_ops.v2p(ctxt, waet);
+    }
+
+    /* MCFG */
+    if ( config->table_flags & (ACPI_HAS_VPCI_ROOT | ACPI_HAS_VIRTIO_PCI_ROOT) )
+    {
+        struct acpi_mcfg *mcfg = construct_mcfg(ctxt, config);
+        if (!mcfg)
+            return -1;
+        table_ptrs[nr_tables++] = ctxt->mem_ops.v2p(ctxt, mcfg);
     }
 
     if ( config->table_flags & ACPI_HAS_SSDT_PM )
@@ -482,6 +544,24 @@ static int construct_secondary_tables(struct acpi_ctxt *ctxt,
                          tpm2->header.length);
             break;
         }
+    }
+
+    /* SSDT for vPCI Root Bridge */
+    if ( config->table_flags & ACPI_HAS_VPCI_ROOT )
+    {
+         ssdt = ctxt->mem_ops.alloc(ctxt, sizeof(ssdt_pvh_vpci), 16);
+         if (!ssdt) return -1;
+         memcpy(ssdt, ssdt_pvh_vpci, sizeof(ssdt_pvh_vpci));
+         table_ptrs[nr_tables++] = ctxt->mem_ops.v2p(ctxt, ssdt);
+    }
+
+    /* SSDT for virtio PCI Root Bridge */
+    if ( config->table_flags & ACPI_HAS_VIRTIO_PCI_ROOT )
+    {
+         ssdt = ctxt->mem_ops.alloc(ctxt, sizeof(ssdt_pvh_virtio_pci), 16);
+         if (!ssdt) return -1;
+         memcpy(ssdt, ssdt_pvh_virtio_pci, sizeof(ssdt_pvh_virtio_pci));
+         table_ptrs[nr_tables++] = ctxt->mem_ops.v2p(ctxt, ssdt);
     }
 
     /* SRAT and SLIT */
