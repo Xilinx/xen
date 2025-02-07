@@ -1091,6 +1091,30 @@ static u64 __init combine_u64(u32 v[2])
     return v64;
 }
 
+static int __init alloc_xenstore_params(struct kernel_info *kinfo)
+{
+    struct domain *d = kinfo->d;
+    int rc = 0;
+
+    if ( kinfo->dom0less_feature & (DOM0LESS_XENSTORE | DOM0LESS_XS_LEGACY) )
+    {
+        ASSERT(hardware_domain);
+        rc = alloc_xenstore_evtchn(d);
+        if ( rc < 0 )
+            return rc;
+        d->arch.hvm.params[HVM_PARAM_STORE_PFN] = ~0ULL;
+    }
+
+    if ( kinfo->dom0less_feature & DOM0LESS_XENSTORE )
+    {
+        rc = alloc_xenstore_page(d);
+        if ( rc < 0 )
+            return rc;
+    }
+
+    return rc;
+}
+
 static int __init construct_domU(struct domain *d,
                                  const struct dt_device_node *node)
 {
@@ -1184,6 +1208,13 @@ static int __init construct_domU(struct domain *d,
         else
             panic("At the moment, Xenstore support requires dom0 to be present\n");
     }
+    else if ( rc == 0 && !strcmp(dom0less_enhanced, "legacy") )
+    {
+        if ( hardware_domain )
+            kinfo.dom0less_feature = DOM0LESS_ENHANCED_LEGACY;
+        else
+            panic("At the moment, Xenstore support requires dom0 to be present\n");
+    }
     else if ( rc == 0 && !strcmp(dom0less_enhanced, "no-xenstore") )
         kinfo.dom0less_feature = DOM0LESS_ENHANCED_NO_XS;
 
@@ -1233,19 +1264,7 @@ static int __init construct_domU(struct domain *d,
     if ( rc < 0 )
         return rc;
 
-    if ( kinfo.dom0less_feature & DOM0LESS_XENSTORE )
-    {
-        ASSERT(hardware_domain);
-        rc = alloc_xenstore_evtchn(d);
-        if ( rc < 0 )
-            return rc;
-
-        rc = alloc_xenstore_page(d);
-        if ( rc < 0 )
-            return rc;
-    }
-
-    return rc;
+    return alloc_xenstore_params(&kinfo);
 }
 
 void __init create_domUs(void)
