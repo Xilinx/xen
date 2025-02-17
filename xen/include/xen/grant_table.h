@@ -45,6 +45,10 @@ void grant_table_destroy(
     struct domain *d);
 void grant_table_init_vcpu(struct vcpu *v);
 
+/* Seed a gnttab entry for Hyperlaunch/dom0less. */
+void gnttab_seed_entry(struct domain *d, int idx, domid_t be_domid,
+                       uint64_t frame, unsigned int flags);
+
 /*
  * Check if domain has active grants and log first 10 of them.
  */
@@ -84,6 +88,10 @@ static inline int grant_table_init(struct domain *d,
 static inline void grant_table_destroy(struct domain *d) {}
 
 static inline void grant_table_init_vcpu(struct vcpu *v) {}
+
+static inline void gnttab_seed_entry(struct domain *d, int idx,
+                                     domid_t be_domid, uint64_t frame,
+                                     unsigned int flags) {}
 
 static inline void grant_table_warn_active_grants(struct domain *d) {}
 

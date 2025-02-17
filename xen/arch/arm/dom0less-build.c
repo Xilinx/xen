@@ -24,6 +24,8 @@
 #include <asm/static-memory.h>
 #include <asm/static-shmem.h>
 
+static domid_t __initdata xs_domid = DOMID_INVALID;
+
 bool __init is_dom0less_mode(void)
 {
     struct bootmodules *mods = &bootinfo.modules;
@@ -1080,6 +1082,10 @@ static int __init alloc_xenstore_page(struct domain *d)
     interface->connection = XENSTORE_RECONNECT;
     unmap_domain_page(interface);
 
+    if ( xs_domid != DOMID_INVALID )
+        gnttab_seed_entry(d, GNTTAB_RESERVED_XENSTORE, xs_domid,
+                          gfn_x(gfn), GTF_permit_access);
+
     return 0;
 }
 
@@ -1497,6 +1503,9 @@ void __init create_domUs(void)
         if ( rc )
             panic("Could not set up domain %s (rc = %d)\n",
                   dt_node_name(node), rc);
+
+        if ( d_cfg.flags & XEN_DOMCTL_CDF_xs_domain )
+            xs_domid = d->domain_id;
     }
 }
 
