@@ -1289,6 +1289,7 @@ void __init create_domUs(void)
     dt_for_each_child_node(chosen, node)
     {
         struct domain *d;
+        domid_t domid;
         struct xen_domctl_createdomain d_cfg = {
             .arch.gic_version = XEN_DOMCTL_CONFIG_GIC_NATIVE,
             .flags = XEN_DOMCTL_CDF_hvm | XEN_DOMCTL_CDF_hap,
@@ -1444,7 +1445,12 @@ void __init create_domUs(void)
          * very important to use the pre-increment operator to call
          * domain_create() with a domid > 0. (domid == 0 is reserved for Dom0)
          */
-        d = domain_create(++max_init_domid, &d_cfg, flags);
+        if ( flags & CDF_hardware )
+            domid = 0;
+        else
+            domid = ++max_init_domid;
+
+        d = domain_create(domid, &d_cfg, flags);
         if ( IS_ERR(d) )
             panic("Error creating domain %s (rc = %ld)\n",
                   dt_node_name(node), PTR_ERR(d));
