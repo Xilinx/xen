@@ -313,7 +313,8 @@ Also displays the security labels.
 
 =item B<-v>, B<--verbose>
 
-Also displays the domain UUIDs, the shutdown reason and security labels.
+Also displays the domain UUIDs, the shutdown reason, security labels,
+and capabilities.
 
 =item B<-c>, B<--cpupool>
 

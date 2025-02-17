@@ -384,7 +384,7 @@ static void list_domains(bool verbose, bool context, bool claim, bool numa,
     libxl_physinfo_init(&physinfo);
 
     printf("Name                                        ID   Mem VCPUs\tState\tTime(s)");
-    if (verbose) printf("   UUID                            Reason-Code\tSecurity Label");
+    if (verbose) printf("   UUID                            Reason-Code\tSecurity Label      Capabilities");
     if (context && !verbose) printf("   Security Label");
     if (claim) printf("  Claimed");
     if (cpupool) printf("         Cpupool");
@@ -443,6 +443,28 @@ static void list_domains(bool verbose, bool context, bool claim, bool numa,
             putchar(' ');
             print_bitmap(nodemap.map, physinfo.nr_nodes, stdout);
         }
+        if (verbose) {
+            bool cap = false;
+
+            if ( info[i].privileged )
+            {
+                cap = true;
+                printf(" privileged");
+            }
+            if ( info[i].hardware )
+            {
+                cap = true;
+                printf(" hardware");
+            }
+            if ( info[i].never_stop )
+            {
+                cap = true;
+                printf(" xenstore");
+            }
+            if ( !cap )
+                printf(" %17s", "-");
+        }
+
         putchar('\n');
     }
 
