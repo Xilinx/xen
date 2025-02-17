@@ -300,6 +300,7 @@ static int overlay_get_nodes_info(const void *fdto, char **nodes_full_path)
         int overlay;
         int subnode;
         const char *target_path;
+        const char *fragment_name = fdt_get_name(fdto, fragment, NULL);
 
         overlay = fdt_subnode_offset(fdto, fragment, "__overlay__");
         if ( overlay < 0 )
@@ -308,10 +309,20 @@ static int overlay_get_nodes_info(const void *fdto, char **nodes_full_path)
         target = fdt_overlay_target_offset(device_tree_flattened, fdto,
                                            fragment, &target_path);
         if ( target < 0 )
+        {
+            printk(XENLOG_ERR
+                   "Invalid/non-existing 'target-path' property for fragment %s\n",
+                   fragment_name);
             return target;
+        }
 
         if ( target_path == NULL )
+        {
+            printk(XENLOG_ERR
+                   "Failed to get 'target-path' property for fragment %s\n",
+                   fragment_name);
             return -EINVAL;
+        }
 
         fdt_for_each_subnode(subnode, fdto, overlay)
         {
@@ -324,7 +335,12 @@ static int overlay_get_nodes_info(const void *fdto, char **nodes_full_path)
             node_name = fdt_get_name(fdto, subnode, &node_name_len);
 
             if ( node_name == NULL )
+            {
+                printk(XENLOG_ERR
+                       "Failed to get name for overlay subnode %d\n",
+                       subnode);
                 return node_name_len;
+            }
 
             /*
              * Extra length is for adding '/' and '\0' unless the target path is
@@ -747,7 +763,9 @@ static long handle_add_overlay_nodes(void *overlay_fdt,
     rc = fdt_overlay_apply(tr->fdt, overlay_fdt);
     if ( rc )
     {
-        printk(XENLOG_ERR "Adding overlay node failed with error %d\n", rc);
+        printk(XENLOG_ERR
+               "Adding overlay node failed with error %d. Possible issues in __fixups__\n",
+               rc);
         goto err;
     }
 
