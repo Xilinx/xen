@@ -795,6 +795,25 @@ static struct domain *find_or_alloc_existing_domain(unsigned int domid)
 	return domain;
 }
 
+static void domain_set_privileged(struct domain *domain)
+{
+	xc_domaininfo_t dominfo;
+
+	if ( !get_domain_info(domain->domid, &dominfo) )
+		return;
+
+	fprintf(stderr, "d%u: flags %#x\n", domain->domid, dominfo.flags);
+	if ( dominfo.flags & XEN_DOMINF_priv )
+	{
+		fprintf(stderr, "priv_domid %d -> %d\n", priv_domid,
+			domain->domid);
+		priv_domid = domain->domid;
+	}
+	if ( dominfo.flags & XEN_DOMINF_hardware )
+		fprintf(stderr, "hw/dom0_domid %d -> %d\n", dom0_domid,
+			domain->domid);
+}
+
 static int new_domain(struct domain *domain, int port, bool restore)
 {
 	int rc;
@@ -830,6 +849,8 @@ static int new_domain(struct domain *domain, int port, bool restore)
 
 	domain->conn->domain = domain;
 	domain->conn->id = domain->domid;
+
+	domain_set_privileged(domain);
 
 	return 0;
 }
