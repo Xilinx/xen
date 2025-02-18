@@ -215,7 +215,7 @@ int scan_pci_devices(void);
 void add_discovered_pci_devices(void);
 void pci_fixup_bars(void);
 void assign_hwdom_pci_devices(void);
-void dump_pci_devices(unsigned char ch);
+void cf_check dump_pci_devices(unsigned char ch);
 enum pdev_type pdev_type(u16 seg, u8 bus, u8 devfn);
 int find_upstream_bridge(u16 seg, u8 *bus, u8 *devfn, u8 *secbus);
 

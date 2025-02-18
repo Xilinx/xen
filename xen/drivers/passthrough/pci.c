@@ -1196,7 +1196,8 @@ int __init scan_pci_devices(void)
     return ret;
 }
 
-static int __init _add_discovered_pci_devices(struct pci_seg *pseg, void *arg)
+static int __init cf_check _add_discovered_pci_devices(struct pci_seg *pseg,
+                                                       void *arg)
 {
     struct pci_dev *pdev;
     int ret = 0;
@@ -1724,7 +1725,8 @@ static int assign_device(struct domain *d, u16 seg, u8 bus, u8 devfn, u32 flag)
     return rc;
 }
 
-static int __init _assign_hwdom_pci_devices(struct pci_seg *pseg, void *arg)
+static int __init cf_check _assign_hwdom_pci_devices(struct pci_seg *pseg,
+                                                     void *arg)
 {
     struct pci_dev *pdev;
     int ret = 0;
