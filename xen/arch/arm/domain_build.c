@@ -2543,6 +2543,7 @@ void __init create_dom0(void)
     unsigned int flags = CDF_privileged | CDF_hardware;
     int rc;
 
+    set_xs_domid(0);
     /* The vGIC for DOM0 is exactly emulating the hardware GIC */
     dom0_cfg.arch.gic_version = XEN_DOMCTL_CONFIG_GIC_NATIVE;
     /*
