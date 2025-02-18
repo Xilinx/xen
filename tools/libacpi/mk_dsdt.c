@@ -137,7 +137,7 @@ static void add_pci_root(unsigned int seg, unsigned int nr_bus,
     stmt("Name", "_CCA, 1");                   // _CCA: Cache Coherency Attr
 
     push_block("Method", "_CBA, 0, NotSerialized"); // _CBA: Config Base Address
-    stmt("Return", "(0x%08lx)", ecam_base);
+    stmt("Return", "0x%08lx", ecam_base);
     pop_block();
 
     stmt("Name", "_CRS, ResourceTemplate() {"
