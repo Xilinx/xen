@@ -106,7 +106,7 @@ static struct option options[] = {
 
 #ifdef CONFIG_X86
 static void add_pci_root(unsigned int seg, unsigned int nr_bus,
-          unsigned long ecam_base, unsigned long ecam_size,
+          unsigned long long ecam_base, unsigned long ecam_size,
           unsigned long mmio32_base, unsigned long mmio32_size,
           unsigned long long mmio64_base, unsigned long long mmio64_size,
           unsigned int gsi_base)
@@ -120,8 +120,8 @@ static void add_pci_root(unsigned int seg, unsigned int nr_bus,
          "QWordMemory(ResourceProducer,"
          "PosDecode, MinFixed, MaxFixed, NonCacheable, ReadWrite,"
          "0x00000000,"
-         "0x%08lx,"
-         "0x%08lx,"
+         "0x%08llx,"
+         "0x%08llx,"
          "0x00000000,"
          "0x%08lx)"
          "}", ecam_base, ecam_base + ecam_size - 1, ecam_size);
@@ -137,7 +137,7 @@ static void add_pci_root(unsigned int seg, unsigned int nr_bus,
     stmt("Name", "_CCA, 1");                   // _CCA: Cache Coherency Attr
 
     push_block("Method", "_CBA, 0, NotSerialized"); // _CBA: Config Base Address
-    stmt("Return", "0x%08lx", ecam_base);
+    stmt("Return", "0x%016llx", ecam_base);
     pop_block();
 
     stmt("Name", "_CRS, ResourceTemplate() {"
