@@ -953,6 +953,9 @@ static int make_vpci_node(libxl__gc *gc, void *fdt,
                               0, 0x10000);
     if (res) return res;
 
+    res = fdt_property_cell(fdt, "linux,pci-domain", 0);
+    if (res) return res;
+
     res = fdt_end_node(fdt);
     if (res) return res;
 

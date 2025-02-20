@@ -1953,6 +1953,10 @@ int __init make_vpci_node(struct domain *d, void *fdt)
     if ( res )
         return res;
 
+    res = fdt_property_cell(fdt, "linux,pci-domain", 0);
+    if ( res )
+        return res;
+
     res = fdt_end_node(fdt);
 
     return res;
