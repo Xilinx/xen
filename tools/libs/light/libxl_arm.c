@@ -695,7 +695,7 @@ static int make_gicv2_node(libxl__gc *gc, void *fdt,
     res = fdt_property_cell(fdt, "#interrupt-cells", 3);
     if (res) return res;
 
-    res = fdt_property_cell(fdt, "#address-cells", 0);
+    res = fdt_property_cell(fdt, "#address-cells", GUEST_ROOT_ADDRESS_CELLS);
     if (res) return res;
 
     res = fdt_property(fdt, "interrupt-controller", NULL, 0);

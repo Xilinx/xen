@@ -1661,6 +1661,17 @@ static int __init make_gic_node(const struct domain *d, void *fdt,
             return res;
     }
 
+    if ( has_vpci_bridge(d) &&
+         (!addrcells ||
+          be32_to_cpu(*(__be32*)addrcells) != GUEST_ROOT_ADDRESS_CELLS ||
+          !sizecells ||
+          be32_to_cpu(*(__be32*)sizecells) != GUEST_ROOT_SIZE_CELLS) )
+        panic("hwdom vPCI is only supported with gic address-cells and size-cells == 2\n");
+
+    res = fdt_property(fdt, "ranges", NULL, 0);
+    if ( res )
+        return res;
+
     res = fdt_property_cell(fdt, "#interrupt-cells", 3);
     if ( res )
         return res;

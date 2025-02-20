@@ -1035,19 +1035,6 @@ int __init gicv3_its_make_emulated_dt_node(const struct domain *d, void *fdt)
         its_base = GUEST_GICV3_ITS_BASE;
     }
 
-    /* Create correct properties for ITS node on the gicv3 node */
-    res = fdt_property_cell(fdt, "#address-cells", 2);
-    if ( res )
-        return res;
-
-    res = fdt_property_cell(fdt, "#size-cells", 2);
-    if ( res )
-        return res;
-
-    res = fdt_property(fdt, "ranges", NULL, 0);
-    if ( res )
-        return res;
-
     snprintf(buf, sizeof(buf), "its@%"PRIx64, its_base);
     dt_dprintk("Create emulated its node\n");
     res = fdt_begin_node(fdt, buf);

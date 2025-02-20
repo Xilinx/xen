@@ -68,7 +68,7 @@ static int __init make_gicv2_domU_node(struct kernel_info *kinfo)
     if ( res )
         return res;
 
-    res = fdt_property_cell(fdt, "#address-cells", 0);
+    res = fdt_property_cell(fdt, "#address-cells", GUEST_ROOT_ADDRESS_CELLS);
     if ( res )
         return res;
 
@@ -122,6 +122,18 @@ static int __init make_gicv3_domU_node(struct kernel_info *kinfo)
     if ( res )
         return res;
 
+    res = fdt_property_cell(fdt, "#address-cells", GUEST_ROOT_ADDRESS_CELLS);
+    if ( res )
+        return res;
+
+    res = fdt_property_cell(fdt, "#size-cells", GUEST_ROOT_SIZE_CELLS);
+    if ( res )
+        return res;
+
+    res = fdt_property(fdt, "ranges", NULL, 0);
+    if ( res )
+        return res;
+
     res = fdt_property_cell(fdt, "#interrupt-cells", 3);
     if ( res )
         return res;
@@ -171,11 +183,11 @@ static int __init make_gicv3_domU_node(struct kernel_info *kinfo)
 
     /* Add ITS node only if domain will use vpci */
     if ( is_pci_scan_enabled() )
+    {
         res = gicv3_its_make_emulated_dt_node(d, fdt);
-    else
-        res = fdt_property_cell(fdt, "#address-cells", 0);
-    if ( res )
-        return res;
+        if ( res )
+            return res;
+    }
 
     res = fdt_end_node(fdt);
 
@@ -672,7 +684,7 @@ static int __init make_virtio_pci_domU_node(const struct kernel_info *kinfo)
     /* reg is sized to be used for all the needed properties below */
     __be32 reg[(1 + (GUEST_ROOT_ADDRESS_CELLS * 2) + GUEST_ROOT_SIZE_CELLS)
                * 2];
-    __be32 irq_map[4 * 4 * 8];
+    __be32 irq_map[4 * 4 * 10];
     __be32 *cells;
     char buf[22]; /* pcie@ + max 16 char address + '\0' */
     int res;
@@ -774,6 +786,17 @@ static int __init make_virtio_pci_domU_node(const struct kernel_info *kinfo)
             dt_set_cell(&cells, 1, 0);
             dt_set_cell(&cells, 1, intx_pin + 1);
             dt_set_cell(&cells, 1, kinfo->phandle_gic);
+
+            /*
+             * Parent unit address (GIC unit address). The number of cells
+             * is determined by the vGIC node's #address-cells. See section
+             * 2.4.3 in [1].
+             *
+             * [1] https://github.com/devicetree-org/devicetree-specification/releases/download/v0.4/devicetree-specification-v0.4.pdf
+             */
+            dt_set_cell(&cells, 1, 0);
+            dt_set_cell(&cells, 1, 0);
+
             /* 3 GIC cells.  */
             dt_set_cell(&cells, 1, 0);
             dt_set_cell(&cells, 1, irq);
