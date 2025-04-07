@@ -545,4 +545,6 @@ config BUDDY_ALLOCATOR_SIZE
 	  Amount of memory reserved for the buddy allocator to serve Xen heap,
 	  working alongside the colored one.
 
+source "common/virtio/Kconfig"
+
 endmenu

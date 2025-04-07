@@ -8,6 +8,7 @@
 #include <xen/hypercall.h>
 #include <xen/ioreq.h>
 #include <xen/nospec.h>
+#include <xen/virtio/virtio-msg-bus.h>
 
 #include <asm/vgic.h>
 
@@ -28,6 +29,7 @@ int dm_op(const struct dmop_args *op_args)
         [XEN_DMOP_destroy_ioreq_server]             = sizeof(struct xen_dm_op_destroy_ioreq_server),
         [XEN_DMOP_set_irq_level]                    = sizeof(struct xen_dm_op_set_irq_level),
         [XEN_DMOP_nr_vcpus]                         = sizeof(struct xen_dm_op_nr_vcpus),
+        [XEN_DMOP_virtio_msg_bus]                   = sizeof(struct xen_dm_op_virtio_msg_bus),
     };
 
     rc = rcu_lock_remote_domain_by_id(op_args->domid, &d);
@@ -121,6 +123,12 @@ int dm_op(const struct dmop_args *op_args)
         rc = 0;
         break;
     }
+
+#ifdef CONFIG_VIRTIO_MSG_BUS_CORE
+    case XEN_DMOP_virtio_msg_bus:
+        rc = virtio_msg_bus_dm_op(&op, d, &const_op);
+        break;
+#endif
 
     default:
         rc = ioreq_server_dm_op(&op, d, &const_op);

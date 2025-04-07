@@ -44,6 +44,8 @@
 #include <xen/trace.h>
 #include <asm/setup.h>
 
+#include <xen/virtio/virtio-msg-bus.h>
+
 #ifdef CONFIG_X86
 #include <asm/guest.h>
 #endif
@@ -1104,6 +1106,7 @@ int domain_kill(struct domain *d)
         argo_destroy(d);
         vnuma_destroy(d->vnuma);
         domain_set_outstanding_pages(d, 0);
+        virtio_msg_bus_domain_disable(d);
         /* fallthrough */
     case DOMDYING_dying:
         rc = domain_teardown(d);
@@ -1278,6 +1281,8 @@ static void cf_check complete_domain_destroy(struct rcu_head *head)
         sched_destroy_vcpu(v);
         destroy_waitqueue_vcpu(v);
     }
+
+    virtio_msg_bus_domain_destroy(d);
 
     grant_table_destroy(d);
 

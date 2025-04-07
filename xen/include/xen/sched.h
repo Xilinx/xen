@@ -362,6 +362,9 @@ struct sched_unit {
 #define domain_unlock(d) rspin_unlock(&(d)->domain_lock)
 
 struct evtchn_port_ops;
+#ifdef CONFIG_VIRTIO_MSG_BUS_CORE
+struct virtio_msg_bus;
+#endif
 
 #define MAX_NR_IOREQ_SERVERS 8
 
@@ -644,6 +647,10 @@ struct domain
 #ifdef CONFIG_LLC_COLORING
     unsigned int num_llc_colors;
     const unsigned int *llc_colors;
+#endif
+
+#ifdef CONFIG_VIRTIO_MSG_BUS_CORE
+    struct virtio_msg_bus *virtio_msg_bus[CONFIG_NR_VIRTIO_MSG_BUSES];
 #endif
 };
 

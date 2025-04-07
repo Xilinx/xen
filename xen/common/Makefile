@@ -72,6 +72,8 @@ obj-y += monitor.o
 obj-y += sysctl.o
 endif
 
+obj-y += virtio/
+
 extra-y := symbols-dummy.o
 
 obj-$(CONFIG_COVERAGE) += coverage/
