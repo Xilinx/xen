@@ -27,7 +27,7 @@ config VIRTIO_MSG_BUS_XEN
 config VIRTIO_MMIO_NON_BLOCKING
 	bool "Non-blocking virtio-mmio"
 	default n
-	depends on VIRTIO_MSG_BUS_CORE && ARM
+	depends on VIRTIO_MSG_BUS_CORE && (ARM || X86)
 	help
 	  Non-blocking virtio-mmio is a modified version of virtio-mmio
 	  partially implemented in Xen itself allowing VMs to do virtio

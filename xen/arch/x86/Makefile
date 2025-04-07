@@ -85,6 +85,8 @@ obj-y += platform_hypercall.o
 obj-$(CONFIG_COMPAT) += x86_64/platform_hypercall.o
 endif
 
+obj-$(CONFIG_VIRTIO_MMIO_NON_BLOCKING) += vmp.o
+
 extra-y += asm-macros.i
 extra-y += xen.lds
 
