@@ -381,6 +381,9 @@ struct sched_unit {
 #define domain_unlock(d) rspin_unlock(&(d)->domain_lock)
 
 struct evtchn_port_ops;
+#ifdef CONFIG_VIRTIO_MSG_BUS_CORE
+struct virtio_msg_bus;
+#endif
 
 #define MAX_NR_IOREQ_SERVERS 8
 
@@ -676,6 +679,10 @@ struct domain
         /* Permission to take ownership of the physical console input. */
         bool input_allowed;
     } console;
+
+#ifdef CONFIG_VIRTIO_MSG_BUS_CORE
+    struct virtio_msg_bus *virtio_msg_bus[CONFIG_NR_VIRTIO_MSG_BUSES];
+#endif
 } __aligned(PAGE_SIZE);
 
 static inline struct page_list_head *page_to_list(

@@ -444,6 +444,24 @@ struct xen_dm_op_nr_vcpus {
 };
 typedef struct xen_dm_op_nr_vcpus xen_dm_op_nr_vcpus_t;
 
+/* Leave some room for upstream additions before we need to renumber. */
+#define XEN_DMOP_virtio_msg_bus 30
+struct xen_dm_op_virtio_msg_bus {
+#define XEN_DMOP_VIRTIO_MSG_BUS_XEN_CONNECT 1
+    uint32_t op;                   /* IN: Operation */
+    uint32_t bus_id;               /* IN: virtio-msg bus id */
+    uint16_t dev_num;              /* IN: virtio-msg device number */
+    uint16_t pad;
+    union {
+        /* Virtio-msg-xen bus */
+        struct {
+            uint64_aligned_t shm_fifo_gfn; /* IN: shm page for shm fifo */
+            uint32_t port;                 /* OUT: Event channel port  */
+        } xen;
+    } u;
+};
+typedef struct xen_dm_op_virtio_msg_bus xen_dm_op_virtio_msg_bus_t;
+
 struct xen_dm_op {
     uint32_t op;
     uint32_t pad;
@@ -468,6 +486,7 @@ struct xen_dm_op {
         xen_dm_op_relocate_memory_t relocate_memory;
         xen_dm_op_pin_memory_cacheattr_t pin_memory_cacheattr;
         xen_dm_op_nr_vcpus_t nr_vcpus;
+        xen_dm_op_virtio_msg_bus_t virtio_msg_bus;
     } u;
 };
 

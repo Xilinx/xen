@@ -1,0 +1,27 @@
+menu "Virtio"
+	visible if EXPERT
+
+config VIRTIO_MSG_BUS_CORE
+	bool
+
+config NR_VIRTIO_MSG_BUSES
+	int "Maximum number of virtio-msg-buses supported"
+	range 1 128
+	default "4"
+	depends on VIRTIO_MSG_BUS_CORE
+	help
+	  Controls the build-time size of various arrays associated with
+	  management of multiple buses. It is the upper bound of
+	  the number of virtio-msg-bus devices that Xen can handle.
+
+config VIRTIO_MSG_BUS_XEN
+	bool "Virtio-msg-bus Xen"
+	default n
+	select VIRTIO_MSG_BUS_CORE
+	depends on ARM
+	help
+	  Virtio-msg bus implementation using FIFOs on top of shared memory
+	  and event channels for notifications. This is suitable for
+	  communicating using virtio-msg between Xen and guests.
+
+endmenu
