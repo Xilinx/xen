@@ -71,6 +71,7 @@ obj-$(CONFIG_VPL011_CONSOLE) += vpl011.o
 obj-y += vsmc.o
 obj-y += vpsci.o
 obj-$(CONFIG_HWDOM_VUART) += vuart.o
+obj-$(CONFIG_VIRTIO_MMIO_NON_BLOCKING) += vmp.o
 
 extra-y += xen.lds
 
