@@ -18,7 +18,7 @@ config VIRTIO_MSG_BUS_XEN
 	bool "Virtio-msg-bus Xen"
 	default n
 	select VIRTIO_MSG_BUS_CORE
-	depends on ARM
+	depends on ARM || X86
 	help
 	  Virtio-msg bus implementation using FIFOs on top of shared memory
 	  and event channels for notifications. This is suitable for

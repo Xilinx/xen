@@ -18,6 +18,7 @@
 #include <xsm/xsm.h>
 
 #include <public/hvm/hvm_op.h>
+#include <xen/virtio/virtio-msg-bus.h>
 
 static bool _raw_copy_from_guest_buf_offset(void *dst,
                                             const struct dmop_args *args,
@@ -350,6 +351,7 @@ int dm_op(const struct dmop_args *op_args)
         [XEN_DMOP_relocate_memory]                  = sizeof(struct xen_dm_op_relocate_memory),
         [XEN_DMOP_pin_memory_cacheattr]             = sizeof(struct xen_dm_op_pin_memory_cacheattr),
         [XEN_DMOP_nr_vcpus]                         = sizeof(struct xen_dm_op_nr_vcpus),
+        [XEN_DMOP_virtio_msg_bus]                   = sizeof(struct xen_dm_op_virtio_msg_bus),
     };
 
     rc = rcu_lock_remote_domain_by_id(op_args->domid, &d);
@@ -606,6 +608,12 @@ int dm_op(const struct dmop_args *op_args)
         rc = 0;
         break;
     }
+
+#ifdef CONFIG_VIRTIO_MSG_BUS_CORE
+    case XEN_DMOP_virtio_msg_bus:
+        rc = virtio_msg_bus_dm_op(&op, d, &const_op);
+        break;
+#endif
 
     default:
         rc = ioreq_server_dm_op(&op, d, &const_op);
