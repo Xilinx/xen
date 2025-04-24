@@ -943,6 +943,18 @@ static int __init make_virtio_pci_domU_node(const struct kernel_info *kinfo)
         res = fdt_property(fdt, "iommu-map", reg, 4 * sizeof(*reg));
         if ( res )
             return res;
+
+        /*
+         * Since the entire virtio-pci RC is emulated by a single QEMU
+         * in a single domain, we should map all Requester IDs to the
+         * same domain.
+         *
+         * Set iommu-map-mask to zero to mask away all RID bits assigning
+         * everything to the same domain.
+         */
+        res = fdt_property_u32(fdt, "iommu-map-mask", 0);
+        if ( res )
+            return res;
     }
 
     res = fdt_property_cell(fdt, "linux,pci-domain", 1);
