@@ -1583,6 +1583,8 @@ static int __init construct_domU(struct domain *d,
     }
     else
     {
+        find_gnttab_region(d, &kinfo);
+
         if ( !dt_find_property(node, "xen,static-mem", NULL) )
             allocate_memory(d, &kinfo);
         else if ( !is_domain_direct_mapped(d) )

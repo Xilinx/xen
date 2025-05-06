@@ -2443,8 +2443,7 @@ void __init evtchn_allocate(struct domain *d)
     d->arch.hvm.params[HVM_PARAM_CALLBACK_IRQ] = val;
 }
 
-static void __init find_gnttab_region(struct domain *d,
-                                      struct kernel_info *kinfo)
+void __init find_gnttab_region(struct domain *d, struct kernel_info *kinfo)
 {
     /*
      * The region used by Xen on the memory will never be mapped in DOM0
