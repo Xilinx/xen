@@ -3021,6 +3021,9 @@ skip_usbdev:
         }
     }
 
+    xlu_cfg_get_defbool(config, "trap_unmapped_accesses",
+                        &b_info->trap_unmapped_accesses, 0);
+
     parse_vkb_list(config, d_config);
 
     d_config->virtios = NULL;

@@ -250,9 +250,6 @@ int libxl__arch_domain_prepare_config(libxl__gc *gc,
         return ERROR_FAIL;
     }
 
-    /* Trap accesses to unmapped areas. */
-    config->flags |= XEN_DOMCTL_CDF_trap_unmapped_accesses;
-
     return 0;
 }
 
@@ -2031,6 +2028,9 @@ int libxl__arch_domain_build_info_setdefault(libxl__gc *gc,
     /* ACPI is disabled by default */
     libxl_defbool_setdefault(&b_info->acpi, false);
     libxl_defbool_setdefault(&b_info->tpm, false);
+
+    /* Trapping of unmapped accesses enabled by default.  */
+    libxl_defbool_setdefault(&b_info->trap_unmapped_accesses, true);
 
     /* Sanitise SVE parameter */
     if (b_info->arch_arm.sve_vl) {

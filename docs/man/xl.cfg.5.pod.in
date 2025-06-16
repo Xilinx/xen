@@ -3127,6 +3127,15 @@ viommu = "smmuv3"
 
 Currently, only the "smmuv3" type is supported for ARM.
 
+=item B<trap_unmapped_accesses=BOOLEAN>
+
+An Optional boolean parameter that configures handling of accesses to unmapped
+address ranges. If enabled, guest accesses will trap. If disabled, guest
+accesses will read all bits as ones, e.g 0xFFFFFFFF for a 32bit access and
+writes will be ignored.
+
+This option is only implemented for Arm where the default is enabled.
+
 =back
 
 =head3 x86
