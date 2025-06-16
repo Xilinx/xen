@@ -250,6 +250,9 @@ int libxl__arch_domain_prepare_config(libxl__gc *gc,
         return ERROR_FAIL;
     }
 
+    /* Trap accesses to unmapped areas. */
+    config->flags |= XEN_DOMCTL_CDF_trap_unmapped_accesses;
+
     return 0;
 }
 

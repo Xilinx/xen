@@ -1801,6 +1801,9 @@ void __init create_domUs(void)
 #endif
         }
 
+        /* Trap accesses to unmapped areas. */
+        d_cfg.flags |= XEN_DOMCTL_CDF_trap_unmapped_accesses;
+
         rc = prepare_color_domain_config_legacy(node, legacy_colors);
         if ( rc > 0 )
             llc_colors_str = &legacy_colors[0];
