@@ -1801,8 +1801,15 @@ void __init create_domUs(void)
 #endif
         }
 
-        /* Trap accesses to unmapped areas. */
+        /* Trap unmapped accesses by default. */
         d_cfg.flags |= XEN_DOMCTL_CDF_trap_unmapped_accesses;
+        if ( dt_property_read_u32(node, "trap-unmapped-accesses", &val) )
+        {
+            if ( val > 1 )
+                panic("trap-unmapped-accesses: supported values are 0 or 1");
+            if ( !val )
+                d_cfg.flags &= ~XEN_DOMCTL_CDF_trap_unmapped_accesses;
+        }
 
         rc = prepare_color_domain_config_legacy(node, legacy_colors);
         if ( rc > 0 )
