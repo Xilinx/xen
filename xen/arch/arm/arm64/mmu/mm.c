@@ -277,8 +277,9 @@ void __init setup_mm(void)
     directmap_mfn_start = maddr_to_mfn(ram_start);
     directmap_mfn_end = maddr_to_mfn(ram_end);
 
-    setup_frametable_mappings(ram_start, ram_end);
     max_page = PFN_DOWN(ram_end);
+
+    init_frametable();
 
     init_staticmem_pages();
     init_sharedmem_pages();

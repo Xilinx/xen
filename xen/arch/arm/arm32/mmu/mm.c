@@ -188,9 +188,9 @@ void __init setup_mm(void)
 
     setup_directmap_mappings(mfn_x(directmap_mfn_start), xenheap_pages);
 
-    /* Frame table covers all of RAM region, including holes */
-    setup_frametable_mappings(ram_start, ram_end);
     max_page = PFN_DOWN(ram_end);
+
+    init_frametable();
 
     /*
      * The allocators may need to use map_domain_page() (such as for
