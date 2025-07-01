@@ -1,6 +1,7 @@
 obj-y += acpi/
 obj-y += boot/
 obj-y += cpu/
+obj-y += domain-builder/
 obj-y += efi/
 obj-y += genapic/
 obj-$(CONFIG_GUEST) += guest/

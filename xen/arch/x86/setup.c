@@ -33,6 +33,8 @@
 #include <asm/bootinfo.h>
 #include <asm/bzimage.h>
 #include <asm/cpu-policy.h>
+#include <asm/desc.h>
+#include <asm/domain-builder.h>
 #include <asm/e820.h>
 #include <asm/edd.h>
 #include <asm/genapic.h>
@@ -1294,9 +1296,7 @@ void asmlinkage __init noreturn __start_xen(void)
                bi->nr_modules);
     }
 
-    /* Dom0 kernel is always first */
-    bi->mods[0].kind = BOOTMOD_KERNEL;
-    bi->domains[0].kernel = &bi->mods[0];
+    builder_init(bi);
 
     if ( pvh_boot )
     {
@@ -2176,6 +2176,9 @@ void asmlinkage __init noreturn __start_xen(void)
                    "Multiple initrd candidates, picking module #%u\n",
                    initrdidx);
     }
+
+    bi->domains[0].kernel =
+        &bi->mods[first_boot_module_index(bi, BOOTMOD_KERNEL)];
 
     /*
      * We're going to setup domain0 using the module(s) that we stashed safely
