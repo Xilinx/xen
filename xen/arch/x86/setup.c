@@ -1107,7 +1107,7 @@ void asmlinkage __init noreturn __start_xen(void)
     char *kextra;
     void *bsp_stack;
     struct cpu_info *info = get_cpu_info(), *bsp_info;
-    unsigned int initrdidx, num_parked = 0;
+    unsigned int num_parked = 0;
     struct boot_info *bi;
     unsigned long nr_pages, raw_max_page;
     int i, j, bytes = 0;
@@ -2159,26 +2159,7 @@ void asmlinkage __init noreturn __start_xen(void)
            cpu_has_nx ? XENLOG_INFO : XENLOG_WARNING "Warning: ",
            cpu_has_nx ? "" : "not ");
 
-    /*
-     * At this point all capabilities that consume boot modules should have
-     * claimed their boot modules. Find the first unclaimed boot module and
-     * claim it as the initrd ramdisk. Do a second search to see if there are
-     * any remaining unclaimed boot modules, and report them as unusued initrd
-     * candidates.
-     */
-    initrdidx = first_boot_module_index(bi, BOOTMOD_UNKNOWN);
-    if ( initrdidx < MAX_NR_BOOTMODS )
-    {
-        bi->mods[initrdidx].kind = BOOTMOD_RAMDISK;
-        bi->domains[0].initrd = &bi->mods[initrdidx];
-        if ( first_boot_module_index(bi, BOOTMOD_UNKNOWN) < MAX_NR_BOOTMODS )
-            printk(XENLOG_WARNING
-                   "Multiple initrd candidates, picking module #%u\n",
-                   initrdidx);
-    }
-
-    bi->domains[0].kernel =
-        &bi->mods[first_boot_module_index(bi, BOOTMOD_KERNEL)];
+    builder_late_init(bi);
 
     /*
      * We're going to setup domain0 using the module(s) that we stashed safely

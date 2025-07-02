@@ -10,4 +10,10 @@ struct boot_info;
  */
 void fdt_identify_module_kinds(struct boot_info *bi);
 
+/*
+ * Extract all information about to-be-constructed domains from the DTB
+ * in the first module.
+ */
+void dt_parse_domains(struct boot_info *bi);
+
 #endif /* X86_DTB_PRIVATE_H */

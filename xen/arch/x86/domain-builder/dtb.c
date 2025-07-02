@@ -2,9 +2,58 @@
 
 #include <xen/types.h>
 #include <xen/device_tree.h>
+#include <xen/dom0less-build.h>
 #include <xen/libfdt/libfdt.h>
 
 #include <asm/bootinfo.h>
+#include <asm/setup.h>
+
+static struct boot_module *__init find_boot_module(
+    struct boot_info *bi, struct dt_device_node *dom_node,
+    const char *compatible)
+{
+    uint32_t i;
+    struct dt_device_node *node = dt_find_compatible_node(dom_node, NULL,
+                                                          compatible);
+
+    if ( !node )
+        return NULL;
+
+    if ( !dt_property_read_u32(node, "module-index", &i) )
+    {
+        /* No module-index. Find out via "reg" */
+        const __be32 *prop = dt_get_property(node, "reg", NULL);
+        uint64_t addr, size;
+
+        if ( !prop )
+        {
+            printk(XENLOG_ERR "%s.%s missing both module-index and reg\n",
+                   dom_node->name, node->name);
+
+            return NULL;
+        }
+
+        dt_get_range(&prop, node, &addr, &size);
+
+        for ( i = 0; i < bi->nr_modules; i++ )
+        {
+            if ( bi->mods[i].start == addr )
+                goto found;
+        }
+
+
+        return NULL;
+    }
+
+ found:
+    return &bi->mods[i];
+}
+
+int __init arch_parse_dom0less_node(struct dt_device_node *node,
+                                    struct boot_domain *bd)
+{
+    return 0;
+}
 
 static int __init cf_check process_module(const void *fdt, int node,
                                           const char *name, int depth,
@@ -95,4 +144,52 @@ void __init fdt_identify_module_kinds(struct boot_info *bi)
 
     if ( fdt )
         bootstrap_unmap();
+}
+
+void __init dt_parse_domains(struct boot_info *bi)
+{
+    struct boot_module *dtb = &bi->mods[0];
+    struct boot_domain *bd = &bi->domains[bi->nr_domains];
+    struct dt_device_node *root, *node;
+
+    ASSERT(dtb->kind == BOOTMOD_FDT);
+
+    device_tree_flattened = maddr_to_virt(dtb->start);
+    dt_unflatten_host_device_tree();
+
+    root = dt_find_node_by_path("/chosen/hypervisor");
+    if ( !root )
+        root = dt_find_node_by_path("/chosen");
+
+    dt_for_each_child_node(root, node)
+    {
+        int rc = parse_dom0less_node(node, bd);
+
+        if ( rc )
+        {
+            if ( rc != -ENOENT )
+                printk(XENLOG_WARNING "builder %s rc=%d: domain ignored\n",
+                       dt_node_name(node), rc);
+            continue;
+        }
+
+        if ( bi->nr_domains >= MAX_NR_BOOTDOMS )
+        {
+            printk(XENLOG_ERR "builder: only creating first %u domains\n",
+                   MAX_NR_BOOTDOMS);
+            break;
+        }
+
+        bd->initrd = find_boot_module(bi, node, "multiboot,ramdisk");
+        bd->kernel = find_boot_module(bi, node, "multiboot,kernel");
+        if ( !bd->kernel )
+        {
+            printk(XENLOG_WARNING "builder %s: missing kernel (ignored)\n",
+                   node->name);
+            return;
+        }
+
+        bi->nr_domains++;
+        bd++;
+    }
 }

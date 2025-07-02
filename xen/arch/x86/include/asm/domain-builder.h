@@ -13,5 +13,6 @@ struct boot_info;
  * need decompressing during relocation.
  */
 void builder_init(struct boot_info *bi);
+void builder_late_init(struct boot_info *bi);
 
 #endif /* X86_DOMAIN_BUILDER_H */
