@@ -1479,9 +1479,15 @@ void asmlinkage __init noreturn __start_xen(void)
         xen->size  = __2M_rwdata_end - _stext;
     }
 
-    bi->mods[0].arch.headroom =
-        bzimage_headroom(bootstrap_map_bm(&bi->mods[0]), bi->mods[0].size);
-    bootstrap_unmap();
+    for ( i = 0; i < bi->nr_modules; i++ )
+    {
+        if ( bi->mods[i].kind != BOOTMOD_KERNEL )
+            continue;
+
+        bi->mods[i].arch.headroom =
+            bzimage_headroom(bootstrap_map_bm(&bi->mods[i]), bi->mods[i].size);
+        bootstrap_unmap();
+    }
 
 #ifndef highmem_start
     /* Don't allow split below 4Gb. */
@@ -1604,11 +1610,13 @@ void asmlinkage __init noreturn __start_xen(void)
 #endif
     }
 
-    if ( bi->mods[0].arch.headroom && !bi->mods[0].arch.relocated )
-        panic("Not enough memory to relocate the dom0 kernel image\n");
     for ( i = 0; i < bi->nr_modules; ++i )
     {
-        uint64_t s = bi->mods[i].start, l = bi->mods[i].size;
+        const struct boot_module *bm = &bi->mods[i];
+        uint64_t s = bm->start, l = bm->size;
+
+        if ( bm->arch.headroom && !bm->arch.relocated )
+            panic("Not enough memory to relocate the mod%d kernel image\n", i);
 
         reserve_e820_ram(&boot_e820, s, s + PAGE_ALIGN(l));
     }
