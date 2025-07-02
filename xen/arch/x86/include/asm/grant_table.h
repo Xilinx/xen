@@ -32,6 +32,8 @@ static inline int replace_grant_host_mapping(uint64_t addr, mfn_t frame,
     return replace_grant_pv_mapping(addr, frame, new_addr, flags);
 }
 
+#define gnttab_dom0_frames() (-1)
+
 #define gnttab_set_frame_gfn(gt, st, idx, gfn, mfn)                      \
     (gfn_eq(gfn, INVALID_GFN)                                            \
      ? guest_physmap_remove_page((gt)->domain,                           \

@@ -18,9 +18,9 @@ config DEVICE_TREE_PARSE
 
 config DOM0LESS_BOOT
 	bool "Dom0less boot support" if EXPERT
-	depends on HAS_DOM0LESS && DOMAIN_BUILD_HELPERS
+	depends on HAS_DOM0LESS && (X86 || DOMAIN_BUILD_HELPERS)
 	select DEVICE_TREE_PARSE
-	default y
+	default !X86
 	help
 	  Dom0less boot support enables Xen to create and start domU guests during
 	  Xen boot without the need of a control domain (Dom0), which could be
