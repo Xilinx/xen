@@ -1310,6 +1310,8 @@ extern void cf_check dump_runq(unsigned char key);
 void arch_do_physinfo(struct xen_sysctl_physinfo *pi);
 
 #ifdef CONFIG_BOOT_TIME_CPUPOOLS
+struct dt_device_node;
+
 void btcpupools_allocate_pools(void);
 unsigned int btcpupools_get_cpupool_id(unsigned int cpu);
 void btcpupools_dtb_parse(void);

@@ -7,8 +7,9 @@
  * Copyright (C) 2022 Arm Ltd.
  */
 
-#include <xen/bootfdt.h>
 #include <xen/acpi.h>
+#include <xen/bootfdt.h>
+#include <xen/device_tree.h>
 #include <xen/sched.h>
 
 /*
