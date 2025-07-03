@@ -335,7 +335,11 @@ static struct boot_info *__init multiboot_fill_boot_info(
      */
     for ( i = 0; i < MAX_NR_BOOTMODS && i < bi->nr_modules; i++ )
     {
-        bi->mods[i].arch.cmdline_pa = mods[i].string;
+        const char *raw = mods[i].string ? __va(mods[i].string) : NULL;
+
+        /* Canonicalise the cmdline to not contain leading junk */
+        if ( raw )
+            bi->mods[i].arch.cmdline_pa = __pa(cmdline_cook(raw, bi->loader));
 
         if ( efi_enabled(EFI_LOADER) )
         {
@@ -1060,10 +1064,7 @@ static struct domain *__init create_dom0(struct boot_info *bi)
             panic("Error allocating cmdline buffer for %pd\n", d);
 
         if ( bd->kernel->arch.cmdline_pa )
-            strlcpy(cmdline,
-                    cmdline_cook(__va(bd->kernel->arch.cmdline_pa),
-                                 bi->loader),
-                    cmdline_size);
+            strlcpy(cmdline, __va(bd->kernel->arch.cmdline_pa), cmdline_size);
 
         if ( bi->kextra )
             /* kextra always includes exactly one leading space. */

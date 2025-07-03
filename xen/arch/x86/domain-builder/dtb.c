@@ -10,11 +10,14 @@
 
 static struct boot_module *__init find_boot_module(
     struct boot_info *bi, struct dt_device_node *dom_node,
-    const char *compatible)
+    const char *compatible, struct dt_device_node **module_node)
 {
     uint32_t i;
     struct dt_device_node *node = dt_find_compatible_node(dom_node, NULL,
                                                           compatible);
+
+    if ( module_node )
+        *module_node = NULL;
 
     if ( !node )
         return NULL;
@@ -44,6 +47,9 @@ static struct boot_module *__init find_boot_module(
 
         return NULL;
     }
+
+    if ( module_node )
+        *module_node = node;
 
  found:
     return &bi->mods[i];
@@ -146,6 +152,27 @@ void __init fdt_identify_module_kinds(struct boot_info *bi)
         bootstrap_unmap();
 }
 
+/*
+ * Override the module commandline if it's empty or nonexistent, based on the
+ * "bootargs" property in the passed DT node.
+ */
+static void __init override_mod_cmdline(struct boot_module *mod,
+                                        struct dt_device_node *node)
+{
+    const char *cmdline;
+
+    /*
+     * If the module was given via a "reg" property, cmdline_pa remains zero.
+     * Hence, cover both "empty string" and "no string" cases.
+     */
+    if ( !mod || (mod->arch.cmdline_pa && strlen(__va(mod->arch.cmdline_pa))) )
+        return;
+
+    /* The bootloader didn't set a cmdline, so check if the DT provides one. */
+    if ( !dt_property_read_string(node, "bootargs", &cmdline) )
+        mod->arch.cmdline_pa = __pa(cmdline);
+}
+
 void __init dt_parse_domains(struct boot_info *bi)
 {
     struct boot_module *dtb = &bi->mods[0];
@@ -163,6 +190,7 @@ void __init dt_parse_domains(struct boot_info *bi)
 
     dt_for_each_child_node(root, node)
     {
+        struct dt_device_node *module_node;
         int rc = parse_dom0less_node(node, bd);
 
         if ( rc )
@@ -180,14 +208,20 @@ void __init dt_parse_domains(struct boot_info *bi)
             break;
         }
 
-        bd->initrd = find_boot_module(bi, node, "multiboot,ramdisk");
-        bd->kernel = find_boot_module(bi, node, "multiboot,kernel");
+        bd->kernel = find_boot_module(bi, node, "multiboot,kernel",
+                                      &module_node);
+        override_mod_cmdline(bd->kernel, module_node);
+
         if ( !bd->kernel )
         {
             printk(XENLOG_WARNING "builder %s: missing kernel (ignored)\n",
                    node->name);
             return;
         }
+
+        bd->initrd = find_boot_module(bi, node, "multiboot,ramdisk",
+                                      &module_node);
+        override_mod_cmdline(bd->initrd, module_node);
 
         bi->nr_domains++;
         bd++;
