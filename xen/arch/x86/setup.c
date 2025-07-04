@@ -1012,38 +1012,10 @@ static struct domain *__init create_dom0(struct boot_info *bi)
 {
     char *cmdline = NULL;
     size_t cmdline_size;
-    struct xen_domctl_createdomain dom0_cfg = {
-        .flags = IS_ENABLED(CONFIG_TBOOT) ? XEN_DOMCTL_CDF_s3_integrity : 0,
-        .max_evtchn_port = -1,
-        .max_grant_frames = -1,
-        .max_maptrack_frames = -1,
-        .grant_opts = XEN_DOMCTL_GRANT_version(opt_gnttab_max_version),
-        .max_vcpus = dom0_max_vcpus(),
-        .arch = {
-            .misc_flags = opt_dom0_msr_relaxed ? XEN_X86_MSR_RELAXED : 0,
-        },
-    };
     struct boot_domain *bd = &bi->domains[0];
     struct domain *d;
 
-    if ( opt_dom0_pvh )
-    {
-        dom0_cfg.flags |= XEN_DOMCTL_CDF_hvm;
-
-        if ( hvm_hap_supported() && !opt_dom0_shadow )
-            dom0_cfg.flags |= XEN_DOMCTL_CDF_hap;
-        else if ( !IS_ENABLED(CONFIG_SHADOW_PAGING) )
-            panic("Neither HAP nor Shadow available for PVH domain\n");
-
-        dom0_cfg.arch.emulation_flags |=
-            XEN_X86_EMU_LAPIC | XEN_X86_EMU_IOAPIC | XEN_X86_EMU_VPCI;
-    }
-
-    if ( iommu_enabled )
-        dom0_cfg.flags |= XEN_DOMCTL_CDF_iommu;
-
-    d = domain_create(bd->domid, &dom0_cfg,
-                      pv_shim ? 0 : CDF_privileged | CDF_hardware);
+    d = domain_create(bd->domid, &bd->create_cfg, bd->create_flags);
     if ( IS_ERR(d) )
         panic("Error creating d%u: %ld\n", bd->domid, PTR_ERR(d));
 
