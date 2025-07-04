@@ -155,5 +155,14 @@ int __init parse_dom0less_node(struct dt_device_node *node,
         panic("'llc-colors' found, but LLC coloring is disabled\n");
 #endif
 
+    bd->domid = DOMID_INVALID;
+    if ( dt_property_read_u32(node, "domid", &val) )
+    {
+        if ( val >= DOMID_FIRST_RESERVED )
+            panic("bad domid for node=%s domid=%u\n", dt_node_name(node), val);
+
+        bd->domid = val;
+    }
+
     return arch_parse_dom0less_node(node, bd);
 }

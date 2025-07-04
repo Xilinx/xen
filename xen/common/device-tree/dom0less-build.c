@@ -848,6 +848,11 @@ void __init create_domUs(void)
 {
     struct dt_device_node *node;
     const struct dt_device_node *chosen = dt_find_node_by_path("/chosen");
+    enum {
+        NONE,
+        EXPLICIT,
+        DEDUCED,
+    } domid_policy = NONE;
 
     BUG_ON(chosen == NULL);
     dt_for_each_child_node(chosen, node)
@@ -861,10 +866,20 @@ void __init create_domUs(void)
         if ( rc )
             panic("Malformed DTB: Invalid domain %s\n", dt_node_name(node));
 
-        if ( (max_init_domid + 1) >= DOMID_FIRST_RESERVED )
+        if ( ki.bd.domid == DOMID_INVALID && domid_policy != EXPLICIT )
+        {
+            domid_policy = DEDUCED;
+            ki.bd.domid = ++max_init_domid;
+        }
+        else if ( domid_policy != DEDUCED )
+            domid_policy = EXPLICIT;
+        else
+            panic("can't mix domains with and without domid properties\n");
+
+        if ( ki.bd.domid >= DOMID_FIRST_RESERVED )
             panic("No more domain IDs available\n");
 
-        domid = domid_alloc(DOMID_INVALID);
+        domid = domid_alloc(ki.bd.domid);
         if ( domid == DOMID_INVALID )
             panic("Error allocating ID for domain %s\n", dt_node_name(node));
 

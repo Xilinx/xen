@@ -7,6 +7,7 @@
 #include <xen/init.h>
 #include <xen/lib.h>
 #include <xen/bootfdt.h>
+#include <xen/domain.h>
 #include <xen/libfdt/libfdt.h>
 
 #include <asm/bootinfo.h>
@@ -47,6 +48,10 @@ void __init builder_late_init(struct boot_info *bi)
     /* Not Hyperlaunch. Fall back to dom0-based booting. */
     bi->nr_domains = 1;
     bi->domains[0].kernel = &bi->mods[0];
+    /* Not d0 for pvshim */
+    bi->domains[0].domid = domid_alloc(get_initial_domain_id());
+    if ( bi->domains[0].domid == DOMID_INVALID )
+        panic("Error allocating domain ID %u\n", get_initial_domain_id());
 
     /*
      * At this point all capabilities that consume boot modules should have
