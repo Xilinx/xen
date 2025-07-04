@@ -164,5 +164,9 @@ int __init parse_dom0less_node(struct dt_device_node *node,
         bd->domid = val;
     }
 
+    /* Default to PVH, if available */
+    if ( IS_ENABLED(CONFIG_HVM) )
+        bd->create_cfg.flags |= XEN_DOMCTL_CDF_hvm;
+
     return arch_parse_dom0less_node(node, bd);
 }

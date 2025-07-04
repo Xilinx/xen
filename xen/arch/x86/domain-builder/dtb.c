@@ -3,10 +3,13 @@
 #include <xen/types.h>
 #include <xen/device_tree.h>
 #include <xen/dom0less-build.h>
+#include <xen/domain.h>
 #include <xen/libfdt/libfdt.h>
 
 #include <asm/bootinfo.h>
 #include <asm/setup.h>
+
+#include <public/domctl.h>
 
 static struct boot_module *__init find_boot_module(
     struct boot_info *bi, struct dt_device_node *dom_node,
@@ -72,6 +75,19 @@ int __init arch_parse_dom0less_node(struct dt_device_node *node,
             panic("can't have domains with duplicate domids domid=%u.\n",
                   bd->domid);
     }
+
+    if ( bd->create_cfg.flags & XEN_DOMCTL_CDF_hvm )
+    {
+        if ( hvm_hap_supported() )
+            bd->create_cfg.flags |= XEN_DOMCTL_CDF_hap;
+
+        bd->create_cfg.arch.emulation_flags |= XEN_X86_EMU_LAPIC;
+        if ( bd->create_flags & CDF_hardware )
+            bd->create_cfg.arch.emulation_flags |=
+                XEN_X86_EMU_IOAPIC | XEN_X86_EMU_VPCI;
+    }
+    else if ( bd->create_flags & CDF_hardware ) /* PV hwdom */
+        bd->create_cfg.arch.emulation_flags |= XEN_X86_EMU_PIT;
 
     return 0;
 }

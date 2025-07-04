@@ -316,8 +316,11 @@ int __init arch_parse_dom0less_node(struct dt_device_node *node,
     unsigned int flags = bd->create_flags;
     uint32_t val;
 
+    /* Prior checks will have ensured only HVM gets here */
+    BUG_ON(!(d_cfg->flags & XEN_DOMCTL_CDF_hvm));
+
     d_cfg->arch.gic_version = XEN_DOMCTL_CONFIG_GIC_NATIVE;
-    d_cfg->flags |= XEN_DOMCTL_CDF_hvm | XEN_DOMCTL_CDF_hap;
+    d_cfg->flags |= XEN_DOMCTL_CDF_hap;
 
     if ( domu_dt_sci_parse(node, d_cfg) )
         panic("Error getting SCI configuration\n");
