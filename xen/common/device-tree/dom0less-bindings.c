@@ -168,5 +168,8 @@ int __init parse_dom0less_node(struct dt_device_node *node,
     if ( IS_ENABLED(CONFIG_HVM) )
         bd->create_cfg.flags |= XEN_DOMCTL_CDF_hvm;
 
+    if ( !dt_property_read_u64(node, "memory", &bd->memory) )
+        panic("missing memory binding for %s.\n", dt_node_name(node));
+
     return arch_parse_dom0less_node(node, bd);
 }

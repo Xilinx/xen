@@ -10,6 +10,7 @@
 #include <xen/param.h>
 #include <xen/pfn.h>
 #include <xen/sched.h>
+#include <xen/sizes.h>
 #include <xen/softirq.h>
 
 #include <asm/amd.h>
@@ -626,6 +627,16 @@ int __init construct_dom0(const struct boot_domain *bd)
     BUG_ON(d->vcpu[0]->is_initialised);
 
     process_pending_softirqs();
+
+    if ( bd->memory )
+    {
+        /* DTB boot, ignore dom0 cmdline overrides */
+        dom0_size = (struct memsize){
+            .nr_pages = PFN_DOWN(bd->memory * SZ_1K)
+        };
+        dom0_max_size = dom0_size;
+        dom0_min_size = (struct memsize){};
+    }
 
     if ( is_hvm_domain(d) )
         rc = dom0_construct_pvh(bd);

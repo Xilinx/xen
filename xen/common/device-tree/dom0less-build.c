@@ -754,19 +754,13 @@ static inline int __init domain_p2m_set_allocation(
 #endif /* CONFIG_ARCH_PAGING_MEMPOOL */
 
 static int __init construct_domU(struct kernel_info *kinfo,
-                          const struct dt_device_node *node)
+                                 const struct dt_device_node *node)
 {
     struct domain *d = kinfo->bd.d;
     const char *dom0less_enhanced;
     int rc;
-    u64 mem;
+    uint64_t mem = kinfo->bd.memory;
 
-    rc = dt_property_read_u64(node, "memory", &mem);
-    if ( !rc )
-    {
-        printk("Error building DomU: cannot read \"memory\" property\n");
-        return -EINVAL;
-    }
     kinfo->unassigned_mem = (paddr_t)mem * SZ_1K;
 
     rc = domain_p2m_set_allocation(d, mem, node);

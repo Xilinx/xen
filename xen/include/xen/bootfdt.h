@@ -120,6 +120,9 @@ struct boot_domain {
 
     const char *cmdline;
 
+    /* Memory the domain is expected to have after creation (in 1KiB blocks) */
+    uint64_t memory;
+
     /* Input arguments to create_domain() */
     struct xen_domctl_createdomain create_cfg;
     unsigned int create_flags;
