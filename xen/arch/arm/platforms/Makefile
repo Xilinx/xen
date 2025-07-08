@@ -17,3 +17,5 @@ obj-$(CONFIG_ALL64_PLAT) += xilinx-versal-net.o
 obj-$(CONFIG_ALL64_PLAT) += xilinx-versal-net-eemi.o
 obj-$(CONFIG_MPSOC_PLATFORM)  += xilinx-zynqmp.o
 obj-$(CONFIG_MPSOC_PLATFORM)  += xilinx-zynqmp-eemi.o
+obj-$(CONFIG_ALL64_PLAT) += amd-versal2.o
+obj-$(CONFIG_ALL64_PLAT) += amd-versal2-eemi.o
