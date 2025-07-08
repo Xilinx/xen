@@ -3,6 +3,7 @@
 
 #include <asm/platforms/xilinx-versal-eemi.h>
 #include <asm/platforms/xilinx-versal-net-eemi.h>
+#include <asm/platforms/amd-versal2-eemi.h>
 #include <asm/platforms/xilinx-zynqmp-eemi.h>
 
 /**
