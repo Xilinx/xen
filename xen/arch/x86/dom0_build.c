@@ -424,7 +424,7 @@ unsigned long __init dom0_compute_nr_pages(
             nr_pages = (end - vend) / (2 * sizeof_long);
             if ( memsize_gt_zero(&dom0_min_size) && nr_pages < min_pages )
                 nr_pages = min_pages;
-            printk("Dom0 memory clipped to %lu pages\n", nr_pages);
+            printk("Dom%u memory clipped to %lu pages\n", d->domain_id, nr_pages);
         }
     }
 

@@ -336,7 +336,7 @@ static __init void pvh_setup_e820(struct domain *d, unsigned long nr_pages)
      */
     d->arch.e820 = xzalloc_array(struct e820entry, e820.nr_map + 1);
     if ( !d->arch.e820 )
-        panic("Unable to allocate memory for Dom0 e820 map\n");
+        panic("Unable to allocate memory for Dom%u e820 map\n", d->domain_id);
     entry_guest = d->arch.e820;
 
     /* Clamp e820 memory map to match the memory assigned to Dom0 */
@@ -851,7 +851,7 @@ static int __init pvh_setup_cpus(struct domain *d, paddr_t entry,
     rc = arch_set_info_hvm_guest(v, &cpu_ctx);
     if ( rc )
     {
-        printk("Unable to setup Dom0 BSP context: %d\n", rc);
+        printk("Unable to setup Dom%u BSP context: %d\n", d->domain_id, rc);
         return rc;
     }
 
@@ -1235,8 +1235,8 @@ static int __init pvh_setup_acpi(struct domain *d, paddr_t start_info)
         rc = modify_identity_mmio(d, pfn, nr_pages, true);
         if ( rc )
         {
-            printk("Failed to map ACPI region [%#lx, %#lx) into Dom0 memory map\n",
-                   pfn, pfn + nr_pages);
+            printk("Failed to map ACPI region [%#lx, %#lx) into Dom%u memory map\n",
+                   pfn, pfn + nr_pages, d->domain_id);
             return rc;
         }
     }
@@ -1334,7 +1334,7 @@ int __init dom0_construct_pvh(const struct boot_domain *bd)
     struct domain *d = bd->d;
     int rc;
 
-    printk(XENLOG_INFO "*** Building a PVH Dom%d ***\n", d->domain_id);
+    printk(XENLOG_INFO "*** Building a PVH Dom%u ***\n", d->domain_id);
 
     if ( bd->kernel == NULL )
         panic("Missing kernel boot module for %pd construction\n", d);
@@ -1372,28 +1372,28 @@ int __init dom0_construct_pvh(const struct boot_domain *bd)
     rc = pvh_populate_p2m(d);
     if ( rc )
     {
-        printk("Failed to setup Dom0 physical memory map\n");
+        printk("Failed to setup Dom%u physical memory map\n", d->domain_id);
         return rc;
     }
 
     rc = pvh_load_kernel(bd, &entry, &start_info);
     if ( rc )
     {
-        printk("Failed to load Dom0 kernel\n");
+        printk("Failed to load Dom%u kernel\n", d->domain_id);
         return rc;
     }
 
     rc = pvh_setup_cpus(d, entry, start_info);
     if ( rc )
     {
-        printk("Failed to setup Dom0 CPUs: %d\n", rc);
+        printk("Failed to setup Dom%u CPUs: %d\n", d->domain_id, rc);
         return rc;
     }
 
     rc = pvh_setup_acpi(d, start_info);
     if ( rc )
     {
-        printk("Failed to setup Dom0 ACPI tables: %d\n", rc);
+        printk("Failed to setup Dom%u ACPI tables: %d\n", d->domain_id, rc);
         return rc;
     }
 
