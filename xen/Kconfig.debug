@@ -39,10 +39,16 @@ config COVERAGE
 	bool "Code coverage support"
 	depends on SYSCTL && !LIVEPATCH
 	select SUPPRESS_DUPLICATE_SYMBOL_WARNINGS if !ENFORCE_UNIQUE_SYMBOLS
+	select RELAX_INIT_CHECK
 	help
 	  Enable code coverage support.
 
 	  If unsure, say N here.
+
+config RELAX_INIT_CHECK
+	bool
+	help
+	  Relax strict check for .init sections only in %.init.o files.
 
 config COVERAGE_XEN
 	bool "Coverage collection via Xen console"

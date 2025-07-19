@@ -33,11 +33,18 @@ cov-cflags-y :=
 nocov-y :=
 noubsan-y :=
 
+#
+# when coverage is enabled the gcc special section should stay in memory
+# after Xen boot: at least rodata.str sections, but lets be safe and keep them
+# all as memory optimization is not a goal when coverage is enabled
+#
+ifneq ($(CONFIG_COVERAGE),y)
 SPECIAL_DATA_SECTIONS := rodata $(foreach a,1 2 4 8 16, \
                                             $(foreach w,1 2 4, \
                                                         rodata.str$(w).$(a)) \
                                             rodata.cst$(a)) \
                          $(foreach r,rel rel.ro,data.$(r).local)
+endif
 
 # The filename build.mk has precedence over Makefile
 include $(firstword $(wildcard $(srcdir)/build.mk) $(srcdir)/Makefile)
@@ -145,10 +152,9 @@ endif
 $(call cc-option-add,cov-cflags-$(CONFIG_COVERAGE),CC,-fprofile-update=atomic)
 
 # Reset cov-cflags-y in cases where an objects has another one as prerequisite
-$(nocov-y) $(filter %.init.o, $(obj-y) $(obj-bin-y) $(extra-y)): \
-    cov-cflags-y :=
+$(nocov-y) $(extra-y): cov-cflags-y :=
 
-$(non-init-objects): _c_flags += $(cov-cflags-y)
+$(obj-y) $(obj-bin-y) $(extra-y) $(lib-y): _c_flags += $(cov-cflags-y)
 
 ifeq ($(CONFIG_UBSAN),y)
 # Any -fno-sanitize= options need to come after any -fsanitize= options
@@ -258,8 +264,8 @@ $(obj)/%.o: $(src)/%.S FORCE
 	$(call if_changed_dep,cc_o_S)
 
 
-quiet_cmd_obj_init_o = INIT_O  $@
-define cmd_obj_init_o
+quiet_cmd_obj_init_check = INIT_C  $@
+define cmd_obj_init_check
     $(OBJDUMP) -h $< | while read idx name sz rest; do \
         case "$$name" in \
         .*.local) ;; \
@@ -268,12 +274,17 @@ define cmd_obj_init_o
             echo "Error: size of $<:$$name is 0x$$sz" >&2; \
             exit $$(expr $$idx + 1);; \
         esac; \
-    done || exit $$?; \
+    done
+endef
+
+quiet_cmd_obj_init_objcopy = INIT_O  $@
+define cmd_obj_init_objcopy
     $(OBJCOPY) $(foreach s,$(SPECIAL_DATA_SECTIONS),--rename-section .$(s)=.init.$(s)) $< $@
 endef
 
 $(filter %.init.o,$(obj-y) $(obj-bin-y) $(extra-y)): $(obj)/%.init.o: $(obj)/%.o FORCE
-	$(call if_changed,obj_init_o)
+	$(if $(filter y,$(CONFIG_RELAX_INIT_CHECK)),,$(call if_changed,obj_init_check))
+	$(call if_changed,obj_init_objcopy)
 
 quiet_cmd_cpp_i_c = CPP     $@
 cmd_cpp_i_c = $(CPP) $(call cpp_flags,$(c_flags)) -MQ $@ -o $@ $<
