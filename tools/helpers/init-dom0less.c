@@ -235,43 +235,43 @@ err:
     return rc;
 }
 
-static int init_domain(struct xs_handle *xsh,
-                       struct xc_interface_core *xch,
-                       xenforeignmemory_handle *xfh,
-                       libxl_dominfo *info)
+static int configure_xenstore(struct xs_handle *xsh,
+                              struct xc_interface_core *xch,
+                              xenforeignmemory_handle *xfh,
+                              libxl_dominfo *info,
+                              uint64_t *xenstore_evtchn,
+                              uint64_t *xenstore_pfn)
 {
-    libxl_uuid uuid;
-    uint64_t xenstore_evtchn, xenstore_pfn;
     int rc;
 
     printf("Init dom0less domain: %u\n", info->domid);
 
     rc = xc_hvm_param_get(xch, info->domid, HVM_PARAM_STORE_EVTCHN,
-                          &xenstore_evtchn);
+                          xenstore_evtchn);
     if (rc != 0) {
         printf("Failed to get HVM_PARAM_STORE_EVTCHN\n");
         return 1;
     }
 
     /* no xen,enhanced; nothing to do */
-    if (!xenstore_evtchn)
+    if (!*xenstore_evtchn)
         return 0;
 
     /* Get xenstore page */
-    if (get_xs_page(xch, info, &xenstore_pfn) != 0)
+    if (get_xs_page(xch, info, xenstore_pfn) != 0)
         return 1;
 
-    if (xenstore_pfn == ~0ULL) {
+    if (*xenstore_pfn == ~0ULL) {
         struct xenstore_domain_interface *intf;
 
-        rc = alloc_xs_page(xch, info, &xenstore_pfn);
+        rc = alloc_xs_page(xch, info, xenstore_pfn);
         if (rc != 0) {
             printf("Error on getting xenstore page\n");
             return 1;
         }
 
         intf = xenforeignmemory_map(xfh, info->domid, PROT_READ | PROT_WRITE, 1,
-                                    &xenstore_pfn, NULL);
+                                    xenstore_pfn, NULL);
         if (!intf) {
             printf("Error mapping xenstore page\n");
             return 1;
@@ -282,14 +282,35 @@ static int init_domain(struct xs_handle *xsh,
 
         /* Now everything is ready: set HVM_PARAM_STORE_PFN */
         rc = xc_hvm_param_set(xch, info->domid, HVM_PARAM_STORE_PFN,
-                xenstore_pfn);
+                              *xenstore_pfn);
         if (rc < 0)
             return rc;
 
         rc = xc_dom_gnttab_seed(xch, info->domid, true,
-                                (xen_pfn_t)-1, xenstore_pfn, 0, 0);
+                                (xen_pfn_t)-1, *xenstore_pfn, 0, 0);
         if (rc)
                err(1, "xc_dom_gnttab_seed");
+    }
+
+    return 0;
+}
+
+static int init_domain(struct xs_handle *xsh,
+                       struct xc_interface_core *xch,
+                       xenforeignmemory_handle *xfh,
+                       libxl_dominfo *info)
+{
+    uint64_t xenstore_evtchn, xenstore_pfn = 0;
+    libxl_uuid uuid;
+    int rc;
+
+    rc = configure_xenstore(xsh, xch, xfh, info, &xenstore_evtchn,
+                            &xenstore_pfn);
+    if (rc)
+        return rc;
+
+    if (xenstore_evtchn == 0) {
+        return 0;
     }
 
     libxl_uuid_generate(&uuid);
