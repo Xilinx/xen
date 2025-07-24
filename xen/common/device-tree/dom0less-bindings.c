@@ -72,7 +72,7 @@ int __init parse_dom0less_node(struct dt_device_node *node,
 
     if ( dt_property_read_bool(node, "direct-map") )
     {
-        if ( !(*flags & CDF_staticmem) )
+        if ( !(*flags & CDF_hardware) && !(*flags & CDF_staticmem) )
             panic("direct-map is not valid for domain %s without static allocation.\n",
                   dt_node_name(node));
 
@@ -92,9 +92,14 @@ int __init parse_dom0less_node(struct dt_device_node *node,
             iommu = true;
     }
 
-    if ( (*flags & CDF_hardware) && !(*flags & CDF_directmap) &&
-         !iommu_enabled )
-        panic("non-direct mapped hardware domain requires iommu\n");
+    if ( *flags & CDF_hardware )
+    {
+        if ( !llc_coloring_enabled )
+            *flags |= CDF_directmap;
+
+        if ( !(*flags & CDF_directmap) && !iommu_enabled )
+            panic("non-direct mapped hardware domain requires iommu\n");
+    }
 
     if ( dt_find_compatible_node(node, NULL, "multiboot,device-tree") )
     {
