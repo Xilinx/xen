@@ -313,17 +313,22 @@ static int init_domain(struct xs_handle *xsh,
                        xenforeignmemory_handle *xfh,
                        libxl_dominfo *info)
 {
-    uint64_t xenstore_evtchn, xenstore_pfn = 0;
+    uint64_t xenstore_evtchn = 0, xenstore_pfn = 0;
+    bool introduced;
     libxl_uuid uuid;
     int rc;
 
-    rc = configure_xenstore(xsh, xch, xfh, info, &xenstore_evtchn,
-                            &xenstore_pfn);
-    if (rc)
-        return rc;
+    introduced = xs_is_domain_introduced(xsh, info->domid);
 
-    if (xenstore_evtchn == 0) {
-        return 0;
+    if (!introduced) {
+        rc = configure_xenstore(xsh, xch, xfh, info, &xenstore_evtchn,
+                                &xenstore_pfn);
+        if (rc)
+            return rc;
+
+        if (xenstore_evtchn == 0) {
+            return 0;
+        }
     }
 
     libxl_uuid_generate(&uuid);
@@ -337,7 +342,7 @@ static int init_domain(struct xs_handle *xsh,
     if (rc)
         err(1, "writing to xenstore");
 
-    if (!xs_is_domain_introduced(xsh, info->domid)) {
+    if (!introduced) {
         rc = xs_introduce_domain(xsh, info->domid, xenstore_pfn,
                                  xenstore_evtchn);
         if (!rc)
