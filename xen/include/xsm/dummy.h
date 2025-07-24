@@ -21,6 +21,7 @@
 #include <xen/sched.h>
 #include <xsm/xsm.h>
 #include <public/hvm/params.h>
+#include <public/platform.h>
 
 /*
  * Cannot use BUILD_BUG_ON here because the expressions we check are not
@@ -687,8 +688,27 @@ static XSM_INLINE int cf_check xsm_mem_sharing(XSM_DEFAULT_ARG struct domain *d)
 
 static XSM_INLINE int cf_check xsm_platform_op(XSM_DEFAULT_ARG uint32_t op)
 {
-    XSM_ASSERT_ACTION(XSM_HW_PRIV);
-    return xsm_default_action(action, current->domain, NULL);
+    XSM_ASSERT_ACTION(XSM_OTHER);
+    switch ( op ) {
+    case XENPF_add_memtype:
+    case XENPF_del_memtype:
+    case XENPF_read_memtype:
+    case XENPF_platform_quirk:
+    case XENPF_firmware_info:
+    case XENPF_getidletime:
+    case XENPF_set_processor_pminfo:
+    case XENPF_get_cpuinfo:
+    case XENPF_get_cpu_version:
+    case XENPF_resource_op:
+    case XENPF_get_dom0_console:
+    case XENPF_get_ucode_revision:
+        return xsm_default_action(XSM_HW_PRIV, current->domain, NULL);
+        break;
+    default:
+        return xsm_default_action(XSM_PRIV, current->domain, NULL);
+        break;
+    }
+    ASSERT_UNREACHABLE();
 }
 
 #ifdef CONFIG_X86
