@@ -26,6 +26,7 @@
 #include <public/event_channel.h>
 #include <public/io/xs_wire.h>
 
+#include <asm/guest_access.h>
 #include <asm/setup.h>
 
 #include <xen/static-memory.h>
@@ -129,8 +130,14 @@ static void __init initialize_domU_xenstore(void)
 
         if ( gfn != XENSTORE_PFN_LATE_ALLOC && IS_ENABLED(CONFIG_GRANT_TABLE) )
         {
+            evtchn_port_t port = d->arch.hvm.params[HVM_PARAM_STORE_EVTCHN];
+            paddr_t evtchn_gaddr = gfn_to_gaddr(_gfn(gfn)) +
+                offsetof(struct xenstore_domain_interface, evtchn_port);
+
             ASSERT(gfn < UINT32_MAX);
             gnttab_seed_entry(d, GNTTAB_RESERVED_XENSTORE, xs_domid, gfn);
+            access_guest_memory_by_gpa(d, evtchn_gaddr, &port, sizeof(port),
+                                       true /* is_write */);
         }
     }
 }
