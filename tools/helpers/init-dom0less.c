@@ -301,8 +301,10 @@ static int configure_xenstore(struct xs_handle *xsh,
 
         rc = xc_dom_gnttab_seed(xch, info->domid, true,
                                 (xen_pfn_t)-1, *xenstore_pfn, 0, 0);
-        if (rc)
-               err(1, "xc_dom_gnttab_seed");
+        if (rc) {
+            printf("xc_dom_gnttab_seed");
+            return 1;
+        }
     }
 
     return 0;
@@ -335,18 +337,24 @@ static int init_domain(struct xs_handle *xsh,
     xc_domain_sethandle(xch, info->domid, libxl_uuid_bytearray(&uuid));
 
     rc = gen_stub_json_config(info->domid, &uuid);
-    if (rc)
-        err(1, "gen_stub_json_config");
+    if (rc) {
+        printf("gen_stub_json_config");
+        return 1;
+    }
 
     rc = create_xenstore(xsh, info, uuid, xenstore_pfn, xenstore_evtchn);
-    if (rc)
-        err(1, "writing to xenstore");
+    if (rc) {
+        printf("writing to xenstore");
+        return 1;
+    }
 
     if (!introduced) {
         rc = xs_introduce_domain(xsh, info->domid, xenstore_pfn,
                                  xenstore_evtchn);
-        if (!rc)
-            err(1, "xs_introduce_domain");
+        if (!rc) {
+            printf("xs_introduce_domain");
+            return 1;
+        }
     }
 
     return 0;
