@@ -87,7 +87,8 @@ static always_inline int xsm_default_action(
         fallthrough;
     case XSM_XS_PRIV:
         if ( action == XSM_XS_PRIV &&
-             evaluate_nospec(is_xenstore_domain(src)) )
+             (evaluate_nospec(is_xenstore_domain(src)) ||
+              is_control_domain(src)) )
             return 0;
         fallthrough;
     case XSM_DM_PRIV:
