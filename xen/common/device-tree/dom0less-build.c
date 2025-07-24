@@ -80,11 +80,20 @@ bool __init is_dom0less_mode(void)
 static int __init alloc_xenstore_evtchn(struct domain *d)
 {
     evtchn_alloc_unbound_t alloc;
+    struct vcpu *old_current;
     int rc;
 
     alloc.dom = d->domain_id;
     alloc.remote_dom = xs_domid;
+    /*
+     * Switch current from the Xen idle vcpu to the domain's vcpu.  This is to
+     * pass the xsm_evtchn_unbound() check for an untargetable domain.
+     */
+    old_current = current;
+    set_current(d->vcpu[0]);
     rc = evtchn_alloc_unbound(&alloc, 0);
+    /* Restore Xen idle vcpu. */
+    set_current(old_current);
     if ( rc )
     {
         printk("Failed allocating event channel for domain\n");
