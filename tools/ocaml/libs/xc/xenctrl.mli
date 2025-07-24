@@ -65,6 +65,7 @@ type domain_create_flag =
   | CDF_VPMU
   | CDF_TRAP_UNMAPPED_ACCESSES
   | CDF_DEVICE_MODEL
+  | CDF_NOT_HYPERCALL_TARGET
 
 type domain_create_iommu_opts =
   | IOMMU_NO_SHAREPT

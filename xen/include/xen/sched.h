@@ -1162,6 +1162,18 @@ static always_inline bool is_dm_domain(const struct domain *d)
     return evaluate_nospec(d->options & XEN_DOMCTL_CDF_device_model);
 }
 
+/*
+ * Return whether this domain can be the target of hypercalls from other
+ * domains.
+ */
+static always_inline bool is_hypercall_target(const struct domain *d)
+{
+    if ( IS_ENABLED(CONFIG_PV_SHIM_EXCLUSIVE) )
+        return true;
+
+    return evaluate_nospec(!(d->options & XEN_DOMCTL_CDF_not_hypercall_target));
+}
+
 #define VM_ASSIST(d, t) (test_bit(VMASST_TYPE_ ## t, &(d)->vm_assist))
 
 static always_inline bool is_pv_domain(const struct domain *d)

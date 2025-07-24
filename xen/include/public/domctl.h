@@ -70,9 +70,11 @@ struct xen_domctl_createdomain {
 #define XEN_DOMCTL_CDF_trap_unmapped_accesses  (1U << 8)
 /* Allow domain to provide device model for multiple other domains */
 #define XEN_DOMCTL_CDF_device_model   (1U << 9)
+/* Domain cannot be the target of hypercalls */
+#define XEN_DOMCTL_CDF_not_hypercall_target   (1U << 10)
 
 /* Max XEN_DOMCTL_CDF_* constant.  Used for ABI checking. */
-#define XEN_DOMCTL_CDF_MAX XEN_DOMCTL_CDF_device_model
+#define XEN_DOMCTL_CDF_MAX XEN_DOMCTL_CDF_not_hypercall_target
 
     uint32_t flags;
 

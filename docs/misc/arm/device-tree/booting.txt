@@ -324,6 +324,12 @@ with the following properties:
     Should be used together with scmi-smc-passthrough Xen command line
     option.
 
+- hypercall-untargetable
+
+    Optional.  An empty property to specify the domain cannot be the target
+    of hypercalls.  This protects a domain from interference.  A device with
+    this property cannot have a device model.
+
 Under the "xen,domain" compatible node, one or more sub-nodes are present
 for the DomU kernel and ramdisk.
 

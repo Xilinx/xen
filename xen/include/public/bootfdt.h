@@ -32,8 +32,14 @@
  * Hardware domain for running QEMU.
  */
 #define DOMAIN_CAPS_DEVICE_MODEL (1U << 3)
+/*
+ * Domain cannot be the target of hypercalls.  This provides the domain
+ * freedom from interference from other domains.
+ */
+#define DOMAIN_CAPS_NOT_HYPERCALL_TARGET (1U << 4)
 
-#define DOMAIN_CAPS_MASK     (DOMAIN_CAPS_CONTROL  | DOMAIN_CAPS_HARDWARE | \
-                              DOMAIN_CAPS_XENSTORE | DOMAIN_CAPS_DEVICE_MODEL )
+#define DOMAIN_CAPS_MASK    (DOMAIN_CAPS_CONTROL  | DOMAIN_CAPS_HARDWARE | \
+                             DOMAIN_CAPS_XENSTORE | DOMAIN_CAPS_DEVICE_MODEL | \
+                             DOMAIN_CAPS_NOT_HYPERCALL_TARGET)
 
 #endif /* __XEN_PUBLIC_BOOTFDT_H__ */

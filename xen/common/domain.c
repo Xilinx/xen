@@ -736,7 +736,7 @@ static int sanitise_domain_config(struct xen_domctl_createdomain *config)
            XEN_DOMCTL_CDF_xs_domain | XEN_DOMCTL_CDF_iommu |
            XEN_DOMCTL_CDF_nested_virt | XEN_DOMCTL_CDF_vpmu |
            XEN_DOMCTL_CDF_trap_unmapped_accesses |
-           XEN_DOMCTL_CDF_device_model) )
+           XEN_DOMCTL_CDF_device_model | XEN_DOMCTL_CDF_not_hypercall_target) )
     {
         dprintk(XENLOG_INFO, "Unknown CDF flags %#x\n", config->flags);
         return -EINVAL;
