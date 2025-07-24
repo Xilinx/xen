@@ -98,6 +98,10 @@ static always_inline int xsm_default_action(
         if ( is_control_domain(src) )
             return 0;
         return -EPERM;
+    case XSM_HW_PRIV:
+        if ( is_hardware_domain(src) )
+            return 0;
+        return -EPERM;
     default:
         LINKER_BUG_ON(1);
         return -EPERM;
@@ -275,7 +279,7 @@ static XSM_INLINE int cf_check xsm_console_io(
     if ( cmd == CONSOLEIO_write )
         return xsm_default_action(XSM_HOOK, d, NULL);
 #endif
-    return xsm_default_action(XSM_PRIV, d, NULL);
+    return xsm_default_action(XSM_HW_PRIV, d, NULL);
 }
 
 static XSM_INLINE int cf_check xsm_profile(
@@ -455,33 +459,33 @@ static XSM_INLINE int cf_check xsm_resource_unplug_core(XSM_DEFAULT_VOID)
 static XSM_INLINE int cf_check xsm_resource_plug_pci(
     XSM_DEFAULT_ARG uint32_t machine_bdf)
 {
-    XSM_ASSERT_ACTION(XSM_PRIV);
+    XSM_ASSERT_ACTION(XSM_HW_PRIV);
     return xsm_default_action(action, current->domain, NULL);
 }
 
 static XSM_INLINE int cf_check xsm_resource_unplug_pci(
     XSM_DEFAULT_ARG uint32_t machine_bdf)
 {
-    XSM_ASSERT_ACTION(XSM_PRIV);
+    XSM_ASSERT_ACTION(XSM_HW_PRIV);
     return xsm_default_action(action, current->domain, NULL);
 }
 
 static XSM_INLINE int cf_check xsm_resource_setup_pci(
     XSM_DEFAULT_ARG uint32_t machine_bdf)
 {
-    XSM_ASSERT_ACTION(XSM_PRIV);
+    XSM_ASSERT_ACTION(XSM_HW_PRIV);
     return xsm_default_action(action, current->domain, NULL);
 }
 
 static XSM_INLINE int cf_check xsm_resource_setup_gsi(XSM_DEFAULT_ARG int gsi)
 {
-    XSM_ASSERT_ACTION(XSM_PRIV);
+    XSM_ASSERT_ACTION(XSM_HW_PRIV);
     return xsm_default_action(action, current->domain, NULL);
 }
 
 static XSM_INLINE int cf_check xsm_resource_setup_misc(XSM_DEFAULT_VOID)
 {
-    XSM_ASSERT_ACTION(XSM_PRIV);
+    XSM_ASSERT_ACTION(XSM_HW_PRIV);
     return xsm_default_action(action, current->domain, NULL);
 }
 
@@ -673,7 +677,7 @@ static XSM_INLINE int cf_check xsm_mem_sharing(XSM_DEFAULT_ARG struct domain *d)
 
 static XSM_INLINE int cf_check xsm_platform_op(XSM_DEFAULT_ARG uint32_t op)
 {
-    XSM_ASSERT_ACTION(XSM_PRIV);
+    XSM_ASSERT_ACTION(XSM_HW_PRIV);
     return xsm_default_action(action, current->domain, NULL);
 }
 
@@ -701,7 +705,7 @@ static XSM_INLINE int cf_check xsm_mem_sharing_op(
 static XSM_INLINE int cf_check xsm_apic(
     XSM_DEFAULT_ARG struct domain *d, int cmd)
 {
-    XSM_ASSERT_ACTION(XSM_PRIV);
+    XSM_ASSERT_ACTION(XSM_HW_PRIV);
     return xsm_default_action(action, d, NULL);
 }
 

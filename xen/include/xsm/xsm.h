@@ -36,6 +36,7 @@ enum xsm_default {
     XSM_DM_PRIV,  /* Device model can perform on its target domain */
     XSM_TARGET,   /* Can perform on self or your target domain */
     XSM_PRIV,     /* Privileged - normally restricted to dom0 */
+    XSM_HW_PRIV,  /* Hardware Privileged - normally restricted to dom0/hwdom */
     XSM_XS_PRIV,  /* Xenstore domain - can do some privileged operations */
     XSM_OTHER     /* Something more complex */
 };

@@ -672,7 +672,7 @@ int pci_add_device(u16 seg, u8 bus, u8 devfn,
     else
         type = "device";
 
-    ret = xsm_resource_plug_pci(XSM_PRIV, (seg << 16) | (bus << 8) | devfn);
+    ret = xsm_resource_plug_pci(XSM_HW_PRIV, (seg << 16) | (bus << 8) | devfn);
     if ( ret )
         return ret;
 
@@ -825,7 +825,8 @@ int pci_remove_device(u16 seg, u8 bus, u8 devfn)
     struct pci_dev *pdev;
     int ret;
 
-    ret = xsm_resource_unplug_pci(XSM_PRIV, (seg << 16) | (bus << 8) | devfn);
+    ret = xsm_resource_unplug_pci(XSM_HW_PRIV,
+                                  (seg << 16) | (bus << 8) | devfn);
     if ( ret )
         return ret;
 
