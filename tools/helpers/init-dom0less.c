@@ -324,9 +324,13 @@ static int init_domain(struct xs_handle *xsh,
     if (rc)
         err(1, "writing to xenstore");
 
-    rc = xs_introduce_domain(xsh, info->domid, xenstore_pfn, xenstore_evtchn);
-    if (!rc)
-        err(1, "xs_introduce_domain");
+    if (!xs_is_domain_introduced(xsh, info->domid)) {
+        rc = xs_introduce_domain(xsh, info->domid, xenstore_pfn,
+                                 xenstore_evtchn);
+        if (!rc)
+            err(1, "xs_introduce_domain");
+    }
+
     return 0;
 }
 
