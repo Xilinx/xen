@@ -68,9 +68,11 @@ struct xen_domctl_createdomain {
 #define XEN_DOMCTL_CDF_vpmu           (1U << 7)
 /* Should we trap guest accesses to unmapped addresses? */
 #define XEN_DOMCTL_CDF_trap_unmapped_accesses  (1U << 8)
+/* Allow domain to provide device model for multiple other domains */
+#define XEN_DOMCTL_CDF_device_model   (1U << 9)
 
 /* Max XEN_DOMCTL_CDF_* constant.  Used for ABI checking. */
-#define XEN_DOMCTL_CDF_MAX XEN_DOMCTL_CDF_trap_unmapped_accesses
+#define XEN_DOMCTL_CDF_MAX XEN_DOMCTL_CDF_device_model
 
     uint32_t flags;
 

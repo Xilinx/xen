@@ -1153,6 +1153,15 @@ static always_inline bool is_control_domain(const struct domain *d)
     return evaluate_nospec(d->is_privileged);
 }
 
+/* This check is for functionality specific to a device model domain */
+static always_inline bool is_dm_domain(const struct domain *d)
+{
+    if ( IS_ENABLED(CONFIG_PV_SHIM_EXCLUSIVE) )
+        return false;
+
+    return evaluate_nospec(d->options & XEN_DOMCTL_CDF_device_model);
+}
+
 #define VM_ASSIST(d, t) (test_bit(VMASST_TYPE_ ## t, &(d)->vm_assist))
 
 static always_inline bool is_pv_domain(const struct domain *d)

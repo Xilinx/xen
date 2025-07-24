@@ -91,6 +91,8 @@ static always_inline int xsm_default_action(
             return 0;
         fallthrough;
     case XSM_DM_PRIV:
+        if ( is_dm_domain(src) )
+            return 0;
         if ( target && evaluate_nospec(src->target == target) )
             return 0;
         fallthrough;

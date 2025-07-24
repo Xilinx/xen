@@ -175,6 +175,8 @@ with the following properties:
     0x1 DOMAIN_CAPS_CONTROL  - A privileged, control domain
     0x2 DOMAIN_CAPS_HARDWARE - The hardware domain - there can be only 1
     0x4 DOMAIN_CAPS_XENSTORE - The xenstore domain - there can be only 1
+    0x8 DOMAIN_CAPS_DEVICE_MODEL - Domain with privileges to run device
+                                   models for other domains.
 
     The default is no capabilities.
 

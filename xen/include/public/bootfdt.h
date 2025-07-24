@@ -25,7 +25,15 @@
 #define DOMAIN_CAPS_HARDWARE (1U << 1)
 /* Xenstore domain. */
 #define DOMAIN_CAPS_XENSTORE (1U << 2)
-#define DOMAIN_CAPS_MASK     (DOMAIN_CAPS_CONTROL | DOMAIN_CAPS_HARDWARE | \
-                              DOMAIN_CAPS_XENSTORE)
+/*
+ * Device model capability allows the use of the dm_op hypercalls to provide
+ * the device model emulation (run QEMU) for other domains.  This is a
+ * subset of the Control capability which can be granted to the
+ * Hardware domain for running QEMU.
+ */
+#define DOMAIN_CAPS_DEVICE_MODEL (1U << 3)
+
+#define DOMAIN_CAPS_MASK     (DOMAIN_CAPS_CONTROL  | DOMAIN_CAPS_HARDWARE | \
+                              DOMAIN_CAPS_XENSTORE | DOMAIN_CAPS_DEVICE_MODEL )
 
 #endif /* __XEN_PUBLIC_BOOTFDT_H__ */

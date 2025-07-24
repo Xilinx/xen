@@ -60,6 +60,9 @@ int __init parse_dom0less_node(struct dt_device_node *node,
             d_cfg->flags |= XEN_DOMCTL_CDF_xs_domain;
             d_cfg->max_evtchn_port = -1;
         }
+
+        if ( val & DOMAIN_CAPS_DEVICE_MODEL )
+            d_cfg->flags |= XEN_DOMCTL_CDF_device_model;
     }
 
     if ( dt_find_property(node, "xen,static-mem", NULL) )
