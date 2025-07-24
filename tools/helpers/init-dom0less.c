@@ -57,6 +57,19 @@ static int get_xs_page(struct xc_interface_core *xch, libxl_dominfo *info,
     return 0;
 }
 
+static char *do_xs_read_dom(struct xs_handle *xsh, xs_transaction_t t,
+                            domid_t domid, char *path)
+{
+    char full_path[STR_MAX_LENGTH];
+    int rc;
+
+    rc = snprintf(full_path, STR_MAX_LENGTH,
+                  "/local/domain/%u/%s", domid, path);
+    if (rc < 0 || rc >= STR_MAX_LENGTH)
+        return NULL;
+    return xs_read(xsh, t, full_path, NULL);
+}
+
 static bool do_xs_write_dom(struct xs_handle *xsh, xs_transaction_t t,
                             domid_t domid, char *path, char *val)
 {
@@ -337,7 +350,13 @@ static int init_domain(struct xs_handle *xsh,
 /* Check if domain has been configured in XS */
 static bool domain_exists(struct xs_handle *xsh, int domid)
 {
-    return xs_is_domain_introduced(xsh, domid);
+    char *name = do_xs_read_dom(xsh, XBT_NULL, domid, "name");
+    if (name) {
+        free(name);
+        return true;
+    }
+
+    return false;
 }
 
 int main(int argc, char **argv)
