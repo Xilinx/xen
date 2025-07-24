@@ -414,14 +414,16 @@ int main(int argc, char **argv)
         printf("Checking domid: %u\n", domid);
         if (!domain_exists(xsh, domid)) {
             rc = init_domain(xsh, xch, xfh, &info[i]);
-            if (rc < 0) {
+            if (rc) {
                 fprintf(stderr, "init_domain failed.\n");
-                goto out;
             }
         } else {
             printf("Domain %u has already been initialized\n", domid);
         }
     }
+
+    rc = 0;
+
 out:
     libxl_dominfo_list_free(info, nb_vm);
     return rc;
