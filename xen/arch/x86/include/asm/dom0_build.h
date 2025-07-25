@@ -8,14 +8,14 @@
 
 extern unsigned int dom0_memflags;
 
-unsigned long dom0_compute_nr_pages(struct domain *d,
-                                    struct elf_dom_parms *parms,
-                                    unsigned long initrd_len);
+struct boot_domain;
+
+unsigned long dom_compute_nr_pages(struct boot_domain *bd,
+                                   struct elf_dom_parms *parms);
 int dom0_setup_permissions(struct domain *d);
 
-struct boot_domain;
-int dom0_construct_pv(const struct boot_domain *bd);
-int dom0_construct_pvh(const struct boot_domain *bd);
+int dom0_construct_pv(struct boot_domain *bd);
+int dom0_construct_pvh(struct boot_domain *bd);
 
 unsigned long dom0_paging_pages(const struct domain *d,
                                 unsigned long nr_pages);

@@ -340,11 +340,21 @@ static unsigned long __init default_nr_pages(unsigned long avail)
                             : min(avail / 16, 128UL << (20 - PAGE_SHIFT)));
 }
 
-unsigned long __init dom0_compute_nr_pages(
-    struct domain *d, struct elf_dom_parms *parms, unsigned long initrd_len)
+unsigned long __init dom_compute_nr_pages(struct boot_domain *bd,
+                                          struct elf_dom_parms *parms)
 {
     nodeid_t node;
     unsigned long avail = 0, nr_pages, min_pages, max_pages, iommu_pages = 0;
+    unsigned long initrd_len = bd->initrd ? bd->initrd->size : 0;
+    struct domain *d = bd->d;
+
+    if ( bd->memory )
+    {
+        nr_pages =  (bd->memory * SZ_1K) / PAGE_SIZE;
+        max_pages = nr_pages;
+
+        goto out;
+    }
 
     /* The ordering of operands is to work around a clang5 issue. */
     if ( CONFIG_DOM0_MEM[0] && !dom0_mem_set )
@@ -437,6 +447,7 @@ unsigned long __init dom0_compute_nr_pages(
         }
     }
 
+ out:
     d->max_pages = min_t(unsigned long, max_pages, UINT_MAX);
 
     return nr_pages;

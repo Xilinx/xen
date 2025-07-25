@@ -355,7 +355,7 @@ static struct page_info * __init alloc_chunk(struct domain *d,
     return page;
 }
 
-static int __init dom0_construct(const struct boot_domain *bd)
+static int __init dom0_construct(struct boot_domain *bd)
 {
     unsigned int i;
     int rc, order, machine;
@@ -503,7 +503,7 @@ static int __init dom0_construct(const struct boot_domain *bd)
         }
     }
 
-    nr_pages = dom0_compute_nr_pages(d, &parms, initrd_len);
+    nr_pages = dom_compute_nr_pages(bd, &parms);
 
 #ifdef CONFIG_PV32
     if ( elf_32bit(&elf) )
@@ -1072,7 +1072,7 @@ out:
     return rc;
 }
 
-int __init dom0_construct_pv(const struct boot_domain *bd)
+int __init dom0_construct_pv(struct boot_domain *bd)
 {
     unsigned long cr4 = read_cr4();
     int rc;
