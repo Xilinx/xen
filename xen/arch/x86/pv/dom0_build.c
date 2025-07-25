@@ -1045,7 +1045,7 @@ static int __init dom0_construct(struct boot_domain *bd)
     {
         bool preempted;
 
-        nr_pt_pages = dom0_paging_pages(d, nr_pages);
+        nr_pt_pages = dom_paging_pages(d, nr_pages);
 
         do {
             preempted = false;

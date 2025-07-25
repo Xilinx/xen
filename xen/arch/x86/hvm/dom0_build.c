@@ -401,13 +401,13 @@ static __init void pvh_setup_e820(struct domain *d, unsigned long nr_pages)
 static void __init pvh_init_p2m(struct boot_domain *bd)
 {
     unsigned long nr_pages = dom_compute_nr_pages(bd, NULL);
+    unsigned long paging_pages = dom_paging_pages(bd->d, nr_pages);
     bool preempted;
 
     pvh_setup_e820(bd->d, nr_pages);
     do {
         preempted = false;
-        paging_set_allocation(bd->d, dom0_paging_pages(bd->d, nr_pages),
-                              &preempted);
+        paging_set_allocation(bd->d, paging_pages, &preempted);
         process_pending_softirqs();
     } while ( preempted );
 }

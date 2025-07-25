@@ -315,16 +315,22 @@ boolean_param("ro-hpet", ro_hpet);
 
 unsigned int __initdata dom0_memflags = MEMF_no_dma|MEMF_exact_node;
 
-unsigned long __init dom0_paging_pages(const struct domain *d,
-                                       unsigned long nr_pages)
+unsigned long __init dom_paging_pages(const struct domain *d,
+                                      unsigned long nr_pages)
 {
     /* Keep in sync with libxl__get_required_paging_memory(). */
     unsigned long memkb = nr_pages * (PAGE_SIZE / 1024);
+    unsigned long factor; /* 0=pv; 1=pv(shadow)|hvm 2=hvm(shadow) */
 
-    memkb = 4 * (256 * d->max_vcpus +
-                 (is_pv_domain(d) ? opt_dom0_shadow || opt_pv_l1tf_hwdom
-                                  : 1 + opt_dom0_shadow) *
-                 (memkb / 1024));
+    if ( is_hardware_domain(d) )
+        factor = is_pv_domain(d) ? opt_dom0_shadow || opt_pv_l1tf_hwdom
+                                 : 1 + opt_dom0_shadow;
+    else if ( is_pv_domain(d) ) /* PV domU */
+        factor = paging_mode_shadow(d) || opt_pv_l1tf_domu;
+    else /* HVM domU */
+        factor = 1 + paging_mode_shadow(d);
+
+    memkb = 4 * (256 * d->max_vcpus + factor * (memkb / 1024));
 
     return DIV_ROUND_UP(memkb, 1024) << (20 - PAGE_SHIFT);
 }
@@ -396,7 +402,7 @@ unsigned long __init dom_compute_nr_pages(struct boot_domain *bd,
         nr_pages = min(nr_pages, get_memsize(&dom0_max_size, avail));
         nr_pages = min(nr_pages, avail);
 
-        cpu_pages = dom0_paging_pages(d, nr_pages);
+        cpu_pages = dom_paging_pages(d, nr_pages);
 
         if ( !iommu_use_hap_pt(d) )
             avail -= cpu_pages;
