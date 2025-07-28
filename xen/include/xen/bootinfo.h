@@ -158,7 +158,6 @@ void add_boot_cmdline(const char *name, const char *cmdline,
                       boot_module_kind kind, paddr_t start, bool domU);
 struct bootcmdline *boot_cmdline_find_by_kind(boot_module_kind kind);
 struct bootcmdline * boot_cmdline_find_by_name(const char *name);
-const char *boot_module_kind_as_string(boot_module_kind kind);
 
 void populate_boot_allocator(void);
 

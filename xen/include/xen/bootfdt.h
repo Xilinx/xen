@@ -175,4 +175,7 @@ void device_tree_get_reg(const __be32 **cell, uint32_t address_cells,
  */
 boot_module_kind fdt_node_to_kind(const void *fdt, int node);
 
+/* Returns a null-terminated string representing the provided `kind` */
+const char *boot_module_kind_as_string(boot_module_kind kind);
+
 #endif /* XEN_BOOTFDT_H */

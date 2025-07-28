@@ -21,22 +21,6 @@
 
 struct bootinfo __initdata bootinfo = BOOTINFO_INIT;
 
-const char * __init boot_module_kind_as_string(boot_module_kind kind)
-{
-    switch ( kind )
-    {
-    case BOOTMOD_XEN:     return "Xen";
-    case BOOTMOD_FDT:     return "Device Tree";
-    case BOOTMOD_KERNEL:  return "Kernel";
-    case BOOTMOD_RAMDISK: return "Ramdisk";
-    case BOOTMOD_XSM_POLICY:    return "XSM Policy";
-    case BOOTMOD_GUEST_DTB:     return "DTB";
-    case BOOTMOD_MICROCODE:     return "Microcode";
-    case BOOTMOD_UNKNOWN: return "Unknown";
-    default: BUG();
-    }
-}
-
 static void __init dt_unreserved_regions(paddr_t s, paddr_t e,
                                          void (*cb)(paddr_t ps, paddr_t pe),
                                          unsigned int first)
