@@ -7,6 +7,7 @@
 #include <xen/iocap.h>
 #include <xen/libfdt/libfdt.h>
 #include <xen/llc-coloring.h>
+#include <xen/fdt-virtio.h>
 #include <xen/sched.h>
 #include <xen/serial.h>
 #include <xen/sizes.h>
@@ -1568,6 +1569,12 @@ static int __init construct_domU(struct domain *d,
     if ( vcpu_create(d, 0) == NULL )
         return -ENOMEM;
 
+#ifdef CONFIG_VIRTIO_MMIO_NON_BLOCKING
+    rc = parse_virtio(node, &kinfo);
+    if ( rc < 0 )
+        return rc;
+#endif
+
     d->max_pages = ((paddr_t)mem * SZ_1K) >> PAGE_SHIFT;
 
     kinfo.d = d;
@@ -1600,6 +1607,12 @@ static int __init construct_domU(struct domain *d,
         rc = process_shm(d, &kinfo, node);
         if ( rc < 0 )
             return rc;
+
+#ifdef CONFIG_VIRTIO_MMIO_NON_BLOCKING
+        rc = dom_construct_virtio(&kinfo);
+        if ( rc < 0 )
+            return rc;
+#endif
 
         /*
          * Base address and irq number are needed when creating vpl011 device

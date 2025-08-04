@@ -92,6 +92,23 @@ struct kernel_info {
         u32 pci_intx_irq_base;
     } virtio_pci;
 
+#ifdef CONFIG_VIRTIO_MMIO_NON_BLOCKING
+    /* virtio-mmio.  */
+    struct {
+        uint64_t addr;
+        uint32_t size;
+        uint32_t irq;
+
+        /* Bus used for proxying virtio-mmio -> virtio-msg.  */
+        union {
+            struct {
+                /* Domid implementing dev. Restricts who may attach.  */
+                uint32_t device_domid;
+            } xen;
+        } msg_bus;
+    } virtio_mmio[CONFIG_NR_VIRTIO_MSG_BUSES];
+#endif
+
     /* GIC phandle */
     uint32_t phandle_gic;
 

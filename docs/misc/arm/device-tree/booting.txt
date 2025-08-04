@@ -848,3 +848,111 @@ The automatically allocated static shared memory will get mapped at
 0x80000000 in DomU1 guest physical address space, and at 0x90000000 in DomU2
 guest physical address space. DomU1 is explicitly defined as the owner domain,
 and DomU2 is the borrower domain.
+
+Non-blocking virtio-mmio
+========================
+
+Under the "xen,domain" compatible node, you may optionally add one or more
+sub-nodes to configure virtio-mmio-nonblocking with the following
+properties:
+
+- compatible
+
+    "xen,virtio-mmio-nonblocking"
+
+- reg
+
+    Specifies the base address and size where the virtio-mmio-nonblocking
+    registers will be mapped in the domain.
+    The size must be 0x1000.
+
+- irq
+
+    A 32-bit integer that specifies the interrupt associated with this
+    virtio-mmio-nonblocking bus.
+
+    On Arm, this value must be a SPI and fit within the range of configured
+    SPI interrupts. See the nr_spis property for more details.
+
+    NOTE: Avoid naming this property interrupts because it conflicts
+    with the host's device-tree #interrupt-cells.
+
+Virtio-mmio-nonblocking communicates with virtio devices using virtio-msg.
+Virtio-msg in turn needs a communication channel to exchange messages referred
+to as virtio-msg-bus. Each virtio-mmio-nonblocking node must therefore
+contain a virtio-msg bus sub-node. Currently, the only virtio-msg-bus that
+is supported is "xen,virtio-msg-bus-xen". It has the following properties.
+
+- compatible
+
+    "xen,virtio-msg-bus-xen"
+
+- device-domid
+
+    A 32-bit integer that specifies the domid where the virtio device runs.
+    Only emulators running on domid will be allowed to connect.
+
+- bus-id
+
+    A 32-bit integer that specifies the bus-id associated with this bus.
+    Bus-ids are scoped per domain and must be unique.
+    The maximum bus-id depends on CONFIG_NR_VIRTIO_MSG_BUSSES.
+
+This is an example of two guests, domU1 and domU2. domU1 has two
+virtio-mmio-nonblocking nodes and domU2 has only one.
+In this particular example, all virtio backends were configured to run in dom0.
+
+    / {
+        chosen {
+            #address-cells = <1>;
+            #size-cells = <1>;
+            ...
+            domU1 {
+                compatible = "xen,domain";
+                cpus = <1>;
+                memory = <0x0 0x80000>;
+
+                virtio@2001000 {
+                    compatible = "xen,virtio-mmio-nonblocking";
+                    reg = <0x2001000 0x1000>;
+                    irq = <0x22>;
+
+                    bus@0 {
+                        compatible = "xen,virtio-msg-bus-xen";
+                        device-domid = <0>; // Backend runs in dom0
+                        bus-id = <0>;
+                    };
+                };
+
+                virtio@2002000 {
+                    compatible = "xen,virtio-mmio-nonblocking";
+                    reg = <0x2002000 0x1000>;
+                    irq = <0x23>;
+
+                    bus@1 {
+                        compatible = "xen,virtio-msg-bus-xen";
+                        device-domid = <0>; // Backend runs in dom0
+                        bus-id = <1>;
+                    };
+                };
+            };
+
+            domU2 {
+                compatible = "xen,domain";
+                cpus = <1>;
+                memory = <0x0 0x80000>;
+
+                virtio@2001000 {
+                    compatible = "xen,virtio-mmio-nonblocking";
+                    reg = <0x2001000 0x1000>;
+                    irq = <0x22>;
+
+                    bus@0 {
+                        compatible = "xen,virtio-msg-bus-xen";
+                        device-domid = <0>; // Backend runs in dom0
+                        bus-id = <0>;
+                    };
+                };
+            };
+        };
+    };
