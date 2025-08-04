@@ -146,6 +146,23 @@ struct boot_domain {
 #if __has_include(<asm/bootfdt.h>)
     struct arch_boot_domain arch;
 #endif
+
+#ifdef CONFIG_VIRTIO_MMIO_NON_BLOCKING
+    /* virtio-mmio.  */
+    struct {
+        uint64_t addr;
+        uint32_t size;
+        uint32_t irq;
+
+        /* Bus used for proxying virtio-mmio -> virtio-msg.  */
+        union {
+            struct {
+                /* Domid implementing dev. Restricts who may attach.  */
+                uint32_t device_domid;
+            } xen;
+        } msg_bus;
+    } virtio_mmio[CONFIG_NR_VIRTIO_MSG_BUSES];
+#endif
 };
 
 #define BOOTMOD_MAX_CMDLINE 1024

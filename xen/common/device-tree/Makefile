@@ -11,3 +11,4 @@ obj-$(CONFIG_DOMAIN_BUILD_HELPERS) += kernel.o
 obj-$(CONFIG_STATIC_EVTCHN) += static-evtchn.init.o
 obj-$(CONFIG_STATIC_MEMORY) += static-memory.init.o
 obj-$(CONFIG_STATIC_SHM) += static-shmem.init.o
+obj-$(CONFIG_VIRTIO_MMIO_NON_BLOCKING) += virtio.init.o

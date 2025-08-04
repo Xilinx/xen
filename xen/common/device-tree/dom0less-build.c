@@ -31,6 +31,7 @@
 
 #include <xen/static-memory.h>
 #include <xen/static-shmem.h>
+#include <xen/fdt-virtio.h>
 
 #define XENSTORE_PFN_LATE_ALLOC UINT64_MAX
 
@@ -809,6 +810,12 @@ void __init create_domUs(void)
             panic("Error initializing LLC coloring for domain %s (rc = %d)\n",
                   dt_node_name(node), rc);
 #endif /* CONFIG_HAS_LLC_COLORING */
+
+#ifdef CONFIG_VIRTIO_MMIO_NON_BLOCKING
+        rc = dom_construct_virtio(&ki.bd);
+        if ( rc )
+            panic("Error constructing virtio %d\n", rc);
+#endif
 
         ki.bd.d->is_console = true;
         dt_device_set_used_by(node, ki.bd.d->domain_id);

@@ -6,6 +6,7 @@
 #include <xen/domain.h>
 #include <xen/grant_table.h>
 #include <xen/llc-coloring.h>
+#include <xen/fdt-virtio.h>
 #include <xen/sched.h>
 #include <asm/setup.h>
 
@@ -250,6 +251,11 @@ int __init parse_dom0less_node(struct dt_device_node *node,
     dt_property_read_string(node, "llc-colors", &bd->llc_colors_str);
     if ( !llc_coloring_enabled && bd->llc_colors_str )
         panic("'llc-colors' found, but LLC coloring is disabled\n");
+#endif
+
+#ifdef CONFIG_VIRTIO_MMIO_NON_BLOCKING
+    if ( parse_virtio(node, bd) )
+        panic("Failed to parse virtio\n");
 #endif
 
     bd->domid = DOMID_INVALID;
