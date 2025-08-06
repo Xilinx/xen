@@ -57,6 +57,14 @@ int init_vuart(struct domain *d, struct kernel_info *kinfo,
 int make_intc_domU_node(struct kernel_info *kinfo);
 int make_arch_nodes(struct kernel_info *kinfo);
 
+/*
+ * Set domain type from struct kernel_info which defines guest Execution
+ * State 32-bit/64-bit (for Arm AArch32/AArch64).
+ * The domain type must be set before allocate_memory.
+ *
+ * @d: pointer to the domain structure.
+ * @kinfo: pointer to the kinfo structure.
+ */
 void set_domain_type(struct domain *d, struct kernel_info *kinfo);
 
 int init_intc_phandle(struct kernel_info *kinfo, const char *name,

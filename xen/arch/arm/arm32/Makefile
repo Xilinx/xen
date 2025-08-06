@@ -6,6 +6,7 @@ obj-y += cache.o
 obj-$(CONFIG_EARLY_PRINTK) += debug.o
 obj-y += domctl.o
 obj-y += domain.o
+obj-y += domain-build.o
 obj-y += entry.o
 obj-y += head.o
 obj-y += insn.o
