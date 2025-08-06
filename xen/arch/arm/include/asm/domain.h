@@ -22,11 +22,10 @@ enum domain_type {
     DOMAIN_32BIT,
     DOMAIN_64BIT,
 };
-#define is_32bit_domain(d) ((d)->arch.type == DOMAIN_32BIT)
-#define is_64bit_domain(d) ((d)->arch.type == DOMAIN_64BIT)
+
+# include <asm/arm64/domain.h>
 #else
-#define is_32bit_domain(d) (1)
-#define is_64bit_domain(d) (0)
+# include <asm/arm32/domain.h>
 #endif
 
 /*
