@@ -18,6 +18,7 @@
 #include <xen/softirq.h>
 #include <xen/types.h>
 #include <xen/unaligned.h>
+#include <xen/fdt-virtio.h>
 
 #include <acpi/actables.h>
 
@@ -1270,6 +1271,12 @@ int __init dom_construct_pvh(struct boot_domain *bd)
         printk("Failed to setup HVM/PVH %pd physical memory map\n", bd->d);
         return rc;
     }
+
+#ifdef CONFIG_VIRTIO_MMIO_NON_BLOCKING
+    rc = dom_construct_virtio(bd);
+    if ( rc )
+        return rc;
+#endif
 
     rc = pvh_load_kernel(bd, &entry, &start_info);
     if ( rc )
