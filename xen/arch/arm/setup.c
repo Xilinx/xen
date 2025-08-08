@@ -530,7 +530,7 @@ static int __init init_xen_cap_info(void)
 #ifdef CONFIG_ARM_64
     safe_strcat(xen_cap_info, "xen-3.0-aarch64 ");
 #endif
-    if ( cpu_has_aarch32 )
+    if ( is_aarch32_enabled() )
         safe_strcat(xen_cap_info, "xen-3.0-armv7l ");
 
     return 0;

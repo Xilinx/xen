@@ -797,6 +797,15 @@ int arch_domain_create(struct domain *d,
     if ( (rc = sci_domain_init(d, config)) != 0 )
         goto fail;
 
+#ifdef CONFIG_ARM_64
+    /*
+     * Set default Execution State to AArch64 (64bit)
+     * - Xen will reconfigure it properly at boot time
+     * - toolstack will reconfigure it properly by XEN_DOMCTL_set_address_size
+     */
+    d->arch.type = DOMAIN_64BIT;
+#endif
+
     return 0;
 
 fail:

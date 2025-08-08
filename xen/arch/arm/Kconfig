@@ -274,6 +274,13 @@ config PCI_PASSTHROUGH
 	help
 	  This option enables PCI device passthrough
 
+config ARM64_AARCH32
+    bool "AArch32 Guests support on on ARM64 (UNSUPPORTED)" if UNSUPPORTED
+    depends on ARM_64
+    default y
+    help
+      This option enables AArch32 Guests on ARM64.
+
 endmenu
 
 menu "ARM errata workaround via the alternative framework"

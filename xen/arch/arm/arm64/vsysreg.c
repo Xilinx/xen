@@ -330,6 +330,15 @@ void do_sysreg(struct cpu_user_regs *regs,
     {
         register_t guest_reg_value = domain_cpuinfo.pfr64.bits[0];
 
+        if ( !is_aarch32_enabled() )
+        {
+            /* do not expose EL1 AArch32 support if disabled */
+            register_t mask = GENMASK(ID_AA64PFR0_EL1_SHIFT + 4 - 1,
+                                      ID_AA64PFR0_EL1_SHIFT);
+            guest_reg_value &= ~mask;
+            guest_reg_value |= (1 << ID_AA64PFR0_EL1_SHIFT) & mask;
+        }
+
         if ( is_sve_domain(v->domain) )
         {
             /* 4 is the SVE field width in id_aa64pfr0_el1 */

@@ -13,6 +13,11 @@
 #include <asm/arm64/sve.h>
 #include <asm/cpufeature.h>
 
+static void vcpu_switch_to_aarch32_mode(struct vcpu *v)
+{
+    v->arch.hcr_el2 &= ~HCR_RW;
+}
+
 static long switch_mode(struct domain *d, enum domain_type type)
 {
     struct vcpu *v;
@@ -21,14 +26,14 @@ static long switch_mode(struct domain *d, enum domain_type type)
         return -EINVAL;
     if ( domain_tot_pages(d) != 0 )
         return -EBUSY;
-    if ( d->arch.type == type )
-        return 0;
 
     d->arch.type = type;
 
-    if ( is_64bit_domain(d) )
-        for_each_vcpu(d, v)
+    for_each_vcpu(d, v)
+        if ( is_64bit_domain(d) )
             vcpu_switch_to_aarch64_mode(v);
+        else
+            vcpu_switch_to_aarch32_mode(v);
 
     return 0;
 }
@@ -38,7 +43,7 @@ static long set_address_size(struct domain *d, uint32_t address_size)
     switch ( address_size )
     {
     case 32:
-        if ( !cpu_has_el1_32 )
+        if ( !is_aarch32_enabled() )
             return -EINVAL;
         /* SVE is not supported for 32 bit domain */
         if ( is_sve_domain(d) )
@@ -58,7 +63,6 @@ long subarch_do_domctl(struct xen_domctl *domctl, struct domain *d,
     {
     case XEN_DOMCTL_set_address_size:
         return set_address_size(d, domctl->u.address_size.size);
-
     default:
         return -ENOSYS;
     }

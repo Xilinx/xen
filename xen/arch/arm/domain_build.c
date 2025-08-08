@@ -1881,19 +1881,6 @@ int __init construct_domain(struct domain *d, struct kernel_info *kinfo)
     BUG_ON(v->is_initialised);
 
 #ifdef CONFIG_ARM_64
-    /* if aarch32 mode is not supported at EL1 do not allow 32-bit domain */
-    if ( !(cpu_has_el1_32) && kinfo->arch.type == DOMAIN_32BIT )
-    {
-        printk("Platform does not support 32-bit domain\n");
-        return -EINVAL;
-    }
-
-    if ( is_sve_domain(d) && (kinfo->arch.type == DOMAIN_32BIT) )
-    {
-        printk("SVE is not available for 32-bit domain\n");
-        return -EINVAL;
-    }
-
     if ( is_64bit_domain(d) )
         vcpu_switch_to_aarch64_mode(v);
 
@@ -1991,6 +1978,10 @@ static int __init construct_dom0(struct domain *d)
     if ( rc < 0 )
         return rc;
 
+    rc = arm64_set_domain_type(&kinfo);
+    if ( rc < 0 )
+        return rc;
+
     return construct_hwdom(&kinfo, NULL);
 }
 
@@ -2002,10 +1993,6 @@ int __init construct_hwdom(struct kernel_info *kinfo,
 
     iommu_hwdom_init(d);
 
-#ifdef CONFIG_ARM_64
-    /* type must be set before allocate_memory */
-    d->arch.type = kinfo->arch.type;
-#endif
     find_gnttab_region(d, kinfo);
     if ( is_domain_direct_mapped(d) )
         allocate_memory_11(d, kinfo);
