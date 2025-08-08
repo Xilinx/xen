@@ -12,14 +12,16 @@ struct kernel_info;
  *
  * @d: pointer to the domain structure
  */
-#define is_32bit_domain(d) ((d)->arch.type == DOMAIN_32BIT)
+#define is_32bit_domain(d)                                                     \
+        (IS_ENABLED(CONFIG_ARM64_AARCH32) && (d)->arch.type == DOMAIN_32BIT)
 
 /*
  * Returns true if guest execution state is AArch64
  *
  * @d: pointer to the domain structure
  */
-#define is_64bit_domain(d) ((d)->arch.type == DOMAIN_64BIT)
+#define is_64bit_domain(d)                                                     \
+        (!IS_ENABLED(CONFIG_ARM64_AARCH32) || (d)->arch.type == DOMAIN_64BIT)
 
 /*
  * Arm64 declares AArch32 (32bit) Execution State support in the
