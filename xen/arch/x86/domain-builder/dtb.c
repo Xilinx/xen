@@ -16,8 +16,8 @@ static struct boot_module *__init find_boot_module(
     const char *compatible, struct dt_device_node **module_node)
 {
     uint32_t i;
-    struct dt_device_node *node = dt_find_compatible_node(dom_node, NULL,
-                                                          compatible);
+    struct dt_device_node *node = dt_find_compatible_child_node(dom_node, NULL,
+                                                                compatible);
 
     if ( module_node )
         *module_node = NULL;
