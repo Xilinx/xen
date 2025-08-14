@@ -110,7 +110,7 @@ int __init parse_dom0less_node(struct dt_device_node *node,
             panic("non-direct mapped hardware domain requires iommu\n");
     }
 
-    if ( dt_find_compatible_node(node, NULL, "multiboot,device-tree") )
+    if ( dt_find_compatible_child_node(node, NULL, "multiboot,device-tree") )
     {
         if ( *flags & CDF_hardware )
             panic("\"multiboot,device-tree\" incompatible with hardware domain\n");
