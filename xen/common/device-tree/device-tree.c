@@ -465,6 +465,30 @@ dt_find_compatible_node(struct dt_device_node *from,
 }
 
 struct dt_device_node *
+dt_find_compatible_child_node(struct dt_device_node *from,
+                              const char *type,
+                              const char *compatible)
+{
+    struct dt_device_node *np, *node = NULL;
+
+    ASSERT(from);
+
+    dt_for_each_child_node(from, np)
+    {
+        if ( type && !(np->type && (dt_node_cmp(np->type, type) == 0)) )
+            continue;
+
+        if ( dt_device_is_compatible(np, compatible) )
+        {
+            node = np;
+            break;
+        }
+    }
+
+    return node;
+}
+
+struct dt_device_node *
 dt_find_matching_node(struct dt_device_node *from,
                       const struct dt_device_match *matches)
 {

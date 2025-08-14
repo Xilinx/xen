@@ -348,6 +348,24 @@ struct dt_device_node *dt_find_compatible_node(struct dt_device_node *from,
                                                const char *compatible);
 
 /**
+ * dt_find_compatible_child_node - Find a node based on type and one of the
+ *                                 tokens in its "compatible" property.
+ *                                 Only matches on @from child nodes.
+ * @from: The node to start searching from. The node
+ *          you pass will not be searched, only the next one
+ *          will
+ * @type: The type string to match "device_type" or NULL to ignore
+ * @compatible: The string to match to one of the tokens in the device
+ *          "compatible" list.
+ *
+ * Returns a node pointer.
+ */
+struct dt_device_node *
+dt_find_compatible_child_node(struct dt_device_node *from,
+                              const char *type,
+                              const char *compatible);
+
+/**
  * Find a property with a given name for a given node
  * and return the value.
  */
