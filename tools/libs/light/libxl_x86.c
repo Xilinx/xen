@@ -1,6 +1,7 @@
 #include "libxl_internal.h"
 #include "libxl_arch.h"
 #include <xen/arch-x86/cpuid.h>
+#include <xen/hvm/e820.h>
 
 int libxl__arch_domain_prepare_config(libxl__gc *gc,
                                       libxl_domain_config *d_config,
@@ -555,6 +556,19 @@ int libxl__arch_domain_init_hw_description(libxl__gc *gc,
                                            libxl__domain_build_state *state,
                                            struct xc_dom_image *dom)
 {
+    libxl_domain_build_info *const info = &d_config->b_info;
+
+    if ((info->type == LIBXL_DOMAIN_TYPE_PVH) &&
+        libxl_defbool_val(info->u.pvh.virtio_pci)) {
+        info->u.pvh.pci1_ecam_base = PCI1_ECAM_BASE;
+        info->u.pvh.pci1_nr_bus = PCI1_NR_BUS;
+        info->u.pvh.pci1_mmio_base = PCI1_MMIO_BASE;
+        info->u.pvh.pci1_mmio_size = PCI1_MMIO_SIZE;
+        info->u.pvh.pci1_mmio64_base = PCI1_64BIT_MMIO_BASE;
+        info->u.pvh.pci1_mmio64_size = PCI1_64BIT_MMIO_SIZE;
+        info->u.pvh.pci1_intx_base = PCI1_INTX_BASE;
+    }
+
     return 0;
 }
 
@@ -696,9 +710,13 @@ static int domain_construct_memmap(libxl__gc *gc,
         if (d_config->rdms[i].policy != LIBXL_RDM_RESERVE_POLICY_INVALID)
             e820_entries++;
 
-    /* Add the HVM special pages to PVH memmap as RESERVED. */
-    if (d_config->b_info.type == LIBXL_DOMAIN_TYPE_PVH)
+    if (d_config->b_info.type == LIBXL_DOMAIN_TYPE_PVH) {
+        /* Add the HVM special pages to PVH memmap as RESERVED. */
         e820_entries++;
+        /* Reserve virtio PCI Root bridge ECAM range */
+        if (libxl_defbool_val(d_config->b_info.u.pvh.virtio_pci))
+            e820_entries++;
+    }
 
     /* If we should have a highmem range. */
     if (highmem_size)
@@ -725,6 +743,17 @@ static int domain_construct_memmap(libxl__gc *gc,
         d_config->b_info.u.pvh.lowmem_size = e820[nr].size;
     }
     nr++;
+
+    if (d_config->b_info.type == LIBXL_DOMAIN_TYPE_PVH) {
+        /* Reserve virtio PCI Root bridge ECAM range */
+        if (libxl_defbool_val(d_config->b_info.u.pvh.virtio_pci)) {
+            libxl_domain_build_info *const info = &d_config->b_info;
+            e820[nr].addr = info->u.pvh.pci1_ecam_base;
+            e820[nr].size = info->u.pvh.pci1_nr_bus * 0x100000;
+            e820[nr].type = E820_RESERVED;
+            nr++;
+        }
+    }
 
     /* RDM mapping */
     for (i = 0; i < d_config->num_rdms; i++) {

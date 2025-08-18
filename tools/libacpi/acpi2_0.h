@@ -443,6 +443,19 @@ struct acpi_20_slit {
     uint8_t entry[0];
 };
 
+struct acpi_mcfg_allocation {
+    uint64_t address;
+    uint16_t pci_segment;
+    uint8_t start_bus_number;
+    uint8_t end_bus_number;
+    uint32_t reserved;
+};
+
+struct acpi_mcfg {
+    struct acpi_header header;
+    uint8_t reserved[8];
+};
+
 /*
  * Table Signatures.
  */
@@ -458,6 +471,7 @@ struct acpi_20_slit {
 #define ACPI_2_0_WAET_SIGNATURE ASCII32('W','A','E','T')
 #define ACPI_2_0_SRAT_SIGNATURE ASCII32('S','R','A','T')
 #define ACPI_2_0_SLIT_SIGNATURE ASCII32('S','L','I','T')
+#define ACPI_MCFG_SIGNATURE     ASCII32('M','C','F','G')
 
 /*
  * Table revision numbers.

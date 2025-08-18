@@ -56,6 +56,13 @@ struct acpi_config {
     uint32_t pci_start, pci_len;
     uint64_t pci_hi_start, pci_hi_len;
 
+    /* PCI Segment 1 Root Bridge resources */
+    uint32_t pci1_start, pci1_len;
+    uint64_t pci1_hi_start, pci1_hi_len;
+    uint32_t pci1_ecam_start;
+    uint8_t pci1_max_bus;
+    uint8_t pci1_intx;
+
     uint32_t table_flags;
     uint8_t acpi_revision;
     uint8_t tpm_version;

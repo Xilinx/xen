@@ -1146,6 +1146,10 @@ int libxl__build_hvm(libxl__gc *gc, uint32_t domid,
 
         start = min_t(xen_paddr_t, start, LAPIC_BASE_ADDRESS);
         start = min_t(xen_paddr_t, start, ACPI_INFO_PHYSICAL_ADDRESS);
+        if (info->type == LIBXL_DOMAIN_TYPE_PVH) {
+            if (libxl_defbool_val(info->u.pvh.virtio_pci))
+                start = min_t(xen_paddr_t, start, PCI1_ECAM_BASE);
+        }
         dom->mmio_size = GB(4) - start;
 #else
         assert(1);

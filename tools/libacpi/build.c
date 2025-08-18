@@ -13,6 +13,7 @@
 #include "ssdt_tpm2.h"
 #include "ssdt_pm.h"
 #include "ssdt_laptop_slate.h"
+#include <xen/hvm/e820.h>
 #include <xen/hvm/hvm_info_table.h>
 #include <xen/hvm/hvm_xs_strings.h>
 #include <xen/hvm/params.h>
@@ -29,6 +30,7 @@ extern struct acpi_20_xsdt Xsdt;
 extern struct acpi_fadt Fadt;
 extern struct acpi_20_facs Facs;
 extern struct acpi_20_waet Waet;
+extern struct acpi_mcfg Mcfg;
 
 static void set_checksum(
     void *table, uint32_t checksum_offset, uint32_t length)
@@ -315,6 +317,39 @@ static int construct_passthrough_tables(struct acpi_ctxt *ctxt,
     return nr_added;
 }
 
+static struct acpi_mcfg *construct_mcfg(struct acpi_ctxt *ctxt,
+                                        const struct acpi_config *config)
+{
+    struct acpi_mcfg *mcfg;
+    struct acpi_mcfg_allocation *mmcfg;
+    size_t length;
+
+    length = sizeof(*mcfg);
+    if ( config->pci1_ecam_start )
+        length += sizeof(*mmcfg);
+    mcfg = ctxt->mem_ops.alloc(ctxt, length, 16);
+    if (!mcfg)
+        return NULL;
+
+    memset(mcfg, 0, length);
+    memcpy(mcfg, &Mcfg, sizeof(struct acpi_mcfg));
+    mcfg->header.length = length;
+
+    mmcfg = (void *)mcfg + sizeof(*mcfg);
+    if ( config->pci1_ecam_start )
+    {
+        mmcfg->address = config->pci1_ecam_start;
+        mmcfg->pci_segment = 1;
+        mmcfg->start_bus_number = 0;
+        mmcfg->end_bus_number = config->pci1_max_bus;
+    }
+
+    set_checksum(mcfg, offsetof(struct acpi_header, checksum),
+                 mcfg->header.length);
+
+    return mcfg;
+}
+
 static int construct_secondary_tables(struct acpi_ctxt *ctxt,
                                       unsigned long *table_ptrs,
                                       struct acpi_config *config,
@@ -486,6 +521,15 @@ static int construct_secondary_tables(struct acpi_ctxt *ctxt,
     nr_tables += construct_passthrough_tables(ctxt, table_ptrs,
                                               nr_tables, config);
 
+    /* MCFG */
+    if ( config->pci1_ecam_start )
+    {
+         struct acpi_mcfg *mcfg = construct_mcfg(ctxt, config);
+         if ( !mcfg )
+             return -1;
+         table_ptrs[nr_tables++] = ctxt->mem_ops.v2p(ctxt, mcfg);
+    }
+
     table_ptrs[nr_tables] = 0;
     return nr_tables;
 }
@@ -548,6 +592,17 @@ int acpi_build_tables(struct acpi_ctxt *ctxt, struct acpi_config *config)
     {
         acpi_info->pci_hi_min = config->pci_hi_start;
         acpi_info->pci_hi_len = config->pci_hi_len;
+    }
+
+    if ( config->pci1_ecam_start )
+    {
+        acpi_info->pci1_min = config->pci1_start;
+        acpi_info->pci1_len = config->pci1_len;
+        acpi_info->pci1_hi_min = config->pci1_hi_start;
+        acpi_info->pci1_hi_len = config->pci1_hi_len;
+        acpi_info->pci1_ecam = config->pci1_ecam_start;
+        acpi_info->pci1_max_bus = config->pci1_max_bus;
+        acpi_info->pci1_intx = config->pci1_intx;
     }
 
     /*

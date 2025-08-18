@@ -154,6 +154,16 @@ static int init_acpi_config(libxl__gc *gc,
     config->pci_isa_irq_mask = 0;
     config->table_flags = ACPI_HAS_IOAPIC | ACPI_NO_PCAT_COMPAT;
 
+    if (libxl_defbool_val(b_info->u.pvh.virtio_pci)) {
+        config->pci1_start = b_info->u.pvh.pci1_mmio_base;
+        config->pci1_len = b_info->u.pvh.pci1_mmio_size;
+        config->pci1_hi_start = b_info->u.pvh.pci1_mmio64_base;
+        config->pci1_hi_len = b_info->u.pvh.pci1_mmio64_size;
+        config->pci1_ecam_start = b_info->u.pvh.pci1_ecam_base;
+        config->pci1_max_bus = b_info->u.pvh.pci1_nr_bus - 1;
+        config->pci1_intx = b_info->u.pvh.pci1_intx_base;
+    }
+
     rc = 0;
 out:
     return rc;

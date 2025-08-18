@@ -1571,6 +1571,24 @@ static int libxl__build_device_model_args_new(libxl__gc *gc,
                                b_info->u.pvh.highmem_base,
                                b_info->u.pvh.highmem_size);
 
+        if (libxl_defbool_val(b_info->u.pvh.virtio_pci)) {
+            machinearg = GCSPRINTF("%s,pci-ecam-base=0x%"PRIx32","
+                                   "pci-ecam-size=0x%"PRIx32","
+                                   "pci-mmio-base=0x%"PRIx32","
+                                   "pci-mmio-size=0x%"PRIx32","
+                                   "pci-mmio-high-base=0x%"PRIx64","
+                                   "pci-mmio-high-size=0x%"PRIx64","
+                                   "pci-intx-irq-base=%"PRIu32,
+                                   machinearg,
+                                   b_info->u.pvh.pci1_ecam_base,
+                                   b_info->u.pvh.pci1_nr_bus * 0x100000,
+                                   b_info->u.pvh.pci1_mmio_base,
+                                   b_info->u.pvh.pci1_mmio_size,
+                                   b_info->u.pvh.pci1_mmio64_base,
+                                   b_info->u.pvh.pci1_mmio64_size,
+                                   b_info->u.pvh.pci1_intx_base);
+        }
+
         flexarray_append(dm_args, machinearg);
         break;
     case LIBXL_DOMAIN_TYPE_PV:
@@ -3774,6 +3792,12 @@ int libxl__need_xenpv_qemu(libxl__gc *gc, libxl_domain_config *d_config)
             ret = 1;
             goto out;
         }
+    }
+
+    if ((d_config->b_info.type == LIBXL_DOMAIN_TYPE_PVH) &&
+        libxl_defbool_val(d_config->b_info.u.pvh.virtio_pci)) {
+        ret = 1;
+        goto out;
     }
 
 out:
