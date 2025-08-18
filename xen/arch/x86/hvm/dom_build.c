@@ -88,8 +88,10 @@ static unsigned long __init hvm_size_acpi_xsdt(struct domain *d)
 
 static unsigned long __init hvm_size_acpi_region(struct domain *d)
 {
-    unsigned long size = sizeof(struct acpi_table_rsdp);
+    /* First page is used for ACPI info */
+    unsigned long size = PAGE_SIZE;
 
+    size += sizeof(struct acpi_table_rsdp);
     size += hvm_size_acpi_xsdt(d);
     size += hvm_size_acpi_madt(d);
 
@@ -478,6 +480,8 @@ static paddr_t __init hvm_find_acpi_region(struct domain *d, unsigned long size)
 static int __init hvm_setup_acpi(struct domain *d, paddr_t start_info)
 {
     paddr_t rsdp_paddr, xsdt_paddr, madt_paddr;
+    paddr_t acpi_info_paddr;
+    struct acpi_info *acpi_info;
     struct acpi_table_rsdp *rsdp;
     unsigned long size = hvm_size_acpi_region(d);
     void *table;
@@ -487,9 +491,14 @@ static int __init hvm_setup_acpi(struct domain *d, paddr_t start_info)
     if ( !table )
         return -ENOMEM;
 
+    /* First ACPI page is used for ACPI info */
+    acpi_info = table;
+    acpi_info_paddr = hvm_find_acpi_region(d, size);
+
     /* RSDP */
+    table += PAGE_SIZE;
     rsdp = table;
-    rsdp_paddr = hvm_find_acpi_region(d, size);
+    rsdp_paddr = acpi_info_paddr + PAGE_SIZE;
     xsdt_paddr = rsdp_paddr + sizeof(struct acpi_table_rsdp);
 
     *rsdp = (struct acpi_table_rsdp){
@@ -525,8 +534,14 @@ static int __init hvm_setup_acpi(struct domain *d, paddr_t start_info)
         goto out;
     }
 
+    acpi_info->nr_cpus = d->max_vcpus;
+    acpi_info->madt_csum_addr = madt_paddr +
+        offsetof(struct acpi_table_header, checksum);
+    acpi_info->madt_lapic0_addr = madt_paddr +
+        sizeof(struct acpi_table_madt);
+
     /* Copy ACPI region into guest memory. */
-    rc = hvm_copy_to_guest_phys(rsdp_paddr, rsdp, size, d->vcpu[0]);
+    rc = hvm_copy_to_guest_phys(acpi_info_paddr, acpi_info, size, d->vcpu[0]);
     if ( rc != HVMTRANS_okay )
     {
         printk("Unable to copy RSDP into guest memory (rc=%d)\n", rc);
@@ -541,8 +556,8 @@ static int __init hvm_setup_acpi(struct domain *d, paddr_t start_info)
         printk("Unable to copy RSDP address to start info (rc=%d)\n", rc);
 
  out:
-    if ( rsdp )
-        xfree(rsdp);
+    if ( acpi_info )
+        xfree(acpi_info);
 
     return rc;
 }

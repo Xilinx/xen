@@ -62,4 +62,23 @@ struct hvm_info_table {
     uint8_t     vcpu_online[(HVM_MAX_VCPUS + 7)/8];
 };
 
+/*
+ * Located at ACPI_INFO_PHYSICAL_ADDRESS.
+ *
+ * This must match the Field("BIOS"....) definition in the DSDT.
+ */
+struct acpi_info {
+    uint8_t  com1_present:1;    /* 0[0] - System has COM1? */
+    uint8_t  com2_present:1;    /* 0[1] - System has COM2? */
+    uint8_t  lpt1_present:1;    /* 0[2] - System has LPT1? */
+    uint8_t  hpet_present:1;    /* 0[3] - System has HPET? */
+    uint8_t  rtc_present:1;     /* 0[4] - System has HPET? */
+    uint16_t nr_cpus;           /* 2    - Number of CPUs */
+    uint32_t pci_min, pci_len;  /* 4, 8 - PCI I/O hole boundaries */
+    uint32_t madt_csum_addr;    /* 12   - Address of MADT checksum */
+    uint32_t madt_lapic0_addr;  /* 16   - Address of first MADT LAPIC struct */
+    uint32_t vm_gid_addr;       /* 20   - Address of VM generation id buffer */
+    uint64_t pci_hi_min, pci_hi_len; /* 24, 32 - PCI I/O hole boundaries */
+};
+
 #endif /* __XEN_PUBLIC_HVM_HVM_INFO_TABLE_H__ */

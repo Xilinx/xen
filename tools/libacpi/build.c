@@ -30,24 +30,6 @@ extern struct acpi_fadt Fadt;
 extern struct acpi_20_facs Facs;
 extern struct acpi_20_waet Waet;
 
-/*
- * Located at ACPI_INFO_PHYSICAL_ADDRESS.
- *
- * This must match the Field("BIOS"....) definition in the DSDT.
- */
-struct acpi_info {
-    uint8_t  com1_present:1;    /* 0[0] - System has COM1? */
-    uint8_t  com2_present:1;    /* 0[1] - System has COM2? */
-    uint8_t  lpt1_present:1;    /* 0[2] - System has LPT1? */
-    uint8_t  hpet_present:1;    /* 0[3] - System has HPET? */
-    uint16_t nr_cpus;           /* 2    - Number of CPUs */
-    uint32_t pci_min, pci_len;  /* 4, 8 - PCI I/O hole boundaries */
-    uint32_t madt_csum_addr;    /* 12   - Address of MADT checksum */
-    uint32_t madt_lapic0_addr;  /* 16   - Address of first MADT LAPIC struct */
-    uint32_t vm_gid_addr;       /* 20   - Address of VM generation id buffer */
-    uint64_t pci_hi_min, pci_hi_len; /* 24, 32 - PCI I/O hole boundaries */
-};
-
 static void set_checksum(
     void *table, uint32_t checksum_offset, uint32_t length)
 {
