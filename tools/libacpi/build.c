@@ -94,7 +94,8 @@ static struct acpi_20_madt *construct_madt(struct acpi_ctxt *ctxt,
     madt->header.creator_id   = ACPI_CREATOR_ID;
     madt->header.creator_revision = ACPI_CREATOR_REVISION;
     madt->lapic_addr = config->lapic_base_address;
-    madt->flags      = ACPI_PCAT_COMPAT;
+    if ( !(config->table_flags & ACPI_NO_PCAT_COMPAT) )
+        madt->flags |= ACPI_PCAT_COMPAT;
 
     if ( config->table_flags & ACPI_HAS_IOAPIC )
     {     

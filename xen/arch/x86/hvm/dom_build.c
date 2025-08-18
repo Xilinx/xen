@@ -15,6 +15,7 @@
 #include <xen/init.h>
 #include <xen/softirq.h>
 #include <xen/types.h>
+#include <xen/unaligned.h>
 
 #include <acpi/actables.h>
 
@@ -57,6 +58,12 @@ static unsigned long __init hvm_size_acpi_madt(struct domain *d)
     unsigned long size = sizeof(struct acpi_table_madt);
 
     size += sizeof(struct acpi_madt_local_apic) * d->max_vcpus;
+
+    if ( has_vioapic(d) )
+    {
+        size += sizeof(struct acpi_madt_io_apic) * d->arch.hvm.nr_vioapics;
+        size += sizeof(struct acpi_madt_interrupt_override);
+    }
 
     return size;
 }
@@ -336,12 +343,14 @@ static paddr_t __init find_memory(
 }
 
 static int __init hvm_setup_acpi_madt(
-    struct domain *d, struct acpi_table_madt *madt)
+    struct domain *d, struct acpi_table_madt *madtp)
 {
     struct acpi_table_header *table;
-    struct acpi_madt_local_apic *lapic;
+    struct acpi_table_madt madt = {};
+    struct acpi_madt_local_apic lapic = {};
     acpi_status status;
     unsigned long size = hvm_size_acpi_madt(d);
+    unsigned long offs = 0;
 
     /* Copy the native MADT table header. */
     status = acpi_get_table(ACPI_SIG_MADT, 0, &table);
@@ -350,34 +359,63 @@ static int __init hvm_setup_acpi_madt(
         printk("Failed to get MADT ACPI table, aborting.\n");
         return -EINVAL;
     }
-    madt->header = *table;
-    madt->address = APIC_DEFAULT_PHYS_BASE;
+    madt.header = *table;
+    madt.address = APIC_DEFAULT_PHYS_BASE;
     /*
      * NB: this is currently set to 4, which is the revision in the ACPI
      * spec 6.1. Sadly ACPICA doesn't provide revision numbers for the
      * tables described in the headers.
      */
-    madt->header.revision = min_t(unsigned char, table->revision, 4);
+    madt.header.revision = min_t(unsigned char, table->revision, 4);
 
-    lapic = (void *)(madt + 1);
+    offs += sizeof(madt);
 
     for ( unsigned int i = 0; i < d->max_vcpus; i++ )
     {
-        lapic->header.type = ACPI_MADT_TYPE_LOCAL_APIC;
-        lapic->header.length = sizeof(*lapic);
-        lapic->id = i * 2;
-        lapic->processor_id = i;
-        lapic->lapic_flags = ACPI_MADT_ENABLED;
-
-        lapic++;
+        lapic.header.type = ACPI_MADT_TYPE_LOCAL_APIC;
+        lapic.header.length = sizeof(lapic);
+        lapic.id = i * 2;
+        lapic.processor_id = i;
+        lapic.lapic_flags = ACPI_MADT_ENABLED;
+        memcpy((void *)madtp + offs, &lapic, sizeof(lapic));
+        offs += sizeof(lapic);
     }
 
-    madt->header.length = size;
+    if ( has_vioapic(d) )
+    {
+        struct acpi_madt_io_apic io_apic = {};
+        struct acpi_madt_interrupt_override intr_ovr = {};
+
+        for ( unsigned int i = 0; i < d->arch.hvm.nr_vioapics; i++ )
+        {
+            io_apic.header.type = ACPI_MADT_TYPE_IO_APIC;
+            io_apic.header.length = sizeof(io_apic);
+            io_apic.id = domain_vioapic(d, i)->id;
+            io_apic.address = domain_vioapic(d, i)->base_address;
+            io_apic.global_irq_base = domain_vioapic(d, i)->base_gsi;
+            memcpy((void *)madtp + offs, &io_apic, sizeof(io_apic));
+            offs += sizeof(io_apic);
+        }
+
+        /* ISA IRQ0 routed to IOAPIC GSI 2. */
+        intr_ovr.header.type = ACPI_MADT_TYPE_INTERRUPT_OVERRIDE;
+        intr_ovr.header.length = sizeof(intr_ovr);
+        intr_ovr.source_irq = 0;
+        intr_ovr.global_irq = 2;
+        intr_ovr.inti_flags = 0x0;
+        memcpy((void *)madtp + offs, &intr_ovr, sizeof(intr_ovr));
+        offs += sizeof(intr_ovr);
+    }
+
+    madt.header.length = size;
+    memcpy(madtp, &madt, sizeof(madt));
+
     /*
      * Calling acpi_tb_checksum here is a layering violation, but
      * introducing a wrapper for such simple usage seems overkill.
      */
-    madt->header.checksum -= acpi_tb_checksum(ACPI_CAST_PTR(u8, madt), size);
+    madt.header.checksum -= acpi_tb_checksum(ACPI_CAST_PTR(u8, madtp), size);
+    put_unaligned(madt.header.checksum, &madtp->header.checksum);
 
     return 0;
 }
