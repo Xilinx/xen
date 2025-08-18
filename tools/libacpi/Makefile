@@ -54,8 +54,9 @@ $(ACPI_BUILD_DIR)/dsdt_%cpu.asl: dsdt.asl dsdt_acpi_info.asl  $(MK_DSDT)
 	$(MK_DSDT) --debug=$(debug) --maxcpu $*  >> $@.$(TMP_SUFFIX)
 	mv -f $@.$(TMP_SUFFIX) $@
 
-$(ACPI_BUILD_DIR)/dsdt_pvh.asl: dsdt_acpi_info.asl $(MK_DSDT)
-	printf "DefinitionBlock (\"DSDT.aml\", \"DSDT\", 5, \"Xen\", \"HVM\", 0)\n{" > $@
+$(ACPI_BUILD_DIR)/dsdt_pvh.asl: dsdt_pvh_extra.asl dsdt_acpi_info.asl $(MK_DSDT)
+	# Remove last bracket
+	awk 'NR > 1 {print s} {s=$$0}' $< > $@
 	cat dsdt_acpi_info.asl >> $@
 	$(MK_DSDT) --debug=$(debug) --maxcpu any --dm-version none >> $@
 

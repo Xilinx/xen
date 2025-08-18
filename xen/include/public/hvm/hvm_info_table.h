@@ -79,6 +79,11 @@ struct acpi_info {
     uint32_t madt_lapic0_addr;  /* 16   - Address of first MADT LAPIC struct */
     uint32_t vm_gid_addr;       /* 20   - Address of VM generation id buffer */
     uint64_t pci_hi_min, pci_hi_len; /* 24, 32 - PCI I/O hole boundaries */
+    uint32_t pci1_min, pci1_len; /* 40, 44 - PCI Segment 1 lo I/O hole */
+    uint64_t pci1_hi_min, pci1_hi_len; /* 48, 56 - PCI Segment 1 hi I/O hole */
+    uint32_t pci1_ecam;     /* 64 - PCI Segment 1 ECAM base */
+    uint8_t  pci1_max_bus;  /* 68 - PCI Segment 1 maximum bus number */
+    uint8_t  pci1_intx;     /* 69 - PCI Segment 1 PCI intx base */
 };
 
 #endif /* __XEN_PUBLIC_HVM_HVM_INFO_TABLE_H__ */
