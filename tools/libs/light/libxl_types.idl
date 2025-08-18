@@ -726,6 +726,10 @@ libxl_domain_build_info = Struct("domain_build_info",[
                                        ("pvshim_path", string),
                                        ("pvshim_cmdline", string),
                                        ("pvshim_extra", string), # eg "loglvl=all guest_loglvl=all apic_verbosity=debug e820-verbose"
+                                       ("lowmem_base", uint32),
+                                       ("lowmem_size", uint32),
+                                       ("highmem_base", uint64),
+                                       ("highmem_size", uint64),
                                        ])),
                  ("invalid", None),
                  ], keyvar_init_val = "LIBXL_DOMAIN_TYPE_INVALID")),

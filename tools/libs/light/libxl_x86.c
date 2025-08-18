@@ -720,6 +720,10 @@ static int domain_construct_memmap(libxl__gc *gc,
     e820[nr].addr = lowmem_start;
     e820[nr].size = dom->lowmem_end - lowmem_start;
     e820[nr].type = E820_RAM;
+    if (d_config->b_info.type == LIBXL_DOMAIN_TYPE_PVH) {
+        d_config->b_info.u.pvh.lowmem_base = e820[nr].addr;
+        d_config->b_info.u.pvh.lowmem_size = e820[nr].size;
+    }
     nr++;
 
     /* RDM mapping */
@@ -767,6 +771,10 @@ static int domain_construct_memmap(libxl__gc *gc,
         e820[nr].addr = ((uint64_t)1 << 32);
         e820[nr].size = highmem_size;
         e820[nr].type = E820_RAM;
+        if (d_config->b_info.type == LIBXL_DOMAIN_TYPE_PVH) {
+            d_config->b_info.u.pvh.highmem_base = e820[nr].addr;
+            d_config->b_info.u.pvh.highmem_size = e820[nr].size;
+        }
     }
 
     if (xc_domain_set_memory_map(CTX->xch, domid, e820, e820_entries) != 0) {

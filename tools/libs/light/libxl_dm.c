@@ -1109,6 +1109,21 @@ static int libxl__build_device_model_args_new(libxl__gc *gc,
         flexarray_vappend(dm_args, "-k", keymap, NULL);
     }
 
+    if (b_info->type != LIBXL_DOMAIN_TYPE_PV) {
+        if (b_info->max_vcpus > 1) {
+            flexarray_append(dm_args, "-smp");
+            if (b_info->avail_vcpus.size) {
+                int nr_set_cpus = 0;
+                nr_set_cpus = libxl_bitmap_count_set(&b_info->avail_vcpus);
+
+                flexarray_append(dm_args, GCSPRINTF("%d,maxcpus=%d",
+                                                    nr_set_cpus,
+                                                    b_info->max_vcpus));
+            } else
+                flexarray_append(dm_args, GCSPRINTF("%d", b_info->max_vcpus));
+        }
+    }
+
     if (b_info->type == LIBXL_DOMAIN_TYPE_HVM) {
         int ioemu_nics = 0;
 
@@ -1300,18 +1315,6 @@ static int libxl__build_device_model_args_new(libxl__gc *gc,
         }
         if (!libxl__acpi_defbool_val(b_info)) {
             flexarray_append(dm_args, "-no-acpi");
-        }
-        if (b_info->max_vcpus > 1) {
-            flexarray_append(dm_args, "-smp");
-            if (b_info->avail_vcpus.size) {
-                int nr_set_cpus = 0;
-                nr_set_cpus = libxl_bitmap_count_set(&b_info->avail_vcpus);
-
-                flexarray_append(dm_args, GCSPRINTF("%d,maxcpus=%d",
-                                                    nr_set_cpus,
-                                                    b_info->max_vcpus));
-            } else
-                flexarray_append(dm_args, GCSPRINTF("%d", b_info->max_vcpus));
         }
         for (i = 0; i < num_nics; i++) {
             if (nics[i].nictype == LIBXL_NIC_TYPE_VIF_IOEMU) {
@@ -1556,6 +1559,20 @@ static int libxl__build_device_model_args_new(libxl__gc *gc,
     flexarray_append(dm_args, "-machine");
     switch (b_info->type) {
     case LIBXL_DOMAIN_TYPE_PVH:
+        machinearg = libxl__strdup(gc, "xenpvh");
+
+        machinearg = GCSPRINTF("%s,ram-low-base=0x%"PRIx32","
+                               "ram-low-size=0x%"PRIx32","
+                               "ram-high-base=0x%"PRIx64","
+                               "ram-high-size=0x%"PRIx64,
+                               machinearg,
+                               b_info->u.pvh.lowmem_base,
+                               b_info->u.pvh.lowmem_size,
+                               b_info->u.pvh.highmem_base,
+                               b_info->u.pvh.highmem_size);
+
+        flexarray_append(dm_args, machinearg);
+        break;
     case LIBXL_DOMAIN_TYPE_PV:
         flexarray_append(dm_args, "xenpv");
         for (i = 0; b_info->extra_pv && b_info->extra_pv[i] != NULL; i++)
