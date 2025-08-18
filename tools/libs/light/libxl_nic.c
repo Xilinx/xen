@@ -542,6 +542,14 @@ out:
     return ret;
 }
 
+static int libxl_device_nic_dm_needed(void *e, unsigned domid)
+{
+    libxl_device_nic *elem = e;
+
+    return elem->nictype == LIBXL_NIC_TYPE_VIF_IOEMU &&
+           elem->backend_domid == domid;
+}
+
 static LIBXL_DEFINE_UPDATE_DEVID(nic)
 static LIBXL_DEFINE_DEVICE_FROM_TYPE(nic)
 
@@ -551,6 +559,7 @@ LIBXL_DEFINE_DEVICES_ADD(nic)
 LIBXL_DEFINE_DEVICE_REMOVE(nic)
 
 DEFINE_DEVICE_TYPE_STRUCT(nic, VIF, nics,
+    .dm_needed = libxl_device_nic_dm_needed,
     .update_config = libxl_device_nic_update_config,
     .from_xenstore = (device_from_xenstore_fn_t)libxl__nic_from_xenstore,
     .set_xenstore_config = (device_set_xenstore_config_fn_t)
