@@ -2379,7 +2379,8 @@ int libxl_domain_create_restore(libxl_ctx *ctx, libxl_domain_config *d_config,
      * configuration.
      */
     libxl_defbool_setdefault(&d_config->b_info.arch_x86.msr_relaxed, true);
-    libxl_defbool_setdefault(&d_config->b_info.u.hvm.pirq, true);
+    if (d_config->b_info.type == LIBXL_DOMAIN_TYPE_HVM)
+        libxl_defbool_setdefault(&d_config->b_info.u.hvm.pirq, true);
 
     return do_domain_create(ctx, d_config, domid, restore_fd, send_back_fd,
                             params, ao_how, aop_console_how);

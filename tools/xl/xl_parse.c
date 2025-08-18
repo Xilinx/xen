@@ -1646,7 +1646,8 @@ void parse_config_data(const char *config_source,
     if (!xlu_cfg_get_long (config, "pci_seize", &l, 0))
         pci_seize = l;
 
-    if (!xlu_cfg_get_string(config, "rdm", &buf, 0)) {
+    if ((c_info->type == LIBXL_DOMAIN_TYPE_HVM) &&
+        !xlu_cfg_get_string(config, "rdm", &buf, 0)) {
         libxl_rdm_reserve rdm;
         if (!xlu_rdm_parse(config, &rdm, buf)) {
             b_info->u.hvm.rdm.strategy = rdm.strategy;
@@ -1671,7 +1672,9 @@ void parse_config_data(const char *config_source,
              * Like other pci option, the per-device policy always follows
              * the global policy by default.
              */
-            pci->rdm_policy = b_info->u.hvm.rdm.policy;
+            pci->rdm_policy = b_info->type == LIBXL_DOMAIN_TYPE_HVM ?
+                              b_info->u.hvm.rdm.policy :
+                              LIBXL_RDM_RESERVE_POLICY_INVALID;
             e = xlu_pci_parse_spec_string(config, pci, buf);
             if (e) {
                 fprintf(stderr,

@@ -768,6 +768,9 @@ static int hvm_build_set_xs_values(libxl__gc *gc,
     int num_oem = 1;
     int ret = 0;
 
+    if (info->type == LIBXL_DOMAIN_TYPE_PVH)
+        return 0;
+
     if (dom->smbios_module.guest_addr_out) {
         path = GCSPRINTF("/local/domain/%d/"HVM_XS_SMBIOS_PT_ADDRESS, domid);
 
@@ -1113,7 +1116,7 @@ int libxl__build_hvm(libxl__gc *gc, uint32_t domid,
     mem_size = (uint64_t)(info->max_memkb - info->video_memkb) << 10;
     dom->target_pages = (uint64_t)(info->target_memkb - info->video_memkb) >> 2;
     dom->claim_enabled = libxl_defbool_val(info->claim_mode);
-    if (info->u.hvm.mmio_hole_memkb) {
+    if ((info->type == LIBXL_DOMAIN_TYPE_HVM) && info->u.hvm.mmio_hole_memkb) {
         uint64_t max_ram_below_4g = (1ULL << 32) -
             (info->u.hvm.mmio_hole_memkb << 10);
 
@@ -1167,12 +1170,13 @@ int libxl__build_hvm(libxl__gc *gc, uint32_t domid,
     dom->xenstore_evtchn = state->store_port;
     dom->xenstore_domid = state->store_domid;
 
-    rc = libxl__domain_device_construct_rdm(gc, d_config,
-                                            info->u.hvm.rdm_mem_boundary_memkb*1024,
-                                            dom);
-    if (rc) {
-        LOG(ERROR, "checking reserved device memory failed");
-        goto out;
+    if (info->type == LIBXL_DOMAIN_TYPE_HVM) {
+        rc = libxl__domain_device_construct_rdm(gc, d_config,
+                info->u.hvm.rdm_mem_boundary_memkb*1024, dom);
+        if (rc) {
+            LOG(ERROR, "checking reserved device memory failed");
+            goto out;
+        }
     }
 
     if (info->num_vnuma_nodes != 0) {
