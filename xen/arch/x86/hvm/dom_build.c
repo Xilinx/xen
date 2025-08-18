@@ -68,6 +68,24 @@ static unsigned long __init hvm_size_acpi_madt(struct domain *d)
     return size;
 }
 
+extern unsigned char __initdata dsdt_pvh[];
+extern int __initdata dsdt_pvh_len;
+
+static unsigned long __init hvm_size_acpi_dsdt(struct domain *d)
+{
+    return dsdt_pvh_len;
+}
+
+static unsigned long __init hvm_size_acpi_facs(struct domain *d)
+{
+    return sizeof(struct acpi_table_facs);
+}
+
+static unsigned long __init hvm_size_acpi_fadt(struct domain *d)
+{
+    return sizeof(struct acpi_table_fadt);
+}
+
 static unsigned long __init hvm_size_acpi_xsdt(struct domain *d)
 {
     unsigned long size = sizeof(struct acpi_table_xsdt);
@@ -76,6 +94,8 @@ static unsigned long __init hvm_size_acpi_xsdt(struct domain *d)
      * slot already.
      */
     unsigned int extra_tables = 0; /* MADT */
+
+    extra_tables++; /* FADT */
 
     /*
      * No need to add or subtract anything because struct acpi_table_xsdt
@@ -94,6 +114,9 @@ static unsigned long __init hvm_size_acpi_region(struct domain *d)
     size += sizeof(struct acpi_table_rsdp);
     size += hvm_size_acpi_xsdt(d);
     size += hvm_size_acpi_madt(d);
+    size += hvm_size_acpi_dsdt(d);
+    size += hvm_size_acpi_facs(d);
+    size += hvm_size_acpi_fadt(d);
 
     return ROUNDUP(size, PAGE_SIZE);
 }
@@ -423,7 +446,8 @@ static int __init hvm_setup_acpi_madt(
 }
 
 static int __init hvm_setup_acpi_xsdt(
-    struct domain *d, struct acpi_table_xsdt *xsdt, paddr_t madt_addr)
+    struct domain *d, struct acpi_table_xsdt *xsdt, paddr_t madt_addr,
+    paddr_t fadt_addr)
 {
     struct acpi_table_header *table;
     struct acpi_table_rsdp *rsdp;
@@ -450,6 +474,8 @@ static int __init hvm_setup_acpi_xsdt(
 
     /* Add the custom MADT. */
     xsdt->table_offset_entry[0] = madt_addr;
+    /* Add the custom FADT. */
+    xsdt->table_offset_entry[1] = fadt_addr;
 
     xsdt->header.revision = 1;
     xsdt->header.length = size;
@@ -460,6 +486,51 @@ static int __init hvm_setup_acpi_xsdt(
     xsdt->header.checksum -= acpi_tb_checksum(ACPI_CAST_PTR(u8, xsdt), size);
 
     return 0;
+}
+
+static void __init hvm_setup_acpi_dsdt(struct domain *d, void *dsdt)
+{
+    memcpy(dsdt, dsdt_pvh, dsdt_pvh_len);
+}
+
+static void __init hvm_setup_acpi_facs(struct domain *d,
+    struct acpi_table_facs *facs)
+{
+    memcpy(facs->signature, ACPI_SIG_FACS, 4);
+    facs->version = 1;
+    facs->length = sizeof(*facs);
+}
+
+static void __init hvm_setup_acpi_fadt(struct domain *d,
+    struct acpi_table_fadt *fadtp, paddr_t facs_paddr, paddr_t dsdt_paddr)
+{
+    struct acpi_table_fadt fadt = {};
+    unsigned long size = sizeof(fadt);
+
+    memcpy(fadt.header.signature, ACPI_SIG_FADT, 4);
+    fadt.header.revision = 1;
+    safe_strcpy(fadt.header.oem_id, "XenIn\0");
+
+    fadt.sci_interrupt = 9;
+    fadt.pm1a_event_block = ACPI_PM1A_EVT_BLK_ADDRESS_V1;
+    fadt.pm1a_control_block = ACPI_PM1A_CNT_BLK_ADDRESS_V1;
+#define ACPI_PM1A_EVT_BLK_BIT_WIDTH         0x20
+#define ACPI_PM1A_CNT_BLK_BIT_WIDTH         0x10
+    fadt.pm1_event_length = ACPI_PM1A_EVT_BLK_BIT_WIDTH/8;
+    fadt.pm1_control_length = ACPI_PM1A_CNT_BLK_BIT_WIDTH/8;
+    fadt.boot_flags = ACPI_FADT_NO_VGA | ACPI_FADT_NO_CMOS_RTC;
+
+    fadt.dsdt = dsdt_paddr;
+    fadt.facs = facs_paddr;
+
+    fadt.header.length = size;
+    /*
+     * Calling acpi_tb_checksum here is a layering violation, but
+     * introducing a wrapper for such simple usage seems overkill.
+     */
+    fadt.header.checksum -= acpi_tb_checksum(ACPI_CAST_PTR(u8, &fadt), size);
+
+    memcpy(fadtp, &fadt, sizeof(fadt));
 }
 
 static paddr_t __init hvm_find_acpi_region(struct domain *d, unsigned long size)
@@ -480,6 +551,7 @@ static paddr_t __init hvm_find_acpi_region(struct domain *d, unsigned long size)
 static int __init hvm_setup_acpi(struct domain *d, paddr_t start_info)
 {
     paddr_t rsdp_paddr, xsdt_paddr, madt_paddr;
+    paddr_t dsdt_paddr, facs_paddr, fadt_paddr;
     paddr_t acpi_info_paddr;
     struct acpi_info *acpi_info;
     struct acpi_table_rsdp *rsdp;
@@ -495,10 +567,20 @@ static int __init hvm_setup_acpi(struct domain *d, paddr_t start_info)
     acpi_info = table;
     acpi_info_paddr = hvm_find_acpi_region(d, size);
 
-    /* RSDP */
+    /* FACS
+     * According to ACPI version 5.0, in contrast to the rest of the
+     * ACPI tables that have no alignment requirements, FACS table
+     * is expected to be aligned on a 64-byte boundary. Thus, place
+     * FACS right after the ACPI info page.
+     */
     table += PAGE_SIZE;
+    facs_paddr = acpi_info_paddr + PAGE_SIZE;
+    hvm_setup_acpi_facs(d, table);
+
+    /* RSDP */
+    table += hvm_size_acpi_facs(d);
     rsdp = table;
-    rsdp_paddr = acpi_info_paddr + PAGE_SIZE;
+    rsdp_paddr = facs_paddr + hvm_size_acpi_facs(d);
     xsdt_paddr = rsdp_paddr + sizeof(struct acpi_table_rsdp);
 
     *rsdp = (struct acpi_table_rsdp){
@@ -517,8 +599,10 @@ static int __init hvm_setup_acpi(struct domain *d, paddr_t start_info)
     /* XSDT */
     table += sizeof(struct acpi_table_rsdp);
     madt_paddr = xsdt_paddr + hvm_size_acpi_xsdt(d);
+    dsdt_paddr = madt_paddr + hvm_size_acpi_madt(d);
+    fadt_paddr = dsdt_paddr + hvm_size_acpi_dsdt(d);
 
-    rc = hvm_setup_acpi_xsdt(d, table, madt_paddr);
+    rc = hvm_setup_acpi_xsdt(d, table, madt_paddr, fadt_paddr);
     if ( rc )
     {
         printk("Unable to construct XSDT\n");
@@ -539,6 +623,14 @@ static int __init hvm_setup_acpi(struct domain *d, paddr_t start_info)
         offsetof(struct acpi_table_header, checksum);
     acpi_info->madt_lapic0_addr = madt_paddr +
         sizeof(struct acpi_table_madt);
+
+    /* DSDT */
+    table += hvm_size_acpi_madt(d);
+    hvm_setup_acpi_dsdt(d, table);
+
+    /* FADT */
+    table += hvm_size_acpi_dsdt(d);
+    hvm_setup_acpi_fadt(d, table, facs_paddr, dsdt_paddr);
 
     /* Copy ACPI region into guest memory. */
     rc = hvm_copy_to_guest_phys(acpi_info_paddr, acpi_info, size, d->vcpu[0]);

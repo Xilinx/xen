@@ -31,3 +31,18 @@ obj-y += vm_event.o
 obj-y += vmsi.o
 obj-y += vpic.o
 obj-y += vpt.o
+
+# Build ACPI DSDT for PVH guests
+ACPI_C = $(obj)/dsdt_pvh.c
+ACPI_OBJS = $(patsubst $(obj)/%.c,%.init.o,$(ACPI_C))
+obj-bin-y += $(ACPI_OBJS)
+$(obj)/%.c: $(obj)/%.asl
+	iasl -vs -p $(obj)/$* -tc $<
+	sed -e 's/AmlCode/$*/g' -e 's/_aml_code//g' -e 's/$*/__initdata $*/g' $(obj)/$*.hex > $(obj)/$*.tmp
+	echo "int __initdata $*_len = sizeof($*);" >> $(obj)/$*.tmp
+	mv -f $(obj)/$*.tmp $(obj)/$*.c
+	rm -f $(addprefix $(obj)/, $*.aml $*.hex)
+$(obj)/$(ACPI_OBJS): $(obj)/%.init.o: $(obj)/%.c
+clean::
+	rm -f $(patsubst %.c,%.hex,$(ACPI_C)) $(patsubst %.c,%.aml,$(ACPI_OBJS))
+	rm -f $(patsubst %.c,%.tmp,$(ACPI_C)) $(ACPI_C)
