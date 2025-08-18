@@ -43,6 +43,7 @@ typedef __PTRDIFF_TYPE__ ptrdiff_t;
 #define UINT8_MAX       (255)
 #define UINT16_MAX      (65535)
 #define UINT32_MAX      (4294967295U)
+#define UINT64_MAX      (18446744073709551615ULL)
 
 #define INT_MAX         ((int)(~0U>>1))
 #define INT_MIN         (-INT_MAX - 1)
