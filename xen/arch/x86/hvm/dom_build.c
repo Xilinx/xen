@@ -86,6 +86,15 @@ static unsigned long __init hvm_size_acpi_fadt(struct domain *d)
     return sizeof(struct acpi_table_fadt);
 }
 
+static unsigned long __init hvm_size_acpi_mcfg(struct domain *d)
+{
+    unsigned long size = sizeof(struct acpi_table_mcfg);
+
+    size += sizeof(struct acpi_mcfg_allocation);
+
+    return size;
+}
+
 static unsigned long __init hvm_size_acpi_xsdt(struct domain *d)
 {
     unsigned long size = sizeof(struct acpi_table_xsdt);
@@ -96,6 +105,7 @@ static unsigned long __init hvm_size_acpi_xsdt(struct domain *d)
     unsigned int extra_tables = 0; /* MADT */
 
     extra_tables++; /* FADT */
+    extra_tables++; /* MCFG */
 
     /*
      * No need to add or subtract anything because struct acpi_table_xsdt
@@ -117,6 +127,7 @@ static unsigned long __init hvm_size_acpi_region(struct domain *d)
     size += hvm_size_acpi_dsdt(d);
     size += hvm_size_acpi_facs(d);
     size += hvm_size_acpi_fadt(d);
+    size += hvm_size_acpi_mcfg(d);
 
     return ROUNDUP(size, PAGE_SIZE);
 }
@@ -148,8 +159,12 @@ static void __init hvm_setup_e820(struct domain *d, unsigned long nr_pages)
     const uint32_t lowmem_reserved_base = 0xA0000;
     unsigned long low_pages, ext_pages, mmio_pages, acpi_pages;
     unsigned long page_count = 0, high_pages = 0;
-    unsigned long max_ext_pages = PFN_DOWN(HVM_BELOW_4G_MMIO_START - MB(1));
+    unsigned long max_ext_pages, mmio_start = HVM_BELOW_4G_MMIO_START;
     unsigned nr = 0, e820_entries = 5;
+
+    /* lowmem is bound by PCI Segment 1 Root bridge ECAM base */
+    mmio_start = min_t(unsigned long, mmio_start, PCI1_ECAM_BASE);
+    e820_entries++;
 
     /* low pages: below 1MB */
     low_pages = lowmem_reserved_base >> PAGE_SHIFT;
@@ -161,6 +176,7 @@ static void __init hvm_setup_e820(struct domain *d, unsigned long nr_pages)
 
     /* ext pages: from 1MB to mmio hole */
     ext_pages = nr_pages - (PFN_DOWN(MB(1)) + mmio_pages);
+    max_ext_pages = PFN_DOWN(mmio_start - MB(1));
     if ( ext_pages > max_ext_pages )
         ext_pages = max_ext_pages;
 
@@ -197,6 +213,12 @@ static void __init hvm_setup_e820(struct domain *d, unsigned long nr_pages)
     d->arch.e820[nr].size = ext_pages << PAGE_SHIFT;
     d->arch.e820[nr].type = E820_RAM;
     page_count += d->arch.e820[nr].size >> PAGE_SHIFT;
+    nr++;
+
+    /* reserved: PCI Segment 1 Root Bridge ECAM range */
+    d->arch.e820[nr].addr = PCI1_ECAM_BASE;
+    d->arch.e820[nr].size = PCI1_ECAM_SIZE;
+    d->arch.e820[nr].type = E820_RESERVED;
     nr++;
 
     /* reserved: ACPI entry, ACPI_INFO_PHYSICAL_ADDRESS */
@@ -447,7 +469,7 @@ static int __init hvm_setup_acpi_madt(
 
 static int __init hvm_setup_acpi_xsdt(
     struct domain *d, struct acpi_table_xsdt *xsdt, paddr_t madt_addr,
-    paddr_t fadt_addr)
+    paddr_t fadt_addr, paddr_t mcfg_addr)
 {
     struct acpi_table_header *table;
     struct acpi_table_rsdp *rsdp;
@@ -476,6 +498,8 @@ static int __init hvm_setup_acpi_xsdt(
     xsdt->table_offset_entry[0] = madt_addr;
     /* Add the custom FADT. */
     xsdt->table_offset_entry[1] = fadt_addr;
+    /* Add the custom MCFG. */
+    xsdt->table_offset_entry[2] = mcfg_addr;
 
     xsdt->header.revision = 1;
     xsdt->header.length = size;
@@ -533,6 +557,35 @@ static void __init hvm_setup_acpi_fadt(struct domain *d,
     memcpy(fadtp, &fadt, sizeof(fadt));
 }
 
+static void __init hvm_setup_acpi_mcfg(struct domain *d,
+    struct acpi_table_mcfg *mcfgp)
+{
+    struct acpi_table_mcfg mcfg = {};
+    struct acpi_mcfg_allocation mmcfg = {};
+    unsigned long size = hvm_size_acpi_mcfg(d);
+
+    memcpy(mcfg.header.signature, ACPI_SIG_MCFG, 4);
+    mcfg.header.revision = 1;
+    safe_strcpy(mcfg.header.oem_id, "XenIn\0");
+
+    mmcfg.address = PCI1_ECAM_BASE;
+    mmcfg.pci_segment = 1;
+    mmcfg.start_bus_number = 0;
+    mmcfg.end_bus_number = PCI1_NR_BUS - 1;
+
+    mcfg.header.length = size;
+
+    memcpy(mcfgp, &mcfg, sizeof(mcfg));
+    memcpy(mcfgp + 1, &mmcfg, sizeof(mmcfg));
+
+    /*
+     * Calling acpi_tb_checksum here is a layering violation, but
+     * introducing a wrapper for such simple usage seems overkill.
+     */
+    mcfg.header.checksum -= acpi_tb_checksum(ACPI_CAST_PTR(u8, mcfgp), size);
+    put_unaligned(mcfg.header.checksum, &mcfgp->header.checksum);
+}
+
 static paddr_t __init hvm_find_acpi_region(struct domain *d, unsigned long size)
 {
     for ( unsigned int i = 0; i < d->arch.nr_e820; i++ )
@@ -551,7 +604,7 @@ static paddr_t __init hvm_find_acpi_region(struct domain *d, unsigned long size)
 static int __init hvm_setup_acpi(struct domain *d, paddr_t start_info)
 {
     paddr_t rsdp_paddr, xsdt_paddr, madt_paddr;
-    paddr_t dsdt_paddr, facs_paddr, fadt_paddr;
+    paddr_t dsdt_paddr, facs_paddr, fadt_paddr, mcfg_paddr;
     paddr_t acpi_info_paddr;
     struct acpi_info *acpi_info;
     struct acpi_table_rsdp *rsdp;
@@ -565,6 +618,13 @@ static int __init hvm_setup_acpi(struct domain *d, paddr_t start_info)
 
     /* First ACPI page is used for ACPI info */
     acpi_info = table;
+    acpi_info->pci1_min = PCI1_MMIO_BASE;
+    acpi_info->pci1_len = PCI1_MMIO_SIZE;
+    acpi_info->pci1_hi_min = PCI1_64BIT_MMIO_BASE;
+    acpi_info->pci1_hi_len = PCI1_64BIT_MMIO_SIZE;
+    acpi_info->pci1_ecam = PCI1_ECAM_BASE;
+    acpi_info->pci1_max_bus = PCI1_NR_BUS - 1;
+    acpi_info->pci1_intx = PCI1_INTX_BASE;
     acpi_info_paddr = hvm_find_acpi_region(d, size);
 
     /* FACS
@@ -601,8 +661,9 @@ static int __init hvm_setup_acpi(struct domain *d, paddr_t start_info)
     madt_paddr = xsdt_paddr + hvm_size_acpi_xsdt(d);
     dsdt_paddr = madt_paddr + hvm_size_acpi_madt(d);
     fadt_paddr = dsdt_paddr + hvm_size_acpi_dsdt(d);
+    mcfg_paddr = fadt_paddr + hvm_size_acpi_fadt(d);
 
-    rc = hvm_setup_acpi_xsdt(d, table, madt_paddr, fadt_paddr);
+    rc = hvm_setup_acpi_xsdt(d, table, madt_paddr, fadt_paddr, mcfg_paddr);
     if ( rc )
     {
         printk("Unable to construct XSDT\n");
@@ -631,6 +692,10 @@ static int __init hvm_setup_acpi(struct domain *d, paddr_t start_info)
     /* FADT */
     table += hvm_size_acpi_dsdt(d);
     hvm_setup_acpi_fadt(d, table, facs_paddr, dsdt_paddr);
+
+    /* MCFG */
+    table += hvm_size_acpi_fadt(d);
+    hvm_setup_acpi_mcfg(d, table);
 
     /* Copy ACPI region into guest memory. */
     rc = hvm_copy_to_guest_phys(acpi_info_paddr, acpi_info, size, d->vcpu[0]);

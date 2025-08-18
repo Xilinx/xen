@@ -18,4 +18,16 @@
 #define HVM_BELOW_4G_MMIO_LENGTH    ((xen_mk_ullong(1) << 32) - \
                                      HVM_BELOW_4G_MMIO_START)
 
+/* PCI Root Bridges attached to PVH guests */
+#define PCI_GSI_BASE         (16U)
+/* Resources allocated to PCI Segment 1 Root Bridge - Virtio PCI */
+#define PCI1_NR_BUS          (256U)
+#define PCI1_ECAM_BASE       xen_mk_ulong(0xE0000000)
+#define PCI1_ECAM_SIZE       (PCI1_NR_BUS * 0x100000UL)
+#define PCI1_MMIO_BASE       xen_mk_ulong(0xF2000000)
+#define PCI1_MMIO_SIZE       xen_mk_ulong(0x02000000)
+#define PCI1_64BIT_MMIO_BASE xen_mk_ullong(0xD000000000)
+#define PCI1_64BIT_MMIO_SIZE xen_mk_ullong(0x1000000000)
+#define PCI1_INTX_BASE       PCI_GSI_BASE
+
 #endif /* __XEN_PUBLIC_HVM_E820_H__ */
