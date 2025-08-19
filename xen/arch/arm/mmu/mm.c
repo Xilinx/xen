@@ -10,6 +10,9 @@
 
 unsigned long frametable_virt_end __read_mostly;
 
+#undef pdx_to_page
+#define pdx_to_page(pdx) gcc11_wrap(frame_table + ((pdx) - frametable_base_pdx))
+
 static void __init
 init_frametable_chunk(unsigned long pdx_s, unsigned long pdx_e)
 {
@@ -30,8 +33,8 @@ init_frametable_chunk(unsigned long pdx_s, unsigned long pdx_e)
     if ( rc )
         panic("Unable to setup the frametable mappings\n");
 
-    memset(&frame_table[pdx_s], 0, nr_pdxs * sizeof(struct page_info));
-    memset(&frame_table[pdx_e], -1,
+    memset(pdx_to_page(pdx_s), 0, nr_pdxs * sizeof(struct page_info));
+    memset(pdx_to_page(pdx_e), -1,
            chunk_size - nr_pdxs * sizeof(struct page_info));
 }
 
