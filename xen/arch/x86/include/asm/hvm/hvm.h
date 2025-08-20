@@ -127,6 +127,7 @@ struct hvm_function_table {
     void (*domain_destroy)(struct domain *d);
     int  (*vcpu_initialise)(struct vcpu *v);
     void (*vcpu_destroy)(struct vcpu *v);
+    int  (*vcpu_reset)(struct vcpu *v);
 
     /* save and load hvm guest cpu context for save/restore */
     void (*save_cpu_ctxt)(struct vcpu *v, struct hvm_hw_cpu *ctxt);

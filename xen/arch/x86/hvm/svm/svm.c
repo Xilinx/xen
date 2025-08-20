@@ -1161,6 +1161,19 @@ static void cf_check svm_vcpu_destroy(struct vcpu *v)
     passive_domain_destroy(v);
 }
 
+static int cf_check svm_vcpu_reset(struct vcpu *v)
+{
+    struct svm_vcpu *svm = &v->arch.hvm.svm;
+
+    svm->launch_core = -1;
+    svm->guest_sysenter_cs = 0;
+    svm->guest_sysenter_esp = 0;
+    svm->guest_sysenter_eip = 0;
+    svm->cached_insn_len = 0;
+
+    return svm_reset_vmcb(v);
+}
+
 /*
  * Emulate enough of interrupt injection to cover the DPL check (omitted by
  * hardware), and to work out whether it is safe to move %rip fowards for
@@ -2439,6 +2452,7 @@ static struct hvm_function_table __initdata_cf_clobber svm_function_table = {
     .domain_initialise    = svm_domain_initialise,
     .vcpu_initialise      = svm_vcpu_initialise,
     .vcpu_destroy         = svm_vcpu_destroy,
+    .vcpu_reset           = svm_vcpu_reset,
     .save_cpu_ctxt        = svm_save_vmcb_ctxt,
     .load_cpu_ctxt        = svm_load_vmcb_ctxt,
     .get_interrupt_shadow = svm_get_interrupt_shadow,
