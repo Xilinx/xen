@@ -300,6 +300,8 @@ static int overlay_get_nodes_info(const void *fdto, char **nodes_full_path)
         int overlay;
         int subnode;
         const char *target_path;
+        /* It's hard to determine longest node path. 256 for now should be ok */
+        char path[256];
         const char *fragment_name = fdt_get_name(fdto, fragment, NULL);
 
         overlay = fdt_subnode_offset(fdto, fragment, "__overlay__");
@@ -311,17 +313,24 @@ static int overlay_get_nodes_info(const void *fdto, char **nodes_full_path)
         if ( target < 0 )
         {
             printk(XENLOG_ERR
-                   "Invalid/non-existing 'target-path' property for fragment %s\n",
+                   "Invalid/non-existing 'target/target-path' property for fragment %s\n",
                    fragment_name);
             return target;
         }
 
+        /* True if we found 'target' and not 'target-path' */
         if ( target_path == NULL )
         {
-            printk(XENLOG_ERR
-                   "Failed to get 'target-path' property for fragment %s\n",
-                   fragment_name);
-            return -EINVAL;
+            target = fdt_get_path(device_tree_flattened, target, path,
+                                  sizeof(path));
+            if ( target < 0 )
+            {
+                printk(XENLOG_ERR "Invalid 'target' property for fragment %s\n",
+                       fragment_name);
+                return target;
+            }
+
+            target_path = path;
         }
 
         fdt_for_each_subnode(subnode, fdto, overlay)
