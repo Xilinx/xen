@@ -57,6 +57,8 @@ static const struct pm_access pm_node_access[] = {
     [PM_NODE_IDX(VERSAL2_PM_DEV_I2C_6)] = { MM_DEV_I2C_6 },
     [PM_NODE_IDX(VERSAL2_PM_DEV_I2C_7)] = { MM_DEV_I2C_7 },
 
+    [PM_NODE_IDX(VERSAL2_PM_DEV_UFS)] = { MM_DEV_UFS },
+
     [PM_NODE_IDX(VERSAL_PM_DEV_CAN_FD_0)] = { MM_DEV_CAN_FD_0 },
     [PM_NODE_IDX(VERSAL_PM_DEV_CAN_FD_1)] = { MM_DEV_CAN_FD_1 },
     [PM_NODE_IDX(VERSAL2_PM_DEV_CAN_FD_2)] = { MM_DEV_CAN_FD_2 },

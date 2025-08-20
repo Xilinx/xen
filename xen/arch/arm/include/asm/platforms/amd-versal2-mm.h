@@ -41,6 +41,7 @@
 #define MM_DEV_QSPI                 (0xf1030000U)
 #define MM_DEV_SDIO_0               (0xf1040000U)
 #define MM_DEV_SDIO_1               (0xf1050000U)
+#define MM_DEV_UFS                  (0xf10b0000U)
 #define MM_DEV_AMS_ROOT             (0xf1270000U)
 #define MM_DEV_RTC                  (0xf12a0000U)
 #define MM_DEV_UART_0               (0xf1920000U)
