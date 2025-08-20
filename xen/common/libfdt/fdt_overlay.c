@@ -477,24 +477,7 @@ static int overlay_fixup_phandle(void *fdt, void *fdto, int symbols_off,
 	return 0;
 }
 
-/**
- * overlay_fixup_phandles - Resolve the overlay phandles to the base
- *                          device tree
- * @fdt: Base Device Tree blob
- * @fdto: Device tree overlay blob
- *
- * overlay_fixup_phandles() resolves all the overlay phandles pointing
- * to nodes in the base device tree.
- *
- * This is one of the steps of the device tree overlay application
- * process, when you want all the phandles in the overlay to point to
- * the actual base dt nodes.
- *
- * returns:
- *      0 on success
- *      Negative error code on failure
- */
-static int overlay_fixup_phandles(void *fdt, void *fdto)
+int overlay_fixup_phandles(void *fdt, void *fdto)
 {
 	int fixups_off, symbols_off;
 	int property;
