@@ -749,6 +749,13 @@ static long handle_add_overlay_nodes(void *overlay_fdt,
         goto err;
     }
 
+    rc = overlay_fixup_phandles(tr->fdt, overlay_fdt);
+    if ( rc )
+    {
+        printk(XENLOG_ERR "Failed to fixup phandles (%d)\n", rc);
+        goto err;
+    }
+
     /*
      * overlay_get_nodes_info is called to get the node information from dtbo.
      * This is done before fdt_overlay_apply() because the overlay apply will
@@ -765,8 +772,7 @@ static long handle_add_overlay_nodes(void *overlay_fdt,
     rc = fdt_overlay_apply(tr->fdt, overlay_fdt);
     if ( rc )
     {
-        printk(XENLOG_ERR
-               "Adding overlay node failed with error %d. Possible issues in __fixups__\n",
+        printk(XENLOG_ERR "Applying overlay on base DT failed with error %d\n",
                rc);
         goto err;
     }
