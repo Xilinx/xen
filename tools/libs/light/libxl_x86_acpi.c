@@ -152,7 +152,8 @@ static int init_acpi_config(libxl__gc *gc,
     config->ioapic_base_address = IOAPIC_BASE_ADDRESS;
     config->ioapic_id = 0;
     config->pci_isa_irq_mask = 0;
-    config->table_flags = ACPI_HAS_IOAPIC | ACPI_NO_PCAT_COMPAT;
+    config->table_flags = ACPI_HAS_IOAPIC | ACPI_NO_PCAT_COMPAT |
+        ACPI_HAS_BUTTONS | ACPI_NO_GPE0;
 
     if (libxl_defbool_val(b_info->u.pvh.virtio_pci)) {
         config->pci1_start = b_info->u.pvh.pci1_mmio_base;

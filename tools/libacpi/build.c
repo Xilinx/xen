@@ -702,6 +702,8 @@ int acpi_build_tables(struct acpi_ctxt *ctxt, struct acpi_config *config)
         }
         fadt->iapc_boot_arch |= ACPI_FADT_NO_CMOS_RTC;
     }
+    if ( config->table_flags & ACPI_NO_GPE0 )
+        Fadt.gpe0_blk = Fadt.gpe0_blk_len = 0;
     set_checksum(fadt, offsetof(struct acpi_header, checksum), fadt_size);
 
     nr_secondaries = construct_secondary_tables(ctxt, secondary_tables,

@@ -14,7 +14,8 @@ int libxl__arch_domain_prepare_config(libxl__gc *gc,
             config->arch.emulation_flags &= ~XEN_X86_EMU_USE_PIRQ;
         break;
     case LIBXL_DOMAIN_TYPE_PVH:
-        config->arch.emulation_flags = XEN_X86_EMU_LAPIC | XEN_X86_EMU_IOAPIC;
+        config->arch.emulation_flags = XEN_X86_EMU_LAPIC | XEN_X86_EMU_IOAPIC |
+            XEN_X86_EMU_PM;
         break;
     case LIBXL_DOMAIN_TYPE_PV:
         config->arch.emulation_flags = 0;

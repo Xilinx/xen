@@ -803,7 +803,7 @@ static bool emulation_flags_ok(const struct domain *d, uint32_t emflags)
         /* PVH domU */
         {
             .caps   = CAP_HVM | CAP_DOMU,
-            .min    = X86_EMU_LAPIC | X86_EMU_IOAPIC,
+            .min    = X86_EMU_LAPIC | X86_EMU_IOAPIC | X86_EMU_PM,
         },
 
         /* HVM domU */

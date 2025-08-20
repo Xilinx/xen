@@ -20,6 +20,8 @@
 #define PM1a_STS_ADDR_V1 (ACPI_PM1A_EVT_BLK_ADDRESS_V1)
 #define PM1a_EN_ADDR_V1  (ACPI_PM1A_EVT_BLK_ADDRESS_V1 + 2)
 #define TMR_VAL_ADDR_V1  (ACPI_PM_TMR_BLK_ADDRESS_V1)
+#define PM1a_CNT_ADDR_V1 (ACPI_PM1A_CNT_BLK_ADDRESS_V1)
+#define PM1a_CNT_ADDR_V0 (ACPI_PM1A_CNT_BLK_ADDRESS_V0)
 
 /* The interesting bits of the PM1a_STS register */
 #define TMR_STS    (1 << 0)
@@ -35,6 +37,9 @@
 
 /* Mask of bits in PM1a_STS that can generate an SCI. */
 #define SCI_MASK (TMR_STS|PWRBTN_STS|SLPBTN_STS|GBL_STS) 
+
+/* PM1a_CNT register bits */
+#define SCI_EN     (1 << 0)
 
 /* SCI IRQ number (must match SCI_INT number in ACPI FADT in hvmloader) */
 #define SCI_IRQ 9
@@ -240,6 +245,37 @@ static int cf_check handle_pmt_io(
     return X86EMUL_OKAY;
 }
 
+/* Handle port I/O to the PM1a_CNT register for PVH guests */
+static int cf_check handle_cnt_io(
+    int dir, unsigned int port, unsigned int bytes, uint32_t *val)
+{
+    struct vcpu *v = current;
+    uint32_t addr;
+
+    addr = port -
+        ((v->domain->arch.hvm.params[
+            HVM_PARAM_ACPI_IOPORTS_LOCATION] == 0) ?
+         PM1a_CNT_ADDR_V0 : PM1a_CNT_ADDR_V1);
+
+    /*
+     * System sleeping states are not supported for PVH guests, and
+     * consequently _Sx objects are not populated in PVH ACPI DSDT.
+     * Therefore, it is safe to ignore writes.
+     */
+    if ( dir == IOREQ_READ )
+    {
+        uint32_t data = SCI_EN;
+        data >>= 8 * addr;
+        if ( bytes == 1 )
+            data &= 0xff;
+        else if ( bytes == 2 )
+            data &= 0xffff;
+        *val = data;
+    }
+
+    return X86EMUL_OKAY;
+}
+
 static int cf_check acpi_save(struct vcpu *v, hvm_domain_context_t *h)
 {
     struct domain *d = v->domain;
@@ -325,12 +361,16 @@ int pmtimer_change_ioport(struct domain *d, uint64_t version)
         /* Moving from version 0 to version 1. */
         relocate_portio_handler(d, TMR_VAL_ADDR_V0, TMR_VAL_ADDR_V1, 4);
         relocate_portio_handler(d, PM1a_STS_ADDR_V0, PM1a_STS_ADDR_V1, 4);
+        if ( !has_vvga(d) )
+            relocate_portio_handler(d, PM1a_CNT_ADDR_V0, PM1a_CNT_ADDR_V1, 2);
     }
     else
     {
         /* Moving from version 1 to version 0. */
         relocate_portio_handler(d, TMR_VAL_ADDR_V1, TMR_VAL_ADDR_V0, 4);
         relocate_portio_handler(d, PM1a_STS_ADDR_V1, PM1a_STS_ADDR_V0, 4);
+        if ( !has_vvga(d) )
+            relocate_portio_handler(d, PM1a_CNT_ADDR_V1, PM1a_CNT_ADDR_V0, 2);
     }
 
     return 0;
@@ -349,10 +389,25 @@ void pmtimer_init(struct vcpu *v)
     s->not_accounted = 0;
     s->vcpu = v;
 
-    /* Intercept port I/O (need two handlers because PM1a_CNT is between
-     * PM1a_EN and TMR_VAL and is handled by qemu) */
-    register_portio_handler(v->domain, TMR_VAL_ADDR_V0, 4, handle_pmt_io);
-    register_portio_handler(v->domain, PM1a_STS_ADDR_V0, 4, handle_evt_io);
+    /*
+     * Use the presence of emulated VGA to distinguish between HVM and
+     * PVH guests. Same way is used by linux for PVH guests booted via
+     * the default boot entry.
+     */
+    if ( has_vvga(v->domain) )
+    {
+        /* Intercept port I/O (need two handlers because PM1a_CNT is between
+         * PM1a_EN and TMR_VAL and is handled by qemu) */
+        register_portio_handler(v->domain, TMR_VAL_ADDR_V0, 4, handle_pmt_io);
+        register_portio_handler(v->domain, PM1a_STS_ADDR_V0, 4, handle_evt_io);
+    }
+    else
+    {
+        v->domain->arch.hvm.params[HVM_PARAM_ACPI_IOPORTS_LOCATION] = 1;
+        register_portio_handler(v->domain, TMR_VAL_ADDR_V1, 4, handle_pmt_io);
+        register_portio_handler(v->domain, PM1a_STS_ADDR_V1, 4, handle_evt_io);
+        register_portio_handler(v->domain, PM1a_CNT_ADDR_V1, 2, handle_cnt_io);
+    }
 
     /* Set up callback to fire SCIs when the MSB of TMR_VAL changes */
     init_timer(&s->timer, pmt_timer_callback, s, v->processor);

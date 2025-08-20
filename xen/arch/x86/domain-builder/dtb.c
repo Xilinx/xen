@@ -85,6 +85,8 @@ int __init arch_parse_dom0less_node(struct dt_device_node *node,
                                                XEN_X86_EMU_IOAPIC;
         if ( bd->create_flags & CDF_hardware )
             bd->create_cfg.arch.emulation_flags |= XEN_X86_EMU_VPCI;
+        else
+            bd->create_cfg.arch.emulation_flags |= XEN_X86_EMU_PM;
     }
     else if ( bd->create_flags & CDF_hardware ) /* PV hwdom */
         bd->create_cfg.arch.emulation_flags |= XEN_X86_EMU_PIT;
