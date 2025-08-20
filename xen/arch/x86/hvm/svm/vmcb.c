@@ -43,7 +43,7 @@ void free_vmcb(struct vmcb_struct *vmcb)
 }
 
 /* This function can directly access fields which are covered by clean bits. */
-static int construct_vmcb(struct vcpu *v)
+static void initialize_vmcb(struct vcpu *v)
 {
     struct svm_vcpu *svm = &v->arch.hvm.svm;
     struct vmcb_struct *vmcb = svm->vmcb;
@@ -83,10 +83,6 @@ static int construct_vmcb(struct vcpu *v)
 
     svm->vmcb_sync_state = vmcb_needs_vmload;
 
-    /* I/O and MSR permission bitmaps. */
-    svm->msrpm = alloc_xenheap_pages(get_order_from_bytes(MSRPM_SIZE), 0);
-    if ( svm->msrpm == NULL )
-        return -ENOMEM;
     memset(svm->msrpm, 0xff, MSRPM_SIZE);
 
     svm_disable_intercept_for_msr(v, MSR_FS_BASE);
@@ -131,6 +127,8 @@ static int construct_vmcb(struct vcpu *v)
     vmcb->tr.limit = 0xff;
 
     v->arch.hvm.guest_cr[0] = X86_CR0_PE | X86_CR0_ET;
+    v->arch.hvm.guest_cr[4] = 0;
+    v->arch.hvm.guest_efer = 0;
     hvm_update_guest_efer(v);
     hvm_update_guest_cr(v, 0);
     hvm_update_guest_cr(v, 4);
@@ -182,7 +180,22 @@ static int construct_vmcb(struct vcpu *v)
      */
     if ( default_xen_spec_ctrl == SPEC_CTRL_STIBP )
         v->arch.msrs->spec_ctrl.raw = SPEC_CTRL_STIBP;
+}
 
+int svm_reset_vmcb(struct vcpu *v)
+{
+    struct svm_vcpu *svm = &v->arch.hvm.svm;
+
+    if ( !svm->vmcb )
+    {
+        ASSERT_UNREACHABLE();
+        dprintk(XENLOG_ERR, "vcpu%u: reset: VMCB has not been allocated\n",
+                v->vcpu_id);
+        return -EILSEQ;
+    }
+
+    clear_page(svm->vmcb);
+    initialize_vmcb(v);
     return 0;
 }
 
@@ -200,17 +213,31 @@ int svm_create_vmcb(struct vcpu *v)
     }
 
     svm->vmcb = nv->nv_n1vmcx;
-    rc = construct_vmcb(v);
-    if ( rc != 0 )
+
+    /* I/O and MSR permission bitmaps. */
+    svm->msrpm = alloc_xenheap_pages(get_order_from_bytes(MSRPM_SIZE), 0);
+    if ( svm->msrpm == NULL )
     {
-        free_vmcb(nv->nv_n1vmcx);
-        nv->nv_n1vmcx = NULL;
-        svm->vmcb = NULL;
-        return rc;
+        rc = -ENOMEM;
+        goto out;
     }
 
+    rc = svm_reset_vmcb(v);
+    if ( rc )
+        goto out;
+
     svm->vmcb_pa = nv->nv_n1vmcx_pa = virt_to_maddr(svm->vmcb);
-    return 0;
+
+ out:
+    if ( rc )
+    {
+        XFREE(svm->msrpm);
+        free_vmcb(svm->vmcb);
+        nv->nv_n1vmcx = NULL;
+        svm->vmcb = NULL;
+    }
+
+    return rc;
 }
 
 void svm_destroy_vmcb(struct vcpu *v)

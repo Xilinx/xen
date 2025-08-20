@@ -609,6 +609,7 @@ void free_vmcb(struct vmcb_struct *vmcb);
 
 int  svm_create_vmcb(struct vcpu *v);
 void svm_destroy_vmcb(struct vcpu *v);
+int svm_reset_vmcb(struct vcpu *v);
 
 void setup_vmcb_dump(void);
 
