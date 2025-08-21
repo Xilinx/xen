@@ -118,6 +118,7 @@ static const struct pci_ecam_ops cpm_pcie_ops = {
         .read                   = pci_generic_config_read,
         .write                  = pci_generic_config_write,
         .need_p2m_hwdom_mapping = pci_ecam_need_p2m_hwdom_mapping,
+        .init_bus_range         = pci_generic_init_bus_range,
     },
 };
 
@@ -171,7 +172,7 @@ static int __init pci_host_versal_probe(struct dt_device_node *dev,
     uint16_t segment;
     pci_sbdf_t sbdf;
 
-    rc = PTR_RET(pci_host_common_probe(dev, &cpm_pcie_ops));
+    rc = PTR_RET(pci_host_common_probe(dev, &cpm_pcie_ops, NULL));
     if ( rc )
         return rc;
 

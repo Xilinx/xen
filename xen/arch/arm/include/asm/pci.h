@@ -71,6 +71,9 @@ struct pci_host_bridge {
     uint64_t its_msi_base;
     struct rangeset *bar_ranges;
     struct rangeset *bar_ranges_prefetch;
+    /* Child bus */
+    struct pci_config_window *child_cfg;
+    const struct pci_ops *child_ops;
     void *priv;                      /* Private data of the bridge. */
 };
 
@@ -84,6 +87,9 @@ struct pci_ops {
     bool (*need_p2m_hwdom_mapping)(struct domain *d,
                                    struct pci_host_bridge *bridge,
                                    uint64_t addr);
+    void (*init_bus_range)(struct dt_device_node *dev,
+                           struct pci_host_bridge *bridge,
+                           struct pci_config_window *cfg);
 };
 
 /*
@@ -100,8 +106,10 @@ struct pci_ecam_ops {
 /* Default ECAM ops */
 extern const struct pci_ecam_ops pci_generic_ecam_ops;
 
-struct pci_host_bridge *pci_host_common_probe(struct dt_device_node *dev,
-                                              const struct pci_ecam_ops *ops);
+struct pci_host_bridge *
+pci_host_common_probe(struct dt_device_node *dev,
+                      const struct pci_ecam_ops *ops,
+                      const struct pci_ecam_ops *child_ops);
 int pci_init_bridge(pci_sbdf_t sbdf);
 int pci_generic_config_read(struct pci_host_bridge *bridge, pci_sbdf_t sbdf,
                             uint32_t reg, uint32_t len, uint32_t *value);
@@ -151,6 +159,14 @@ pci_msi_conf_write_intercept(struct pci_dev *pdev, unsigned int reg,
 {
     return 0;
 }
+
+void pci_generic_init_bus_range(struct dt_device_node *dev,
+                                struct pci_host_bridge *bridge,
+                                struct pci_config_window *cfg);
+
+void pci_generic_init_bus_range_child(struct dt_device_node *dev,
+                                      struct pci_host_bridge *bridge,
+                                      struct pci_config_window *cfg);
 
 #else   /*!CONFIG_HAS_PCI*/
 
