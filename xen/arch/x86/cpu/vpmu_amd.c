@@ -508,6 +508,41 @@ static int cf_check amd_vpmu_initialise(struct vcpu *v)
     return 0;
 }
 
+static void cf_check amd_vpmu_reset(struct vcpu *v)
+{
+    struct vpmu_struct *vpmu = vcpu_vpmu(v);
+    struct xen_pmu_amd_ctxt *ctxt = vpmu->context;
+
+    if ( !vpmu_is_set(vpmu, VPMU_CONTEXT_ALLOCATED) )
+    {
+        dprintk(XENLOG_ERR, "vcpu%u: vpmu reset: ctx is not allocated\n",
+                v->vcpu_id);
+        return;
+    }
+
+    amd_vpmu_init_regs(ctxt);
+
+    if ( !has_vlapic(v->domain) )
+    {
+        /* Copy register offsets to shared area */
+        ASSERT(vpmu->xenpmu_data);
+        memcpy(&vpmu->xenpmu_data->pmu.c.amd, ctxt,
+               offsetof(struct xen_pmu_amd_ctxt, regs));
+    }
+
+    if ( vpmu_is_set(vpmu, VPMU_RUNNING) )
+    {
+        vpmu_reset(vpmu, VPMU_RUNNING);
+        release_pmu_ownership(PMU_OWNER_HVM);
+    }
+
+    if ( is_svm_vcpu(v) && is_msr_bitmap_on(vpmu) )
+        amd_vpmu_unset_msr_bitmap(v);
+
+    vpmu_clear(vpmu);
+    vpmu_set(vpmu, VPMU_INITIALIZED | VPMU_CONTEXT_ALLOCATED);
+}
+
 #ifdef CONFIG_MEM_SHARING
 static int cf_check amd_allocate_context(struct vcpu *v)
 {
@@ -518,6 +553,7 @@ static int cf_check amd_allocate_context(struct vcpu *v)
 
 static const struct arch_vpmu_ops __initconst_cf_clobber amd_vpmu_ops = {
     .initialise = amd_vpmu_initialise,
+    .reset = amd_vpmu_reset,
     .do_wrmsr = amd_vpmu_do_wrmsr,
     .do_rdmsr = amd_vpmu_do_rdmsr,
     .do_interrupt = amd_vpmu_do_interrupt,

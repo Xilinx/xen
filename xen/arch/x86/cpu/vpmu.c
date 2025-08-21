@@ -561,6 +561,23 @@ void vpmu_destroy(struct vcpu *v)
     put_vpmu(v);
 }
 
+void vpmu_state_reset(struct vcpu *v)
+{
+    struct vpmu_struct *vpmu = vcpu_vpmu(v);
+
+    if ( !vpmu_available(v) || vpmu_mode == XENPMU_MODE_OFF )
+        return;
+
+    spin_lock(&vpmu->vpmu_lock);
+
+    vpmu->hw_lapic_lvtpc = PMU_APIC_VECTOR | APIC_LVT_MASKED;
+
+    if ( vpmu_ops.reset )
+        alternative_vcall(vpmu_ops.reset, v);
+
+    spin_unlock(&vpmu->vpmu_lock);
+}
+
 static int pvpmu_init(struct domain *d, xen_pmu_params_t *params)
 {
     struct vcpu *v;

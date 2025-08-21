@@ -36,6 +36,7 @@
 /* Arch specific operations shared by all vpmus */
 struct arch_vpmu_ops {
     int (*initialise)(struct vcpu *v);
+    void (*reset)(struct vcpu *v);
     int (*do_wrmsr)(unsigned int msr, uint64_t msr_content);
     int (*do_rdmsr)(unsigned int msr, uint64_t *msr_content);
     int (*do_interrupt)(void);
@@ -133,6 +134,7 @@ static inline int vpmu_load(struct vcpu *v, bool from_guest)
 static inline void vpmu_dump(struct vcpu *v) {}
 #endif
 
+void vpmu_state_reset(struct vcpu *v);
 
 static inline int vpmu_do_wrmsr(unsigned int msr, uint64_t msr_content)
 {
