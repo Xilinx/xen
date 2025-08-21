@@ -1727,6 +1727,60 @@ void hvm_vcpu_destroy(struct vcpu *v)
     hvm_vcpu_cacheattr_destroy(v);
 }
 
+int hvm_vcpu_reset(struct vcpu *v)
+{
+    struct domain *d = v->domain;
+
+    hvm_asid_flush_vcpu(v);
+
+    v->arch.hvm.cache_mode = NORMAL_CACHE_MODE;
+    hvm_vcpu_cacheattr_reset(v);
+
+    if ( has_vlapic(d) )
+    {
+        clear_page(vcpu_vlapic(v)->regs);
+        vlapic_reset(vcpu_vlapic(v));
+    }
+
+    if ( hvm_funcs.vcpu_reset )
+    {
+        int rc = alternative_call(hvm_funcs.vcpu_reset, v);
+        if ( rc )
+            return rc;
+    }
+
+    tasklet_kill(&v->arch.hvm.assert_evtchn_irq_tasklet);
+    softirq_tasklet_init(&v->arch.hvm.assert_evtchn_irq_tasklet,
+                         hvm_assert_evtchn_irq_tasklet, v);
+
+    v->arch.hvm.evtchn_upcall_vector = 0;
+    v->arch.hvm.inject_event.vector = HVM_EVENT_VECTOR_UNSET;
+
+    hvmemul_cancel(v);
+    v->arch.hvm.hvm_io.mmio_gla = 0;
+    v->arch.hvm.hvm_io.mmio_gpfn = 0;
+    v->arch.hvm.hvm_io.msix_unmask_address = 0;
+    v->arch.hvm.hvm_io.msix_snoop_address = 0;
+    v->arch.hvm.hvm_io.msix_snoop_gpa = 0;
+
+    v->arch.hvm.flag_dr_dirty = 0;
+    v->arch.hvm.debug_state_latch = 0;
+    v->arch.hvm.single_step = false;
+
+    /*
+     * Domain reset is considered warm and does not reset TSC to 0.
+     * That's why v->arch.hvm.cache_tsc_offset is not zeroed and
+     * guest TSC is expected to continue increasing accross resets.
+     */
+    v->arch.hvm.msr_tsc_adjust = 0;
+    v->arch.hvm.stime_offset = 0;
+    v->arch.hvm.guest_time = 0;
+    /* All periodic timers should have been destroyed by now */
+    ASSERT(list_empty(&v->arch.hvm.tm_list));
+
+    return 0;
+}
+
 void hvm_vcpu_down(struct vcpu *v)
 {
     struct domain *d = v->domain;
