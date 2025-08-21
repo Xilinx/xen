@@ -768,6 +768,12 @@ void paging_vcpu_teardown(struct vcpu *v)
         shadow_vcpu_teardown(v);
 }
 
+void paging_vcpu_reset(struct vcpu *v)
+{
+    if ( hap_enabled(v->domain) )
+        hap_vcpu_reset(v);
+}
+
 /* Call when destroying a domain */
 int paging_teardown(struct domain *d)
 {

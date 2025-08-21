@@ -213,6 +213,8 @@ int paging_teardown(struct domain *d);
 /* Call once all of the references to the domain have gone away */
 void paging_final_teardown(struct domain *d);
 
+void paging_vcpu_reset(struct vcpu *v);
+
 /* Enable an arbitrary paging-assistance mode.  Call once at domain
  * creation. */
 int paging_enable(struct domain *d, u32 mode);

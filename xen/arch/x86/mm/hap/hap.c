@@ -678,6 +678,26 @@ void hap_vcpu_init(struct vcpu *v)
     v->arch.paging.nestedmode = &hap_paging_real_mode;
 }
 
+void hap_vcpu_reset(struct vcpu *v)
+{
+    struct domain *d = v->domain;
+    mfn_t mfn;
+
+    paging_lock(d);
+
+    if ( !paging_mode_hap(d) || !v->arch.paging.mode )
+        goto out;
+
+    mfn = pagetable_get_mfn(v->arch.hvm.monitor_table);
+    if ( mfn_x(mfn) )
+        hap_free(d, mfn);
+    v->arch.hvm.monitor_table = pagetable_null();
+    v->arch.cr3 = 0;
+
+ out:
+    paging_unlock(d);
+}
+
 /************************************************/
 /*          HAP PAGING MODE FUNCTIONS           */
 /************************************************/

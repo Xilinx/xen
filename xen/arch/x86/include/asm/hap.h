@@ -27,6 +27,7 @@ void  hap_final_teardown(struct domain *d);
 void  hap_vcpu_teardown(struct vcpu *v);
 void  hap_teardown(struct domain *d, bool *preempted);
 void  hap_vcpu_init(struct vcpu *v);
+void  hap_vcpu_reset(struct vcpu *v);
 int   hap_track_dirty_vram(struct domain *d,
                            unsigned long begin_pfn,
                            unsigned int nr_frames,
