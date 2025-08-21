@@ -59,6 +59,22 @@ void vmce_init_vcpu(struct vcpu *v)
     spin_lock_init(&v->arch.vmce.lock);
 }
 
+void vmce_reset_vcpu(struct vcpu *v)
+{
+    /* global MCA MSRs init */
+    if ( boot_cpu_data.x86_vendor == X86_VENDOR_INTEL )
+        v->arch.vmce.mcg_cap = INTEL_GUEST_MCG_CAP;
+    else
+        v->arch.vmce.mcg_cap = AMD_GUEST_MCG_CAP;
+
+    v->arch.vmce.mcg_status = 0;
+    v->arch.vmce.mcg_ext_ctl = 0;
+
+    /* per-bank MCA MSRs init */
+    for ( unsigned int i = 0; i < GUEST_MC_BANK_NUM; i++ )
+        memset(&v->arch.vmce.bank[i], 0, sizeof(struct vmce_bank));
+}
+
 int vmce_restore_vcpu(struct vcpu *v, const struct hvm_vmce_vcpu *ctxt)
 {
     unsigned long guest_mcg_cap;
