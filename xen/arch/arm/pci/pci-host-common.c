@@ -246,8 +246,8 @@ static int add_bar_range(const struct dt_device_node *dev, uint32_t flags,
         return rangeset_add_range(bridge->bar_ranges, addr, addr + len - 1);
 }
 
-int pci_host_common_probe(struct dt_device_node *dev,
-                          const struct pci_ecam_ops *ops)
+struct pci_host_bridge *pci_host_common_probe(struct dt_device_node *dev,
+                                              const struct pci_ecam_ops *ops)
 {
     struct pci_host_bridge *bridge;
     struct pci_config_window *cfg;
@@ -255,11 +255,11 @@ int pci_host_common_probe(struct dt_device_node *dev,
     int domain;
 
     if ( dt_device_for_passthrough(dev) )
-        return 0;
+        return NULL;
 
     bridge = pci_alloc_host_bridge();
     if ( !bridge )
-        return -ENOMEM;
+        return ERR_PTR(-ENOMEM);
 
     /* Parse and map our Configuration Space windows */
     cfg = gen_pci_init(dev, ops);
@@ -292,12 +292,12 @@ int pci_host_common_probe(struct dt_device_node *dev,
     if ( bridge->bar_ranges && bridge->bar_ranges_prefetch )
         dt_for_each_range(bridge->dt_node, add_bar_range, bridge);
 
-    return 0;
+    return bridge;
 
 err_exit:
     xfree(bridge);
 
-    return err;
+    return ERR_PTR(err);
 }
 
 static int __init set_bridge_mem_base_limit(const struct dt_device_node *dev,
