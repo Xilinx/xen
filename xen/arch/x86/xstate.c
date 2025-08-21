@@ -570,6 +570,29 @@ void xstate_free_save_area(struct vcpu *v)
     XVFREE(v->arch.xsave_area);
 }
 
+void xstate_reset_save_area(struct vcpu *v)
+{
+    struct xsave_struct *save_area = VCPU_MAP_XSAVE_AREA(v);
+
+    if ( save_area )
+    {
+        unsigned int size;
+
+        if ( !cpu_has_xsave )
+            size = XSTATE_AREA_MIN_SIZE;
+        else
+            size = xsave_cntxt_size;
+        memset(save_area, 0, size);
+        save_area->fpu_sse.fcw = FCW_DEFAULT;
+        save_area->fpu_sse.mxcsr = MXCSR_DEFAULT;
+    }
+    VCPU_UNMAP_XSAVE_AREA(v, save_area);
+
+    v->arch.xcr0 = 0;
+    v->arch.xcr0_accum = 0;
+    v->arch.nonlazy_xstate_used = false;
+}
+
 static bool valid_xcr0(uint64_t xcr0)
 {
     /* FP must be unconditionally set. */
