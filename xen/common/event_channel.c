@@ -27,11 +27,13 @@
 #include <xen/hypercall.h>
 #include <xen/keyhandler.h>
 #include <xen/sections.h>
+#include <xen/ioreq.h>
 
 #include <asm/current.h>
 
 #include <public/xen.h>
 #include <public/event_channel.h>
+#include <public/hvm/params.h>
 #include <xsm/xsm.h>
 
 #ifdef CONFIG_PV_SHIM
@@ -1329,6 +1331,120 @@ int evtchn_reset(struct domain *d, bool resuming)
     write_unlock(&d->event_lock);
 
     return rc;
+}
+
+static inline bool is_store_evtchn(struct domain *d, unsigned int port)
+{
+    if ( !is_xenstore_domain(d) )
+        return port == d->arch.hvm.params[HVM_PARAM_STORE_EVTCHN];
+
+    return false;
+}
+
+static inline bool is_console_evtchn(struct domain *d, unsigned int port)
+{
+    if ( !is_hardware_domain(d) )
+        return port == d->arch.hvm.params[HVM_PARAM_CONSOLE_EVTCHN];
+
+    return false;
+}
+
+void evtchn_full_reset(struct domain *d)
+{
+    for ( unsigned int port = 0; port_is_valid(d, port); port++ )
+    {
+        /* Unbind xenstore and xenconsole event channels */
+        if ( is_store_evtchn(d, port) || is_console_evtchn(d, port) )
+        {
+            struct evtchn *chn, *rchn;
+            unsigned int rport;
+            struct domain *rdom = NULL;
+
+ retry:
+            write_lock(&d->event_lock);
+            chn = evtchn_from_port(d, port);
+
+            if ( chn->state != ECS_INTERDOMAIN )
+            {
+                if ( rdom )
+                {
+                    if ( d != rdom )
+                        write_unlock(&rdom->event_lock);
+                    rcu_unlock_domain(rdom);
+                }
+                write_unlock(&d->event_lock);
+                continue;
+            }
+
+            /*
+             * Holding local event lock guarantees that interdomain
+             * state won't change.
+             */
+            if ( !rdom )
+            {
+                rdom = chn->u.interdomain.remote_dom;
+                rcu_lock_domain(rdom);
+
+                if ( d < rdom )
+                    write_lock(&rdom->event_lock);
+                else if ( d != rdom )
+                {
+                    /* Re-acquire the locks in the correct order */
+                    write_unlock(&d->event_lock);
+                    write_lock(&rdom->event_lock);
+                    goto retry;
+                }
+            }
+            else if ( rdom != chn->u.interdomain.remote_dom )
+            {
+                /* Channel bound to another domain after releasing
+                   local event lock, retry */
+                write_unlock(&rdom->event_lock);
+                rcu_unlock_domain(rdom);
+                write_unlock(&d->event_lock);
+                rdom = NULL;
+                goto retry;
+            }
+
+            /* Event locks of both domains are held */
+            rport = chn->u.interdomain.remote_port;
+            rchn = _evtchn_from_port(rdom, rport);
+
+            double_evtchn_lock(chn, rchn);
+            rchn->state = ECS_UNBOUND;
+            rchn->u.unbound.remote_domid = d->domain_id;
+            evtchn_port_clear_pending(rdom, rchn);
+            evtchn_port_init(rdom, rchn);
+
+            chn->state = ECS_UNBOUND;
+            chn->u.unbound.remote_domid = rdom->domain_id;
+            evtchn_port_clear_pending(d, chn);
+            evtchn_port_init(d, chn);
+            double_evtchn_unlock(chn, rchn);
+
+            if ( d != rdom )
+                write_unlock(&rdom->event_lock);
+            rcu_unlock_domain(rdom);
+            write_unlock(&d->event_lock);
+        }
+        else if ( IS_ENABLED(CONFIG_IOREQ_SERVER) &&
+                  is_ioreq_server_evtchn(d, port) )
+        {
+            /*
+             * Do not close ioreq server event channels because
+             * device model ioreq servers are still connected.
+             */
+            continue;
+        }
+        else
+            evtchn_close(d, port, false);
+    }
+
+    /* Reset ABI-specific event channel state */
+    if ( d->evtchn_fifo )
+        evtchn_fifo_reset(d);
+    else
+        evtchn_2l_reset(d);
 }
 
 static int evtchn_set_priority(const struct evtchn_set_priority *set_priority)

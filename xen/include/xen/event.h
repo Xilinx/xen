@@ -214,6 +214,8 @@ void evtchn_check_pollers(struct domain *d, unsigned int port);
 /* Close all event channels and reset to 2-level ABI. */
 int evtchn_reset(struct domain *d, bool resuming);
 
+void evtchn_full_reset(struct domain *d);
+
 /*
  * Low-level event channel port ops.
  *
