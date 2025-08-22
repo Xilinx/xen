@@ -55,10 +55,12 @@ void finish_wait(struct waitqueue_head *wq);
 
 #ifdef CONFIG_VM_EVENT
 int init_waitqueue_vcpu(struct vcpu *v);
+void reset_waitqueue_vcpu(struct vcpu *v);
 void destroy_waitqueue_vcpu(struct vcpu *v);
 void check_wakeup_from_wait(void);
 #else
 static inline int init_waitqueue_vcpu(struct vcpu *v) { return 0; }
+static inline void reset_waitqueue_vcpu(struct vcpu *v) {}
 static inline void destroy_waitqueue_vcpu(struct vcpu *v) {}
 static inline void check_wakeup_from_wait(void) {}
 #endif

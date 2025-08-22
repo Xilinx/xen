@@ -90,6 +90,21 @@ void destroy_waitqueue_head(struct waitqueue_head *wq)
     wake_up_all(wq);
 }
 
+void reset_waitqueue_vcpu(struct vcpu *v)
+{
+    struct waitqueue_vcpu *wqv = v->waitqueue_vcpu;
+
+    if ( !wqv )
+        return;
+
+    ASSERT(list_empty(&wqv->list));
+
+#ifdef CONFIG_X86
+    wqv->esp = NULL;
+    clear_page(wqv->stack);
+#endif
+}
+
 void wake_up_nr(struct waitqueue_head *wq, unsigned int nr)
 {
     struct waitqueue_vcpu *wqv;
