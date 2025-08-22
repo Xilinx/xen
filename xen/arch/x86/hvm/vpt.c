@@ -25,6 +25,16 @@ void hvm_init_guest_time(struct domain *d)
     pl->last_guest_time = 0;
 }
 
+void hvm_reset_guest_time(struct domain *d)
+{
+    struct pl_time *pl = d->arch.hvm.pl_time;
+
+    spin_lock(&pl->pl_time_lock);
+    pl->stime_offset = -(u64)get_s_time();
+    pl->last_guest_time = 0;
+    spin_unlock(&pl->pl_time_lock);
+}
+
 uint64_t hvm_get_guest_time_fixed(const struct vcpu *v, uint64_t at_tsc)
 {
     struct pl_time *pl = v->domain->arch.hvm.pl_time;
