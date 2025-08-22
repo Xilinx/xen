@@ -202,7 +202,7 @@ static inline void rtc_update_clock(struct domain *d) {};
 
 void pmtimer_init(struct vcpu *v);
 void pmtimer_deinit(struct domain *d);
-void pmtimer_reset(struct domain *d);
+void pmtimer_reset(struct domain *d, bool suspending);
 int pmtimer_change_ioport(struct domain *d, uint64_t version);
 
 #ifdef CONFIG_VHPET

@@ -4226,7 +4226,7 @@ static void hvm_s3_suspend(struct domain *d)
     if ( IS_ENABLED(CONFIG_VPIT) )
         pit_reset(d);
     rtc_reset(d);
-    pmtimer_reset(d);
+    pmtimer_reset(d, true);
     hpet_reset(d);
 
     hvm_vcpu_reset_state(d->vcpu[0], 0xf000, 0xfff0);

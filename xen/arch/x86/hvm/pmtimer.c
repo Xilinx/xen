@@ -427,13 +427,28 @@ void pmtimer_deinit(struct domain *d)
     kill_timer(&s->timer);
 }
 
-void pmtimer_reset(struct domain *d)
+void pmtimer_reset(struct domain *d, bool suspending)
 {
     if ( !has_vpm(d) )
         return;
 
     /* Reset the counter. */
     d->arch.hvm.acpi.tmr_val = 0;
+
+    if ( !suspending )
+    {
+        /* We are on the reset path, reset pmtimer and PM1a state */
+        PMTState *s = &d->arch.hvm.pl_time->vpmt;
+        s->last_gtime = 0;
+        s->not_accounted = 0;
+        d->arch.hvm.acpi.pm1a_sts = 0;
+        d->arch.hvm.acpi.pm1a_en = 0;
+        if ( d->arch.hvm.params[HVM_PARAM_ACPI_IOPORTS_LOCATION] != 1 )
+        {
+            pmtimer_change_ioport(d, 1);
+            d->arch.hvm.params[HVM_PARAM_ACPI_IOPORTS_LOCATION] = 1;
+        }
+    }
 }
 
 /*
