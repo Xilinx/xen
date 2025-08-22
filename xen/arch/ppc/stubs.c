@@ -234,6 +234,11 @@ int arch_vcpu_reset(struct vcpu *v)
     BUG_ON("unimplemented");
 }
 
+void arch_vcpu_state_reset(struct vcpu *v)
+{
+    BUG_ON("unimplemented");
+}
+
 int domain_relinquish_resources(struct domain *d)
 {
     BUG_ON("unimplemented");

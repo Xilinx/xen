@@ -1007,6 +1007,10 @@ int arch_vcpu_reset(struct vcpu *v)
     return 0;
 }
 
+void arch_vcpu_state_reset(struct vcpu *v)
+{
+}
+
 static int relinquish_memory(struct domain *d, struct page_list_head *list)
 {
     struct page_info *page, *tmp;

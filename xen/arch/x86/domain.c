@@ -619,6 +619,10 @@ void arch_vcpu_destroy(struct vcpu *v)
         pv_vcpu_destroy(v);
 }
 
+void arch_vcpu_state_reset(struct vcpu *v)
+{
+}
+
 int arch_sanitise_domain_config(struct xen_domctl_createdomain *config)
 {
     bool hvm = config->flags & XEN_DOMCTL_CDF_hvm;

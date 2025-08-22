@@ -158,6 +158,7 @@ void arch_dump_vcpu_info(struct vcpu *v);
 void arch_dump_domain_info(struct domain *d);
 
 int arch_vcpu_reset(struct vcpu *v);
+void arch_vcpu_state_reset(struct vcpu *v);
 
 bool domctl_lock_acquire(void);
 void domctl_lock_release(void);
