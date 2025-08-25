@@ -159,7 +159,6 @@ enum io_state try_handle_mmio(struct cpu_user_regs *regs,
 {
     struct vcpu *v = current;
     const struct mmio_handler *handler = NULL;
-    bool has_background;
     int rc;
 
     ASSERT(info->dabt.ec == HSR_EC_DATA_ABORT_LOWER_EL);
@@ -171,16 +170,13 @@ enum io_state try_handle_mmio(struct cpu_user_regs *regs,
     }
 
     handler = find_mmio_handler(v->domain, info->gpa);
-    has_background = handler && handler->background;
-    if ( !handler || has_background )
+    if ( !handler )
     {
         rc = try_fwd_ioserv(regs, v, info);
         if ( rc == IO_HANDLED )
             return handle_ioserv(regs, v);
-        else if ( !(rc == IO_UNHANDLED && has_background) ) {
-            /* Only return failure if there's no background handler.  */
-            return rc;
-        }
+
+        return rc;
     }
 
     /*
@@ -201,10 +197,9 @@ enum io_state try_handle_mmio(struct cpu_user_regs *regs,
         return handle_read(handler, v, info);
 }
 
-void register_mmio_bg_handler(struct domain *d,
-                              bool background,
-                              const struct mmio_handler_ops *ops,
-                              paddr_t addr, paddr_t size, void *priv)
+void register_mmio_handler(struct domain *d,
+                           const struct mmio_handler_ops *ops,
+                           paddr_t addr, paddr_t size, void *priv)
 {
     struct vmmio *vmmio = &d->arch.vmmio;
     struct mmio_handler *handler;
@@ -218,7 +213,6 @@ void register_mmio_bg_handler(struct domain *d,
     handler->ops = ops;
     handler->addr = addr;
     handler->size = size;
-    handler->background = background;
     handler->priv = priv;
 
     vmmio->num_entries++;
