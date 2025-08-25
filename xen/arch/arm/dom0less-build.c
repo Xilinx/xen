@@ -1532,6 +1532,9 @@ static int __init construct_domU(struct domain *d,
             kinfo.virtio_pci.mem.base = GUEST_VIRTIO_PCI_MEM_BASE;
             kinfo.virtio_pci.pf_mem.base = GUEST_VIRTIO_PCI_PREFETCH_MEM_BASE;
         }
+
+        /* virtio-pci: Turn off trapping of unmapped accesses. */
+        d->options &= ~XEN_DOMCTL_CDF_trap_unmapped_accesses;
     }
 
     rc = dt_property_read_string(node, "xen,enhanced", &dom0less_enhanced);

@@ -242,6 +242,7 @@ with the following properties:
     If set to 1, guest accesses will trap.
 
     The default is 1 when trap-unmapped-accesses is absent.
+    When virtio-pci is enabled, trap-unmapped-accesses is forced to 0.
 
 - xen,enhanced
 
