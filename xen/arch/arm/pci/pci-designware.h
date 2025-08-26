@@ -26,6 +26,7 @@
 #define PCIE_ATU_UPPER_TARGET           0x91C
 #define PCIE_ATU_UPPER_LIMIT            0x924
 
+#define PCIE_ATU_REGION_INDEX0  0x0
 #define PCIE_ATU_REGION_INDEX1  0x1
 #define PCIE_ATU_TYPE_IO        0x2
 #define PCIE_ATU_TYPE_CFG0      0x4
