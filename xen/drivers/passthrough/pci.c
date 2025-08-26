@@ -903,7 +903,7 @@ static int deassign_device(struct domain *d, uint16_t seg, uint8_t bus,
     struct domain *target;
     int ret = 0;
 
-    if ( !is_iommu_enabled(d) )
+    if ( !is_iommu_enabled(d) && !has_vpci_bridge(d) )
         return -EINVAL;
 
     ASSERT(pcidevs_locked());
@@ -912,7 +912,8 @@ static int deassign_device(struct domain *d, uint16_t seg, uint8_t bus,
         return -ENODEV;
 
     /* De-assignment from dom_io should de-quarantine the device */
-    if ( (pdev->quarantine || iommu_quarantine) && pdev->domain != dom_io )
+    if ( (pdev->quarantine || iommu_quarantine) && pdev->domain != dom_io
+          && is_iommu_enabled(d) )
     {
         ret = iommu_quarantine_dev_init(pci_to_dev(pdev));
         if ( ret )
@@ -923,26 +924,44 @@ static int deassign_device(struct domain *d, uint16_t seg, uint8_t bus,
     else
         target = hardware_domain;
 
-    while ( pdev->phantom_stride )
+    if ( is_iommu_enabled(d) )
     {
-        devfn += pdev->phantom_stride;
-        if ( PCI_SLOT(devfn) != PCI_SLOT(pdev->devfn) )
-            break;
-        ret = mgmt_iommu_call(hd->platform_ops, reassign_device, d, target, devfn,
-                              pci_to_dev(pdev));
-        if ( ret )
-            goto out;
+        while ( pdev->phantom_stride )
+        {
+            devfn += pdev->phantom_stride;
+            if ( PCI_SLOT(devfn) != PCI_SLOT(pdev->devfn) )
+                break;
+            ret = mgmt_iommu_call(hd->platform_ops, reassign_device, d, target,
+                                  devfn, pci_to_dev(pdev));
+            if ( ret )
+                goto out;
+        }
     }
 
     write_lock(&d->pci_lock);
     vpci_deassign_device(pdev);
     write_unlock(&d->pci_lock);
 
-    devfn = pdev->devfn;
-    ret = mgmt_iommu_call(hd->platform_ops, reassign_device, d, target, devfn,
-                          pci_to_dev(pdev));
-    if ( ret )
-        goto out;
+    if ( is_iommu_enabled(d) )
+    {
+        devfn = pdev->devfn;
+        ret = mgmt_iommu_call(hd->platform_ops, reassign_device, d, target,
+                              devfn, pci_to_dev(pdev));
+        if ( ret )
+            goto out;
+    }
+    else
+    {
+        write_lock(&d->pci_lock);
+        list_del(&pdev->domain_list);
+        write_unlock(&d->pci_lock);
+
+        pdev->domain = target;
+
+        write_lock(&target->pci_lock);
+        list_add(&pdev->domain_list, &target->pdev_list);
+        write_unlock(&target->pci_lock);
+    }
 
     if ( pdev->domain == hardware_domain  )
         pdev->quarantine = false;
@@ -1676,7 +1695,7 @@ static int assign_device(struct domain *d, u16 seg, u8 bus, u8 devfn, u32 flag)
     struct pci_dev *pdev;
     int rc = 0;
 
-    if ( !is_iommu_enabled(d) )
+    if ( !is_iommu_enabled(d) && !has_vpci_bridge(d) )
         return 0;
 
     if ( !arch_iommu_use_permitted(d) )
@@ -1701,7 +1720,7 @@ static int assign_device(struct domain *d, u16 seg, u8 bus, u8 devfn, u32 flag)
     if ( rc )
         goto done;
 
-    if ( pdev->domain != dom_io )
+    if ( pdev->domain != dom_io && is_iommu_enabled(d) )
     {
         rc = iommu_quarantine_dev_init(pci_to_dev(pdev));
         if ( rc )
@@ -1710,20 +1729,35 @@ static int assign_device(struct domain *d, u16 seg, u8 bus, u8 devfn, u32 flag)
 
     pdev->fault.count = 0;
 
-    rc = mgmt_iommu_call(hd->platform_ops, assign_device, d, devfn, pci_to_dev(pdev),
-                         flag);
-
-    while ( pdev->phantom_stride && !rc )
+    if ( is_iommu_enabled(d) )
     {
-        devfn += pdev->phantom_stride;
-        if ( PCI_SLOT(devfn) != PCI_SLOT(pdev->devfn) )
-            break;
         rc = mgmt_iommu_call(hd->platform_ops, assign_device, d, devfn,
                              pci_to_dev(pdev), flag);
-    }
 
-    if ( rc )
-        goto done;
+        while ( pdev->phantom_stride && !rc )
+        {
+            devfn += pdev->phantom_stride;
+            if ( PCI_SLOT(devfn) != PCI_SLOT(pdev->devfn) )
+                break;
+            rc = mgmt_iommu_call(hd->platform_ops, assign_device, d, devfn,
+                                 pci_to_dev(pdev), flag);
+        }
+
+        if ( rc )
+            goto done;
+    }
+    else
+    {
+        write_lock(&pdev->domain->pci_lock);
+        list_del(&pdev->domain_list);
+        write_unlock(&pdev->domain->pci_lock);
+
+        pdev->domain = d;
+
+        write_lock(&d->pci_lock);
+        list_add(&pdev->domain_list, &d->pdev_list);
+        write_unlock(&d->pci_lock);
+    }
 
     write_lock(&d->pci_lock);
     rc = vpci_assign_device(pdev);
