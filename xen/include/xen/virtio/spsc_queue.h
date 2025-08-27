@@ -81,6 +81,8 @@ static inline uint32_t spsc_atomic_load(spsc_queue *q, uint32_t *ptr)
 
 static inline void spsc_atomic_store(spsc_queue *q, uint32_t *ptr, uint32_t v)
 {
+    ASSERT(v < q->capacity);
+
     /* Make sure packet-data gets written before updating the index.  */
     smp_wmb();
     write_atomic(ptr, v);
@@ -185,9 +187,7 @@ static inline bool spsc_send(spsc_queue *q, void *buf, size_t size)
 
     memcpy(q->shm->packets[head], buf, size);
 
-    /* Make packet visible before head update. */
-    smp_wmb();
-    write_atomic(&q->shm->head, next_head);
+    spsc_atomic_store(q, &q->shm->head, next_head);
     return true;
 }
 
@@ -219,9 +219,7 @@ static inline bool spsc_recv(spsc_queue *q, void *buf, size_t size)
         tail = 0;
     }
 
-    /* Copy all of the packet before tail update. */
-    smp_wmb();
-    write_atomic(&q->shm->tail, tail);
+    spsc_atomic_store(q, &q->shm->tail, tail);
     return true;
 }
 #endif /* SPSC_QUEUE_H__ */
