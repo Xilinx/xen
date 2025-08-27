@@ -8,6 +8,7 @@
 #include <xen/ioreq.h>
 #include <xen/lib.h>
 #include <xen/livepatch.h>
+#include <xen/param.h>
 #include <xen/sched.h>
 #include <xen/softirq.h>
 #include <xen/wait.h>
@@ -35,6 +36,9 @@
 #include "vuart.h"
 
 DEFINE_PER_CPU(struct vcpu *, curr_vcpu);
+
+static bool __ro_after_init opt_no_debug_regs_trap;
+boolean_param("no-debug-regs-trap", opt_no_debug_regs_trap);
 
 static void do_idle(void)
 {
@@ -567,9 +571,11 @@ int arch_vcpu_create(struct vcpu *v)
 
     v->arch.hcr_el2 = get_default_hcr_flags();
 
-    v->arch.mdcr_el2 = HDCR_TDRA | HDCR_TDOSA | HDCR_TDA;
+    v->arch.mdcr_el2 = 0;
     if ( !(v->domain->options & XEN_DOMCTL_CDF_vpmu) )
         v->arch.mdcr_el2 |= HDCR_TPM | HDCR_TPMCR;
+    if ( !opt_no_debug_regs_trap )
+        v->arch.mdcr_el2 |= HDCR_TDRA | HDCR_TDOSA | HDCR_TDA;
 
     if ( (rc = vcpu_vgic_init(v)) != 0 )
         goto fail;
@@ -894,6 +900,9 @@ void arch_domain_creation_finished(struct domain *d)
     }
 
     p2m_domain_creation_finished(d);
+
+    if ( opt_no_debug_regs_trap )
+        printk(XENLOG_WARNING "Direct access to debug registers enabled. Use with extreme care.\n");
 }
 
 static int is_guest_pv32_psr(uint32_t psr)

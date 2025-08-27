@@ -2903,6 +2903,18 @@ vwfi to `native` reduces irq latency significantly. It can also lead to
 suboptimal scheduling decisions, but only when the system is
 oversubscribed (i.e., in total there are more vCPUs than pCPUs).
 
+### no-debug-regs-trap (arm) 
+> `= <boolean>`
+
+> Default: `false`
+
+Do not trap ARM Debug registers (HDCR_TDRA, HDCR_TDOSA, HDCR_TDA).
+Enable this option to run debuggers inside Xen guests. This is not safe
+for production use. Make sure to have sched=null in your Xen command
+line because the debug registers are not context switched: running
+multiple vCPUs on the same pCPU is not supported with
+no-debug-regs-trap.
+
 ### wallclock (x86)
 > `= auto | xen | cmos | efi`
 
