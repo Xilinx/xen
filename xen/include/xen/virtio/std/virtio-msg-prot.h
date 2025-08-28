@@ -203,7 +203,7 @@ static inline void virtio_msg_pack_set_features(VirtIOMSG *msg,
     BUG_ON(num > VIRTIO_MSG_MAX_FEATURE_NUM);
 
     virtio_msg_pack_header(msg, VIRTIO_MSG_SET_FEATURES, 0, 0,
-                           sizeof msg->set_features);
+                           sizeof msg->set_features + num * sizeof(f[0]));
 
     msg->set_features.index = index;
     msg->set_features.num = num;
@@ -246,7 +246,7 @@ static inline void virtio_msg_pack_set_config(VirtIOMSG *msg,
     BUG_ON(size > VIRTIO_MSG_MAX_CONFIG_BYTES);
 
     virtio_msg_pack_header(msg, VIRTIO_MSG_SET_CONFIG, 0, 0,
-                           sizeof msg->set_config);
+                           sizeof msg->set_config + size);
 
     msg->set_config.offset = offset;
     msg->set_config.size = size;
