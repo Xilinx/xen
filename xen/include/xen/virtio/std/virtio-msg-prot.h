@@ -338,22 +338,22 @@ static inline const char *virtio_msg_id_to_str(unsigned int type)
 
 static inline void virtio_msg_print_status(uint32_t status)
 {
-    gdprintk(XENLOG_DEBUG, "status %x", status);
+    printk("status %x", status);
 
     if ( status & VIRTIO_CONFIG_S_ACKNOWLEDGE )
-        gdprintk(XENLOG_DEBUG, " ACKNOWLEDGE");
+        printk(" ACKNOWLEDGE");
     if ( status & VIRTIO_CONFIG_S_DRIVER )
-        gdprintk(XENLOG_DEBUG, " DRIVER");
+        printk(" DRIVER");
     if ( status & VIRTIO_CONFIG_S_DRIVER_OK )
-        gdprintk(XENLOG_DEBUG, " DRIVER_OK");
+        printk(" DRIVER_OK");
     if ( status & VIRTIO_CONFIG_S_FEATURES_OK )
-        gdprintk(XENLOG_DEBUG, " FEATURES_OK");
+        printk(" FEATURES_OK");
     if ( status & VIRTIO_CONFIG_S_NEEDS_RESET )
-        gdprintk(XENLOG_DEBUG, " NEEDS_RESET");
+        printk(" NEEDS_RESET");
     if ( status & VIRTIO_CONFIG_S_FAILED )
-        gdprintk(XENLOG_DEBUG, " FAILED");
+        printk(" FAILED");
 
-    gdprintk(XENLOG_DEBUG, "\n");
+    printk("\n");
 }
 
 static inline void virtio_msg_print(VirtIOMSG *msg)
@@ -363,24 +363,23 @@ static inline void virtio_msg_print(VirtIOMSG *msg)
     unsigned int i;
 
     BUG_ON(!msg);
-    gdprintk(XENLOG_DEBUG,
-             "virtio-msg: id %s 0x%x type 0x%x dev_num 0x%x msg_size 0x%x\n",
-             virtio_msg_id_to_str(msg->msg_id), msg->msg_id, msg->type,
-             msg->dev_num, msg->msg_size);
+    printk("virtio-msg: id %s 0x%x type 0x%x dev_num 0x%x msg_size 0x%x\n",
+           virtio_msg_id_to_str(msg->msg_id), msg->msg_id, msg->type,
+           msg->dev_num, msg->msg_size);
 
     payload_size = msg->msg_size - offsetof(VirtIOMSG, payload_u8);
     if ( payload_size > ARRAY_SIZE(msg->payload_u8) )
     {
-        gdprintk(XENLOG_DEBUG, "Size overflow! %zu > %zu\n", payload_size,
+        printk("Size overflow! %zu > %zu\n", payload_size,
                ARRAY_SIZE(msg->payload_u8));
         payload_size = ARRAY_SIZE(msg->payload_u8);
     }
 
     for ( i = 0; i < payload_size; i++ )
     {
-        gdprintk(XENLOG_DEBUG, "%2.2x ", msg->payload_u8[i]);
+        printk("%2.2x ", msg->payload_u8[i]);
         if ( ((i + 1) % 16) == 0 )
-            gdprintk(XENLOG_DEBUG, "\n");
+            printk("\n");
     }
 
     switch ( msg->msg_id )
@@ -393,14 +392,13 @@ static inline void virtio_msg_print(VirtIOMSG *msg)
         virtio_msg_print_status(msg->set_device_status.status);
         break;
     case VIRTIO_MSG_SET_VQUEUE:
-        gdprintk(XENLOG_DEBUG,
-                 "set-vqueue: index=%d size=%d desc-addr=%lx driver-addr=%lx "
-                 "device-addr=%lx\n",
-                 msg->set_vqueue.index, msg->set_vqueue.size,
-                 msg->set_vqueue.descriptor_addr, msg->set_vqueue.driver_addr,
-                 msg->set_vqueue.device_addr);
+        printk("set-vqueue: index=%d size=%d desc-addr=%lx driver-addr=%lx "
+               "device-addr=%lx\n",
+               msg->set_vqueue.index, msg->set_vqueue.size,
+               msg->set_vqueue.descriptor_addr, msg->set_vqueue.driver_addr,
+               msg->set_vqueue.device_addr);
         break;
     }
-    gdprintk(XENLOG_DEBUG, "\n");
+    printk("\n");
 }
 #endif /* VIRTIO_MSG_H */
