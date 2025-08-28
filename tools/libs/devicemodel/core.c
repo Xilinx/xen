@@ -650,6 +650,27 @@ int xendevicemodel_restrict(xendevicemodel_handle *dmod, domid_t domid)
     return osdep_xendevicemodel_restrict(dmod, domid);
 }
 
+int xendevicemodel_virtio_msg_bus_xen_connect(
+    xendevicemodel_handle *dmod, domid_t domid,
+    uint32_t bus_id, uint16_t dev_num, uint64_t shm_fifo_gfn,
+    uint32_t *port)
+{
+    struct xen_dm_op op = {
+        .op = XEN_DMOP_virtio_msg_bus,
+        .u.virtio_msg_bus.op = XEN_DMOP_VIRTIO_MSG_BUS_XEN_CONNECT,
+        .u.virtio_msg_bus.bus_id = bus_id,
+        .u.virtio_msg_bus.dev_num = dev_num,
+        .u.virtio_msg_bus.u.xen.shm_fifo_gfn = shm_fifo_gfn,
+    };
+
+    int rc = xendevicemodel_op(dmod, domid, 1, &op, sizeof(op));
+    if ( rc )
+        return rc;
+
+    *port = op.u.virtio_msg_bus.u.xen.port;
+    return 0;
+}
+
 /*
  * Local variables:
  * mode: C

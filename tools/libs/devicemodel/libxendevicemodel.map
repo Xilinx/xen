@@ -43,4 +43,5 @@ VERS_1.4 {
 	global:
 		xendevicemodel_set_irq_level;
 		xendevicemodel_nr_vcpus;
+		xendevicemodel_virtio_msg_bus_xen_connect;
 } VERS_1.3;
