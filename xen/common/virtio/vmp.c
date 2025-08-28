@@ -133,6 +133,110 @@ static void vmp_set_state(struct vmp *s, int new_state)
 #endif
 }
 
+/* Returns true if the message is bad and should be dropped. */
+static bool vmp_msg_bad(struct vmp *s, VirtIOMSG *msg)
+{
+    bool is_response = msg->type & VIRTIO_MSG_TYPE_RESPONSE;
+    unsigned int min_size;
+    bool drop = false;
+
+    /*
+     * We only size check requests and responses we expect to receive.
+     * Unexpected message IDs are dropped.
+     */
+    min_size = virtio_msg_header_size();
+    if ( is_response )
+    {
+        switch ( msg->msg_id )
+        {
+        case VIRTIO_MSG_SET_VQUEUE:
+        case VIRTIO_MSG_SET_FEATURES:
+        case VIRTIO_MSG_RESET_VQUEUE:
+            /* No extra data.  */
+            break;
+        case VIRTIO_MSG_DEVICE_INFO:
+            min_size += sizeof msg->get_device_info_resp;
+            break;
+        case VIRTIO_MSG_GET_FEATURES:
+            /* We expect at least one feature block.  */
+            if ( msg->get_features_resp.num == 0 ||
+                 msg->get_features_resp.num > VIRTIO_MSG_MAX_FEATURE_NUM )
+            {
+                drop = true;
+                break;
+            }
+
+            min_size += sizeof msg->get_features_resp +
+                               msg->get_features_resp.num * 4;
+            break;
+        case VIRTIO_MSG_GET_CONFIG:
+            /* GET_CONFIG of zero bytes is OK.  */
+            if ( msg->get_config_resp.size > VIRTIO_MSG_MAX_CONFIG_BYTES )
+            {
+                drop = true;
+                break;
+            }
+
+            min_size += sizeof msg->get_config_resp + msg->get_config_resp.size;
+            break;
+        case VIRTIO_MSG_SET_CONFIG:
+            if ( msg->set_config_resp.size == 0 ||
+                 msg->set_config_resp.size > VIRTIO_MSG_MAX_CONFIG_BYTES )
+            {
+                drop = true;
+                break;
+            }
+
+            min_size += sizeof msg->set_config_resp + msg->set_config_resp.size;
+            break;
+        case VIRTIO_MSG_GET_DEVICE_STATUS:
+            min_size += sizeof msg->get_device_status_resp;
+            break;
+        case VIRTIO_MSG_SET_DEVICE_STATUS:
+            min_size += sizeof msg->set_device_status_resp;
+            break;
+        case VIRTIO_MSG_GET_VQUEUE:
+            min_size += sizeof msg->get_vqueue_resp;
+            break;
+        default:
+            drop = true;
+            break;
+        }
+    }
+    else
+    {
+        switch ( msg->msg_id )
+        {
+        case VIRTIO_MSG_EVENT_USED:
+            min_size += sizeof msg->event_used;
+            break;
+        case VIRTIO_MSG_EVENT_CONFIG:
+            min_size += sizeof msg->event_config;
+
+            if ( msg->event_config.size > (VIRTIO_MSG_MAX_SIZE - min_size) )
+            {
+                drop = true;
+                break;
+            }
+            min_size += msg->event_config.size;
+            break;
+        default:
+            drop = true;
+            break;
+        }
+    }
+
+    /* Accept large messages allowing future backward-compatible extensions. */
+    if ( drop ||
+         msg->msg_size < min_size || msg->msg_size > VIRTIO_MSG_MAX_SIZE )
+    {
+        gdprintk(XENLOG_DEBUG, "Drop msg %u! msg_size=%u expected=%u\n",
+                 msg->msg_id, msg->msg_size, min_size);
+        return true;
+    }
+    return false;
+}
+
 static void vmp_receive_req(struct vmp *s, VirtIOMSG *msg)
 {
     switch ( msg->msg_id )
@@ -181,6 +285,9 @@ static void vmp_receive_msg(void *opaque, VirtIOMSG *msg)
 {
     struct vmp *s = opaque;
 
+    if ( vmp_msg_bad(s, msg) )
+        return;
+
     if ( VMP_DEBUG )
         virtio_msg_print(msg);
 
@@ -210,6 +317,7 @@ static void vmp_receive_msg(void *opaque, VirtIOMSG *msg)
         s->regs.access_data = msg->get_device_info_resp.device_id;
         break;
     case VIRTIO_MSG_GET_FEATURES:
+        /* vmp_msg_bad() already checks that we have at least one entry.  */
         s->regs.access_data = msg->get_features_resp.b32[0];
         break;
     case VIRTIO_MSG_SET_FEATURES:
