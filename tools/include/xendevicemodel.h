@@ -375,6 +375,23 @@ int xendevicemodel_nr_vcpus(
  */
 int xendevicemodel_restrict(xendevicemodel_handle *dmod, domid_t domid);
 
+/**
+ * This function connects a device-model to a virtio-msg-bus-xen bus.
+ * The caller provides bus_id, dev_num and a mapped gfn for a single page
+ * used for communication between the device-model and Xen.
+ *
+ * @parm dmod handle to the open devicemodel interface
+ * @parm domid the domain id
+ * @parm bus_id the virtio-msg-bus bus-id
+ * @parm dev_num the virtio-msg-bus dev_num
+ * @parm shm_fifo_gfn gfn of shm FIFOs in the domain where the device-model runs
+ * @parm port Event channel port
+ * @return 0 on success and fills @p port, or -1 on failure.
+ */
+int xendevicemodel_virtio_msg_bus_xen_connect(
+    xendevicemodel_handle *dmod, domid_t domid,
+    uint32_t bus_id, uint16_t dev_num, uint64_t shm_fifo_gfn,
+    uint32_t *port);
 #endif /* XENDEVICEMODEL_H */
 
 /*
