@@ -124,14 +124,6 @@ typedef struct VirtIOMSG {
         } __packed set_vqueue;
         struct {
             uint32_t index;
-            uint32_t unused;
-            uint32_t size;
-            uint64_t descriptor_addr;
-            uint64_t driver_addr;
-            uint64_t device_addr;
-        } __packed set_vqueue_resp;
-        struct {
-            uint32_t index;
         } __packed reset_vqueue;
         struct {
             uint32_t status;
