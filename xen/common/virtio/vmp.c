@@ -230,7 +230,7 @@ static void vmp_receive_msg(void *opaque, VirtIOMSG *msg)
         else
         {
             unsigned int size = msg->get_config_resp.size;
-            if ( size < sizeof(s->regs.access_data) )
+            if ( size <= sizeof(s->regs.access_data) )
                 memcpy(&s->regs.access_data, msg->get_config_resp.data, size);
         }
         break;
