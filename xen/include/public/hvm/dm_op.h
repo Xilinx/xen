@@ -451,12 +451,13 @@ struct xen_dm_op_virtio_msg_bus {
     uint32_t op;                   /* IN: Operation */
     uint32_t bus_id;               /* IN: virtio-msg bus id */
     uint16_t dev_num;              /* IN: virtio-msg device number */
-    uint16_t pad;
+    uint16_t pad[3];
     union {
         /* Virtio-msg-xen bus */
         struct {
             uint64_aligned_t shm_fifo_gfn; /* IN: shm page for shm fifo */
             uint32_t port;                 /* OUT: Event channel port  */
+            uint32_t pad;
         } xen;
     } u;
 };
