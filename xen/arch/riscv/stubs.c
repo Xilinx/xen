@@ -307,6 +307,11 @@ int __init parse_arch_dom0_param(const char *s, const char *e)
     BUG_ON("unimplemented");
 }
 
+long arch_domain_reset(struct domain *d)
+{
+    BUG_ON("unimplemented");
+}
+
 /* guestcopy.c */
 
 unsigned long raw_copy_to_guest(void *to, const void *from, unsigned int len)

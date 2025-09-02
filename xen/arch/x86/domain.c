@@ -2608,6 +2608,11 @@ unsigned int domain_max_paddr_bits(const struct domain *d)
     return bits;
 }
 
+long arch_domain_reset(struct domain *d)
+{
+    BUG_ON("unimplemented");
+}
+
 /*
  * Local variables:
  * mode: C

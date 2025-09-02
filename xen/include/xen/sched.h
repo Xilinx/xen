@@ -657,6 +657,8 @@ struct domain
         unsigned short num_resets;
         bool is_resettable;
         bool is_resetting;
+        /* Continuation information for do_reset_domain() */
+        unsigned int val;
     } reset_info;
 };
 

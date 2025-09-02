@@ -35,6 +35,7 @@
 #include <xen/irq.h>
 #include <xen/argo.h>
 #include <xen/llc-coloring.h>
+#include <xen/iommu.h>
 #include <asm/p2m.h>
 #include <asm/processor.h>
 #include <public/sched.h>
@@ -2285,7 +2286,127 @@ int continue_hypercall_on_cpu(
     return 0;
 }
 
-long do_reset_domain(domid_t domid) { return -EOPNOTSUPP; }
+long do_reset_domain(domid_t domid)
+{
+    struct domain *d;
+    struct vcpu *v;
+    int ret = 0;
+    unsigned short num_resets;
+
+    d = domid_to_domain(domid);
+    if ( !d )
+        return -ESRCH;
+    
+    domain_lock(d);
+
+    /* Self reset from a secondary cpu is not supported as for now */
+    if ( d == current->domain && current != d->vcpu[0] )
+    {
+        gprintk(XENLOG_ERR,
+            "self reset from secondary vCPU not supported\n");
+        ret = -EOPNOTSUPP;
+        goto out;
+    }
+
+    if ( !d->reset_info.is_resettable )
+    {
+        gprintk(XENLOG_ERR, "reset: domain %pd not resettable\n", d);
+        ret = -EINVAL;
+        goto out;
+    }
+
+    /* No previous reset operation in progress */
+    if ( !ACCESS_ONCE(d->reset_info.is_resetting) )
+    {
+        ACCESS_ONCE(d->reset_info.is_resetting) = true;
+        /*
+         * Domain is paused only on first call of this hypercall. 
+         * Avoid multiple pause requests.
+         */
+        domain_pause_nosync(d);
+    }
+
+    /* Clean watchdogs. */
+    watchdog_domain_destroy(d);
+
+    argo_soft_reset(d);
+
+    for_each_vcpu ( d, v )
+    {
+        if ( v != d->vcpu[0] )
+            set_bit(_VPF_down, &v->pause_flags);
+
+        unmap_guest_area(v, &v->vcpu_info_area);
+        unmap_guest_area(v, &v->runstate_guest_area);
+    }
+
+    ret = iommu_iotlb_flush_all(d, IOMMU_FLUSHF_all);
+    if ( ret )
+        goto out;
+
+    switch ( d->reset_info.val )
+    {
+#define PROGRESS(x)                             \
+        d->reset_info.val = PROG_ ## x;       \
+        fallthrough;                            \
+    case PROG_ ## x
+
+    enum {
+            PROG_none,
+            PROG_evtchn_reset,
+            PROG_grant_reset,
+            PROG_arch_reset,
+            PROG_done,
+        };
+
+    case PROG_none:
+        BUILD_BUG_ON(PROG_none != 0);
+    
+    PROGRESS(evtchn_reset):
+        ret = evtchn_reset(d, false);
+        if ( ret )
+            goto out;
+
+    PROGRESS(grant_reset):
+        ret = grant_table_reset(d);
+        if ( ret )
+            goto out;
+
+    PROGRESS(arch_reset):
+        ret = arch_domain_reset(d);
+        if ( ret < 0 )
+        {
+            if ( ret != -ERESTART )
+                gprintk(XENLOG_ERR, "reset: Failed to arch reset domain %i\n", domid);
+            goto out;
+        }
+
+    PROGRESS(done):
+        break;
+
+#undef PROGRESS
+
+    default:
+        BUG();
+    }
+
+    num_resets = ACCESS_ONCE(d->reset_info.num_resets);
+    if ( num_resets != UINT16_MAX )
+        ACCESS_ONCE(d->reset_info.num_resets) = num_resets + 1;
+
+    watchdog_domain_init(d);
+    domain_unpause(d);
+    ACCESS_ONCE(d->reset_info.is_resetting) = false;
+    /* Clean up continuations progressa value for next reset requests */
+    d->reset_info.val = 0;
+out:
+    domain_unlock(d);
+    if ( ret == -ERESTART )
+        return hypercall_create_continuation(__HYPERVISOR_reset_domain, "i",
+                                           domid);
+
+    return ret;
+}
 
 /*
  * Local variables:

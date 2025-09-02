@@ -891,6 +891,11 @@ int arch_domain_soft_reset(struct domain *d)
     return -ENOSYS;
 }
 
+long arch_domain_reset(struct domain *d)
+{
+    return -EOPNOTSUPP;
+}
+
 void arch_domain_creation_finished(struct domain *d)
 {
     if ( domain_vgic_late_init(d) )
