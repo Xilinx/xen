@@ -1579,6 +1579,9 @@ static int __init construct_domU(struct domain *d,
 
     kinfo.d = d;
 
+    /* Allow reset feature only to dom0less domains */
+    kinfo.d->reset_info.is_resettable = true;
+
     rc = kernel_probe(&kinfo, node);
     if ( rc < 0 )
         return rc;

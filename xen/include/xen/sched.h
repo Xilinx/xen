@@ -652,6 +652,12 @@ struct domain
 #ifdef CONFIG_VIRTIO_MSG_BUS_CORE
     struct virtio_msg_bus *virtio_msg_bus[CONFIG_NR_VIRTIO_MSG_BUSES];
 #endif
+
+    struct {
+        unsigned short num_resets;
+        bool is_resettable;
+        bool is_resetting;
+    } reset_info;
 };
 
 static inline struct page_list_head *page_to_list(
