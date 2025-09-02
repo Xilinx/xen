@@ -2285,6 +2285,8 @@ int continue_hypercall_on_cpu(
     return 0;
 }
 
+long do_reset_domain(domid_t domid) { return -EOPNOTSUPP; }
+
 /*
  * Local variables:
  * mode: C

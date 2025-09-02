@@ -141,6 +141,9 @@
  *  HYPERVISOR_xsm_op
  *   All generic sub-operations
  *
+ *  HYPERVISOR_reset_domain
+ *   All generic sub-operations
+ *
  *  HYPERVISOR_multicall
  *
  * Other notes on the ARM ABI:
