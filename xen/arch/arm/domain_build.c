@@ -2512,6 +2512,8 @@ int __init construct_domain(struct domain *d, struct kernel_info *kinfo)
     kernel_load(kinfo);
     /* initrd_load will fix up the fdt, so call it before dtb_load */
     initrd_load(kinfo);
+    /* Save boot modules data before freeing the fdt */
+    domain_reset_add_data(kinfo);
     dtb_load(kinfo);
 
     memset(regs, 0, sizeof(*regs));

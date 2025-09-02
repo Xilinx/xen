@@ -72,6 +72,7 @@ obj-y += vsmc.o
 obj-y += vpsci.o
 obj-$(CONFIG_HWDOM_VUART) += vuart.o
 obj-$(CONFIG_VIRTIO_MMIO_NON_BLOCKING) += vmp.o
+obj-$(CONFIG_DOM0LESS_BOOT) += domain-reset.o
 
 extra-y += xen.lds
 

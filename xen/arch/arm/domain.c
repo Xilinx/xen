@@ -858,6 +858,12 @@ int arch_domain_teardown(struct domain *d)
 
 void arch_domain_destroy(struct domain *d)
 {
+    /*
+     * Domain reset is enabled only for dom0less domains, which cannot
+     * be destroyed. The user should be warned when trying to destroy
+     * such a domain.
+     */
+    WARN_ON(d->reset_info.is_resettable);
     tee_free_domain_ctx(d);
     /* IOMMU page table is shared with P2M, always call
      * iommu_domain_destroy() before p2m_final_teardown().
@@ -891,6 +897,7 @@ int arch_domain_soft_reset(struct domain *d)
     return -ENOSYS;
 }
 
+#ifndef CONFIG_DOM0LESS_BOOT
 long arch_domain_reset(struct domain *d)
 {
     return -EOPNOTSUPP;
@@ -899,6 +906,7 @@ long arch_domain_reset(struct domain *d)
 void arch_domain_reset_info(const struct domain *d)
 {
 }
+#endif
 
 void arch_domain_creation_finished(struct domain *d)
 {

@@ -131,6 +131,12 @@ struct arch_domain
      * For now, this variable represents single SGI registration.
      */
     uint8_t firmware_sgi;
+
+    /* Continuable arch_domain_reset() */
+    struct {
+        unsigned int stage;
+        unsigned int size;
+    } reset;
 }  __cacheline_aligned;
 
 struct arch_vcpu
