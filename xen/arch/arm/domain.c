@@ -859,6 +859,12 @@ int arch_domain_teardown(struct domain *d)
 
 void arch_domain_destroy(struct domain *d)
 {
+    /*
+     * Domain reset is enabled only for dom0less domains, which cannot
+     * be destroyed. The user should be warned when trying to destroy
+     * such a domain.
+     */
+    WARN_ON(is_domain_resettable(d));
     tee_free_domain_ctx(d);
     /* IOMMU page table is shared with P2M, always call
      * iommu_domain_destroy() before p2m_final_teardown().
@@ -886,11 +892,6 @@ void arch_domain_pause(struct domain *d)
 
 void arch_domain_unpause(struct domain *d)
 {
-}
-
-long arch_domain_full_reset(struct domain *d)
-{
-    return -EOPNOTSUPP;
 }
 
 void arch_domain_creation_finished(struct domain *d)
@@ -1014,6 +1015,29 @@ int arch_vcpu_reset(struct vcpu *v)
 
 void arch_vcpu_state_reset(struct vcpu *v)
 {
+    struct cpu_user_regs *regs;
+
+    regs = &v->arch.cpu_info->guest_cpu_user_regs;
+    memset(regs, 0, sizeof(*regs));
+
+    v->arch.sctlr = SCTLR_GUEST_INIT;
+    /*  Reset MMU registers */
+    v->arch.ttbr0 = 0x0;
+    v->arch.ttbr1 = 0x0;
+    v->arch.ttbcr = 0x0;
+
+    vcpu_timer_destroy(v);
+    vgic_clear_pending_irqs(v);
+
+    if ( is_32bit_domain(v->domain) )
+        regs->cpsr = PSR_GUEST32_INIT;
+#ifdef CONFIG_ARM_64
+    else
+        regs->cpsr = PSR_GUEST64_INIT;
+#endif
+    vcpu_vtimer_init(v);
+
+    sync_vcpu_execstate(v);
 }
 
 static int relinquish_memory(struct domain *d, struct page_list_head *list)

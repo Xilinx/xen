@@ -29,6 +29,15 @@ int prepare_acpi(struct domain *d, struct kernel_info *kinfo);
 
 int add_ext_regions(unsigned long s_gfn, unsigned long e_gfn, void *data);
 
+#ifdef CONFIG_DOMAIN_FULL_RESET
+/* Save boot modules data to be used later when resetting a domain */
+void domain_reset_add_data(struct kernel_info *kinfo);
+#else
+static inline void domain_reset_add_data(struct kernel_info *kinfo)
+{
+    return;
+}
+#endif /* CONFIG_DOMAIN_FULL_RESET */
 #endif
 
 /*
