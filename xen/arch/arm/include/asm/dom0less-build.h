@@ -10,7 +10,7 @@
 void create_domUs(void);
 bool is_dom0less_mode(void);
 void set_xs_domid(domid_t);
-
+void initialize_domU_xenstore(struct domain *d);
 #else /* !CONFIG_DOM0LESS_BOOT */
 
 static inline void create_domUs(void) {}

@@ -27,7 +27,7 @@
 #include <asm/platform.h>
 #include <asm/viommu.h>
 
-static domid_t __initdata xs_domid = DOMID_INVALID;
+static domid_t xs_domid = DOMID_INVALID;
 static bool __initdata need_xenstore;
 
 void __init set_xs_domid(domid_t domid)
@@ -1225,7 +1225,7 @@ static unsigned long __init domain_p2m_pages(unsigned long maxmem_kb,
     return DIV_ROUND_UP(memkb, 1024) << (20 - PAGE_SHIFT);
 }
 
-static int __init alloc_xenstore_evtchn(struct domain *d)
+static int alloc_xenstore_evtchn(struct domain *d)
 {
     evtchn_alloc_unbound_t alloc;
     int rc;
@@ -1322,7 +1322,29 @@ static int __init alloc_xenstore_params(struct kernel_info *kinfo)
     return rc;
 }
 
-static void __init initialize_domU_xenstore(void)
+void initialize_domU_xenstore(struct domain *d)
+{
+    unsigned long gfn = d->arch.hvm.params[HVM_PARAM_STORE_PFN];
+    int rc;
+
+    if ( gfn == 0 )
+        return;
+
+    if ( is_xenstore_domain(d) )
+        return;
+
+    rc = alloc_xenstore_evtchn(d);
+    if ( rc < 0 )
+        panic("%pd: Failed to allocate xenstore_evtchn\n", d);
+
+    if ( gfn != ~0ULL )
+        gnttab_seed_entry(d, GNTTAB_RESERVED_XENSTORE, xs_domid,
+                          gfn, GTF_permit_access);
+
+    return;
+}
+
+static void __init initialize_domUs_xenstore(void)
 {
     struct domain *d;
 
@@ -1330,24 +1352,9 @@ static void __init initialize_domU_xenstore(void)
         return;
 
     for_each_domain( d )
-    {
-        unsigned long gfn = d->arch.hvm.params[HVM_PARAM_STORE_PFN];
-        int rc;
-
-        if ( gfn == 0 )
-            continue;
-
-        if ( is_xenstore_domain(d) )
-            continue;
-
-        rc = alloc_xenstore_evtchn(d);
-        if ( rc < 0 )
-            panic("%pd: Failed to allocate xenstore_evtchn\n", d);
-
-        if ( gfn != ~0ULL )
-            gnttab_seed_entry(d, GNTTAB_RESERVED_XENSTORE, xs_domid,
-                              gfn, GTF_permit_access);
-    }
+        initialize_domU_xenstore(d);
+    
+    return;
 }
 
 static void __init domain_vcpu_affinity(struct domain *d,
@@ -1900,7 +1907,7 @@ void __init create_domUs(void)
     if ( need_xenstore && xs_domid == DOMID_INVALID )
         panic("xenstore requested, but xenstore domain not present\n");
 
-    initialize_domU_xenstore();
+    initialize_domUs_xenstore();
 }
 
 /*
