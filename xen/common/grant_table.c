@@ -1914,6 +1914,14 @@ gnttab_grow_table(struct domain *d, unsigned int req_nr_frames)
     for ( i = nr_active_grant_frames(gt);
           i < num_act_frames_from_sha_frames(req_nr_frames); i++ )
     {
+        /*
+         * When growing the table there's no need to allocate the page if
+         * the domain has been reset, as the active page is already allocated.
+         * The same applies for the shared page.
+         */
+        if ( ACCESS_ONCE(d->reset_info.num_resets) > 0 &&
+             gt->active[i] != NULL )
+            continue;
         if ( (gt->active[i] = alloc_xenheap_page()) == NULL )
             goto active_alloc_failed;
         clear_page(gt->active[i]);
@@ -1924,6 +1932,9 @@ gnttab_grow_table(struct domain *d, unsigned int req_nr_frames)
     /* Shared */
     for ( i = nr_grant_frames(gt); i < req_nr_frames; i++ )
     {
+        if ( ACCESS_ONCE(d->reset_info.num_resets) > 0 &&
+             gt->shared_raw[i] != NULL )
+            continue;
         if ( (gt->shared_raw[i] = alloc_xenheap_page()) == NULL )
             goto shared_alloc_failed;
         clear_page(gt->shared_raw[i]);
@@ -3826,7 +3837,7 @@ int gnttab_release_mappings(struct domain *d)
     uint16_t             *status;
     struct page_info     *pg;
 
-    BUG_ON(!d->is_dying);
+    BUG_ON(!d->is_dying && !ACCESS_ONCE(d->reset_info.is_resetting));
 
     if ( !gt || !gt->maptrack )
         return 0;
@@ -3949,9 +3960,12 @@ int gnttab_release_mappings(struct domain *d)
     }
 
     gt->maptrack_limit = 0;
-    FREE_XENHEAP_PAGE(gt->maptrack[0]);
 
-    radix_tree_destroy(&gt->maptrack_tree, NULL);
+    if ( !ACCESS_ONCE(d->reset_info.is_resetting) )
+    {
+        FREE_XENHEAP_PAGE(gt->maptrack[0]);
+        radix_tree_destroy(&gt->maptrack_tree, NULL);
+    }
 
     return 0;
 }
@@ -3999,6 +4013,52 @@ void grant_table_warn_active_grants(struct domain *d)
     grant_read_unlock(gt);
 
 #undef WARN_GRANT_MAX
+}
+
+int grant_table_reset(struct domain *d)
+{
+    struct grant_table *t = d->grant_table;
+    unsigned int i,j;
+    int rc;
+
+    BUG_ON(!ACCESS_ONCE(d->reset_info.is_resetting));
+
+    /* Status pages - version 2 */
+    if ( evaluate_nospec(t->gt_version > 1) )
+        return -EOPNOTSUPP;
+    if ( !paging_mode_translate(d) )
+        return -EOPNOTSUPP;
+
+    grant_write_lock(t);
+
+#ifndef CONFIG_X86_64
+    /*
+     * Reset shared grant frames GFN in xenheap to allow new init for grant tables
+     * without reallocating xen heap pages for shared tables
+     */
+    for ( i = 0; i != nr_grant_frames(t); i++ )
+        page_set_xenheap_gfn(gnttab_shared_page(t,i), INVALID_GFN);
+#endif
+
+    rc = gnttab_release_mappings(d);
+    if ( rc )
+        goto out;
+
+    for ( i = 0; i < nr_active_grant_frames(t); i++ )
+    {
+        clear_page(t->active[i]);
+        for ( j = 0; j < ACGNT_PER_PAGE; j++)
+            spin_lock_init(&t->active[i][j].lock);
+    }
+
+    for ( i = 0; i < nr_grant_frames(t); i++ )
+        clear_page(t->shared_raw[i]);
+
+    t->nr_grant_frames = 0;
+    gnttab_flush_tlb(d);
+out:
+    grant_write_unlock(t);
+    return rc;
 }
 
 void

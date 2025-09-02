@@ -33,6 +33,8 @@ static inline bool gnttab_host_mapping_get_page_type(bool ro,
 
 static inline bool gnttab_release_host_mappings(const struct domain *d)
 {
+    if ( ACCESS_ONCE(d->reset_info.is_resetting) )
+        return false;
     return true;
 }
 

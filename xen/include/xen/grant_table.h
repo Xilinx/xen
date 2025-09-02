@@ -44,6 +44,11 @@ int grant_table_init(struct domain *d, int max_grant_frames,
 void grant_table_destroy(
     struct domain *d);
 void grant_table_init_vcpu(struct vcpu *v);
+/*
+ * Reset grant tables to a partial-initial state
+ * Version 2 and !paging_mode_translate(d) are not supported.
+ */
+int grant_table_reset(struct domain *d);
 
 /* Seed a gnttab entry for Hyperlaunch/dom0less. */
 void gnttab_seed_entry(struct domain *d, int idx, domid_t be_domid,
@@ -94,6 +99,8 @@ static inline void gnttab_seed_entry(struct domain *d, int idx,
                                      unsigned int flags) {}
 
 static inline void grant_table_warn_active_grants(struct domain *d) {}
+
+static inline int grant_table_reset(struct domain *d) { return 0; }
 
 static inline int gnttab_release_mappings(struct domain *d) { return 0; }
 
