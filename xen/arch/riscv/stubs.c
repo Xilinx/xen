@@ -312,6 +312,11 @@ long arch_domain_reset(struct domain *d)
     BUG_ON("unimplemented");
 }
 
+void arch_domain_reset_info(const struct domain *d)
+{
+    BUG_ON("unimplemented");
+}
+
 /* guestcopy.c */
 
 unsigned long raw_copy_to_guest(void *to, const void *from, unsigned int len)

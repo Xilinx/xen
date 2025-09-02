@@ -305,6 +305,12 @@ static void cf_check dump_domains(unsigned char key)
 
         arch_dump_domain_info(d);
 
+        if ( d->reset_info.is_resettable )
+        {
+            printk("N. of resets: %d\n", d->reset_info.num_resets);
+            arch_domain_reset_info(d);
+        }
+
         domain_dump_llc_colors(d);
 
         rangeset_domain_printk(d);

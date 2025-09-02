@@ -114,6 +114,7 @@ int arch_domain_soft_reset(struct domain *d);
  * and a continuation will be needed.
  */
 long arch_domain_reset(struct domain *d);
+void arch_domain_reset_info(const struct domain *d);
 
 void arch_domain_creation_finished(struct domain *d);
 

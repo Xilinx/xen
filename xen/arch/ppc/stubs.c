@@ -320,6 +320,11 @@ long arch_domain_reset(struct domain *d)
     BUG_ON("unimplemented");
 }
 
+void arch_domain_reset_info(const struct domain *d)
+{
+    BUG_ON("unimplemented");
+}
+
 /* delay.c */
 
 void udelay(unsigned long usecs)

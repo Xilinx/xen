@@ -2613,6 +2613,10 @@ long arch_domain_reset(struct domain *d)
     BUG_ON("unimplemented");
 }
 
+void arch_domain_reset_info(const struct domain *d)
+{
+    BUG_ON("unimplemented");
+}
 /*
  * Local variables:
  * mode: C
