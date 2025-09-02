@@ -316,6 +316,52 @@ static bool domain_exists(struct xs_handle *xsh, int domid)
     return xs_is_domain_introduced(xsh, domid);
 }
 
+static bool remove_domain(struct xs_handle *xsh, int domid, libxl_uuid uuid)
+{
+    xs_transaction_t t;
+    int rc;
+    char path[STR_MAX_LENGTH];
+
+    printf("Forcing release of domain %u\n", domid);
+    rc = xs_release_domain(xsh, domid);
+    if (rc < 0) {
+        fprintf(stderr, "xs_release_domain failed.\n");
+        return false;
+    }
+    printf("Domain %u released\n", domid);
+retry_transaction:
+    t = xs_transaction_start(xsh);
+    if (t == XBT_NULL)
+        return false;
+
+    rc = snprintf(path, STR_MAX_LENGTH,"/local/domain/%u", domid);
+    if (rc < 0 || rc >= STR_MAX_LENGTH) goto err;
+    if (!xs_rm(xsh, t, path)) goto err;
+
+    rc = snprintf(path, STR_MAX_LENGTH, "/vm/" LIBXL_UUID_FMT,
+                  LIBXL_UUID_BYTES(uuid));
+    if (rc < 0 || rc >= STR_MAX_LENGTH) goto err;
+    if (!xs_rm(xsh, t, path)) goto err;
+
+    rc = snprintf(path, STR_MAX_LENGTH,"/libxl/%u", domid);
+    if (rc < 0 || rc >= STR_MAX_LENGTH) goto err;
+    if (!xs_rm(xsh, t, path)) goto err;
+
+    if (!xs_transaction_end(xsh, t, false)) {
+        if (errno == EAGAIN)
+            goto retry_transaction;
+        else
+            return false;
+    }
+
+    return true;
+
+err:
+    printf("xenstore removal failed for path \"%s\"\n", path);
+    xs_transaction_end(xsh, t, true);
+    return false;
+}
+
 int main(int argc, char **argv)
 {
     libxl_dominfo *info = NULL;
@@ -324,6 +370,12 @@ int main(int argc, char **argv)
     struct xs_handle *xsh = NULL;
     struct xc_interface_core *xch = NULL;
     xenforeignmemory_handle *xfh = NULL;
+    bool force_all = false;
+    struct {
+        int domid;
+        bool forced;
+    } *force_domains = NULL;
+    int force_count = 0;
 
     /* TODO reuse libxl xsh connection */
     xsh = xs_open(0);
@@ -348,15 +400,61 @@ int main(int argc, char **argv)
         goto out;
     }
 
+    /* Allocate memory for force_domains based on the number of VMs */
+    force_domains = calloc(nb_vm, sizeof(*force_domains));
+    if (!force_domains) {
+        fprintf(stderr, "Memory allocation failed\n");
+        rc = -ENOMEM;
+        goto out;
+    }
+
+    if (argc > 1) {
+        if (strcmp(argv[1], "--force") == 0) {
+            if (argc > 2) {
+                char *token = strtok(argv[2], ",");
+                while (token != NULL) {
+                    if (force_count >= nb_vm) {
+                        fprintf(stderr, "Too many forced domains specified\n");
+                        rc = -EINVAL;
+                        goto out;
+                    }
+                    force_domains[force_count].domid = atoi(token);
+                    force_domains[force_count].forced = true;
+                    force_count++;
+                    token = strtok(NULL, ",");
+                }
+            } else {
+                force_all = true;
+            }
+        } else {
+            fprintf(stderr, "Usage: %s [--force [domid1,domid2,...]]\n", argv[0]);
+            rc = -EINVAL;
+            goto out;
+        }
+    }
+
     for (i = 0; i < nb_vm; i++) {
         domid_t domid = info[i].domid;
-
+        bool is_forced = force_all;
         /* Don't need to check for Dom0 */
         if (!domid)
             continue;
 
         printf("Checking domid: %u\n", domid);
-        if (!domain_exists(xsh, domid)) {
+
+        for (int j = 0; j < force_count; j++) {
+            if (force_domains[j].domid == domid) {
+                is_forced = true;
+                break;
+            }
+        }
+
+        if (!domain_exists(xsh, domid) || is_forced) {
+            if (is_forced && !remove_domain(xsh, domid, info[i].uuid)) {
+                fprintf(stderr, "Failed to forcefully remove domain %u\n", domid);
+                rc = errno;
+                goto out;
+            }
             rc = init_domain(xsh, xch, xfh, &info[i]);
             if (rc < 0) {
                 fprintf(stderr, "init_domain failed.\n");
@@ -367,6 +465,7 @@ int main(int argc, char **argv)
         }
     }
 out:
+    free(force_domains);
     libxl_dominfo_list_free(info, nb_vm);
     return rc;
 }
