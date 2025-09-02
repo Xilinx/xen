@@ -1208,7 +1208,8 @@ int evtchn_reset(struct domain *d, bool resuming)
     unsigned int i;
     int rc = 0;
 
-    if ( d != current->domain && !d->controller_pause_count )
+    if ( !ACCESS_ONCE(d->reset_info.is_resetting) &&
+         d != current->domain && !d->controller_pause_count )
         return -EINVAL;
 
     write_lock(&d->event_lock);
