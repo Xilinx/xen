@@ -34,6 +34,7 @@
 #include <xen/xenoprof.h>
 #include <xen/irq.h>
 #include <xen/argo.h>
+#include <xen/ioreq.h>
 #include <xen/llc-coloring.h>
 #include <xen/xvmalloc.h>
 #include <asm/p2m.h>
@@ -2657,7 +2658,8 @@ void getdomaininfo(struct domain *d, struct xen_domctl_getdomaininfo *info)
 }
 
 #ifdef CONFIG_DOMAIN_FULL_RESET
-static void __maybe_unused xencons_intf_reset(struct domain *d)
+/* Domain must be paused and caller must hold domain lock */
+static void xencons_intf_reset(struct domain *d)
 {
     struct xencons_interface *intf;
     struct page_info *page;
@@ -2684,7 +2686,8 @@ static void __maybe_unused xencons_intf_reset(struct domain *d)
     put_page(page);
 }
 
-static void __maybe_unused xenstore_intf_reset(struct domain *d)
+/* Domain must be paused and caller must hold domain lock */
+static void xenstore_intf_reset(struct domain *d)
 {
     struct xenstore_domain_interface *intf;
     struct page_info *page;
@@ -2716,7 +2719,7 @@ static void __maybe_unused xenstore_intf_reset(struct domain *d)
     put_page(page);
 }
 
-static int __maybe_unused shared_info_reset(struct domain *d)
+static int shared_info_reset(struct domain *d)
 {
     if ( !d->shared_info )
     {
@@ -2729,7 +2732,164 @@ static int __maybe_unused shared_info_reset(struct domain *d)
     return 0;
 }
 
-long do_dom_full_reset(domid_t domid) { return -EOPNOTSUPP; }
+static long domain_full_reset(struct domain *d)
+{
+    int rc;
+    long ret = 0;
+
+    if ( !is_domain_resettable(d) )
+    {
+        gprintk(XENLOG_ERR, "reset: domain %pd not resettable\n", d);
+        return -EINVAL;
+    }
+
+    domain_lock(d);
+
+    /* Self reset from a secondary cpu is not supported as for now */
+    if ( d == current->domain && current != d->vcpu[0] )
+    {
+        gprintk(XENLOG_ERR,
+                "self reset from secondary vCPU not supported\n");
+        ret = -EOPNOTSUPP;
+        goto out;
+    }
+
+    /* No previous reset operation in progress */
+    if ( !ACCESS_ONCE(d->is_shutting_down) )
+    {
+        ACCESS_ONCE(d->is_shutting_down) = true;
+        /*
+         * Pause all VCPUs except current.
+         * For self-reset, current VCPU remains running to execute the reset.
+         * For external reset (toolstack), all VCPUs are paused.
+         * domain_pause_except_self() handles both cases correctly.
+         */
+        printk(XENLOG_G_INFO "%pd: %s: pausing domain\n", d, __func__);
+        rc = domain_pause_except_self(d);
+        if ( rc )
+        {
+            ACCESS_ONCE(d->is_shutting_down) = false;
+            ret = rc;
+            goto out;
+        }
+    }
+
+    switch ( d->teardown.val )
+    {
+#define PROGRESS(x)                             \
+        d->teardown.val = PROG_ ## x;       \
+        fallthrough;                            \
+    case PROG_ ## x
+
+    enum {
+        PROG_none,
+        PROG_shared_info_reset,
+        PROG_grant_reset,
+        PROG_arch_reset,
+        PROG_done,
+    };
+
+    case PROG_none:
+        BUILD_BUG_ON(PROG_none != 0);
+
+        ioreq_server_disable_all(d);
+
+        if ( !is_hardware_domain(d) )
+            xencons_intf_reset(d);
+
+        if ( !is_xenstore_domain(d) )
+            xenstore_intf_reset(d);
+
+        argo_soft_reset(d);
+
+        evtchn_full_reset(d);
+
+    PROGRESS(shared_info_reset):
+        /*
+         * Clear shared_info after event channel reset.
+         * Event channel internals were already cleared bt
+         * by evtchn_2l_reset() or evtchn_fifo_reset(), but we clear
+         * the entire page to ensure all shared state is reset, including
+         * vcpu_info, wall clock, and other fields.
+         */
+        rc = shared_info_reset(d);
+        if ( rc )
+        {
+            ret = rc;
+            goto out;
+        }
+
+    PROGRESS(grant_reset):
+        rc = grant_table_reset(d);
+        if ( rc )
+        {
+            ret = rc;
+            goto out;
+        }
+
+    PROGRESS(arch_reset):
+        ret = arch_domain_full_reset(d);
+        if ( ret < 0 )
+            goto out;
+
+    PROGRESS(done):
+        ioreq_server_enable_all(d);
+        break;
+
+#undef PROGRESS
+
+    default:
+        BUG();
+    }
+
+out:
+    /*
+     * Cleanup unless we're continuing (-ERESTART).
+     * For continuations, state is preserved for the next hypercall round.
+     */
+    if ( ret != -ERESTART )
+    {
+        if ( !ret )
+        {
+            domain_changed_state(d);
+            send_global_virq(VIRQ_DOM_EXC);
+        }
+
+        d->teardown.val = 0;
+
+        /*
+         * Unpause domain if pause was done.
+         * is_shutting_down tracks whether domain_pause_except_self succeeded.
+         */
+        if ( ACCESS_ONCE(d->is_shutting_down) )
+            domain_unpause_except_self(d);
+
+        ACCESS_ONCE(d->is_shutting_down) = false;
+    }
+
+    domain_unlock(d);
+
+    return ret;
+}
+
+long do_dom_full_reset(domid_t domid)
+{
+    struct domain *d;
+    long ret;
+
+    d = rcu_lock_domain_by_id(domid);
+    if ( !d )
+        return -ESRCH;
+    ret = domain_full_reset(d);
+
+    rcu_unlock_domain(d);
+
+    if ( ret == -ERESTART )
+        return hypercall_create_continuation(__HYPERVISOR_dom_full_reset, "i",
+                                             domid);
+
+    return ret;
+}
 #endif /* CONFIG_DOMAIN_FULL_RESET */
 
 /*
