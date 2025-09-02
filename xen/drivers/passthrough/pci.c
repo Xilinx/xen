@@ -2101,6 +2101,225 @@ int pci_iterate_devices(int (*handler)(struct pci_dev *pdev, void *arg),
     return pci_segments_iterate(iterate_all, &iter) ?: iter.rc;
 }
 
+static int pci_wait_for_pending(struct pci_dev *pdev, unsigned int len,
+                                unsigned int pos, uint16_t mask)
+{
+    unsigned int i;
+
+    /* Wait for Transaction Pending bit clear */
+    for ( i = 0; i < 4; i++ )
+    {
+        uint16_t status;
+
+        if ( i )
+            mdelay((1 << (i - 1)) * 100);
+
+        switch ( len )
+        {
+        case 1:
+            status = pci_conf_read8(pdev->sbdf, pos);
+            break;
+        case 2:
+            status = pci_conf_read16(pdev->sbdf, pos);
+            break;
+        default:
+            ASSERT_UNREACHABLE();
+            break;
+        }
+
+        if ( !(status & mask) )
+            return 1;
+    }
+
+    return 0;
+}
+
+static int pci_initiate_reset(struct pci_dev *pdev,
+                              unsigned int *reset_delay_ms)
+{
+    unsigned int pos;
+
+    if ( (pci_conf_read8(pdev->sbdf, PCI_HEADER_TYPE) & 0x7f)
+         != PCI_HEADER_TYPE_NORMAL)
+        return 0;
+
+    switch ( pdev->type )
+    {
+    case DEV_TYPE_PCI:
+        pos = pci_find_cap_offset(pdev->sbdf, PCI_CAP_ID_AF);
+
+        if ( pos && (pci_conf_read8(pdev->sbdf, pos + PCI_AF_CAP)
+                     & PCI_AF_CAP_FLR) )
+        {
+            printk(XENLOG_G_DEBUG "%pd %pp AF FLR\n", pdev->domain,
+                   &pdev->sbdf);
+
+            if ( !pci_wait_for_pending(pdev, 1, pos + PCI_AF_STATUS,
+                                       PCI_AF_STATUS_TP) )
+                printk(XENLOG_G_WARNING
+                       "%pd %pp timed out waiting for pending transaction; performing function level reset anyway\n",
+                       pdev->domain, &pdev->sbdf);
+
+            pci_conf_write8(pdev->sbdf, pos + PCI_AF_CTRL, PCI_AF_CTRL_FLR);
+            *reset_delay_ms = 100;
+            return 0;
+        }
+        break;
+
+    case DEV_TYPE_PCIe_ENDPOINT:
+        pos = pci_find_cap_offset(pdev->sbdf, PCI_CAP_ID_EXP);
+
+        if ( pos && (pci_conf_read32(pdev->sbdf, pos + PCI_EXP_DEVCAP)
+                     & PCI_EXP_DEVCAP_FLR) )
+        {
+            printk(XENLOG_G_DEBUG "%pd %pp FLR\n", pdev->domain, &pdev->sbdf);
+
+            if ( !pci_wait_for_pending(pdev, 2, pos + PCI_EXP_DEVSTA,
+                                       PCI_EXP_DEVSTA_TRPND) )
+                printk(XENLOG_G_WARNING
+                       "%pd %pp timed out waiting for pending transaction; performing function level reset anyway\n",
+                       pdev->domain, &pdev->sbdf);
+
+            pci_conf_write16(pdev->sbdf, pos + PCI_EXP_DEVCTL,
+                             pci_conf_read16(pdev->sbdf, pos + PCI_EXP_DEVCTL)
+                             | PCI_EXP_DEVCTL_BCR_FLR);
+            *reset_delay_ms = 100;
+            return 0;
+        }
+        break;
+
+    default:
+        return 0;
+    }
+
+    pos = pci_find_cap_offset(pdev->sbdf, PCI_CAP_ID_PM);
+    if ( pos )
+    {
+        uint16_t pmctl = pci_conf_read16(pdev->sbdf, pos + PCI_PM_CTRL);
+
+        if ( pmctl & PCI_PM_CTRL_NO_SOFT_RESET )
+        {
+            printk(XENLOG_G_WARNING "%pd %pp PM reset unavailable\n",
+                   pdev->domain, &pdev->sbdf);
+
+            return -EOPNOTSUPP;
+        }
+
+        if ( (pmctl & PCI_PM_CTRL_STATE_MASK) != 0 /* D0 */ )
+        {
+            printk(XENLOG_G_WARNING "%pd %pp unexpected power state\n",
+                   pdev->domain, &pdev->sbdf);
+
+            return -EOPNOTSUPP;
+        }
+
+        printk(XENLOG_G_DEBUG "%pd %pp PM (conventional) reset\n", pdev->domain,
+               &pdev->sbdf);
+
+        pmctl &= ~PCI_PM_CTRL_STATE_MASK;
+        pmctl |= 3; /* D3 */
+        pci_conf_write16(pdev->sbdf, pos + PCI_PM_CTRL, pmctl);
+
+        /* 10ms D0->D3 state transition delay (PCI PM specification 1.2) */
+        mdelay(10);
+
+        pmctl &= ~PCI_PM_CTRL_STATE_MASK;
+        pmctl |= 0; /* D0 */
+        pci_conf_write16(pdev->sbdf, pos + PCI_PM_CTRL, pmctl);
+
+        /* 10ms D3->D0 state transition delay (PCI PM specification 1.2) */
+        mdelay(10);
+
+        *reset_delay_ms = 1000;
+        return 0;
+    }
+
+    printk(XENLOG_G_WARNING "%pd %pp no reset methods available\n",
+           pdev->domain, &pdev->sbdf);
+
+    return -EOPNOTSUPP;
+}
+
+static int pci_finalize_reset(struct pci_dev *pdev)
+{
+    unsigned int i;
+    struct vpci_bar *bars;
+
+    if ( (pci_conf_read8(pdev->sbdf, PCI_HEADER_TYPE) & 0x7f)
+         != PCI_HEADER_TYPE_NORMAL)
+        return 0;
+
+    if ( !pdev->vpci )
+    {
+        printk(XENLOG_G_ERR "%pd %pp cannot restore BARs\n", pdev->domain,
+               &pdev->sbdf);
+        return -ENODEV;
+    }
+
+    bars = pdev->vpci->header.bars;
+
+    for ( i = 0; i < PCI_HEADER_NORMAL_NR_BARS; i++ )
+    {
+        uint8_t reg = PCI_BASE_ADDRESS_0 + i * 4;
+
+        if ( bars[i].type == VPCI_BAR_MEM32 ||
+             bars[i].type == VPCI_BAR_MEM64_LO )
+            pci_conf_write32(pdev->sbdf, reg, bars[i].addr);
+        else if ( i && bars[i].type == VPCI_BAR_MEM64_HI )
+            pci_conf_write32(pdev->sbdf, reg, bars[i - 1].addr >> 32);
+    }
+
+    return 0;
+}
+
+int pci_domain_reset(struct domain *d)
+{
+    struct pci_dev *pdev;
+    int ret = 0;
+    unsigned int reset_delay_ms = 0;
+
+    if ( !has_arch_pdevs(d) )
+        return 0;
+
+    write_lock(&d->pci_lock);
+    for_each_pdev ( d, pdev )
+    {
+        unsigned int delay = 0;
+
+        ret = pci_initiate_reset(pdev, &delay);
+        if ( ret )
+            printk(XENLOG_G_WARNING
+                   "%pd could not reset %pp\n", d, &pdev->sbdf);
+
+        if ( delay > reset_delay_ms )
+            reset_delay_ms = delay;
+    }
+
+    /*
+     * After FLR, PCI spec requires software to wait for 100ms after initiating
+     * reset before accessing the device again.
+     * After PM reset, PCI spec requires software to wait 1sec.
+     *
+     * NB: Request Retry Status is not implemented.
+     */
+    mdelay(reset_delay_ms);
+
+    for_each_pdev ( d, pdev )
+    {
+        ret = pci_finalize_reset(pdev);
+        if ( ret )
+            goto out;
+
+        ret = vpci_reset_device(pdev);
+        if ( ret )
+            goto out;
+    }
+
+ out:
+    write_unlock(&d->pci_lock);
+    return ret;
+}
+
 /*
  * Local variables:
  * mode: C
