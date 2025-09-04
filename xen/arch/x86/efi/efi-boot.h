@@ -7,6 +7,7 @@
 #ifndef X86_EFI_EFI_BOOT_H
 #define X86_EFI_EFI_BOOT_H
 
+#include <xen/libfdt/libfdt.h>
 #include <xen/vga.h>
 
 #include <asm/boot-helpers.h>
@@ -27,6 +28,11 @@ static multiboot_info_t __initdata mbi = {
  * support - see __start_xen().
  */
 static module_t __initdata mb_modules[5];
+
+#define DEVICE_TREE_GUID \
+{0xb1b621d5U, 0xf19c, 0x41a5, {0x83, 0x0b, 0xd9, 0x15, 0x2c, 0x69, 0xaa, 0xe0}}
+
+static void *__initdata fdt_efi;
 
 static void __init edd_put_string(u8 *dst, size_t n, const char *src)
 {
@@ -786,8 +792,42 @@ static void __init efi_arch_load_addr_check(const EFI_LOADED_IMAGE *loaded_image
     trampoline_xen_phys_start = xen_phys_start;
 }
 
+static void __init *lookup_fdt_config_table(EFI_SYSTEM_TABLE *sys_table)
+{
+    static const EFI_GUID __initconst fdt_guid = DEVICE_TREE_GUID;
+    EFI_CONFIGURATION_TABLE *tables;
+    void *fdt = NULL;
+
+    tables = sys_table->ConfigurationTable;
+    for ( unsigned int i = 0; i < sys_table->NumberOfTableEntries; i++ )
+    {
+        if ( match_guid(&tables[i].VendorGuid, &fdt_guid) )
+        {
+            fdt = tables[i].VendorTable;
+
+            if ( fdt_check_header(fdt) )
+            {
+                PrintStr(L"Invalid FDT found at ");
+                DisplayUint((uint64_t)fdt, 8);
+                PrintStr(L".\r\n");
+                return NULL;
+            }
+
+            break;
+        }
+    }
+    return fdt;
+}
+
 static bool __init efi_arch_use_config_file(EFI_SYSTEM_TABLE *SystemTable)
 {
+    if ( !IS_ENABLED(CONFIG_DOM0LESS_BOOT) )
+        return true;
+
+    fdt_efi = lookup_fdt_config_table(SystemTable);
+    if ( fdt_efi )
+        PrintStr(L"Device Tree present, but not supported at this time.\r\n");
+
     return true; /* x86 always uses a config file */
 }
 
