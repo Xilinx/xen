@@ -36,6 +36,8 @@ struct arch_boot_module
      */
     unsigned long headroom;
     paddr_t cmdline_pa;
+    /* Module physical address before relocation. */
+    paddr_t orig_start;
 };
 
 #endif /* X86_BOOTFDT_H */

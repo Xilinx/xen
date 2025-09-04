@@ -43,7 +43,7 @@ static struct boot_module *__init find_boot_module(
 
         for ( i = 0; i < bi->nr_modules; i++ )
         {
-            if ( bi->mods[i].start == addr )
+            if ( bi->mods[i].arch.orig_start == addr )
                 goto found;
         }
 
@@ -150,6 +150,7 @@ static int __init cf_check process_module(const void *fdt, int node,
               name);
 
     bi->mods[idx].start = start;
+    bi->mods[idx].arch.orig_start = start;
     bi->mods[idx].size = size;
     bi->mods[idx].kind = fdt_node_to_kind(fdt, node);
 
