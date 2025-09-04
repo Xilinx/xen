@@ -11,6 +11,7 @@
 #include <xen/vga.h>
 
 #include <asm/boot-helpers.h>
+#include <asm/bootinfo.h>
 #include <asm/e820.h>
 #include <asm/edd.h>
 #include <asm/microcode.h>
@@ -821,14 +822,31 @@ static void __init *lookup_fdt_config_table(EFI_SYSTEM_TABLE *sys_table)
 
 static bool __init efi_arch_use_config_file(EFI_SYSTEM_TABLE *SystemTable)
 {
+    const struct fdt_header *header;
+    unsigned long fdt_pfn;
+
     if ( !IS_ENABLED(CONFIG_DOM0LESS_BOOT) )
         return true;
 
     fdt_efi = lookup_fdt_config_table(SystemTable);
-    if ( fdt_efi )
-        PrintStr(L"Device Tree present, but not supported at this time.\r\n");
+    if ( !fdt_efi )
+        return true;
 
-    return true; /* x86 always uses a config file */
+    fdt_pfn = paddr_to_pfn((unsigned long)fdt_efi);
+    if ( fdt_pfn > UINT32_MAX )
+    {
+        PrintStr(L"FDT pfn exceeds 32bits - using cfg file");
+
+        return true;
+    }
+
+    header = fdt_efi;
+    /* Hyperlaunch expects FDT as the first boot module */
+    mb_modules[0].mod_start = (uint32_t)fdt_pfn;
+    mb_modules[0].mod_end = fdt32_to_cpu(header->totalsize);
+    mbi.mods_count = 1;
+
+    return false;
 }
 
 static void __init efi_arch_flush_dcache_area(const void *vaddr, UINTN size) { }
@@ -963,6 +981,47 @@ void __init efi_multiboot2(EFI_HANDLE ImageHandle,
     efi_relocate_esrt(SystemTable);
 
     efi_exit_boot(ImageHandle, SystemTable);
+}
+
+static char *__init get_fdt_cmdline(void)
+{
+    const struct fdt_property *cmdline;
+    int cfg_node;
+
+    if ( !fdt_efi )
+        return NULL;
+
+    cfg_node = fdt_find_dom0less_node(fdt_efi);
+    if ( cfg_node < 0 )
+        return NULL;
+
+    cmdline = fdt_get_property(fdt_efi, cfg_node, "xen,xen-bootargs", NULL);
+    if ( !cmdline )
+    {
+        PrintStr(L"WARN: hyperlaunch: Xen command line not found.\r\n");
+        return NULL;
+    }
+
+    return (char *)cmdline->data;
+}
+
+static int __init efi_check_dt_boot(const EFI_LOADED_IMAGE *loaded_image)
+{
+    EFI_GRAPHICS_OUTPUT_PROTOCOL *gop;
+    const char *cmdline;
+    UINTN gop_mode;
+
+    if ( !IS_ENABLED(CONFIG_DOM0LESS_BOOT) || !fdt_efi )
+        return 0;
+
+    cmdline = get_fdt_cmdline();
+    gop = setup_graphics(cmdline, &gop_mode);
+    if ( gop )
+        efi_set_gop_mode(gop, gop_mode);
+
+    efi_arch_handle_cmdline(NULL, cmdline);
+
+    return 1;
 }
 
 #endif /* X86_EFI_EFI_BOOT_H */
