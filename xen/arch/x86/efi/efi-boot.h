@@ -832,6 +832,9 @@ static bool __init efi_arch_use_config_file(EFI_SYSTEM_TABLE *SystemTable)
     if ( !fdt_efi )
         return true;
 
+    if ( !has_hyperlaunch_node(fdt_efi) )
+        return true;
+
     fdt_pfn = paddr_to_pfn((unsigned long)fdt_efi);
     if ( fdt_pfn > UINT32_MAX )
     {

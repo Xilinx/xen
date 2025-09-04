@@ -172,6 +172,22 @@ int __init fdt_find_dom0less_node(const void *fdt)
     return node;
 }
 
+bool __init has_hyperlaunch_node(const void *fdt)
+{
+    int node, chosen_node = fdt_find_dom0less_node(fdt);
+
+    if ( chosen_node < 0 )
+        return false;
+
+    fdt_for_each_subnode(node, fdt, chosen_node)
+    {
+        if ( fdt_node_check_compatible(fdt, node, "xen,domain") == 0 )
+            return true;
+    }
+
+    return false;
+}
+
 void __init fdt_identify_module_kinds(struct boot_info *bi)
 {
     void *fdt = bootstrap_map_bm(&bi->mods[0]);
