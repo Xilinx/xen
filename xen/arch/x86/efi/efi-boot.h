@@ -855,18 +855,14 @@ static const char *__init get_option(const char *cmd, const char *opt)
     return o;
 }
 
-void __init efi_multiboot2(EFI_HANDLE ImageHandle,
-                           EFI_SYSTEM_TABLE *SystemTable,
-                           const char *cmdline)
+static EFI_GRAPHICS_OUTPUT_PROTOCOL *__init setup_graphics(const char *cmdline,
+                                                           UINTN *mode)
 {
-    EFI_GRAPHICS_OUTPUT_PROTOCOL *gop;
+    EFI_GRAPHICS_OUTPUT_PROTOCOL *gop = NULL;
     EFI_HANDLE gop_handle;
-    UINTN cols, gop_mode = ~0, rows;
+    UINTN cols, rows;
 
-    __set_bit(EFI_BOOT, &efi_flags);
-    __set_bit(EFI_RS, &efi_flags);
-
-    efi_init(ImageHandle, SystemTable);
+    *mode = ~0;
 
     if ( StdOut->QueryMode(StdOut, StdOut->Mode->Mode,
                            &cols, &rows) != EFI_SUCCESS )
@@ -931,10 +927,27 @@ void __init efi_multiboot2(EFI_HANDLE ImageHandle,
         }
 
         if ( !keep_current )
-            gop_mode = efi_find_gop_mode(gop, width, height, depth);
+            *mode = efi_find_gop_mode(gop, width, height, depth);
 
         efi_arch_edid(gop_handle);
     }
+
+    return gop;
+}
+
+void __init efi_multiboot2(EFI_HANDLE ImageHandle,
+                           EFI_SYSTEM_TABLE *SystemTable,
+                           const char *cmdline)
+{
+    EFI_GRAPHICS_OUTPUT_PROTOCOL *gop;
+    UINTN gop_mode;
+
+    __set_bit(EFI_BOOT, &efi_flags);
+    __set_bit(EFI_RS, &efi_flags);
+
+    efi_init(ImageHandle, SystemTable);
+
+    gop = setup_graphics(cmdline, &gop_mode);
 
     efi_arch_edd();
     efi_arch_cpu();
