@@ -97,6 +97,15 @@ static inline struct boot_domain *first_boot_domain(
     return NULL;
 }
 
+#ifdef CONFIG_DOM0LESS_BOOT
+int fdt_find_dom0less_node(const void *fdt);
+#else
+static inline int fdt_find_dom0less_node(const void *fdt)
+{
+    return -ENOENT;
+}
+#endif
+
 #endif /* X86_BOOTINFO_H */
 
 /*

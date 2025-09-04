@@ -162,20 +162,26 @@ static int __init cf_check process_module(const void *fdt, int node,
     return 0;
 }
 
+int __init fdt_find_dom0less_node(const void *fdt)
+{
+    int node = fdt_path_offset(fdt, "/chosen/hypervisor");
+
+    if ( node < 0 )
+        node = fdt_path_offset(fdt, "/chosen");
+
+    return node;
+}
+
 void __init fdt_identify_module_kinds(struct boot_info *bi)
 {
     void *fdt = bootstrap_map_bm(&bi->mods[0]);
 
     if ( fdt && !fdt_check_header(fdt) )
     {
-        int node = fdt_path_offset(fdt, "/chosen/hypervisor");
+        int node = fdt_find_dom0less_node(fdt);
 
         if ( node < 0 )
-        {
-            node = fdt_path_offset(fdt, "/chosen");
-            if ( node < 0 )
                 panic("Malformed DTB in mod0: /chosen not found");
-        }
 
         bi->mods[0].kind = BOOTMOD_FDT;
         device_tree_for_each_node(fdt, node, process_module, bi);
