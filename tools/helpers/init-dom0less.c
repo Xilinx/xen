@@ -11,6 +11,7 @@
 #include <xenguest.h>
 #include <libxl.h>
 #include <xenforeignmemory.h>
+#include <xen/io/xenbus.h>
 #include <xen/io/xs_wire.h>
 
 #include "init-dom-json.h"
@@ -26,7 +27,7 @@ struct domain_endpoints {
         uint64_t fe_port;
         /* Location of the shared page in the guest-physical address space */
         uint64_t fe_gfn;
-    } xenstore;
+    } xenstore, console;
 };
 
 #ifndef CONFIG_X86
@@ -90,6 +91,20 @@ static bool do_xs_write_dom(struct xs_handle *xsh, xs_transaction_t t,
     if (!xs_write(xsh, t, full_path, val, strlen(val)))
         return false;
     return xs_set_permissions(xsh, t, full_path, perms, 2);
+}
+
+static bool do_xs_write_be(struct xs_handle *xsh, xs_transaction_t t,
+                           domid_t be_domid, const char *be_type,
+                           domid_t fe_domid, const char *path, char *val)
+{
+    char subpath[STR_MAX_LENGTH];
+    int rc;
+
+    rc = snprintf(subpath, STR_MAX_LENGTH, "backend/%s/%d", be_type, fe_domid);
+    if (rc < 0 || rc >= STR_MAX_LENGTH)
+        return false;
+
+    return do_xs_write_dom(xsh, t, be_domid, subpath, val);
 }
 
 static bool do_xs_write_libxl(struct xs_handle *xsh, xs_transaction_t t,
@@ -232,6 +247,63 @@ retry_transaction:
     if (!do_xs_write_libxl(xsh, t, domid, "type", "pvh")) goto err;
     if (!do_xs_write_libxl(xsh, t, domid, "dm-version", "qemu_xen")) goto err;
 
+    /* Fill in the xenconsole bits if there's a pre-configured console */
+    if ( endpts->console.fe_port ) {
+        domid_t be_domid = endpts->console.be_domid;
+        char be_path[STR_MAX_LENGTH];
+        char fe_path[STR_MAX_LENGTH];
+        char xenbus_state[STR_MAX_LENGTH];
+        char be_domid_str[STR_MAX_LENGTH];
+        char fe_port[STR_MAX_LENGTH];
+        char fe_gfn[STR_MAX_LENGTH];
+
+        rc = snprintf(be_path, STR_MAX_LENGTH,
+                      "/local/domain/%d/backend/console/%d/0", be_domid, domid);
+        if (rc < 0 || rc >= STR_MAX_LENGTH)
+            goto err;
+
+        rc = snprintf(fe_path, STR_MAX_LENGTH, "/local/domain/%d/console",
+                      domid);
+        if (rc < 0 || rc >= STR_MAX_LENGTH)
+            goto err;
+
+        rc = snprintf(xenbus_state, STR_MAX_LENGTH, "%d",
+                      XenbusStateInitialising);
+        if (rc < 0 || rc >= STR_MAX_LENGTH)
+            goto err;
+
+        rc = snprintf(be_domid_str, STR_MAX_LENGTH, "%u", be_domid);
+        if (rc < 0 || rc >= STR_MAX_LENGTH)
+            goto err;
+
+        rc = snprintf(fe_port, STR_MAX_LENGTH, "%"PRIu64,
+                      endpts->console.fe_port);
+        if (rc < 0 || rc >= STR_MAX_LENGTH)
+            goto err;
+
+        rc = snprintf(fe_gfn, STR_MAX_LENGTH, "%"PRIu64,
+                      endpts->console.fe_gfn);
+        if (rc < 0 || rc >= STR_MAX_LENGTH)
+            goto err;
+
+        /* Backend entries */
+        if (!do_xs_write_be(xsh, t, be_domid, "console", domid, "frontend-id", id_str)) goto err;
+        if (!do_xs_write_be(xsh, t, be_domid, "console", domid, "frontend", fe_path)) goto err;
+        if (!do_xs_write_be(xsh, t, be_domid, "console", domid, "online", "1")) goto err;
+        if (!do_xs_write_be(xsh, t, be_domid, "console", domid, "state", xenbus_state)) goto err;
+        if (!do_xs_write_be(xsh, t, be_domid, "console", domid, "protocol", "vt100")) goto err;
+
+        /* Frontend entries */
+        if (!do_xs_write_dom(xsh, t, domid, "console/backend", be_path)) goto err;
+        if (!do_xs_write_dom(xsh, t, domid, "console/backend-id", be_domid_str)) goto err;
+        if (!do_xs_write_dom(xsh, t, domid, "console/limit", "1048576")) goto err;
+        if (!do_xs_write_dom(xsh, t, domid, "console/type", "xenconsoled")) goto err;
+        if (!do_xs_write_dom(xsh, t, domid, "console/output", "pty")) goto err;
+        if (!do_xs_write_dom(xsh, t, domid, "console/tty", "")) goto err;
+        if (!do_xs_write_dom(xsh, t, domid, "console/port", fe_port)) goto err;
+        if (!do_xs_write_dom(xsh, t, domid, "console/ring-ref", fe_gfn)) goto err;
+    }
+
     if (!xs_transaction_end(xsh, t, false)) {
         if (errno == EAGAIN)
             goto retry_transaction;
@@ -265,6 +337,20 @@ static int configure_endpoints(struct xc_interface_core *xch,
                           &endpts->xenstore.fe_gfn);
     if (rc != 0) {
         printf("Failed to get HVM_PARAM_STORE_PFN\n");
+        return 1;
+    }
+
+    rc = xc_hvm_param_get(xch, info->domid, HVM_PARAM_CONSOLE_EVTCHN,
+                          &endpts->console.fe_port);
+    if (rc != 0) {
+        printf("Failed to get HVM_PARAM_CONSOLE_EVTCHN\n");
+        return 1;
+    }
+
+    rc = xc_hvm_param_get(xch, info->domid, HVM_PARAM_CONSOLE_PFN,
+                          &endpts->console.fe_gfn);
+    if (rc != 0) {
+        printf("Failed to get HVM_PARAM_CONSOLE_PFN\n");
         return 1;
     }
 
@@ -312,7 +398,8 @@ static int configure_xenstore(struct xc_interface_core *xch,
             return rc;
 
         rc = xc_dom_gnttab_seed(xch, info->domid, true,
-                                (xen_pfn_t)-1, *xenstore_pfn, 0,
+                                endpts->console.fe_gfn ?: (xen_pfn_t)-1,
+                                *xenstore_pfn, endpts->console.be_domid,
                                 endpts->xenstore.be_domid);
 
         if (rc) {
@@ -435,6 +522,7 @@ int main(int argc, char **argv)
     for (i = 0; i < nb_vm; i++) {
         domid_t domid = info[i].domid;
         struct domain_endpoints endpts = {
+            .console = { .be_domid = 0 },
             .xenstore = { .be_domid = xs_domid },
         };
 
