@@ -17,6 +17,18 @@
 
 #define STR_MAX_LENGTH 128
 
+/* Set of targets to configure for every domain (xenstore, xenconsole, ...) */
+struct domain_endpoints {
+    struct {
+        /* Backend domid */
+        uint64_t be_domid;
+        /* Frontend evtchn port for comms over the page at `fe_gfn` */
+        uint64_t fe_port;
+        /* Location of the shared page in the guest-physical address space */
+        uint64_t fe_gfn;
+    } xenstore;
+};
+
 #ifndef CONFIG_X86
 #define XENSTORE_PFN_OFFSET 1
 
@@ -45,20 +57,6 @@ static int alloc_xs_page(struct xc_interface_core *xch,
     return 0;
 }
 #endif /* !CONFIG_X86 */
-
-static int get_xs_page(struct xc_interface_core *xch, libxl_dominfo *info,
-                       uint64_t *xenstore_pfn)
-{
-    int rc;
-
-    rc = xc_hvm_param_get(xch, info->domid, HVM_PARAM_STORE_PFN, xenstore_pfn);
-    if (rc < 0) {
-        printf("Failed to get HVM_PARAM_STORE_PFN\n");
-        return 1;
-    }
-
-    return 0;
-}
 
 static char *do_xs_read_dom(struct xs_handle *xsh, xs_transaction_t t,
                             domid_t domid, char *path)
@@ -129,8 +127,7 @@ static bool do_xs_write_vm(struct xs_handle *xsh, xs_transaction_t t,
  */
 static int create_xenstore(struct xs_handle *xsh,
                            libxl_dominfo *info, libxl_uuid uuid,
-                           uint64_t xenstore_pfn,
-                           evtchn_port_t xenstore_port)
+                           struct domain_endpoints *endpts)
 {
     domid_t domid;
     unsigned int i;
@@ -175,10 +172,10 @@ static int create_xenstore(struct xs_handle *xsh,
     rc = snprintf(target_memkb_str, STR_MAX_LENGTH, "%"PRIu64, info->current_memkb);
     if (rc < 0 || rc >= STR_MAX_LENGTH)
         return rc;
-    rc = snprintf(ring_ref_str, STR_MAX_LENGTH, "%"PRIu64, xenstore_pfn);
+    rc = snprintf(ring_ref_str, STR_MAX_LENGTH, "%"PRIu64, endpts->xenstore.fe_gfn);
     if (rc < 0 || rc >= STR_MAX_LENGTH)
         return rc;
-    rc = snprintf(xenstore_port_str, STR_MAX_LENGTH, "%u", xenstore_port);
+    rc = snprintf(xenstore_port_str, STR_MAX_LENGTH, "%"PRIu64, endpts->xenstore.fe_port);
     if (rc < 0 || rc >= STR_MAX_LENGTH)
         return rc;
 
@@ -249,38 +246,48 @@ err:
     return rc;
 }
 
-static int configure_xenstore(struct xs_handle *xsh,
-                              struct xc_interface_core *xch,
-                              xenforeignmemory_handle *xfh,
-                              libxl_dominfo *info,
-                              uint64_t *xenstore_evtchn,
-                              uint64_t *xenstore_pfn)
+static int configure_endpoints(struct xc_interface_core *xch,
+                               libxl_dominfo *info,
+                               struct domain_endpoints *endpts)
 {
     int rc;
 
     printf("Init dom0less domain: %u\n", info->domid);
 
     rc = xc_hvm_param_get(xch, info->domid, HVM_PARAM_STORE_EVTCHN,
-                          xenstore_evtchn);
+                          &endpts->xenstore.fe_port);
     if (rc != 0) {
         printf("Failed to get HVM_PARAM_STORE_EVTCHN\n");
         return 1;
     }
 
+    rc = xc_hvm_param_get(xch, info->domid, HVM_PARAM_STORE_PFN,
+                          &endpts->xenstore.fe_gfn);
+    if (rc != 0) {
+        printf("Failed to get HVM_PARAM_STORE_PFN\n");
+        return 1;
+    }
+
+    return 0;
+}
+
+static int configure_xenstore(struct xc_interface_core *xch,
+                              xenforeignmemory_handle *xfh,
+                              libxl_dominfo *info,
+                              struct domain_endpoints *endpts)
+{
     /* no xen,enhanced; nothing to do */
-    if (!*xenstore_evtchn)
+    if (!endpts->xenstore.fe_port)
         return 0;
 
-    /* Get xenstore page */
-    if (get_xs_page(xch, info, xenstore_pfn) != 0)
-        return 1;
-
-    if (*xenstore_pfn == ~0ULL) {
+    if (endpts->xenstore.fe_gfn == ~0ULL) {
 #ifdef CONFIG_X86
         printf("Unexpected xenstore page late-alloc in x86");
         return 1;
 #else /* !CONFIG_X86 */
         struct xenstore_domain_interface *intf;
+        xen_pfn_t *xenstore_pfn = &endpts->xenstore.fe_gfn;
+        int rc;
 
         rc = alloc_xs_page(xch, info, xenstore_pfn);
         if (rc != 0) {
@@ -305,7 +312,9 @@ static int configure_xenstore(struct xs_handle *xsh,
             return rc;
 
         rc = xc_dom_gnttab_seed(xch, info->domid, true,
-                                (xen_pfn_t)-1, *xenstore_pfn, 0, 0);
+                                (xen_pfn_t)-1, *xenstore_pfn, 0,
+                                endpts->xenstore.be_domid);
+
         if (rc) {
             printf("xc_dom_gnttab_seed");
             return 1;
@@ -319,22 +328,25 @@ static int configure_xenstore(struct xs_handle *xsh,
 static int init_domain(struct xs_handle *xsh,
                        struct xc_interface_core *xch,
                        xenforeignmemory_handle *xfh,
-                       libxl_dominfo *info)
+                       libxl_dominfo *info,
+                       struct domain_endpoints *endpts)
 {
-    uint64_t xenstore_evtchn = 0, xenstore_pfn = 0;
     bool introduced;
     libxl_uuid uuid;
     int rc;
 
+    rc = configure_endpoints(xch, info, endpts);
+    if (rc)
+        return rc;
+
     introduced = xs_is_domain_introduced(xsh, info->domid);
 
     if (!introduced) {
-        rc = configure_xenstore(xsh, xch, xfh, info, &xenstore_evtchn,
-                                &xenstore_pfn);
+        rc = configure_xenstore(xch, xfh, info, endpts);
         if (rc)
             return rc;
 
-        if (xenstore_evtchn == 0) {
+        if (!endpts->xenstore.fe_port) {
             return 0;
         }
     }
@@ -348,15 +360,15 @@ static int init_domain(struct xs_handle *xsh,
         return 1;
     }
 
-    rc = create_xenstore(xsh, info, uuid, xenstore_pfn, xenstore_evtchn);
+    rc = create_xenstore(xsh, info, uuid, endpts);
     if (rc) {
         printf("writing to xenstore");
         return 1;
     }
 
     if (!introduced) {
-        rc = xs_introduce_domain(xsh, info->domid, xenstore_pfn,
-                                 xenstore_evtchn);
+        rc = xs_introduce_domain(xsh, info->domid, endpts->xenstore.fe_gfn,
+                                 endpts->xenstore.fe_port);
         if (!rc) {
             printf("xs_introduce_domain");
             return 1;
@@ -386,6 +398,7 @@ int main(int argc, char **argv)
     struct xs_handle *xsh = NULL;
     struct xc_interface_core *xch = NULL;
     xenforeignmemory_handle *xfh = NULL;
+    domid_t xs_domid = 0; /* assume dom0 initially */
 
     /* TODO reuse libxl xsh connection */
     xsh = xs_open(0);
@@ -411,7 +424,19 @@ int main(int argc, char **argv)
     }
 
     for (i = 0; i < nb_vm; i++) {
+        /*
+         * never_stop actually means "xenstore domain". If there's no dedicated
+         * xenstore the default is already Dom0.
+         */
+        if (info[i].never_stop)
+            xs_domid = info[i].domid;
+    }
+
+    for (i = 0; i < nb_vm; i++) {
         domid_t domid = info[i].domid;
+        struct domain_endpoints endpts = {
+            .xenstore = { .be_domid = xs_domid },
+        };
 
         /* Don't need to check for Dom0 */
         if (!domid)
@@ -419,7 +444,7 @@ int main(int argc, char **argv)
 
         printf("Checking domid: %u\n", domid);
         if (!domain_exists(xsh, domid)) {
-            rc = init_domain(xsh, xch, xfh, &info[i]);
+            rc = init_domain(xsh, xch, xfh, &info[i], &endpts);
             if (rc) {
                 fprintf(stderr, "init_domain failed.\n");
             }
