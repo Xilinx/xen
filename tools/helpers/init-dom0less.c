@@ -194,14 +194,12 @@ retry_transaction:
     if (!do_xs_write_dom(xsh, t, domid, "vm", vm_val_str)) goto err;
     if (!do_xs_write_dom(xsh, t, domid, "name", dom_name_str)) goto err;
     if (!do_xs_write_dom(xsh, t, domid, "cpu", "")) goto err;
-    for (i = 0; i < info->vcpu_max_id; i++) {
-        rc = snprintf(cpu_str, STR_MAX_LENGTH, "cpu/%u/availability/", i);
+    for (i = 0; i <= info->vcpu_max_id; i++) {
+        rc = snprintf(cpu_str, STR_MAX_LENGTH, "cpu/%u/availability", i);
         if (rc < 0 || rc >= STR_MAX_LENGTH)
             goto err;
         rc = -EIO;
-        if (!do_xs_write_dom(xsh, t, domid, cpu_str,
-                             (info->cpupool & (1 << i)) ? "online" : "offline"))
-            goto err;
+        if (!do_xs_write_dom(xsh, t, domid, cpu_str, "online")) goto err;
     }
 
     if (!do_xs_write_dom(xsh, t, domid, "memory", "")) goto err;
