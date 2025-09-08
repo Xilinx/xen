@@ -15,8 +15,10 @@
 
 #include "init-dom-json.h"
 
-#define XENSTORE_PFN_OFFSET 1
 #define STR_MAX_LENGTH 128
+
+#ifndef CONFIG_X86
+#define XENSTORE_PFN_OFFSET 1
 
 static int alloc_xs_page(struct xc_interface_core *xch,
                          libxl_dominfo *info,
@@ -42,6 +44,7 @@ static int alloc_xs_page(struct xc_interface_core *xch,
 
     return 0;
 }
+#endif /* !CONFIG_X86 */
 
 static int get_xs_page(struct xc_interface_core *xch, libxl_dominfo *info,
                        uint64_t *xenstore_pfn)
@@ -273,6 +276,10 @@ static int configure_xenstore(struct xs_handle *xsh,
         return 1;
 
     if (*xenstore_pfn == ~0ULL) {
+#ifdef CONFIG_X86
+        printf("Unexpected xenstore page late-alloc in x86");
+        return 1;
+#else /* !CONFIG_X86 */
         struct xenstore_domain_interface *intf;
 
         rc = alloc_xs_page(xch, info, xenstore_pfn);
@@ -303,6 +310,7 @@ static int configure_xenstore(struct xs_handle *xsh,
             printf("xc_dom_gnttab_seed");
             return 1;
         }
+#endif /* CONFIG_X86 */
     }
 
     return 0;

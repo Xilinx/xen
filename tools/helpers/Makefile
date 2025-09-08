@@ -8,11 +8,10 @@ include $(XEN_ROOT)/tools/Rules.mk
 TARGETS := xen-init-dom0
 ifeq ($(CONFIG_Linux),y)
 ifeq ($(CONFIG_X86),y)
+CFLAGS += -DCONFIG_X86
 TARGETS += init-xenstore-domain
 endif
-ifeq ($(CONFIG_ARM),y)
 TARGETS += init-dom0less
-endif
 endif
 
 XEN_INIT_DOM0_OBJS = xen-init-dom0.o init-dom-json.o
