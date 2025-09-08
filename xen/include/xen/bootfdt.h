@@ -136,7 +136,7 @@ struct boot_domain {
         xen_pfn_t gfn;
         evtchn_port_t evtchn;
         domid_t be_domid;
-    } xenstore;
+    } xenstore, console;
 };
 
 #define BOOTMOD_MAX_CMDLINE 1024

@@ -96,6 +96,27 @@ static int __init alloc_dom_evtchn(
     return 0;
 }
 
+static int __init alloc_console_evtchn(
+    struct boot_info *bi, struct boot_domain *bd)
+{
+    evtchn_alloc_unbound_t evtchn_req;
+    int rc;
+
+    if ( bd->console.be_domid == DOMID_INVALID )
+    {
+        printk(XENLOG_WARNING
+               "backend for %pd console not constructed\n", bd->d);
+        return -EINVAL;
+    }
+
+    if ( (rc = alloc_dom_evtchn(bd, bd->console.be_domid, &evtchn_req)) < 0 )
+        return rc;
+
+    bd->console.evtchn = evtchn_req.port;
+
+    return 0;
+}
+
 static int __init alloc_xenstore_evtchn(struct boot_info *bi,
                                         struct boot_domain *bd)
 {
@@ -197,6 +218,9 @@ struct domain *__init arch_create_dom(struct boot_info *bi,
     bd->d = d;
     if ( !(bd->create_cfg.flags & XEN_DOMCTL_CDF_xs_domain) )
         alloc_xenstore_evtchn(bi, bd);
+
+    if ( !(bd->create_flags & CDF_hardware) )
+        alloc_console_evtchn(bi, bd);
 
     if ( construct_dom(bd) != 0 )
         panic("Could not construct domain 0\n");

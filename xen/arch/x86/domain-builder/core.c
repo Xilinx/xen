@@ -113,11 +113,13 @@ void __init builder_late_init(struct boot_info *bi)
 }
 
 static int  __init build_core_domains(struct boot_info *bi,
+                                      domid_t *hw_domid,
                                       domid_t *xs_domid)
 {
     struct boot_domain *bd;
     unsigned int count = 0;
 
+    *hw_domid = DOMID_INVALID;
     *xs_domid = DOMID_INVALID;
 
     if ( !(bd = first_boot_domain(bi, XEN_DOMCTL_CDF_xs_domain, 0)) )
@@ -140,6 +142,7 @@ static int  __init build_core_domains(struct boot_info *bi,
         printk(XENLOG_WARNING "No hardware domain was defined\n");
     else
     {
+        *hw_domid = bd->domid;
         if ( *xs_domid == DOMID_INVALID )
             *xs_domid = bd->domid;
 
@@ -168,12 +171,13 @@ static int  __init build_core_domains(struct boot_info *bi,
 unsigned int __init builder_create_domains(struct boot_info *bi)
 {
     unsigned int build_count = 0;
+    domid_t hw_domid;
     domid_t xs_domid;
 
     if ( bi->nr_domains == 0 )
         panic("%s: no domains defined\n", __func__);
 
-    build_count = build_core_domains(bi, &xs_domid);
+    build_count = build_core_domains(bi, &hw_domid, &xs_domid);
 
     BUG_ON(!IS_ENABLED(CONFIG_DOM0LESS_BOOT) && build_count != bi->nr_domains);
 
@@ -191,6 +195,7 @@ unsigned int __init builder_create_domains(struct boot_info *bi)
         }
 
         bd->xenstore.be_domid = xs_domid;
+        bd->console.be_domid = hw_domid;
 
         arch_create_dom(bi, bd);
         if ( bd->d )
