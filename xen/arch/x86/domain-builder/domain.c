@@ -77,13 +77,13 @@ void __init alloc_dom_vcpus(struct domain *d)
 }
 
 static int __init alloc_dom_evtchn(
-    const struct boot_domain *bd, const struct boot_domain *bd_remote,
+    const struct boot_domain *bd, domid_t remote_domid,
     evtchn_alloc_unbound_t *ec)
 {
     int rc;
 
     ec->dom = bd->domid;
-    ec->remote_dom = bd_remote->domid;
+    ec->remote_dom = remote_domid;
 
     rc = evtchn_alloc_unbound(ec, 0);
     if ( rc )
@@ -100,24 +100,9 @@ static int __init alloc_xenstore_evtchn(struct boot_info *bi,
                                         struct boot_domain *bd)
 {
     evtchn_alloc_unbound_t evtchn_req;
-    const struct boot_domain *xsdom;
     int rc;
 
-    xsdom = first_boot_domain(bi, XEN_DOMCTL_CDF_xs_domain, 0);
-    if ( !xsdom )
-    {
-        printk(XENLOG_WARNING "No backing xenstore domain for %pd\n", bd->d);
-        return -EINVAL;
-    }
-
-    if ( xsdom->domid == DOMID_INVALID )
-    {
-        printk(XENLOG_WARNING
-               "Xenstore domain for %pd console not constructed\n", bd->d);
-        return -EINVAL;
-    }
-
-    if ( (rc = alloc_dom_evtchn(bd, xsdom, &evtchn_req)) < 0 )
+    if ( (rc = alloc_dom_evtchn(bd, bd->xenstore.be_domid, &evtchn_req)) < 0 )
         return rc;
 
     bd->xenstore.evtchn = evtchn_req.port;

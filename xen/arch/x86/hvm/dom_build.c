@@ -11,6 +11,7 @@
 #include <xen/acpi.h>
 #include <xen/config.h>
 #include <xen/event.h>
+#include <xen/grant_table.h>
 #include <xen/iommu.h>
 #include <xen/init.h>
 #include <xen/softirq.h>
@@ -1040,6 +1041,10 @@ static int __init alloc_xenstore_page(struct boot_domain *bd)
     bd->d->arch.hvm.params[HVM_PARAM_STORE_PFN] = bd->xenstore.gfn;
     bd->d->arch.hvm.params[HVM_PARAM_STORE_EVTCHN] = bd->xenstore.evtchn;
 
+    if ( IS_ENABLED(CONFIG_GRANT_TABLE) )
+        gnttab_seed_entry(bd->d, GNTTAB_RESERVED_XENSTORE,
+                          bd->xenstore.be_domid, bd->xenstore.gfn);
+
     return 0;
 }
 
@@ -1121,8 +1126,11 @@ int __init dom_construct_pvh(struct boot_domain *bd)
         return rc;
     }
 
-    if ( !is_xenstore_domain(bd->d) )
-        alloc_xenstore_page(bd);
+    if ( IS_ENABLED(CONFIG_DOM0LESS_BOOT) )
+    {
+        if ( !is_xenstore_domain(bd->d) )
+            alloc_xenstore_page(bd);
+    }
 
     if ( opt_dom0_verbose )
     {

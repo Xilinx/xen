@@ -135,6 +135,7 @@ struct boot_domain {
     struct {
         xen_pfn_t gfn;
         evtchn_port_t evtchn;
+        domid_t be_domid;
     } xenstore;
 };
 
