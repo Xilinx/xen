@@ -1115,7 +1115,9 @@ int __init acpi_dmar_init(void)
     {
         iommu_init_ops = &intel_iommu_init_ops;
 
-        return add_user_rmrr() || add_extra_rmrr();
+        ret = add_user_rmrr();
+        if ( IS_ENABLED(CONFIG_XHCI) && !ret )
+            ret = add_extra_rmrr();
     }
 
     return ret;
