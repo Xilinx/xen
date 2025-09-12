@@ -3,7 +3,6 @@
 
 #include <xen/cpumask.h>
 #include <xen/pci.h>
-#include <asm/hvm/vmx/vmcs.h>
 
 /*
  * Constants for Intel APIC based MSI messages.

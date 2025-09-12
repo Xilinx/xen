@@ -14,7 +14,6 @@
 #include <asm/domain.h>
 #include <asm/p2m.h>
 #include <asm/hvm/vmx/vmx.h>
-#include <asm/hvm/vmx/vmcs.h>
 #include <asm/hvm/nestedhvm.h>
 #include <xen/iommu.h>
 #include <asm/mtrr.h>
