@@ -256,6 +256,20 @@ static void noreturn cf_check reboot_machine(unsigned char key, bool unused)
     machine_restart(0);
 }
 
+static int get_domain_caps(struct domain *d)
+{
+    int caps = 0;
+
+    if ( is_control_domain(d) )
+        caps |= XEN_DOMCTL_GETDOMSTATE_CAP_CONTROL;
+    if ( is_hardware_domain(d) )
+        caps |= XEN_DOMCTL_GETDOMSTATE_CAP_HARDWARE;
+    if ( is_xenstore_domain(d) )
+        caps |= XEN_DOMCTL_GETDOMSTATE_CAP_XENSTORE;
+
+    return caps;
+}
+
 static void cf_check dump_domains(unsigned char key)
 {
     struct domain *d;
@@ -275,9 +289,9 @@ static void cf_check dump_domains(unsigned char key)
         process_pending_softirqs();
 
         printk("General information for domain %u:\n", d->domain_id);
-        printk("    refcnt=%d dying=%d pause_count=%d\n",
+        printk("    refcnt=%d dying=%d pause_count=%d caps=%d\n",
                atomic_read(&d->refcnt), d->is_dying,
-               atomic_read(&d->pause_count));
+               atomic_read(&d->pause_count), get_domain_caps(d));
         printk("    nr_pages=%u xenheap_pages=%u"
 #ifdef CONFIG_MEM_SHARING
                " shared_pages=%u"
