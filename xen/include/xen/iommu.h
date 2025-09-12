@@ -81,7 +81,7 @@ extern bool iommu_snoop;
 # define iommu_snoop false
 #endif
 
-#if defined(CONFIG_X86) && defined(CONFIG_HVM)
+#if defined(CONFIG_INTEL_IOMMU) && defined(CONFIG_HVM)
 extern bool iommu_intpost;
 #else
 # define iommu_intpost false
