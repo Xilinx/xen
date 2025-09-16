@@ -89,7 +89,7 @@ extern bool iommu_intpost;
 
 #if defined(CONFIG_IOMMU_FORCE_PT_SHARE)
 #define iommu_hap_pt_share true
-#elif defined(CONFIG_HVM)
+#elif defined(CONFIG_INTEL_IOMMU) && defined(CONFIG_HVM)
 extern bool iommu_hap_pt_share;
 #else
 #define iommu_hap_pt_share false
