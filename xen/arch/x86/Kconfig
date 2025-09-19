@@ -117,6 +117,24 @@ config PV_LINEAR_PT
 
 source "arch/x86/hvm/Kconfig"
 
+config VPIT
+	bool "Virtual PIT (8254) support"
+	default y
+	help
+	  Enable virtual PIT (8254 Programmable Interval Timer) emulation for
+	  x86 guests. This provides legacy timer functionality required by older
+	  operating systems and for compatibility.
+
+	  This feature is available for all domain types (PV, PVH, and HVM).
+	  For PV domains, it provides basic PIT state structure. For PVH and HVM
+	  domains, it provides full PIT functionality including port I/O handlers
+	  and periodic timer interrupts.
+
+	  Modern guests that use HPET or TSC for timekeeping can opt out of this
+	  feature to reduce attack surface and improve performance.
+
+	  If unsure, say Y.
+
 config XEN_SHSTK
 	bool "Supervisor Shadow Stacks"
 	depends on HAS_AS_CET_SS

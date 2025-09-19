@@ -821,7 +821,9 @@ static bool emulation_flags_ok(const struct domain *d, uint32_t emflags)
 
 #ifdef CONFIG_HVM
     /* This doesn't catch !CONFIG_HVM case but it is better than nothing */
-    BUILD_BUG_ON(X86_EMU_ALL != XEN_X86_EMU_ALL);
+    BUILD_BUG_ON(X86_EMU_ALL != (XEN_X86_EMU_ALL &
+                 ~((IS_ENABLED(CONFIG_VPIT) ? 0 : XEN_X86_EMU_PIT) |
+                 (IS_ENABLED(CONFIG_VPIC) ? 0 : XEN_X86_EMU_PIC))));
 #endif
 
     for ( i = 0; i < ARRAY_SIZE(configs); i++ )

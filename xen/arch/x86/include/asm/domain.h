@@ -487,7 +487,7 @@ struct arch_domain
 #define X86_EMU_VPCI     0
 #endif
 
-#define X86_EMU_PIT     XEN_X86_EMU_PIT
+#define X86_EMU_PIT      (IS_ENABLED(CONFIG_VPIT) ? XEN_X86_EMU_PIT : 0)
 
 /* This must match XEN_X86_EMU_ALL in xen.h */
 #define X86_EMU_ALL             (X86_EMU_LAPIC | X86_EMU_HPET |         \
