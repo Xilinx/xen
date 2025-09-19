@@ -1097,13 +1097,13 @@ static int cf_check viridian_save_domain_ctxt(
 {
     const struct domain *d = v->domain;
     const struct viridian_domain *vd = d->arch.hvm.viridian;
-    struct hvm_viridian_domain_context ctxt = {
-        .hypercall_gpa = vd->hypercall_gpa.raw,
-        .guest_os_id = vd->guest_os_id.raw,
-    };
+    struct hvm_viridian_domain_context ctxt = {};
 
     if ( !is_viridian_domain(d) )
         return 0;
+
+    ctxt.hypercall_gpa = vd->hypercall_gpa.raw;
+    ctxt.guest_os_id = vd->guest_os_id.raw,
 
     viridian_time_save_domain_ctxt(d, &ctxt);
     viridian_synic_save_domain_ctxt(d, &ctxt);
@@ -1116,6 +1116,9 @@ static int cf_check viridian_load_domain_ctxt(
 {
     struct viridian_domain *vd = d->arch.hvm.viridian;
     struct hvm_viridian_domain_context ctxt;
+
+    if ( !is_viridian_domain(d) )
+        return 0;
 
     if ( hvm_load_entry_zeroextend(VIRIDIAN_DOMAIN, h, &ctxt) != 0 )
         return -EINVAL;
@@ -1152,6 +1155,9 @@ static int cf_check viridian_load_vcpu_ctxt(
     unsigned int vcpuid = hvm_load_instance(h);
     struct vcpu *v;
     struct hvm_viridian_vcpu_context ctxt;
+
+    if ( !is_viridian_domain(d) )
+        return 0;
 
     if ( vcpuid >= d->max_vcpus || (v = d->vcpu[vcpuid]) == NULL )
     {
