@@ -198,9 +198,6 @@ int __must_check iommu_legacy_map(struct domain *d, dfn_t dfn, mfn_t mfn,
 int __must_check iommu_legacy_unmap(struct domain *d, dfn_t dfn,
                                     unsigned long page_count);
 
-int __must_check iommu_lookup_page(struct domain *d, dfn_t dfn, mfn_t *mfn,
-                                   unsigned int *flags);
-
 int __must_check iommu_iotlb_flush(struct domain *d, dfn_t dfn,
                                    unsigned long page_count,
                                    unsigned int flush_flags);
@@ -349,8 +346,6 @@ struct iommu_ops {
     int __must_check (*unmap_page)(struct domain *d, dfn_t dfn,
                                    unsigned int order,
                                    unsigned int *flush_flags);
-    int __must_check (*lookup_page)(struct domain *d, dfn_t dfn, mfn_t *mfn,
-                                    unsigned int *flags);
 
 #ifdef CONFIG_X86
     int (*enable_x2apic)(void);

@@ -2258,36 +2258,6 @@ static int __must_check cf_check intel_iommu_unmap_page(
     return 0;
 }
 
-static int cf_check intel_iommu_lookup_page(
-    struct domain *d, dfn_t dfn, mfn_t *mfn, unsigned int *flags)
-{
-    struct domain_iommu *hd = dom_iommu(d);
-    uint64_t val;
-
-    /*
-     * If VT-d shares EPT page table or if the domain is the hardware
-     * domain and iommu_passthrough is set then pass back the dfn.
-     */
-    if ( iommu_use_hap_pt(d) ||
-         (iommu_hwdom_passthrough && is_hardware_domain(d)) )
-        return -EOPNOTSUPP;
-
-    spin_lock(&hd->arch.mapping_lock);
-
-    val = addr_to_dma_page_maddr(d, dfn_to_daddr(dfn), 0, NULL, false);
-
-    spin_unlock(&hd->arch.mapping_lock);
-
-    if ( val < PAGE_SIZE )
-        return -ENOENT;
-
-    *mfn = maddr_to_mfn(val);
-    *flags = val & DMA_PTE_READ ? IOMMUF_readable : 0;
-    *flags |= val & DMA_PTE_WRITE ? IOMMUF_writable : 0;
-
-    return 0;
-}
-
 static bool __init vtd_ept_page_compatible(const struct vtd_iommu *iommu)
 {
     uint64_t ept_cap, vtd_cap = iommu->cap;
@@ -3250,7 +3220,6 @@ static const struct iommu_ops __initconst_cf_clobber vtd_ops = {
     .clear_root_pgtable = iommu_clear_root_pgtable,
     .map_page = intel_iommu_map_page,
     .unmap_page = intel_iommu_unmap_page,
-    .lookup_page = intel_iommu_lookup_page,
     .reassign_device = reassign_device_ownership,
     .get_device_group_id = intel_iommu_group_id,
     .enable_x2apic = intel_iommu_enable_eim,
