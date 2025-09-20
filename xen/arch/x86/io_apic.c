@@ -2055,6 +2055,7 @@ void __init setup_IO_APIC(void)
     register_keyhandler('z', _print_IO_APIC_keyhandler, "dump IOAPIC info", 1);
 }
 
+#ifdef CONFIG_SYSTEM_SUSPEND
 void ioapic_suspend(void)
 {
     struct IO_APIC_route_entry *entry = ioapic_pm_state;
@@ -2092,6 +2093,7 @@ void ioapic_resume(void)
     }
     spin_unlock_irqrestore(&ioapic_lock, flags);
 }
+#endif /* CONFIG_SYSTEM_SUSPEND */
 
 int __init io_apic_get_version (int ioapic)
 {

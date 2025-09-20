@@ -473,6 +473,7 @@ int __init cf_check tboot_parse_dmar_table(acpi_table_handler dmar_handler)
 
 static vmac_t orig_mac, resume_mac;
 
+#ifdef CONFIG_SYSTEM_SUSPEND
 int tboot_s3_resume(void)
 {
     if ( !tboot_in_measured_env() )
@@ -514,6 +515,7 @@ void tboot_s3_error(int error)
     printk("MAC for %s after S3 is: 0x%08"PRIx64"\n", what, resume_mac);
     panic("Memory integrity was lost on resume (%d)\n", error);
 }
+#endif /* CONFIG_SYSTEM_SUSPEND */
 
 int tboot_wake_ap(int apicid, unsigned long sipi_vec)
 {

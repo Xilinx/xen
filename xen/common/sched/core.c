@@ -2966,6 +2966,7 @@ const cpumask_t *sched_get_opt_cpumask(enum sched_gran opt, unsigned int cpu)
     return mask;
 }
 
+#ifdef CONFIG_SYSTEM_SUSPEND
 static void cf_check schedule_dummy(void)
 {
     sched_tasklet_check_cpu(smp_processor_id());
@@ -2977,6 +2978,7 @@ void scheduler_disable(void)
     open_softirq(SCHEDULE_SOFTIRQ, schedule_dummy);
     open_softirq(SCHED_SLAVE_SOFTIRQ, schedule_dummy);
 }
+#endif /* CONFIG_SYSTEM_SUSPEND */
 
 void scheduler_enable(void)
 {

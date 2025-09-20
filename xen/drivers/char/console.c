@@ -431,6 +431,7 @@ static unsigned int serial_rx_cons, serial_rx_prod;
 
 static void (*serial_steal_fn)(const char *str, size_t nr) = early_puts;
 
+#ifdef CONFIG_SYSTEM_SUSPEND
 int console_steal(int handle, void (*fn)(const char *str, size_t nr))
 {
     if ( (handle == -1) || (handle != sercon_handle) )
@@ -448,6 +449,7 @@ void console_giveback(int id)
     if ( id == 1 )
         serial_steal_fn = NULL;
 }
+#endif /* CONFIG_SYSTEM_SUSPEND */
 
 void console_serial_puts(const char *s, size_t nr)
 {

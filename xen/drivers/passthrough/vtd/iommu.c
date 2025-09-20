@@ -2908,6 +2908,7 @@ static int cf_check intel_iommu_group_id(u16 seg, u8 bus, u8 devfn)
     return PCI_BDF(bus, devfn);
 }
 
+#ifdef CONFIG_SYSTEM_SUSPEND
 static int __must_check cf_check vtd_suspend(void)
 {
     struct acpi_drhd_unit *drhd;
@@ -2950,6 +2951,7 @@ static int __must_check cf_check vtd_suspend(void)
 
     return 0;
 }
+#endif
 
 static void cf_check vtd_crash_shutdown(void)
 {
@@ -2972,6 +2974,7 @@ static void cf_check vtd_crash_shutdown(void)
     }
 }
 
+#ifdef CONFIG_SYSTEM_SUSPEND
 static void cf_check vtd_resume(void)
 {
     struct acpi_drhd_unit *drhd;
@@ -3010,6 +3013,7 @@ static void cf_check vtd_resume(void)
         iommu_enable_translation(drhd);
     }
 }
+#endif
 
 static void vtd_dump_page_table_level(paddr_t pt_maddr, int level, paddr_t gpa,
                                       int indent)
@@ -3229,8 +3233,10 @@ static const struct iommu_ops __initconst_cf_clobber vtd_ops = {
     .read_apic_from_ire = io_apic_read_remap_rte,
     .setup_hpet_msi = intel_setup_hpet_msi,
     .adjust_irq_affinities = adjust_vtd_irq_affinities,
+#ifdef CONFIG_SYSTEM_SUSPEND
     .suspend = vtd_suspend,
     .resume = vtd_resume,
+#endif
     .crash_shutdown = vtd_crash_shutdown,
     .iotlb_flush = iommu_flush_iotlb,
     .get_reserved_device_memory = intel_iommu_get_reserved_device_memory,

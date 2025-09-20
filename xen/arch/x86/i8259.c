@@ -255,6 +255,7 @@ static bool _mask_and_ack_8259A_irq(unsigned int irq)
     return is_real_irq;
 }
 
+#ifdef CONFIG_SYSTEM_SUSPEND
 static char irq_trigger[2];
 /**
  * ELCR registers (0x4d0, 0x4d1) control edge/level of IRQ
@@ -284,6 +285,7 @@ int i8259A_suspend(void)
     save_ELCR(irq_trigger);
     return 0;
 }
+#endif
 
 void init_8259A(int auto_eoi)
 {

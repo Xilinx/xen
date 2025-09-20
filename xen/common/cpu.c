@@ -190,6 +190,7 @@ void notify_cpu_starting(unsigned int cpu)
     cpu_notifier_call_chain(cpu, CPU_STARTING, NULL, true);
 }
 
+#ifdef CONFIG_SYSTEM_SUSPEND
 static cpumask_t frozen_cpus;
 
 int disable_nonboot_cpus(void)
@@ -247,3 +248,4 @@ void enable_nonboot_cpus(void)
 
     cpumask_clear(&frozen_cpus);
 }
+#endif /* CONFIG_SYSTEM_SUSPEND */

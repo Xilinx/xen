@@ -438,12 +438,14 @@ static void __enable_x2apic(void)
     }
 }
 
+#ifdef CONFIG_SYSTEM_SUSPEND
 static void resume_x2apic(void)
 {
     if ( iommu_x2apic_enabled )
         iommu_enable_x2apic();
     __enable_x2apic();
 }
+#endif /* CONFIG_SYSTEM_SUSPEND */
 
 void setup_local_APIC(bool bsp)
 {
@@ -594,6 +596,7 @@ void setup_local_APIC(bool bsp)
     apic_pm_activate();
 }
 
+#ifdef CONFIG_SYSTEM_SUSPEND
 int lapic_suspend(void)
 {
     unsigned long flags;
@@ -684,6 +687,7 @@ int lapic_resume(void)
     local_irq_restore(flags);
     return 0;
 }
+#endif /* CONFIG_SYSTEM_SUSPEND */
 
 
 /*

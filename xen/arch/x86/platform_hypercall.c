@@ -470,7 +470,11 @@ ret_t do_platform_op(
         break;
 
     case XENPF_enter_acpi_sleep:
+#ifdef CONFIG_SYSTEM_SUSPEND
         ret = acpi_enter_sleep(&op->u.enter_acpi_sleep);
+#else
+        ret = -EOPNOTSUPP;
+#endif
         break;
 
     case XENPF_change_freq:
