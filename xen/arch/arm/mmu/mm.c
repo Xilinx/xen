@@ -50,7 +50,9 @@ void __init init_frametable(void)
     BUILD_BUG_ON((sizeof(paddr_t) * BITS_PER_BYTE) < PADDR_BITS);
     BUILD_BUG_ON(sizeof(struct page_info) != PAGE_INFO_SIZE);
 
-    frametable_base_pdx = mfn_to_pdx(directmap_mfn_start);
+    frametable_base_pdx = (mfn_x(directmap_mfn_start) < PDX_GROUP_COUNT)
+                          ? 0
+                          : mfn_to_pdx(directmap_mfn_start);
 
     max_pdx = pfn_to_pdx(max_page - 1) + 1;
 
