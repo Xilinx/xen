@@ -29,7 +29,7 @@ obj-y += vioapic.o
 obj-y += vlapic.o
 obj-y += vm_event.o
 obj-y += vmsi.o
-obj-y += vpic.o
+obj-$(CONFIG_VPIC) += vpic.o
 obj-y += vpt.o
 
 # Build ACPI DSDT for PVH guests

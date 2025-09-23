@@ -81,4 +81,22 @@ config MEM_PAGING
 config MEM_SHARING
 	bool "Xen memory sharing support (UNSUPPORTED)" if UNSUPPORTED
 
+config VPIC
+	bool "Virtual PIC (8259A) support"
+	default y
+	help
+	  Enable virtual PIC (8259A Programmable Interrupt Controller) emulation
+	  for x86 guests. This provides legacy interrupt controller functionality
+	  required by older operating systems and for compatibility.
+
+	  This feature is available for all domain types (PV, PVH, and HVM).
+	  For PV domains, it provides basic PIC state structure. For PVH and HVM
+	  domains, it provides full PIC functionality including interrupt routing
+	  and port I/O handlers.
+
+	  Modern guests that use only APIC for interrupt handling can opt out of
+	  this feature to reduce attack surface and improve performance.
+
+	  If unsure, say Y.
+
 endif
