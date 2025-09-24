@@ -147,4 +147,29 @@ static inline void emulate_write(u64 addr)
 #define outw(v, c) ( emulate_write(c) )
 #define outl(v, c) ( emulate_write(c) )
 
+/*
+ * Periodically poll an address and wait between reads in us until a
+ * condition is met or a timeout occurs.
+ *
+ * @return: 0 when cond met, -ETIMEDOUT upon timeout
+ */
+#define readx_poll_timeout(op, addr, val, cond, sleep_us, timeout_us) \
+({ \
+    s_time_t deadline = NOW() + MICROSECS(timeout_us); \
+    for (;;) { \
+        (val) = op(addr); \
+        if (cond) \
+            break; \
+        if (NOW() > deadline) { \
+            (val) = op(addr); \
+            break; \
+        } \
+        udelay(sleep_us); \
+    } \
+    (cond) ? 0 : -ETIMEDOUT; \
+})
+
+#define readl_relaxed_poll_timeout(addr, val, cond, delay_us, timeout_us)	\
+        readx_poll_timeout(readl_relaxed, addr, val, cond, delay_us, timeout_us)
+
 #endif /* _ARM_ARM64_IO_H */

@@ -129,31 +129,6 @@
 	printk(XENLOG_ERR "SMMUv3: %s: " fmt, dev_name(dev), ## __VA_ARGS__)
 
 /*
- * Periodically poll an address and wait between reads in us until a
- * condition is met or a timeout occurs.
- *
- * @return: 0 when cond met, -ETIMEDOUT upon timeout
- */
-#define readx_poll_timeout(op, addr, val, cond, sleep_us, timeout_us) \
-({ \
-	s_time_t deadline = NOW() + MICROSECS(timeout_us); \
-	for (;;) { \
-		(val) = op(addr); \
-		if (cond) \
-			break; \
-		if (NOW() > deadline) { \
-			(val) = op(addr); \
-			break; \
-		} \
-		udelay(sleep_us); \
-	} \
-	(cond) ? 0 : -ETIMEDOUT; \
-})
-
-#define readl_relaxed_poll_timeout(addr, val, cond, delay_us, timeout_us)	\
-	readx_poll_timeout(readl_relaxed, addr, val, cond, delay_us, timeout_us)
-
-/*
  * Helpers for DMA allocation. Just the function name is reused for
  * porting code, these allocation are not managed allocations
  */
