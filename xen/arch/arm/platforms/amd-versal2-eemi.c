@@ -200,6 +200,9 @@ static const struct pm_access pm_node_access[] = {
     [PM_NODE_IDX(VERSAL2_PM_DEV_MMI_USB_DRD)] = { .hwdom_access = true },
     [PM_NODE_IDX(VERSAL2_PM_DEV_MMI_HDCP)] = { .hwdom_access = true },
     [PM_NODE_IDX(VERSAL2_PM_DEV_MMI_DP)] = { .hwdom_access = true },
+    [PM_NODE_IDX(VERSAL2_PM_DEV_MMI_GEM)] = { .hwdom_access = true },
+    [PM_NODE_IDX(VERSAL2_PM_DEV_CAN_FD_4)] = { .hwdom_access = true },
+    [PM_NODE_IDX(VERSAL2_PM_DEV_CAN_FD_5)] = { .hwdom_access = true },
 
     [PM_NODE_IDX(VERSAL2_PM_DEV_MMI_GPU)] = { .hwdom_access = true },
     [PM_NODE_IDX(VERSAL2_PM_DEV_MMI_DC)] = { .hwdom_access = true },
@@ -588,7 +591,7 @@ static const struct pm_clk2node pm_clk_node_map[] = {
 };
 
 /* Last clock node index */
-#define VERSAL2_PM_CLK_END_IDX  PM_NODE_IDX(VERSAL2_PM_CLK_MMI_AUX1_REF)
+#define VERSAL2_PM_CLK_END_IDX  PM_NODE_IDX(VERSAL2_PM_CLK_CAN4_REF_2X)
 
 bool versal2_eemi(struct cpu_user_regs *regs)
 {
