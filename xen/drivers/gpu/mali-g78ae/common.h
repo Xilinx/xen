@@ -23,7 +23,6 @@
 #define MAX_AW_NUM 16
 #define IS_VALID_AW(aw) ((aw) >= 0 && (aw) < MAX_AW_NUM)
 
-#define MALI_PTM_RESOURCE_GROUP_COUNT (4)
 #define MALI_PTM_ACCESS_WINDOW_COUNT (16)
 #define MALI_PTM_PARTITION_COUNT (4)
 #define MALI_PTM_SLICES_COUNT (8)
