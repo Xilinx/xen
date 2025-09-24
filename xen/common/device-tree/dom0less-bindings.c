@@ -160,6 +160,10 @@ int __init parse_dom0less_node(struct dt_device_node *node,
     {
         if ( val >= DOMID_FIRST_RESERVED )
             panic("bad domid for node=%s domid=%u\n", dt_node_name(node), val);
+        if ( val && (*flags & CDF_hardware) )
+            panic("hwdom is d%u, but must be d0\n", val);
+        if ( !val && !(*flags & CDF_hardware) )
+            panic("can't create non-hwdom d0");
 
         bd->domid = val;
     }

@@ -169,6 +169,9 @@ with the following properties:
 
     Either all domains of the DTB must have the property, or none of them.
 
+    If set, must be zero for a hardware domain and non-zero for non-hardware
+    domains.
+
 - llc-colors
 
     A string specifying the LLC color configuration for the guest.
