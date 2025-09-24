@@ -2018,8 +2018,6 @@ void asmlinkage __init noreturn __start_xen(void)
         printk(XENLOG_INFO "Constructed %d boot-time domains\n", ret);
 
     hwdom = first_boot_domain(bi, 0, CDF_hardware);
-    if ( !hwdom )
-        panic("missing hwdom");
 
     heap_init_late();
 
@@ -2032,7 +2030,8 @@ void asmlinkage __init noreturn __start_xen(void)
 
     dmi_end_boot();
 
-    setup_io_bitmap(hwdom->d);
+    if ( hwdom )
+        setup_io_bitmap(hwdom->d);
 
     if ( bsp_delay_spec_ctrl )
     {

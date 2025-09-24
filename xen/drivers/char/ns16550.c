@@ -606,7 +606,7 @@ static void __init cf_check ns16550_endboot(struct serial_port *port)
     struct ns16550 *uart = port->uart;
     int rv;
 
-    if ( uart->remapped_io_base )
+    if ( uart->remapped_io_base || !hardware_domain )
         return;
     rv = ioports_deny_access(hardware_domain, uart->io_base, uart->io_base + 7);
     if ( rv != 0 )
