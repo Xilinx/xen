@@ -130,6 +130,12 @@ bool versal2_eemi(struct cpu_user_regs *regs);
 #define VERSAL2_PM_CLK_MMI_AUX0_REF         (0x82080dcU)
 #define VERSAL2_PM_CLK_PS_AXI_DMA           (0x82080ddU)
 #define VERSAL2_PM_CLK_MMI_AUX1_REF         (0x82080dfU)
+#define VERSAL2_PM_CLK_MMI_GEM_HCLK         (0x82080E0U)
+#define VERSAL2_PM_CLK_SOCDMA               (0x82080E1U)
+#define VERSAL2_PM_CLK_DC_REF               (0x82080E2U)
+#define VERSAL2_PM_CLK_DC_27M               (0x82080E3U)
+#define VERSAL2_PM_CLK_CAN5_REF_2X          (0x82080E4U)
+#define VERSAL2_PM_CLK_CAN4_REF_2X          (0x82080E5U)
 
 /* Versal2 specific device Nodes */
 #define VERSAL2_PM_DEV_ADC_0                (0x186580e9U)
@@ -219,6 +225,9 @@ bool versal2_eemi(struct cpu_user_regs *regs);
 #define VERSAL2_PM_DEV_MMI_DC               (0x18224137U)
 #define VERSAL2_PM_DEV_MMI_HDCP             (0x18224138U)
 #define VERSAL2_PM_DEV_MMI_DP               (0x18224139U)
+#define VERSAL2_PM_DEV_MMI_GEM              (0x1822413AU)
+#define VERSAL2_PM_DEV_CAN_FD_4             (0x1822413BU)
+#define VERSAL2_PM_DEV_CAN_FD_5             (0x1822413CU)
 
 /* Versal2 specific isolation Nodes */
 #define VERSAL2_PM_ISO_CPM5_NOC_DFX         (0x20000048U)
