@@ -1,0 +1,9 @@
+obj-y += assign.o
+obj-y += system.o
+obj-y += partition-control.o
+obj-y += partition-config.o
+obj-y += resource-group.o
+obj-y += gpu-subinstance.o
+obj-y += arbiter.o
+obj-y += core.o
+obj-y += gsi-scheduler-null.o
