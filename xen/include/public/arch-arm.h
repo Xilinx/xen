@@ -358,6 +358,9 @@ struct xen_arch_domainconfig {
      *
      */
     uint32_t clock_frequency;
+#ifdef CONFIG_MALI_G78AE
+    unsigned int mali_aw;
+#endif
 };
 #endif /* __XEN__ || __XEN_TOOLS__ */
 

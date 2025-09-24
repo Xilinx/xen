@@ -137,6 +137,10 @@ struct arch_domain
         unsigned int stage;
         unsigned int size;
     } reset;
+
+#ifdef CONFIG_MALI_G78AE
+    unsigned int mali_aw;
+#endif
 }  __cacheline_aligned;
 
 struct arch_vcpu
