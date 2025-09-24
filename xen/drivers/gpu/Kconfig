@@ -1,0 +1,37 @@
+config GPU
+	bool
+
+if ARM
+config MALI_G78AE
+	bool "Mali G78AE GPU support (EA)"	if EXPERT
+	select GPU
+	default n
+	help
+	  Support for implementation of hardware virtualization available in the
+	  Mali G78AE GPU.
+
+config MALI_G78AE_VERSAL2
+	bool "Mali G78AE GPU support for Versal2"
+	depends on MALI_G78AE
+	default n
+	help
+	  Support for Mali G78AE GPU on Versal2 platform.
+
+config MALI_G78AE_VERSAL_MMI_SLRC_REG_CFG_0
+	hex "GPU_CORR_IRQ_CFG0 value in MMI_SLRC" if MALI_G78AE_VERSAL2
+	default 0xDCBA9876
+	help
+	  Value for the GPU_CORR_IRQ_CFG0 register for Mali G78AE on Versal2 platform.
+	  By default, this is set to 0xDCBA9876, which is the value used in the Versal2
+	  on reset. This value set the first 8 IRQ lines to be used for AWs.
+
+config MALI_G78AE_VERSAL_MMI_SLRC_REG_CFG_1
+	hex "GPU_CORR_IRQ_CFG1 value in MMI_SLRC" if MALI_G78AE_VERSAL2
+	default 0x00FE5432
+	help
+	  Value for the GPU_CORR_IRQ_CFG1 register for Mali G78AE on Versal2 platform.
+	  By default, this is set to 0x00FE5432, which is the value used in the Versal2
+	  on reset. This value set the next 2 IRQ lines to be used for RGs and system
+	  blocks.
+
+endif # ARM
