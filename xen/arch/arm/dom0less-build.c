@@ -21,6 +21,7 @@
 #include <asm/domain_build.h>
 #include <asm/gic_v3_its.h>
 #include <asm/grant_table.h>
+#include <asm/mali-g78ae.h>
 #include <asm/pci.h>
 #include <asm/static-memory.h>
 #include <asm/static-shmem.h>
@@ -1872,6 +1873,13 @@ void __init create_domUs(void)
                 panic("Unknown vIOMMU %s\n", viommu_str);
         }
 
+#ifdef CONFIG_MALI_G78AE
+        if ( dt_property_read_u32(node, "mali-aw", &val) &&
+             (val >= AW_MIN) && (val <= AW_MAX) )
+            d_cfg.arch.mali_aw = val;
+        else
+            panic("mali-aw property missing or invalid for domain");
+#endif
         /*
          * The variable max_init_domid is initialized with zero, so here it's
          * very important to use the pre-increment operator to call

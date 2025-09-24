@@ -346,6 +346,12 @@ with the following properties:
     the ECAM, Memory and Prefetchable-Memory regions for virtio-pci. This is
     useful to avoid memory-map collisions when using direct-mapped guests.
 
+- mali-aw
+
+    Optional. A 32-bit integer that specifies the Access Window (AW) ID assigned
+    to the domain for GPU virtualization. Valid values range from 0 to 15. This
+    binding is required for associating a VM with a GPU partition in Mali-G78AE.
+
 Under the "xen,domain" compatible node, one or more sub-nodes are present
 for the DomU kernel and ramdisk.
 
@@ -956,3 +962,4 @@ In this particular example, all virtio backends were configured to run in dom0.
             };
         };
     };
+

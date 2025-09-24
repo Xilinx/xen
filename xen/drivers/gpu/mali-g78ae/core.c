@@ -33,6 +33,8 @@ static struct {
     bool initialized;
 } mali_g78ae;
 
+int __initdata opt_dom0_mali_aw = MAX_AW_NUM;
+
 int mali_g78ae_register_domain(struct domain *d, unsigned int aw)
 {
     unsigned int i;

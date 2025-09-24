@@ -31,6 +31,7 @@
 #include <asm/vgic.h>
 #include <asm/viommu.h>
 #include <asm/vtimer.h>
+#include <asm/mali-g78ae.h>
 
 #include "vpci.h"
 #include "vuart.h"
@@ -806,6 +807,14 @@ int arch_domain_create(struct domain *d,
 
     if ( (rc = domain_viommu_init(d, config->arch.viommu_type)) != 0 )
         goto fail;
+
+#ifdef CONFIG_MALI_G78AE
+    if ( (rc = mali_g78ae_register_domain(d, config->arch.mali_aw)) != 0 )
+    {
+        printk(XENLOG_ERR "### Failed to register domain with Mali G78AE ###\n");
+        goto fail;
+    }
+#endif
 
     return 0;
 
