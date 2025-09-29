@@ -671,6 +671,95 @@ static bool __init pvh_acpi_xsdt_table_allowed(const char *sig,
             strncmp(sig, ACPI_SIG_FACS, ACPI_NAME_SIZE));
 }
 
+/*
+ * Modify FADT table to clear LEGACY_DEVICES flag when VPIC/VPIT are disabled.
+ * This prevents dom0 from probing for legacy devices when Xen doesn't provide
+ * virtual PIC/PIT emulation.
+ */
+static int __init pvh_setup_acpi_fadt(struct domain *d, unsigned long native_fadt_addr,
+                                      unsigned long *new_fadt_addr)
+{
+    struct acpi_table_fadt *native_fadt, *new_fadt;
+    unsigned long fadt_size;
+    int rc;
+
+    if ( IS_ENABLED(CONFIG_VPIT) || IS_ENABLED(CONFIG_VPIC) )
+    {
+        *new_fadt_addr = native_fadt_addr;
+        return 0;
+    }
+
+    /* Map the native FADT to determine its size */
+    native_fadt = acpi_os_map_memory(native_fadt_addr, sizeof(*native_fadt));
+    if ( !native_fadt )
+    {
+        printk("Unable to map native FADT\n");
+        return -EINVAL;
+    }
+
+    fadt_size = native_fadt->header.length;
+    acpi_os_unmap_memory(native_fadt, sizeof(*native_fadt));
+
+    /* Allocate memory for the new FADT */
+    new_fadt = xzalloc_bytes(fadt_size);
+    if ( !new_fadt )
+    {
+        printk("Unable to allocate memory for FADT\n");
+        return -ENOMEM;
+    }
+
+    /* Map and copy the entire native FADT */
+    native_fadt = acpi_os_map_memory(native_fadt_addr, fadt_size);
+    if ( !native_fadt )
+    {
+        printk("Unable to map complete native FADT\n");
+        rc = -EINVAL;
+        goto cleanup;
+    }
+
+    memcpy(new_fadt, native_fadt, fadt_size);
+    acpi_os_unmap_memory(native_fadt, fadt_size);
+
+    /*
+     * Clear LEGACY_DEVICES flag when both VPIC and VPIT are disabled.
+     * This tells dom0 that the system doesn't have legacy ISA/LPC devices
+     * and prevents it from probing for PIC/PIT hardware.
+     */
+    new_fadt->boot_flags &= ~ACPI_FADT_LEGACY_DEVICES;
+    printk("dom%u: Cleared ACPI_FADT_LEGACY_DEVICES flag (VPIC/VPIT disabled)\n",
+           d->domain_id);
+
+    /* Update checksum */
+    new_fadt->header.checksum = 0;
+    new_fadt->header.checksum = (uint8_t)(0 - acpi_tb_checksum((uint8_t *)new_fadt, fadt_size));
+
+    /* Allocate guest memory for the new FADT */
+    if ( pvh_steal_ram(d, fadt_size, 0, GB(4), new_fadt_addr) )
+    {
+        printk("Unable to find guest RAM for FADT\n");
+        rc = -ENOMEM;
+        goto cleanup;
+    }
+
+    /* Mark this region as E820_ACPI */
+    if ( pvh_add_mem_range(d, *new_fadt_addr, *new_fadt_addr + fadt_size, E820_ACPI) )
+        printk("Unable to add FADT region to memory map\n");
+
+    /* Copy the modified FADT to guest memory */
+    rc = hvm_copy_to_guest_phys(*new_fadt_addr, new_fadt, fadt_size, d->vcpu[0]);
+    if ( rc )
+    {
+        printk("Unable to copy FADT into guest memory\n");
+        goto cleanup;
+    }
+
+    rc = 0;
+
+cleanup:
+    xfree(new_fadt);
+    return rc;
+}
+
 static int __init pvh_setup_acpi_xsdt(struct domain *d, paddr_t madt_addr,
                                       paddr_t *addr)
 {
@@ -756,7 +845,22 @@ static int __init pvh_setup_acpi_xsdt(struct domain *d, paddr_t madt_addr,
     {
         if ( pvh_acpi_xsdt_table_allowed(tables[i].signature.ascii,
                                          tables[i].address, tables[i].length) )
-            xsdt->table_offset_entry[j++] = tables[i].address;
+        {
+            /* Handle FADT specially - modify it to clear legacy device flags */
+            if ( !strncmp(tables[i].signature.ascii, ACPI_SIG_FADT, ACPI_NAME_SIZE) )
+            {
+                unsigned long new_fadt_addr;
+                rc = pvh_setup_acpi_fadt(d, tables[i].address, &new_fadt_addr);
+                if ( rc )
+                {
+                    printk("Failed to setup modified FADT: %d\n", rc);
+                    goto out;
+                }
+                xsdt->table_offset_entry[j++] = new_fadt_addr;
+            }
+            else
+                xsdt->table_offset_entry[j++] = tables[i].address;
+        }
     }
 
     xsdt->header.revision = 1;
