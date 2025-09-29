@@ -4308,7 +4308,7 @@ static int hvm_set_param(struct domain *d, uint32_t index, uint64_t value)
          * Only actually required for VT-x lacking unrestricted_guest
          * capabilities.  Short circuit the pause if possible.
          */
-        if ( !paging_mode_hap(d) || !cpu_has_vmx )
+        if ( !paging_mode_hap(d) || !using_vmx() )
         {
             d->arch.hvm.params[index] = value;
             break;
