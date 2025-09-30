@@ -44,15 +44,17 @@
 static const unsigned int vlapic_lvt_mask[VLAPIC_LVT_NUM] =
 {
      /* LVTT */
-     LVT_MASK | APIC_TIMER_MODE_MASK,
+     (LVT_MASK | APIC_TIMER_MODE_MASK) & ~APIC_SEND_PENDING,
      /* LVTTHMR */
-     LVT_MASK | APIC_DM_MASK,
+     (LVT_MASK | APIC_DM_MASK) & ~APIC_SEND_PENDING,
      /* LVTPC */
-     LVT_MASK | APIC_DM_MASK,
-     /* LVT0-1 */
-     LINT_MASK, LINT_MASK,
+     (LVT_MASK | APIC_DM_MASK) & ~APIC_SEND_PENDING,
+     /* LVT0 */
+     LINT_MASK & ~(APIC_LVT_REMOTE_IRR | APIC_SEND_PENDING),
+     /* LVT1 */
+     LINT_MASK & ~(APIC_LVT_REMOTE_IRR | APIC_SEND_PENDING),
      /* LVTERR */
-     LVT_MASK
+     LVT_MASK & ~APIC_SEND_PENDING,
 };
 
 #define vlapic_lvtt_period(vlapic)                              \
