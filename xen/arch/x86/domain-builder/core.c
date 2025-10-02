@@ -84,7 +84,7 @@ void __init builder_late_init(struct boot_info *bi)
             .misc_flags = opt_dom0_msr_relaxed ? XEN_X86_MSR_RELAXED : 0,
             .emulation_flags = opt_dom0_pvh                               ?
                 XEN_X86_EMU_LAPIC | XEN_X86_EMU_IOAPIC | XEN_X86_EMU_VPCI :
-                XEN_X86_EMU_PIT,
+                X86_EMU_PIT,
         },
     };
 

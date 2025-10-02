@@ -874,7 +874,10 @@ int arch_domain_create(struct domain *d,
     emflags = config->arch.emulation_flags;
 
     if ( is_hardware_domain(d) && is_pv_domain(d) )
-        emflags |= XEN_X86_EMU_PIT;
+    {
+        if ( IS_ENABLED(CONFIG_VPIT) )
+            emflags |= XEN_X86_EMU_PIT;
+    }
 
     if ( emflags & ~XEN_X86_EMU_ALL )
     {
@@ -957,7 +960,8 @@ int arch_domain_create(struct domain *d,
     }
 
     /* PV/PVH guests get an emulated PIT too for video BIOSes to use. */
-    pit_init(d);
+    if ( IS_ENABLED(CONFIG_VPIT) )
+        pit_init(d);
 
     /*
      * If the FPU does not save FCS/FDS then we can always
@@ -2615,7 +2619,8 @@ int domain_relinquish_resources(struct domain *d)
         BUG();
     }
 
-    pit_deinit(d);
+    if ( IS_ENABLED(CONFIG_VPIT) )
+        pit_deinit(d);
 
     if ( is_hvm_domain(d) )
         hvm_domain_relinquish_resources(d);

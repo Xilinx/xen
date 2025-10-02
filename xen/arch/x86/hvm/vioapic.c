@@ -436,7 +436,8 @@ static void vioapic_deliver(struct hvm_vioapic *vioapic, unsigned int pin)
         struct vlapic *lapic0 = vcpu_vlapic(d->vcpu[0]);
 
         /* Force to pick vCPU 0 if part of the destination list */
-        if ( (irq == hvm_isa_irq_to_gsi(0)) && pt_active(&d->arch.vpit.pt0) &&
+        if ( (irq == hvm_isa_irq_to_gsi(0)) &&
+             (!IS_ENABLED(CONFIG_VPIT) || pt_active(&d->arch.vpit.pt0)) &&
              vlapic_match_dest(lapic0, NULL, 0, dest, dest_mode) &&
              /* Mimic the vlapic_enabled check found in vlapic_lowest_prio. */
              vlapic_enabled(lapic0) )

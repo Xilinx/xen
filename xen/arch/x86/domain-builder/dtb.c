@@ -89,7 +89,7 @@ int __init arch_parse_dom0less_node(struct dt_device_node *node,
             bd->create_cfg.arch.emulation_flags |= XEN_X86_EMU_PM;
     }
     else if ( bd->create_flags & CDF_hardware ) /* PV hwdom */
-        bd->create_cfg.arch.emulation_flags |= XEN_X86_EMU_PIT;
+        bd->create_cfg.arch.emulation_flags |= X86_EMU_PIT;
 
     return 0;
 }

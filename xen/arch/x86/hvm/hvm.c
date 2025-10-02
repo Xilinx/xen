@@ -4130,7 +4130,8 @@ static void hvm_s3_suspend(struct domain *d)
 
     vpic_reset(d);
     vioapic_reset(d);
-    pit_reset(d);
+    if ( IS_ENABLED(CONFIG_VPIT) )
+        pit_reset(d);
     rtc_reset(d);
     pmtimer_reset(d);
     hpet_reset(d);
