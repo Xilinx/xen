@@ -689,7 +689,8 @@ int hvm_domain_initialise(struct domain *d,
         break;
     }
 
-    vpic_init(d);
+    if ( IS_ENABLED(CONFIG_VPIC) )
+        vpic_init(d);
 
     rc = vioapic_init(d);
     if ( rc != 0 )
@@ -4128,7 +4129,8 @@ static void hvm_s3_suspend(struct domain *d)
         ASSERT(!rc);
     }
 
-    vpic_reset(d);
+    if ( IS_ENABLED(CONFIG_VPIC) )
+        vpic_reset(d);
     vioapic_reset(d);
     if ( IS_ENABLED(CONFIG_VPIT) )
         pit_reset(d);

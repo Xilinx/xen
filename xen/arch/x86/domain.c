@@ -874,10 +874,7 @@ int arch_domain_create(struct domain *d,
     emflags = config->arch.emulation_flags;
 
     if ( is_hardware_domain(d) && is_pv_domain(d) )
-    {
-        if ( IS_ENABLED(CONFIG_VPIT) )
-            emflags |= XEN_X86_EMU_PIT;
-    }
+        emflags |= X86_EMU_PIT;
 
     if ( emflags & ~XEN_X86_EMU_ALL )
     {

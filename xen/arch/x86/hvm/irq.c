@@ -74,7 +74,8 @@ void hvm_ioapic_deassert(struct domain *d, unsigned int gsi)
 static void assert_irq(struct domain *d, unsigned ioapic_gsi, unsigned pic_irq)
 {
     assert_gsi(d, ioapic_gsi);
-    vpic_irq_positive_edge(d, pic_irq);
+    if ( IS_ENABLED(CONFIG_VPIC) )
+        vpic_irq_positive_edge(d, pic_irq);
 }
 
 /* Must be called with hvm_domain->irq_lock hold */
@@ -83,7 +84,7 @@ static void deassert_irq(struct domain *d, unsigned isa_irq)
     struct pirq *pirq =
         pirq_info(d, domain_emuirq_to_pirq(d, isa_irq));
 
-    if ( !hvm_domain_use_pirq(d, pirq) )
+    if ( IS_ENABLED(CONFIG_VPIC) && !hvm_domain_use_pirq(d, pirq) )
         vpic_irq_negative_edge(d, isa_irq);
 }
 
@@ -266,12 +267,12 @@ static void hvm_set_callback_irq_level(struct vcpu *v)
         if ( asserted && (hvm_irq->gsi_assert_count[gsi]++ == 0) )
         {
             vioapic_irq_positive_edge(d, gsi);
-            if ( gsi < NR_ISA_IRQS )
+            if ( (IS_ENABLED(CONFIG_VPIC)) && (gsi < NR_ISA_IRQS) )
                 vpic_irq_positive_edge(d, gsi);
         }
         else if ( !asserted && (--hvm_irq->gsi_assert_count[gsi] == 0) )
         {
-            if ( gsi < NR_ISA_IRQS )
+            if ( (IS_ENABLED(CONFIG_VPIC)) && (gsi < NR_ISA_IRQS) )
                 vpic_irq_negative_edge(d, gsi);
         }
         break;
@@ -354,12 +355,16 @@ int hvm_set_pci_link_route(struct domain *d, u8 link, u8 isa_irq)
         goto out;
 
     if ( old_isa_irq && (--hvm_irq->gsi_assert_count[old_isa_irq] == 0) )
-        vpic_irq_negative_edge(d, old_isa_irq);
+    {
+        if ( IS_ENABLED(CONFIG_VPIC) )
+            vpic_irq_negative_edge(d, old_isa_irq);
+    }
 
     if ( isa_irq && (hvm_irq->gsi_assert_count[isa_irq]++ == 0) )
     {
         vioapic_irq_positive_edge(d, isa_irq);
-        vpic_irq_positive_edge(d, isa_irq);
+        if ( IS_ENABLED(CONFIG_VPIC) )
+            vpic_irq_positive_edge(d, isa_irq);
     }
 
  out:
@@ -442,7 +447,10 @@ void hvm_set_callback_via(struct domain *d, uint64_t via)
             gsi = hvm_irq->callback_via.gsi;
             if ( (--hvm_irq->gsi_assert_count[gsi] == 0) &&
                  (gsi < NR_ISA_IRQS) )
-                vpic_irq_negative_edge(d, gsi);
+            {
+                if ( IS_ENABLED(CONFIG_VPIC) )
+                    vpic_irq_negative_edge(d, gsi);
+            }
             break;
         case HVMIRQ_callback_pci_intx:
             pdev  = hvm_irq->callback_via.pci.dev;
@@ -465,7 +473,7 @@ void hvm_set_callback_via(struct domain *d, uint64_t via)
                   (hvm_irq->gsi_assert_count[gsi]++ == 0) )
         {
             vioapic_irq_positive_edge(d, gsi);
-            if ( gsi < NR_ISA_IRQS )
+            if ( (IS_ENABLED(CONFIG_VPIC)) && (gsi < NR_ISA_IRQS) )
                 vpic_irq_positive_edge(d, gsi);
         }
         break;
@@ -532,7 +540,8 @@ struct hvm_intack hvm_vcpu_has_pending_irq(struct vcpu *v)
          && vcpu_info(v, evtchn_upcall_pending) )
         return hvm_intack_vector(plat->irq->callback_via.vector);
 
-    if ( vlapic_accept_pic_intr(v) && plat->vpic[0].int_output )
+    if ( IS_ENABLED(CONFIG_VPIC)
+         && vlapic_accept_pic_intr(v) && plat->vpic[0].int_output )
         return hvm_intack_pic(0);
 
     vector = vlapic_has_pending_irq(v);
@@ -545,8 +554,6 @@ struct hvm_intack hvm_vcpu_has_pending_irq(struct vcpu *v)
 struct hvm_intack hvm_vcpu_ack_pending_irq(
     struct vcpu *v, struct hvm_intack intack)
 {
-    int vector;
-
     switch ( intack.source )
     {
     case hvm_intsrc_nmi:
@@ -558,10 +565,18 @@ struct hvm_intack hvm_vcpu_ack_pending_irq(
             intack = hvm_intack_none;
         break;
     case hvm_intsrc_pic:
-        if ( (vector = vpic_ack_pending_irq(v)) == -1 )
-            intack = hvm_intack_none;
+        if ( IS_ENABLED(CONFIG_VPIC) )
+        {
+            int vector;
+            if ( (vector = vpic_ack_pending_irq(v)) == -1 )
+                intack = hvm_intack_none;
+            else
+                intack.vector = (uint8_t)vector;
+        }
         else
-            intack.vector = (uint8_t)vector;
+        {
+            intack = hvm_intack_none;
+        }
         break;
     case hvm_intsrc_lapic:
         if ( !vlapic_ack_pending_irq(v, intack.vector, 0) )

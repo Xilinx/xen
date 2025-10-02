@@ -77,8 +77,13 @@ static int pt_irq_vector(struct periodic_time *pt, enum hvm_intsrc src)
     isa_irq = pt->irq;
 
     if ( src == hvm_intsrc_pic )
-        return (v->domain->arch.hvm.vpic[isa_irq >> 3].irq_base
-                + (isa_irq & 7));
+    {
+        if ( IS_ENABLED(CONFIG_VPIC) )
+            return (v->domain->arch.hvm.vpic[isa_irq >> 3].irq_base
+                    + (isa_irq & 7));
+        else
+            return 0;
+    }
 
     ASSERT(src == hvm_intsrc_lapic);
     gsi = pt->source == PTSRC_isa ? hvm_isa_irq_to_gsi(isa_irq) : pt->irq;
@@ -111,11 +116,14 @@ static int pt_irq_masked(struct periodic_time *pt)
 
     case PTSRC_isa:
     {
-        uint8_t pic_imr = v->domain->arch.hvm.vpic[pt->irq >> 3].imr;
+        if ( IS_ENABLED(CONFIG_VPIC) )
+        {
+            uint8_t pic_imr = v->domain->arch.hvm.vpic[pt->irq >> 3].imr;
 
-        /* Check if the interrupt is unmasked in the PIC. */
-        if ( !(pic_imr & (1 << (pt->irq & 7))) && vlapic_accept_pic_intr(v) )
-            return 0;
+            /* Check if the interrupt is unmasked in the PIC. */
+            if ( !(pic_imr & (1 << (pt->irq & 7))) && vlapic_accept_pic_intr(v) )
+                return 0;
+        }
 
         gsi = hvm_isa_irq_to_gsi(pt->irq);
     }
@@ -376,7 +384,7 @@ int pt_update_irq(struct vcpu *v)
     case PTSRC_isa:
         hvm_isa_irq_deassert(v->domain, irq);
         if ( platform_legacy_irq(irq) && vlapic_accept_pic_intr(v) &&
-             v->domain->arch.hvm.vpic[irq >> 3].int_output )
+             (IS_ENABLED(CONFIG_VPIC) ? v->domain->arch.hvm.vpic[irq >> 3].int_output : 0) )
             hvm_isa_irq_assert(v->domain, irq, NULL);
         else
         {
