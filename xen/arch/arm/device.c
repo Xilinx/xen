@@ -265,6 +265,10 @@ int handle_device(struct domain *d, struct dt_device_node *dev, p2m_type_t p2mt,
         .irq_ranges = irq_ranges
     };
 
+    /* CMA */
+    if ( dt_device_is_compatible(dev, "shared-dma-pool") )
+        return 0;
+
     naddr = dt_number_of_address(dev);
 
     dt_dprintk("%s passthrough = %d naddr = %u\n",

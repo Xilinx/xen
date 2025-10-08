@@ -27,7 +27,7 @@ static inline int process_shm_chosen(struct domain *d,
 }
 
 int process_shm_node(const void *fdt, int node, uint32_t address_cells,
-                     uint32_t size_cells);
+                     uint32_t size_cells, bool cma);
 
 void early_print_info_shmem(void);
 

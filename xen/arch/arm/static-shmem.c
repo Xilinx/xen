@@ -2,6 +2,7 @@
 
 #include <xen/device_tree.h>
 #include <xen/libfdt/libfdt.h>
+#include <xen/llc-coloring.h>
 #include <xen/rangeset.h>
 #include <xen/sched.h>
 
@@ -297,6 +298,9 @@ int __init process_shm(struct domain *d, struct kernel_info *kinfo,
 {
     struct dt_device_node *shm_node;
 
+    if ( !node )
+        return 0;
+
     dt_for_each_child_node(node, shm_node)
     {
         const struct membank *boot_shm_bank;
@@ -306,17 +310,31 @@ int __init process_shm(struct domain *d, struct kernel_info *kinfo,
         paddr_t gbase, pbase, psize;
         int ret = 0;
         unsigned int i;
-        const char *role_str;
+        const char *role_str = "owner";
         const char *shm_id;
+        bool cma;
 
         if ( !dt_device_is_compatible(shm_node, "xen,domain-shared-memory-v1") )
-            continue;
+        {
+            if ( dt_device_is_compatible(shm_node, "shared-dma-pool") )
+            {
+                if ( llc_coloring_enabled )
+                {
+                    printk("Shared DMA pool (CMA) not supported with LLC coloring\n");
+                    return -EOPNOTSUPP;
+                }
+                cma = true;
+            }
+            else
+                continue;
+        }
 
-        if ( dt_property_read_string(shm_node, "xen,shm-id", &shm_id) )
+        if ( dt_property_read_string(shm_node, cma ? "compatible" : "xen,shm-id", &shm_id) )
         {
             printk("%pd: invalid \"xen,shm-id\" property", d);
             return -EINVAL;
         }
+
         BUG_ON((strlen(shm_id) <= 0) || (strlen(shm_id) >= MAX_SHM_ID_LENGTH));
 
         boot_shm_bank = find_shm_bank_by_id(bootinfo_get_shmem(), shm_id);
@@ -330,7 +348,7 @@ int __init process_shm(struct domain *d, struct kernel_info *kinfo,
         psize = boot_shm_bank->size;
 
         /* "role" property is optional */
-        if ( dt_property_read_string(shm_node, "role", &role_str) != 0 )
+        if ( !cma && dt_property_read_string(shm_node, "role", &role_str) != 0 )
             role_str = NULL;
 
         /*
@@ -339,14 +357,23 @@ int __init process_shm(struct domain *d, struct kernel_info *kinfo,
          */
         addr_cells = dt_n_addr_cells(shm_node);
         size_cells = dt_n_size_cells(shm_node);
-        prop = dt_find_property(shm_node, "xen,shared-mem", NULL);
+        prop = dt_find_property(shm_node, cma ? "reg" : "xen,shared-mem", NULL);
         BUG_ON(!prop);
         cells = (const __be32 *)prop->value;
 
         if ( pbase != INVALID_PADDR )
         {
-            /* guest phys address is after host phys address */
-            gbase = dt_read_paddr(cells + addr_cells, addr_cells);
+            if ( cma )
+            {
+                gbase = pbase;
+                printk("%pd: CMA->SHMEM [%#"PRIpaddr"-%#"PRIpaddr"]\n",
+                       d, pbase, psize);
+            }
+            else
+            {
+                /* guest phys address is after host phys address */
+                gbase = dt_read_paddr(cells + addr_cells, addr_cells);
+            }
 
             if ( is_domain_direct_mapped(d) && (pbase != gbase) )
             {
@@ -475,6 +502,9 @@ int __init make_shm_resv_memory_node(const struct kernel_info *kinfo,
         __be32 *cells;
         unsigned int len = (addrcells + sizecells) * sizeof(__be32);
 
+        if ( !strcmp(mem->bank[i].shmem_extra->shm_id, "shared-dma-pool") )
+            continue;
+
         res = domain_fdt_begin_node(fdt, "xen-shmem", mem->bank[i].start);
         if ( res )
             return res;
@@ -517,7 +547,7 @@ int __init make_shm_resv_memory_node(const struct kernel_info *kinfo,
 }
 
 int __init process_shm_node(const void *fdt, int node, uint32_t address_cells,
-                            uint32_t size_cells)
+                            uint32_t size_cells, bool cma)
 {
     const struct fdt_property *prop, *prop_id, *prop_role;
     const __be32 *cell;
@@ -536,77 +566,99 @@ int __init process_shm_node(const void *fdt, int node, uint32_t address_cells,
         return -EINVAL;
     }
 
-    /*
-     * "xen,shm-id" property holds an arbitrary string with a strict limit
-     * on the number of characters, MAX_SHM_ID_LENGTH
-     */
-    prop_id = fdt_get_property(fdt, node, "xen,shm-id", NULL);
-    if ( !prop_id )
-        return -ENOENT;
-    shm_id = (const char *)prop_id->data;
-    if ( strnlen(shm_id, MAX_SHM_ID_LENGTH) == MAX_SHM_ID_LENGTH )
+    if ( cma )
     {
-        printk("fdt: invalid xen,shm-id %s, it must be limited to %u characters\n",
-               shm_id, MAX_SHM_ID_LENGTH);
-        return -EINVAL;
-    }
+        owner = true;
 
-    /*
-     * "role" property is optional and if it is defined explicitly,
-     * it must be either `owner` or `borrower`.
-     */
-    prop_role = fdt_get_property(fdt, node, "role", NULL);
-    if ( prop_role )
-    {
-        if ( !strcmp(prop_role->data, "owner") )
-            owner = true;
-        else if ( strcmp(prop_role->data, "borrower") )
-        {
-            printk("fdt: invalid `role` property for static shared memory node.\n");
-            return -EINVAL;
-        }
-    }
+        prop_id = fdt_get_property(fdt, node, "compatible", NULL);
+        if ( !prop_id )
+            return -ENOENT;
 
-    /*
-     * xen,shared-mem = <paddr, gaddr, size>;
-     * Memory region starting from physical address #paddr of #size shall
-     * be mapped to guest physical address #gaddr as static shared memory
-     * region.
-     */
-    prop = fdt_get_property(fdt, node, "xen,shared-mem", &len);
-    if ( !prop )
-        return -ENOENT;
+        shm_id = (const char *)prop_id->data;
 
-    cell = (const __be32 *)prop->data;
-    if ( len != dt_cells_to_size(address_cells + size_cells + address_cells) )
-    {
-        if ( len == dt_cells_to_size(address_cells + size_cells) )
-            device_tree_get_reg(&cell, address_cells, size_cells, &gaddr,
-                                &size);
-        else
-        {
-            printk("fdt: invalid `xen,shared-mem` property.\n");
-            return -EINVAL;
-        }
+        prop = fdt_get_property(fdt, node, "reg", NULL);
+        if ( !prop )
+            return -ENOENT;
+
+        cell = (const __be32 *)prop->data;
+        device_tree_get_reg(&cell, address_cells, size_cells, &gaddr, &size);
+        paddr = gaddr;
+        printk("CMA: %#lx - %#lx\n", gaddr, size);
     }
     else
     {
-        device_tree_get_reg(&cell, address_cells, address_cells, &paddr,
-                            &gaddr);
-        size = dt_next_cell(size_cells, &cell);
-
-        if ( !IS_ALIGNED(paddr, PAGE_SIZE) )
+        /*
+        * "xen,shm-id" property holds an arbitrary string with a strict limit
+        * on the number of characters, MAX_SHM_ID_LENGTH
+        */
+        prop_id = fdt_get_property(fdt, node, "xen,shm-id", NULL);
+        if ( !prop_id )
+            return -ENOENT;
+        shm_id = (const char *)prop_id->data;
+        if ( strnlen(shm_id, MAX_SHM_ID_LENGTH) == MAX_SHM_ID_LENGTH )
         {
-            printk("fdt: physical address 0x%"PRIpaddr" is not suitably aligned.\n",
-                paddr);
+            printk("fdt: invalid xen,shm-id %s, it must be limited to %u characters\n",
+                shm_id, MAX_SHM_ID_LENGTH);
             return -EINVAL;
         }
 
-        end = paddr + size;
-        if ( end <= paddr )
+        /*
+         * "role" property is optional and if it is defined explicitly,
+         * it must be either `owner` or `borrower`.
+         */
+        prop_role = fdt_get_property(fdt, node, "role", NULL);
+        if ( prop_role )
         {
-            printk("fdt: static shared memory region %s overflow\n", shm_id);
-            return -EINVAL;
+            if ( !strcmp(prop_role->data, "owner") )
+                owner = true;
+            else if ( strcmp(prop_role->data, "borrower") )
+            {
+                printk("fdt: invalid `role` property for static shared memory node.\n");
+                return -EINVAL;
+            }
+        }
+
+        /*
+        * xen,shared-mem = <paddr, gaddr, size>;
+        * Memory region starting from physical address #paddr of #size shall
+        * be mapped to guest physical address #gaddr as static shared memory
+        * region.
+        */
+        prop = fdt_get_property(fdt, node, "xen,shared-mem", &len);
+        if ( !prop )
+            return -ENOENT;
+
+        cell = (const __be32 *)prop->data;
+        if ( len != dt_cells_to_size(address_cells + size_cells + address_cells) )
+        {
+            if ( len == dt_cells_to_size(address_cells + size_cells) )
+                device_tree_get_reg(&cell, address_cells, size_cells, &gaddr,
+                                    &size);
+            else
+            {
+                printk("fdt: invalid `xen,shared-mem` property.\n");
+                return -EINVAL;
+            }
+        }
+        else
+        {
+            device_tree_get_reg(&cell, address_cells, address_cells, &paddr,
+                                &gaddr);
+            size = dt_next_cell(size_cells, &cell);
+
+            if ( !IS_ALIGNED(paddr, PAGE_SIZE) )
+            {
+                printk("fdt: physical address 0x%"PRIpaddr" is not suitably aligned.\n",
+                    paddr);
+                return -EINVAL;
+            }
+
+            end = paddr + size;
+            if ( end <= paddr )
+            {
+                printk("fdt: static shared memory region %s overflow\n", shm_id);
+                return -EINVAL;
+            }
         }
     }
 

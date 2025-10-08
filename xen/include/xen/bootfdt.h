@@ -56,7 +56,7 @@ enum region_type {
 };
 
 /* Indicates the maximum number of characters(\0 included) for shm_id */
-#define MAX_SHM_ID_LENGTH 16
+#define MAX_SHM_ID_LENGTH 20
 
 struct shmem_membank_extra {
     char shm_id[MAX_SHM_ID_LENGTH];

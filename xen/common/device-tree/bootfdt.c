@@ -303,7 +303,18 @@ static int __init process_reserved_memory_node(const void *fdt, int node,
                                                u32 size_cells,
                                                void *data)
 {
-    int rc = process_memory_node(fdt, node, name, depth, address_cells,
+    int rc;
+
+#ifdef CONFIG_STATIC_SHM
+    if ( device_tree_node_compatible(fdt, node, "shared-dma-pool") )
+    {
+        printk("Replacing CMA node with shared memory\n");
+        rc = process_shm_node(fdt, node, address_cells, size_cells, true);
+        return rc;
+    }
+#endif
+
+    rc = process_memory_node(fdt, node, name, depth, address_cells,
                                  size_cells, data);
 
     if ( rc == -ENOSPC )
@@ -486,7 +497,8 @@ static int __init process_domain_node(const void *fdt, int node,
 
 #ifndef CONFIG_STATIC_SHM
 static inline int process_shm_node(const void *fdt, int node,
-                                   uint32_t address_cells, uint32_t size_cells)
+                                   uint32_t address_cells, uint32_t size_cells,
+                                   bool cma)
 {
     printk("CONFIG_STATIC_SHM must be enabled for parsing static shared"
             " memory nodes\n");
@@ -520,7 +532,7 @@ static int __init early_scan_node(const void *fdt,
     else if ( depth == 2 && device_tree_node_compatible(fdt, node, "xen,domain") )
         rc = process_domain_node(fdt, node, name, address_cells, size_cells);
     else if ( depth <= 3 && device_tree_node_compatible(fdt, node, "xen,domain-shared-memory-v1") )
-        rc = process_shm_node(fdt, node, address_cells, size_cells);
+        rc = process_shm_node(fdt, node, address_cells, size_cells, false);
 
     if ( rc < 0 )
         printk("fdt: node `%s': parsing failed\n", name);

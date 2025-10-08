@@ -2645,6 +2645,11 @@ int __init construct_hwdom(struct kernel_info *kinfo,
     if ( rc < 0 )
         return rc;
 
+    /* CMA */
+    rc = process_shm(d, kinfo, dt_find_node_by_path("/reserved-memory"));
+    if ( rc < 0 )
+        return rc;
+
     /* Map extra GIC MMIO, irqs and other hw stuffs to dom0. */
     rc = gic_map_hwdom_extra_mappings(d);
     if ( rc < 0 )
