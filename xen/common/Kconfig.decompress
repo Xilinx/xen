@@ -1,0 +1,55 @@
+menu "Guest Kernel image de-compressors"
+    depends on X86
+
+config DECOMP_BUNZIP2
+    bool "bzip2 decompression (bunzip2) support"
+    select DECOMP_COMMON
+    help
+      Enables bzip2 decompression (bunzip2) support of kernel images
+
+config DECOMP_UNXZ
+    bool "XZ decompression (unxz) support"
+    select DECOMP_COMMON
+    help
+      Enables XZ decompression (unxz) support of kernel images
+
+config DECOMP_UNLZMA
+    bool "Lzma decompression (unlzma) support"
+    select DECOMP_COMMON
+    help
+      Enables Lzma decompression (unlzma) support of kernel images
+
+config DECOMP_UNLZO
+    bool "LZO decompression (unlzo) support"
+    select DECOMP_COMMON
+    help
+      Enables LZO decompression (unlzo) support of kernel images
+
+config DECOMP_UNLZ4
+    bool "LZ4 decompression (unlz4) support"
+    select DECOMP_COMMON
+    help
+      Enables LZ4 decompression (unlz4) support of kernel images
+
+config DECOMP_UNZSTD
+    bool "ZSTD decompression (unzstd) support"
+    select DECOMP_COMMON
+    help
+      Enables ZSTD decompression (unzstd) support of kernel images
+
+config DECOMP_X86_ALL
+    bool "Enable all X86 de-compressors"
+    default y
+    depends on X86
+    select DECOMP_BUNZIP2
+    select DECOMP_UNXZ
+    select DECOMP_UNLZMA
+    select DECOMP_UNLZO
+    select DECOMP_UNLZ4
+    select DECOMP_UNZSTD
+    select DECOMP_UNGZIP
+
+endmenu
+
+config DECOMP_COMMON
+    bool

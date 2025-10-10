@@ -66,7 +66,15 @@ obj-bin-y += warning.init.o
 obj-$(CONFIG_XENOPROF) += xenoprof.o
 obj-y += xmalloc_tlsf.o
 
-obj-bin-$(CONFIG_X86) += $(foreach n,decompress bunzip2 unxz unlzma lzo unlzo unlz4 unzstd earlycpio,$(n).init.o)
+obj-bin-$(CONFIG_X86) += earlycpio.init.o
+
+obj-bin-$(CONFIG_DECOMP_COMMON) += decompress.init.o
+obj-bin-$(CONFIG_DECOMP_BUNZIP2) += bunzip2.init.o
+obj-bin-$(CONFIG_DECOMP_UNXZ) += unxz.init.o
+obj-bin-$(CONFIG_DECOMP_UNLZMA) += unlzma.init.o
+obj-bin-$(CONFIG_DECOMP_UNLZO) += lzo.init.o unlzo.init.o
+obj-bin-$(CONFIG_DECOMP_UNLZ4) += unlz4.init.o
+obj-bin-$(CONFIG_DECOMP_UNZSTD) += unzstd.init.o
 
 obj-$(CONFIG_COMPAT) += $(addprefix compat/,domain.o memory.o multicall.o xlat.o)
 

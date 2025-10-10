@@ -33,6 +33,13 @@ typedef int decompress_fn(unsigned char *inbuf, unsigned int len,
 
 decompress_fn bunzip2, unxz, unlzma, unlzo, unlz4, unzstd;
 
+#ifdef CONFIG_DECOMP_COMMON
 int decompress(void *inbuf, unsigned int len, void *outbuf);
+#else
+static inline int decompress(void *inbuf, unsigned int len, void *outbuf)
+{
+    return 1;
+};
+#endif
 
 #endif

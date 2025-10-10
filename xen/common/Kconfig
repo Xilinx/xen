@@ -677,4 +677,6 @@ config PM_STATS
 	  Enable collection of performance management statistics to aid in
 	  analyzing and tuning power/performance characteristics of the system
 
+source "common/Kconfig.decompress"
+
 endmenu
