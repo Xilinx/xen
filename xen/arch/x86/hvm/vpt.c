@@ -616,11 +616,27 @@ static void pt_adjust_vcpu(struct periodic_time *pt, struct vcpu *v)
     write_unlock(&v->domain->arch.hvm.pl_time->pt_migrate);
 }
 
+static void pt_adjust_vcpu_hpet(struct vcpu *v)
+{
+#ifdef CONFIG_VHPET
+    struct HPETState *vhpet;
+    int i;
+
+    if ( !has_vhpet(v->domain) )
+        return;
+
+    vhpet = &v->domain->arch.hvm.pl_time->vhpet;
+    write_lock(&vhpet->lock);
+    for ( i = 0; i < HPET_TIMER_NUM; i++ )
+        pt_adjust_vcpu(&vhpet->pt[i], v);
+    write_unlock(&vhpet->lock);
+#endif /* CONFIG_VHPET */
+}
+
 void pt_adjust_global_vcpu_target(struct vcpu *v)
 {
     struct PITState *vpit;
     struct pl_time *pl_time;
-    int i;
 
     if ( !v || !has_vpit(v->domain) )
         return;
@@ -639,10 +655,7 @@ void pt_adjust_global_vcpu_target(struct vcpu *v)
     spin_unlock(&pl_time->vrtc.lock);
 #endif
 
-    write_lock(&pl_time->vhpet.lock);
-    for ( i = 0; i < HPET_TIMER_NUM; i++ )
-        pt_adjust_vcpu(&pl_time->vhpet.pt[i], v);
-    write_unlock(&pl_time->vhpet.lock);
+    pt_adjust_vcpu_hpet(v);
 }
 
 
@@ -671,6 +684,7 @@ void pt_may_unmask_irq(struct domain *d, struct periodic_time *vlapic_pt)
         if ( has_vrtc(d) )
             pt_resume(&d->arch.hvm.pl_time->vrtc.pt);
 #endif
+#ifdef CONFIG_VHPET
         if ( has_vhpet(d) )
         {
             unsigned int i;
@@ -678,6 +692,7 @@ void pt_may_unmask_irq(struct domain *d, struct periodic_time *vlapic_pt)
             for ( i = 0; i < HPET_TIMER_NUM; i++ )
                 pt_resume(&d->arch.hvm.pl_time->vhpet.pt[i]);
         }
+#endif
     }
 
     if ( vlapic_pt )

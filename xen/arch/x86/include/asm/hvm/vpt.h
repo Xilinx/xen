@@ -122,7 +122,9 @@ struct pl_time {    /* platform time */
 #ifdef CONFIG_VRTC
     struct RTCState  vrtc;
 #endif
+#ifdef CONFIG_VHPET
     struct HPETState vhpet;
+#endif
     struct PMTState  vpmt;
      /*
       * Functions which want to modify the vcpu field of the vpt need
@@ -203,8 +205,14 @@ void pmtimer_deinit(struct domain *d);
 void pmtimer_reset(struct domain *d);
 int pmtimer_change_ioport(struct domain *d, uint64_t version);
 
+#ifdef CONFIG_VHPET
 void hpet_init(struct domain *d);
 void hpet_deinit(struct domain *d);
 void hpet_reset(struct domain *d);
+#else
+static inline void hpet_init(struct domain *d) {};
+static inline void hpet_deinit(struct domain *d) {};
+static inline void hpet_reset(struct domain *d) {};
+#endif  /* CONFIG_VHPET */
 
 #endif /* __ASM_X86_HVM_VPT_H__ */

@@ -118,4 +118,13 @@ config VRTC
 
       If unsure, say Y.
 
+config VHPET
+    bool "Virtual HPET (High Precision Event Timers) support"
+    default y
+    help
+      Enable virtual HPET (High Precision Event Timers) emulation.
+      This feature is available for HVM and PVH domains.
+
+      If unsure, say Y.
+
 endif
