@@ -696,7 +696,8 @@ int hvm_domain_initialise(struct domain *d,
     if ( rc != 0 )
         goto fail1;
 
-    stdvga_init(d);
+    if ( IS_ENABLED(CONFIG_VVGA) )
+        stdvga_init(d);
 
     rtc_init(d);
 

@@ -99,4 +99,14 @@ config VPIC
 
 	  If unsure, say Y.
 
+config VVGA
+    bool "Virtual Standard VGA support"
+    default y
+    help
+      Enable virtual Standard VGA emulation.
+      This improves the performance of Standard VGA, the mode used during
+      Windows boot and by the Linux splash screen.
+
+      If unsure, say Y.
+
 endif
