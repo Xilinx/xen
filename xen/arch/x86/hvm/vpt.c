@@ -633,9 +633,11 @@ void pt_adjust_global_vcpu_target(struct vcpu *v)
 
     pl_time = v->domain->arch.hvm.pl_time;
 
+#ifdef CONFIG_VRTC
     spin_lock(&pl_time->vrtc.lock);
     pt_adjust_vcpu(&pl_time->vrtc.pt, v);
     spin_unlock(&pl_time->vrtc.lock);
+#endif
 
     write_lock(&pl_time->vhpet.lock);
     for ( i = 0; i < HPET_TIMER_NUM; i++ )
@@ -665,8 +667,10 @@ void pt_may_unmask_irq(struct domain *d, struct periodic_time *vlapic_pt)
     {
         if ( has_vpit(d) )
             pt_resume(&d->arch.vpit.pt0);
+#ifdef CONFIG_VRTC
         if ( has_vrtc(d) )
             pt_resume(&d->arch.hvm.pl_time->vrtc.pt);
+#endif
         if ( has_vhpet(d) )
         {
             unsigned int i;

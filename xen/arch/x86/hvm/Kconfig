@@ -109,4 +109,13 @@ config VVGA
 
       If unsure, say Y.
 
+config VRTC
+    bool "Virtual RTC (MC146818) support"
+    default y
+    help
+      Enable virtual RTC/CMOS (MC146818) emulation.
+      This feature is available for HVM and PVH domains.
+
+      If unsure, say Y.
+
 endif

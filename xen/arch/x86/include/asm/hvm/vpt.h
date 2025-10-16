@@ -119,7 +119,9 @@ typedef struct PMTState {
 } PMTState;
 
 struct pl_time {    /* platform time */
+#ifdef CONFIG_VRTC
     struct RTCState  vrtc;
+#endif
     struct HPETState vhpet;
     struct PMTState  vpmt;
      /*
@@ -181,11 +183,20 @@ void pit_reset(struct domain *d);
 void pit_init(struct domain *d);
 void pit_stop_channel0_irq(PITState * pit);
 void pit_deinit(struct domain *d);
+
+#ifdef CONFIG_VRTC
 void rtc_init(struct domain *d);
 void rtc_migrate_timers(struct vcpu *v);
 void rtc_deinit(struct domain *d);
 void rtc_reset(struct domain *d);
 void rtc_update_clock(struct domain *d);
+#else
+static inline void rtc_init(struct domain *d) {};
+static inline void rtc_migrate_timers(struct vcpu *v) {};
+static inline void rtc_deinit(struct domain *d) {};
+static inline void rtc_reset(struct domain *d) {};
+static inline void rtc_update_clock(struct domain *d) {};
+#endif /* CONFIG_VRTC */
 
 void pmtimer_init(struct vcpu *v);
 void pmtimer_deinit(struct domain *d);

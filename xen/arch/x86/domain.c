@@ -824,7 +824,8 @@ static bool emulation_flags_ok(const struct domain *d, uint32_t emflags)
     BUILD_BUG_ON(X86_EMU_ALL != (XEN_X86_EMU_ALL &
                  ~((IS_ENABLED(CONFIG_VPIT) ? 0 : XEN_X86_EMU_PIT) |
                  (IS_ENABLED(CONFIG_VPIC) ? 0 : XEN_X86_EMU_PIC) |
-                 (IS_ENABLED(CONFIG_VVGA) ? 0 : XEN_X86_EMU_VGA))));
+                 (IS_ENABLED(CONFIG_VVGA) ? 0 : XEN_X86_EMU_VGA) |
+                 (IS_ENABLED(CONFIG_VRTC) ? 0 : XEN_X86_EMU_RTC))));
 #endif
 
     for ( i = 0; i < ARRAY_SIZE(configs); i++ )
