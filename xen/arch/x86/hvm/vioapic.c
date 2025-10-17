@@ -40,7 +40,7 @@
 #include <asm/io_apic.h>
 
 /* HACK: Route IRQ0 only to VCPU0 to prevent time jumps. */
-#define IRQ0_SPECIAL_ROUTING 1
+#define IRQ0_SPECIAL_ROUTING IS_ENABLED(CONFIG_VPIT)
 
 static void vioapic_deliver(struct hvm_vioapic *vioapic, unsigned int pin);
 
@@ -419,7 +419,6 @@ static void vioapic_deliver(struct hvm_vioapic *vioapic, unsigned int pin)
     struct domain *d = vioapic_domain(vioapic);
     struct vlapic *target;
     struct vcpu *v;
-    unsigned int irq = vioapic->base_gsi + pin;
 
     ASSERT(spin_is_locked(&d->arch.hvm.irq_lock));
 
@@ -432,12 +431,12 @@ static void vioapic_deliver(struct hvm_vioapic *vioapic, unsigned int pin)
     {
     case dest_LowestPrio:
     {
-#ifdef IRQ0_SPECIAL_ROUTING
+#if IRQ0_SPECIAL_ROUTING != 0
         struct vlapic *lapic0 = vcpu_vlapic(d->vcpu[0]);
+        unsigned int irq = vioapic->base_gsi + pin;
 
         /* Force to pick vCPU 0 if part of the destination list */
-        if ( (irq == hvm_isa_irq_to_gsi(0)) &&
-             (!IS_ENABLED(CONFIG_VPIT) || pt_active(&d->arch.vpit.pt0)) &&
+        if ( (irq == hvm_isa_irq_to_gsi(0)) && pt_active(&d->arch.vpit.pt0) &&
              vlapic_match_dest(lapic0, NULL, 0, dest, dest_mode) &&
              /* Mimic the vlapic_enabled check found in vlapic_lowest_prio. */
              vlapic_enabled(lapic0) )
