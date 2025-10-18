@@ -33,6 +33,9 @@ void __init warning_print(void)
         process_pending_softirqs();
     }
 
+    if ( IS_ENABLED(CONFIG_SKIP_WARNING_DELAY) )
+        return;
+
     for ( i = 0; i < 3; i++ )
     {
         printk("%u... ", 3 - i);

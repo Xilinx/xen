@@ -679,4 +679,7 @@ config PM_STATS
 
 source "common/Kconfig.decompress"
 
+config SKIP_WARNING_DELAY
+	bool "Skip delay after displaying Xen boot warnings" if EXPERT
+
 endmenu
