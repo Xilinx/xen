@@ -598,7 +598,7 @@ static void __serial_rx(char c)
     if ( !d )
         return;
 
-    if ( is_hardware_domain(d) )
+    if ( is_hardware_domain(d) || IS_ENABLED(CONFIG_X86) )
     {
         /*
          * Deliver input to the hardware domain buffer, unless it is
@@ -611,7 +611,7 @@ static void __serial_rx(char c)
          * Always notify the hardware domain: prevents receive path from
          * getting stuck.
          */
-        send_global_virq(VIRQ_CONSOLE);
+        send_guest_domain_virq(d, VIRQ_CONSOLE);
     }
 #ifdef CONFIG_SBSA_VUART_CONSOLE
     else

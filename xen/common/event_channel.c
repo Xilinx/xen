@@ -138,6 +138,7 @@ static enum virq_type get_virq_type(unsigned int virq)
         return VIRQ_VCPU;
 
     case VIRQ_ARGO:
+    case VIRQ_CONSOLE:
         return VIRQ_DOMAIN;
 
     case VIRQ_ARCH_0 ... VIRQ_ARCH_7:
