@@ -196,6 +196,7 @@ static uint32_t vlapic_get_ppr(const struct vlapic *vlapic)
     return ppr;
 }
 
+#ifdef CONFIG_INTEL_VMX
 uint32_t vlapic_set_ppr(struct vlapic *vlapic)
 {
    uint32_t ppr = vlapic_get_ppr(vlapic);
@@ -203,6 +204,7 @@ uint32_t vlapic_set_ppr(struct vlapic *vlapic)
    vlapic_set_reg(vlapic, APIC_PROCPRI, ppr);
    return ppr;
 }
+#endif
 
 static bool vlapic_match_logical_addr(const struct vlapic *vlapic, uint32_t mda)
 {
@@ -966,6 +968,7 @@ static int cf_check vlapic_mmio_write(
     return X86EMUL_OKAY;
 }
 
+#ifdef CONFIG_INTEL_VMX
 int vlapic_apicv_write(struct vcpu *v, unsigned int offset)
 {
     struct vlapic *vlapic = vcpu_vlapic(v);
@@ -984,6 +987,7 @@ int vlapic_apicv_write(struct vcpu *v, unsigned int offset)
 
     return X86EMUL_OKAY;
 }
+#endif
 
 int guest_wrmsr_x2apic(struct vcpu *v, uint32_t msr, uint64_t val)
 {
