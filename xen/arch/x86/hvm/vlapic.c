@@ -885,7 +885,8 @@ void vlapic_reg_write(struct vcpu *v, unsigned int reg, uint32_t val)
         vlapic_set_reg(vlapic, reg, val);
         if ( reg == APIC_LVT0 )
         {
-            vlapic_adjust_i8259_target(v->domain);
+            if ( IS_ENABLED(CONFIG_VPIT) )
+                vlapic_adjust_i8259_target(v->domain);
             pt_may_unmask_irq(v->domain, NULL);
         }
         if ( (reg == APIC_LVTT) && !(val & APIC_LVT_MASKED) )
@@ -1275,6 +1276,7 @@ void vlapic_tdt_msr_set(struct vlapic *vlapic, uint64_t value)
                 vlapic->hw.tdt_msr, guest_tsc);
 }
 
+#ifdef CONFIG_VPIC
 static int __vlapic_accept_pic_intr(struct vcpu *v)
 {
     struct domain *d = v->domain;
@@ -1336,6 +1338,7 @@ void vlapic_adjust_i8259_target(struct domain *d)
     d->arch.hvm.i8259_target = v;
     pt_adjust_global_vcpu_target(v);
 }
+#endif /* CONFIG_VPIC */
 
 int vlapic_has_pending_irq(struct vcpu *v)
 {
@@ -1675,7 +1678,8 @@ static int cf_check lapic_load_regs(struct domain *d, hvm_domain_context_t *h)
         alternative_vcall(hvm_funcs.process_isr,
                           vlapic_find_highest_isr(s), v);
 
-    vlapic_adjust_i8259_target(d);
+    if ( IS_ENABLED(CONFIG_VPIT) )
+        vlapic_adjust_i8259_target(d);
     lapic_rearm(s);
     return 0;
 }

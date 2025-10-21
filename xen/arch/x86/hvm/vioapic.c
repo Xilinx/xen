@@ -253,7 +253,7 @@ static void vioapic_write_redirent(
 
     *pent = ent;
 
-    if ( gsi == 0 )
+    if ( IS_ENABLED(CONFIG_VPIT) && gsi == 0 )
     {
         vlapic_adjust_i8259_target(d);
     }

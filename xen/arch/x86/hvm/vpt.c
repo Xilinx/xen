@@ -383,8 +383,9 @@ int pt_update_irq(struct vcpu *v)
 
     case PTSRC_isa:
         hvm_isa_irq_deassert(v->domain, irq);
-        if ( platform_legacy_irq(irq) && vlapic_accept_pic_intr(v) &&
-             (IS_ENABLED(CONFIG_VPIC) ? v->domain->arch.hvm.vpic[irq >> 3].int_output : 0) )
+        if ( IS_ENABLED(CONFIG_VPIC) && platform_legacy_irq(irq) &&
+             vlapic_accept_pic_intr(v) &&
+             v->domain->arch.hvm.vpic[irq >> 3].int_output )
             hvm_isa_irq_assert(v->domain, irq, NULL);
         else
         {
