@@ -2179,30 +2179,6 @@ int hvm_set_efer(uint64_t value)
     return X86EMUL_OKAY;
 }
 
-/* Exit UC mode only if all VCPUs agree on MTRR/PAT and are not in no_fill. */
-static bool domain_exit_uc_mode(struct vcpu *v)
-{
-    struct domain *d = v->domain;
-    struct vcpu *vs;
-
-    for_each_vcpu ( d, vs )
-    {
-        if ( (vs == v) || !vs->is_initialised )
-            continue;
-        if ( (vs->arch.hvm.cache_mode == NO_FILL_CACHE_MODE) ||
-             mtrr_pat_not_equal(vs, v) )
-            return 0;
-    }
-
-    return 1;
-}
-
-static void hvm_set_uc_mode(struct vcpu *v, bool is_in_uc_mode)
-{
-    v->domain->arch.hvm.is_in_uc_mode = is_in_uc_mode;
-    shadow_blow_tables_per_domain(v->domain);
-}
-
 int hvm_mov_to_cr(unsigned int cr, unsigned int gpr)
 {
     struct vcpu *curr = current;
@@ -2284,6 +2260,31 @@ int hvm_mov_from_cr(unsigned int cr, unsigned int gpr)
     return X86EMUL_UNHANDLEABLE;
 }
 
+#ifdef CONFIG_INTEL_VMX
+/* Exit UC mode only if all VCPUs agree on MTRR/PAT and are not in no_fill. */
+static bool domain_exit_uc_mode(struct vcpu *v)
+{
+    struct domain *d = v->domain;
+    struct vcpu *vs;
+
+    for_each_vcpu ( d, vs )
+    {
+        if ( (vs == v) || !vs->is_initialised )
+            continue;
+        if ( (vs->arch.hvm.cache_mode == NO_FILL_CACHE_MODE) ||
+             mtrr_pat_not_equal(vs, v) )
+            return 0;
+    }
+
+    return 1;
+}
+
+static void hvm_set_uc_mode(struct vcpu *v, bool is_in_uc_mode)
+{
+    v->domain->arch.hvm.is_in_uc_mode = is_in_uc_mode;
+    shadow_blow_tables_per_domain(v->domain);
+}
+
 void hvm_shadow_handle_cd(struct vcpu *v, unsigned long value)
 {
     if ( value & X86_CR0_CD )
@@ -2317,6 +2318,7 @@ void hvm_shadow_handle_cd(struct vcpu *v, unsigned long value)
         spin_unlock(&v->domain->arch.hvm.uc_lock);
     }
 }
+#endif
 
 static void hvm_update_cr(struct vcpu *v, unsigned int cr, unsigned long value)
 {
