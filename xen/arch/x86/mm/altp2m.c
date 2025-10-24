@@ -641,23 +641,6 @@ int p2m_altp2m_propagate_change(struct domain *d, gfn_t gfn,
 }
 
 /*
- * Set/clear the #VE suppress bit for a page.  Only available on VMX.
- */
-int p2m_set_suppress_ve(struct domain *d, gfn_t gfn, bool suppress_ve,
-                        unsigned int altp2m_idx)
-{
-    int rc;
-    struct xen_hvm_altp2m_suppress_ve_multi sve = {
-        altp2m_idx, suppress_ve, 0, 0, gfn_x(gfn), gfn_x(gfn), 0
-    };
-
-    if ( !(rc = p2m_set_suppress_ve_multi(d, &sve)) )
-        rc = sve.first_error;
-
-    return rc;
-}
-
-/*
  * Set/clear the #VE suppress bit for multiple pages.  Only available on VMX.
  */
 int p2m_set_suppress_ve_multi(struct domain *d,
@@ -721,6 +704,23 @@ int p2m_set_suppress_ve_multi(struct domain *d,
         p2m_unlock(ap2m);
 
     p2m_unlock(host_p2m);
+
+    return rc;
+}
+
+/*
+ * Set/clear the #VE suppress bit for a page.  Only available on VMX.
+ */
+int p2m_set_suppress_ve(struct domain *d, gfn_t gfn, bool suppress_ve,
+                        unsigned int altp2m_idx)
+{
+    int rc;
+    struct xen_hvm_altp2m_suppress_ve_multi sve = {
+        altp2m_idx, suppress_ve, 0, 0, gfn_x(gfn), gfn_x(gfn), 0
+    };
+
+    if ( !(rc = p2m_set_suppress_ve_multi(d, &sve)) )
+        rc = sve.first_error;
 
     return rc;
 }
