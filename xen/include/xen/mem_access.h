@@ -74,9 +74,19 @@ typedef enum {
 } p2m_access_t;
 
 struct p2m_domain;
+#ifdef CONFIG_VM_EVENT
 bool xenmem_access_to_p2m_access(const struct p2m_domain *p2m,
                                  xenmem_access_t xaccess,
                                  p2m_access_t *paccess);
+#else
+static inline bool xenmem_access_to_p2m_access(const struct p2m_domain *p2m,
+                                               xenmem_access_t xaccess,
+                                               p2m_access_t *paccess)
+{
+    *paccess = p2m_access_rwx;
+    return true;
+}
+#endif
 
 /*
  * Set access type for a region of gfns.
