@@ -105,7 +105,7 @@ static int set_context_data(void *buffer, unsigned int size)
 {
     struct vcpu *curr = current;
 
-    if ( curr->arch.vm_event )
+    if ( IS_ENABLED(CONFIG_VM_EVENT) && curr->arch.vm_event )
     {
         unsigned int safe_size =
             min(size, curr->arch.vm_event->emul.read.size);
@@ -771,7 +771,7 @@ static void *hvmemul_map_linear_addr(
             ASSERT(p2mt == p2m_ram_logdirty || !p2m_is_readonly(p2mt));
         }
 
-        if ( unlikely(curr->arch.vm_event) &&
+        if ( IS_ENABLED(CONFIG_VM_EVENT) && unlikely(curr->arch.vm_event) &&
              curr->arch.vm_event->send_event &&
              hvm_monitor_check_p2m(addr, gfn, pfec, npfec_kind_with_gla) )
         {
@@ -968,7 +968,7 @@ static int hvmemul_virtual_to_linear(
          * reps should be at most 1, since optimization might otherwise cause a
          * single vm_event being triggered for repeated writes to a whole page.
          */
-        if ( unlikely(current->domain->arch.mem_access_emulate_each_rep) &&
+        if ( IS_ENABLED(CONFIG_VM_EVENT) && unlikely(current->domain->arch.mem_access_emulate_each_rep) &&
              current->arch.vm_event->emulate_flags != 0 )
            max_reps = 1;
 
@@ -1916,7 +1916,7 @@ static int cf_check hvmemul_rep_outs(
     p2m_type_t p2mt;
     int rc;
 
-    if ( unlikely(hvmemul_ctxt->set_context) )
+    if ( IS_ENABLED(CONFIG_VM_EVENT) && unlikely(hvmemul_ctxt->set_context) )
         return hvmemul_rep_outs_set_context(dst_port, bytes_per_rep, reps);
 
     rc = hvmemul_virtual_to_linear(

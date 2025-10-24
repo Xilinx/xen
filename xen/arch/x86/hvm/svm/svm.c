@@ -2725,13 +2725,14 @@ void asmlinkage svm_vmexit_handler(void)
                 if ( !insn_len )
                     break;
             }
-
+#ifdef CONFIG_VM_EVENT
             rc = hvm_monitor_debug(regs->rip,
                                    HVM_MONITOR_DEBUG_EXCEPTION,
                                    trap_type, insn_len, 0);
             if ( rc < 0 )
                 goto unexpected_exit_type;
             if ( !rc )
+#endif
                 hvm_inject_exception(X86_EXC_DB,
                                      trap_type, insn_len, X86_EVENT_NO_EC);
         }
@@ -2754,6 +2755,7 @@ void asmlinkage svm_vmexit_handler(void)
         }
         else
         {
+#ifdef CONFIG_VM_EVENT
            rc = hvm_monitor_debug(regs->rip,
                                   HVM_MONITOR_SOFTWARE_BREAKPOINT,
                                   X86_ET_SW_EXC,
@@ -2761,6 +2763,7 @@ void asmlinkage svm_vmexit_handler(void)
            if ( rc < 0 )
                goto unexpected_exit_type;
            if ( !rc )
+#endif
                hvm_inject_exception(X86_EXC_BP,
                                     X86_ET_SW_EXC,
                                     insn_len, X86_EVENT_NO_EC);
@@ -2904,6 +2907,7 @@ void asmlinkage svm_vmexit_handler(void)
         break;
 
     case VMEXIT_IOIO:
+#ifdef CONFIG_VM_EVENT
         rc = hvm_monitor_io(vmcb->ei.io.port,
                             vmcb->ei.io.bytes,
                             vmcb->ei.io.in,
@@ -2912,6 +2916,7 @@ void asmlinkage svm_vmexit_handler(void)
             goto unexpected_exit_type;
         if ( rc )
             break;
+#endif
 
         if ( !vmcb->ei.io.str )
         {

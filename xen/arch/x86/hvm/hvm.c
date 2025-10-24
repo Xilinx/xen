@@ -533,7 +533,7 @@ void hvm_do_resume(struct vcpu *v)
     if ( !vcpu_ioreq_handle_completion(v) )
         return;
 
-    if ( unlikely(v->arch.vm_event) )
+    if ( IS_ENABLED(CONFIG_VM_EVENT) && unlikely(v->arch.vm_event) )
         hvm_vm_event_do_resume(v);
 
     /* Inject pending hw/sw event */
@@ -547,7 +547,7 @@ void hvm_do_resume(struct vcpu *v)
         v->arch.hvm.inject_event.vector = HVM_EVENT_VECTOR_UNSET;
     }
 
-    if ( unlikely(v->arch.vm_event) && v->arch.monitor.next_interrupt_enabled )
+    if ( IS_ENABLED(CONFIG_VM_EVENT) && unlikely(v->arch.vm_event) && v->arch.monitor.next_interrupt_enabled )
     {
         struct x86_event info;
 
@@ -2106,7 +2106,7 @@ int hvm_handle_xsetbv(u32 index, u64 new_bv)
 {
     int rc;
 
-    if ( index == 0 )
+    if ( IS_ENABLED(CONFIG_VM_EVENT) && index == 0 )
         hvm_monitor_crX(XCR0, new_bv, current->arch.xcr0);
 
     rc = x86emul_write_xcr(index, new_bv, NULL);
@@ -2354,7 +2354,7 @@ int hvm_set_cr0(unsigned long value, bool may_defer)
          (value & (X86_CR0_PE | X86_CR0_PG)) == X86_CR0_PG )
         return X86EMUL_EXCEPTION;
 
-    if ( may_defer && unlikely(v->domain->arch.monitor.write_ctrlreg_enabled &
+    if ( IS_ENABLED(CONFIG_VM_EVENT) && may_defer && unlikely(v->domain->arch.monitor.write_ctrlreg_enabled &
                                monitor_ctrlreg_bitmask(VM_EVENT_X86_CR0)) )
     {
         ASSERT(v->arch.vm_event);
@@ -2479,7 +2479,7 @@ int hvm_set_cr3(unsigned long value, bool noflush, bool may_defer)
         return X86EMUL_EXCEPTION;
     }
 
-    if ( may_defer && unlikely(currd->arch.monitor.write_ctrlreg_enabled &
+    if ( IS_ENABLED(CONFIG_VM_EVENT) && may_defer && unlikely(currd->arch.monitor.write_ctrlreg_enabled &
                                monitor_ctrlreg_bitmask(VM_EVENT_X86_CR3)) )
     {
         ASSERT(curr->arch.vm_event);
@@ -2561,7 +2561,7 @@ int hvm_set_cr4(unsigned long value, bool may_defer)
         return X86EMUL_EXCEPTION;
     }
 
-    if ( may_defer && unlikely(v->domain->arch.monitor.write_ctrlreg_enabled &
+    if ( IS_ENABLED(CONFIG_VM_EVENT) && may_defer && unlikely(v->domain->arch.monitor.write_ctrlreg_enabled &
                                monitor_ctrlreg_bitmask(VM_EVENT_X86_CR4)) )
     {
         ASSERT(v->arch.vm_event);
@@ -3427,7 +3427,7 @@ static enum hvm_translation_result __hvm_copy(
             return HVMTRANS_bad_gfn_to_mfn;
         }
 
-        if ( unlikely(v->arch.vm_event) &&
+        if ( IS_ENABLED(CONFIG_VM_EVENT) && unlikely(v->arch.vm_event) &&
              (flags & HVMCOPY_linear) &&
              v->arch.vm_event->send_event &&
              hvm_monitor_check_p2m(addr, gfn, pfec, npfec_kind_with_gla) )
@@ -3573,8 +3573,11 @@ int hvm_vmexit_cpuid(struct cpu_user_regs *regs, unsigned int inst_len)
     regs->rbx = res.b;
     regs->rcx = res.c;
     regs->rdx = res.d;
-
+#ifdef CONFIG_VM_EVENT
     return hvm_monitor_cpuid(inst_len, leaf, subleaf);
+#else
+    return 0;
+#endif
 }
 
 void hvm_rdtsc_intercept(struct cpu_user_regs *regs)
@@ -3706,7 +3709,7 @@ int hvm_msr_write_intercept(unsigned int msr, uint64_t msr_content,
 
     TRACE(TRC_HVM_MSR_WRITE, msr, msr_content, msr_content >> 32);
 
-    if ( may_defer && unlikely(monitored_msr(v->domain, msr)) )
+    if ( IS_ENABLED(CONFIG_VM_EVENT) && may_defer && unlikely(monitored_msr(v->domain, msr)) )
     {
         uint64_t msr_old_content;
 
@@ -3874,7 +3877,7 @@ int hvm_descriptor_access_intercept(uint64_t exit_info,
     struct vcpu *curr = current;
     struct domain *currd = curr->domain;
 
-    if ( currd->arch.monitor.descriptor_access_enabled )
+    if ( IS_ENABLED(CONFIG_VM_EVENT) && currd->arch.monitor.descriptor_access_enabled )
     {
         ASSERT(curr->arch.vm_event);
         hvm_monitor_descriptor_access(exit_info, vmx_exit_qualification,
