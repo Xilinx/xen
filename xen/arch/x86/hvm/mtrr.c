@@ -170,6 +170,42 @@ void hvm_vcpu_cacheattr_destroy(struct vcpu *v)
     xfree(v->arch.hvm.mtrr.var_ranges);
 }
 
+void hvm_vcpu_cacheattr_reset(struct vcpu *v)
+{
+    struct mtrr_state *m = &v->arch.hvm.mtrr;
+    struct domain *d = v->domain;
+
+    ASSERT(!is_hardware_domain(d));
+
+    v->arch.hvm.pat_cr =
+        ((uint64_t)X86_MT_WB) |           /* PAT0: WB  */
+        ((uint64_t)X86_MT_WT << 8) |      /* PAT1: WT  */
+        ((uint64_t)X86_MT_UCM << 16) |    /* PAT2: UC- */
+        ((uint64_t)X86_MT_UC << 24) |     /* PAT3: UC  */
+        ((uint64_t)X86_MT_WB << 32) |     /* PAT4: WB  */
+        ((uint64_t)X86_MT_WT << 40) |     /* PAT5: WT  */
+        ((uint64_t)X86_MT_UCM << 48) |    /* PAT6: UC- */
+        ((uint64_t)X86_MT_UC << 56);      /* PAT7: UC  */
+
+    m->enabled = false;
+
+    /* WC is supported */
+    m->mtrr_cap = (1u << 10);
+
+    /* Fixed-range MTRRs are supported, but are not enabled */
+    m->mtrr_cap |= (1u << 8);
+    m->have_fixed = true;
+    m->fixed_enabled = false;
+    memset(m->fixed_ranges, 0, sizeof(m->fixed_ranges));
+
+    /* Variable-range MTRRs are supported and enabled */
+    m->mtrr_cap |= MTRR_VCNT;
+    m->overlapped = false;
+    memset(m->var_ranges, 0, sizeof(struct mtrr_var_range) * MTRR_VCNT);
+
+    memory_type_changed(d);
+}
+
 /*
  * Get MTRR memory type for physical address pa.
  *
