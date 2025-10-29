@@ -1135,6 +1135,49 @@ void ioreq_server_destroy_all(struct domain *d)
     rspin_unlock(&d->ioreq_server.lock);
 }
 
+void ioreq_server_disable_all(struct domain *d)
+{
+    struct ioreq_server *s;
+    unsigned int id;
+
+    rspin_lock(&d->ioreq_server.lock);
+
+    FOR_EACH_IOREQ_SERVER(d, id, s)
+    {
+        struct ioreq_vcpu *sv;
+
+        ioreq_server_disable(s);
+
+        spin_lock(&s->lock);
+        list_for_each_entry ( sv, &s->ioreq_vcpu_list, list_entry )
+            sv->pending = false;
+        clear_page(s->ioreq.va);
+        spin_unlock(&s->lock);
+
+        spin_lock(&s->bufioreq_lock);
+        if ( HANDLE_BUFIOREQ(s) && s->bufioreq.va )
+            clear_page(s->bufioreq.va);
+        spin_unlock(&s->bufioreq_lock);
+    }
+
+    rspin_unlock(&d->ioreq_server.lock);
+}
+
+void ioreq_server_enable_all(struct domain *d)
+{
+    struct ioreq_server *s;
+    unsigned int id;
+
+    rspin_lock(&d->ioreq_server.lock);
+
+    FOR_EACH_IOREQ_SERVER(d, id, s)
+        ioreq_server_enable(s);
+
+    rspin_unlock(&d->ioreq_server.lock);
+
+    ioreq_request_mapcache_invalidate(d);
+}
+
 struct ioreq_server *ioreq_server_select(struct domain *d,
                                          ioreq_t *p)
 {

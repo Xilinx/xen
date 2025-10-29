@@ -99,6 +99,8 @@ int ioreq_server_map_mem_type(struct domain *d, ioservid_t id,
 int ioreq_server_add_vcpu_all(struct domain *d, struct vcpu *v);
 void ioreq_server_remove_vcpu_all(struct domain *d, struct vcpu *v);
 void ioreq_server_destroy_all(struct domain *d);
+void ioreq_server_disable_all(struct domain *d);
+void ioreq_server_enable_all(struct domain *d);
 
 struct ioreq_server *ioreq_server_select(struct domain *d,
                                          ioreq_t *p);
