@@ -345,6 +345,40 @@ bool is_ioreq_server_page(struct domain *d, const struct page_info *page)
     return found;
 }
 
+bool is_ioreq_server_evtchn(struct domain *d, unsigned int port)
+{
+    struct ioreq_server *s;
+    unsigned int id;
+    bool found = false;
+
+    rspin_lock(&d->ioreq_server.lock);
+
+    FOR_EACH_IOREQ_SERVER(d, id, s)
+    {
+        struct ioreq_vcpu *sv;
+
+        if ( s->bufioreq_evtchn == port )
+        {
+            found = true;
+            break;
+        }
+
+        list_for_each_entry ( sv, &s->ioreq_vcpu_list, list_entry )
+        {
+            if ( sv->ioreq_evtchn == port )
+            {
+                found = true;
+                goto unlock;
+            }
+        }
+    }
+
+ unlock:
+    rspin_unlock(&d->ioreq_server.lock);
+
+    return found;
+}
+
 static void ioreq_server_update_evtchn(struct ioreq_server *s,
                                        struct ioreq_vcpu *sv)
 {

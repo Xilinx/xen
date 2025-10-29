@@ -89,6 +89,7 @@ bool domain_has_ioreq_server(const struct domain *d);
 bool vcpu_ioreq_pending(struct vcpu *v);
 bool vcpu_ioreq_handle_completion(struct vcpu *v);
 bool is_ioreq_server_page(struct domain *d, const struct page_info *page);
+bool is_ioreq_server_evtchn(struct domain *d, unsigned int port);
 
 int ioreq_server_get_frame(struct domain *d, ioservid_t id,
                            unsigned int idx, mfn_t *mfn);
