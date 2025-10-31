@@ -3641,9 +3641,11 @@ int hvm_msr_read_intercept(unsigned int msr, uint64_t *msr_content)
         *msr_content = vcpu_vlapic(v)->hw.apic_base_msr;
         break;
 
+#ifdef CONFIG_INTEL
     case MSR_IA32_TSC_DEADLINE:
         *msr_content = vlapic_tdt_msr_get(vcpu_vlapic(v));
         break;
+#endif /* CONFIG_INTEL */
 
     case MSR_IA32_CR_PAT:
         hvm_get_guest_pat(v, msr_content);
@@ -3775,9 +3777,11 @@ int hvm_msr_write_intercept(unsigned int msr, uint64_t msr_content,
     case MSR_APIC_BASE:
         return guest_wrmsr_apic_base(v, msr_content);
 
+#ifdef CONFIG_INTEL
     case MSR_IA32_TSC_DEADLINE:
         vlapic_tdt_msr_set(vcpu_vlapic(v), msr_content);
         break;
+#endif /* CONFIG_INTEL */
 
     case MSR_IA32_CR_PAT:
         if ( !hvm_set_guest_pat(v, msr_content) )

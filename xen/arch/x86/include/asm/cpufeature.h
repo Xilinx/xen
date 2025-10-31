@@ -297,6 +297,9 @@ static inline bool boot_cpu_has(unsigned int feat)
 
 #define cpu_has_msr_tsc_aux     (cpu_has_rdtscp || cpu_has_rdpid)
 
+#define cpu_has_apic_tdt        (IS_ENABLED(CONFIG_INTEL) \
+                                 && boot_cpu_has(X86_FEATURE_TSC_DEADLINE))
+
 /* Bugs. */
 #define cpu_bug_fpu_ptrs        boot_cpu_has(X86_BUG_FPU_PTRS)
 #define cpu_bug_null_seg        boot_cpu_has(X86_BUG_NULL_SEG)

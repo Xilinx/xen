@@ -66,8 +66,9 @@ static const unsigned int vlapic_lvt_mask[VLAPIC_LVT_NUM] =
      == APIC_TIMER_MODE_ONESHOT)
 
 #define vlapic_lvtt_tdt(vlapic)                                 \
+    (cpu_has_apic_tdt &&                                        \
     ((vlapic_get_reg(vlapic, APIC_LVTT) & APIC_TIMER_MODE_MASK) \
-     == APIC_TIMER_MODE_TSC_DEADLINE)
+     == APIC_TIMER_MODE_TSC_DEADLINE))
 
 static void vlapic_do_init(struct vlapic *vlapic);
 
@@ -610,12 +611,14 @@ static uint32_t vlapic_read_aligned(const struct vlapic *vlapic,
         return vlapic_get_ppr(vlapic);
 
     case APIC_TMCCT: /* Timer CCR */
-        if ( !vlapic_lvtt_oneshot(vlapic) && !vlapic_lvtt_period(vlapic) )
+        if ( cpu_has_apic_tdt
+             && !vlapic_lvtt_oneshot(vlapic) && !vlapic_lvtt_period(vlapic) )
             break;
         return vlapic_get_tmcct(vlapic);
 
     case APIC_TMICT: /* Timer ICR */
-        if ( !vlapic_lvtt_oneshot(vlapic) && !vlapic_lvtt_period(vlapic) )
+        if ( cpu_has_apic_tdt
+             && !vlapic_lvtt_oneshot(vlapic) && !vlapic_lvtt_period(vlapic) )
             break;
         /* fall through */
     default:
@@ -865,7 +868,9 @@ void vlapic_reg_write(struct vcpu *v, unsigned int reg, uint32_t val)
         break;
 
     case APIC_LVTT:         /* LVT Timer Reg */
-        if ( vlapic_lvtt_tdt(vlapic) !=
+        if ( !cpu_has_apic_tdt )
+            val &= ~((uint32_t)1 << 18);
+        else if ( vlapic_lvtt_tdt(vlapic) !=
              ((val & APIC_TIMER_MODE_MASK) == APIC_TIMER_MODE_TSC_DEADLINE) )
         {
             vlapic_set_reg(vlapic, APIC_TMICT, 0);
@@ -898,7 +903,8 @@ void vlapic_reg_write(struct vcpu *v, unsigned int reg, uint32_t val)
         break;
 
     case APIC_TMICT:
-        if ( !vlapic_lvtt_oneshot(vlapic) && !vlapic_lvtt_period(vlapic) )
+        if ( cpu_has_apic_tdt
+             && !vlapic_lvtt_oneshot(vlapic) && !vlapic_lvtt_period(vlapic) )
             break;
 
         vlapic_set_reg(vlapic, APIC_TMICT, val);
@@ -1495,13 +1501,15 @@ void vlapic_reset(struct vlapic *vlapic)
 static void lapic_rearm(struct vlapic *s)
 {
     unsigned long tmict;
-    uint64_t period, timer_period = 0, tdt_msr;
+    uint64_t period, timer_period = 0;
     bool is_periodic;
 
     s->pt.irq = vlapic_get_reg(s, APIC_LVTT) & APIC_VECTOR_MASK;
 
-    if ( vlapic_lvtt_tdt(s) )
+    if ( cpu_has_apic_tdt && vlapic_lvtt_tdt(s) )
     {
+        uint64_t tdt_msr;
+
         if ( (tdt_msr = vlapic_tdt_msr_get(s)) != 0 )
             vlapic_tdt_msr_set(s, tdt_msr);
         return;
