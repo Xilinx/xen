@@ -306,7 +306,7 @@ static int __init process_reserved_memory_node(const void *fdt, int node,
     int rc;
 
 #ifdef CONFIG_STATIC_SHM
-    if ( device_tree_node_compatible(fdt, node, "shared-dma-pool") )
+    if ( fdt_get_property(fdt, node, "linux,cma-default", NULL) )
     {
         printk("Replacing CMA node with shared memory\n");
         rc = process_shm_node(fdt, node, address_cells, size_cells, true);

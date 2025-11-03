@@ -316,7 +316,7 @@ int __init process_shm(struct domain *d, struct kernel_info *kinfo,
 
         if ( !dt_device_is_compatible(shm_node, "xen,domain-shared-memory-v1") )
         {
-            if ( dt_device_is_compatible(shm_node, "shared-dma-pool") )
+            if ( dt_find_property(shm_node, "linux,cma-default", NULL) )
             {
                 if ( llc_coloring_enabled )
                 {
