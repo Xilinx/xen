@@ -41,6 +41,23 @@ static void __init __maybe_unused build_assertions(void)
 }
 
 static const struct membank __init *
+find_shm_cma_bank_by_gaddr(const struct membanks *shmem, paddr_t pbase)
+{
+    unsigned int bank;
+
+    for ( bank = 0 ; bank < shmem->nr_banks; bank++ )
+    {
+        if ( shmem->bank[bank].start == pbase )
+            break;
+    }
+
+    if ( bank == shmem->nr_banks )
+        return NULL;
+
+    return &shmem->bank[bank];
+}
+
+static const struct membank __init *
 find_shm_bank_by_id(const struct membanks *shmem, const char *shm_id)
 {
     unsigned int bank;
@@ -303,7 +320,7 @@ int __init process_shm(struct domain *d, struct kernel_info *kinfo,
 
     dt_for_each_child_node(node, shm_node)
     {
-        const struct membank *boot_shm_bank;
+        const struct membank *boot_shm_bank = NULL;
         const struct dt_property *prop;
         const __be32 *cells;
         uint32_t addr_cells, size_cells;
@@ -312,11 +329,16 @@ int __init process_shm(struct domain *d, struct kernel_info *kinfo,
         unsigned int i;
         const char *role_str = "owner";
         const char *shm_id;
-        bool cma;
+        bool cma = false;
+
+        addr_cells = dt_n_addr_cells(shm_node);
+        size_cells = dt_n_size_cells(shm_node);
 
         if ( !dt_device_is_compatible(shm_node, "xen,domain-shared-memory-v1") )
         {
-            if ( dt_find_property(shm_node, "linux,cma-default", NULL) )
+            if ( dt_find_property(shm_node, "linux,cma-default", NULL) ||
+                 (dt_device_is_compatible(shm_node, "shared-dma-pool") &&
+                 dt_find_property(shm_node, "reusable", NULL)) )
             {
                 if ( llc_coloring_enabled )
                 {
@@ -324,26 +346,52 @@ int __init process_shm(struct domain *d, struct kernel_info *kinfo,
                     return -EOPNOTSUPP;
                 }
                 cma = true;
+
+                /*
+                 * For CMA regions, the shm-id is dynamically generated during
+                 * early FDT parsing rather than being explicitly defined in the
+                 * device tree. Therefore, we must locate the shared memory bank
+                 * by its physical address and retrieve the corresponding ID.
+                 */
+                prop = dt_find_property(shm_node, "reg", NULL);
+                if ( !prop )
+                    return -ENOENT;
+                cells = (const __be32 *)prop->value;
+                pbase = dt_read_paddr(cells, addr_cells);
+                boot_shm_bank =
+                        find_shm_cma_bank_by_gaddr(bootinfo_get_shmem(), pbase);
+                if ( !boot_shm_bank )
+                {
+                    printk("%pd: static shared memory CMA bank not found: '%#lx'", d, pbase);
+                    return -ENOENT;
+                }
+
+                shm_id = boot_shm_bank->shmem_extra->shm_id;
             }
             else
                 continue;
         }
 
-        if ( dt_property_read_string(shm_node, cma ? "compatible" : "xen,shm-id", &shm_id) )
+        if ( !cma )
         {
-            printk("%pd: invalid \"xen,shm-id\" property", d);
-            return -EINVAL;
+            if ( dt_property_read_string(shm_node, "xen,shm-id", &shm_id) )
+            {
+                printk("%pd: invalid \"xen,shm-id\" property", d);
+                return -EINVAL;
+            }
+
+            BUG_ON((strlen(shm_id) <= 0) || (strlen(shm_id) >= MAX_SHM_ID_LENGTH));
+
+            boot_shm_bank = find_shm_bank_by_id(bootinfo_get_shmem(), shm_id);
+            if ( !boot_shm_bank )
+            {
+                printk("%pd: static shared memory bank not found: '%s'", d, shm_id);
+                return -ENOENT;
+            }
+
         }
 
-        BUG_ON((strlen(shm_id) <= 0) || (strlen(shm_id) >= MAX_SHM_ID_LENGTH));
-
-        boot_shm_bank = find_shm_bank_by_id(bootinfo_get_shmem(), shm_id);
-        if ( !boot_shm_bank )
-        {
-            printk("%pd: static shared memory bank not found: '%s'", d, shm_id);
-            return -ENOENT;
-        }
-
+        BUG_ON(!boot_shm_bank);
         pbase = boot_shm_bank->start;
         psize = boot_shm_bank->size;
 
@@ -355,8 +403,6 @@ int __init process_shm(struct domain *d, struct kernel_info *kinfo,
          * xen,shared-mem = <[pbase,] gbase, size>;
          * pbase is optional.
          */
-        addr_cells = dt_n_addr_cells(shm_node);
-        size_cells = dt_n_size_cells(shm_node);
         prop = dt_find_property(shm_node, cma ? "reg" : "xen,shared-mem", NULL);
         BUG_ON(!prop);
         cells = (const __be32 *)prop->value;
@@ -502,7 +548,8 @@ int __init make_shm_resv_memory_node(const struct kernel_info *kinfo,
         __be32 *cells;
         unsigned int len = (addrcells + sizecells) * sizeof(__be32);
 
-        if ( !strcmp(mem->bank[i].shmem_extra->shm_id, "shared-dma-pool") )
+        if ( !strncmp(mem->bank[i].shmem_extra->shm_id, "shared-dma-pool",
+                      strlen("shared-dma-pool")) )
             continue;
 
         res = domain_fdt_begin_node(fdt, "xen-shmem", mem->bank[i].start);
@@ -558,6 +605,7 @@ int __init process_shm_node(const void *fdt, int node, uint32_t address_cells,
     unsigned int i;
     int len;
     bool owner = false;
+    char shm_id_str[MAX_SHM_ID_LENGTH];
     const char *shm_id;
 
     if ( address_cells < 1 || size_cells < 1 )
@@ -574,8 +622,6 @@ int __init process_shm_node(const void *fdt, int node, uint32_t address_cells,
         if ( !prop_id )
             return -ENOENT;
 
-        shm_id = (const char *)prop_id->data;
-
         prop = fdt_get_property(fdt, node, "reg", NULL);
         if ( !prop )
             return -ENOENT;
@@ -583,7 +629,12 @@ int __init process_shm_node(const void *fdt, int node, uint32_t address_cells,
         cell = (const __be32 *)prop->data;
         device_tree_get_reg(&cell, address_cells, size_cells, &gaddr, &size);
         paddr = gaddr;
-        printk("CMA: %#lx - %#lx\n", gaddr, size);
+
+        /* Generate shm_id for CMA region */
+        snprintf(shm_id_str, sizeof(shm_id_str), "shared-dma-pool%u", mem->nr_banks);
+        shm_id = &shm_id_str[0];
+        printk(XENLOG_DEBUG
+               "CMA -> SHM (%s): %#lx - %#lx\n", shm_id, gaddr, size);
     }
     else
     {

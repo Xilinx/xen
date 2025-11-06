@@ -267,7 +267,9 @@ int handle_device(struct domain *d, struct dt_device_node *dev, p2m_type_t p2mt,
 
 #ifdef CONFIG_STATIC_SHM
     /* CMA */
-    if ( dt_find_property(dev, "linux,cma-default", NULL) )
+    if ( dt_find_property(dev, "linux,cma-default", NULL) ||
+         (dt_device_is_compatible(dev, "shared-dma-pool") &&
+         dt_find_property(dev, "reusable", NULL)) )
         return 0;
 #endif
 
