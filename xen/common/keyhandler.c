@@ -24,6 +24,8 @@
 #include <xen/init.h>
 #include <asm/div64.h>
 
+#include <public/bootfdt.h>
+
 static unsigned char keypress_key;
 static bool alt_key_handling;
 
@@ -261,11 +263,15 @@ static int get_domain_caps(struct domain *d)
     int caps = 0;
 
     if ( is_control_domain(d) )
-        caps |= XEN_DOMCTL_GETDOMSTATE_CAP_CONTROL;
+        caps |= DOMAIN_CAPS_CONTROL;
     if ( is_hardware_domain(d) )
-        caps |= XEN_DOMCTL_GETDOMSTATE_CAP_HARDWARE;
+        caps |= DOMAIN_CAPS_HARDWARE;
     if ( is_xenstore_domain(d) )
-        caps |= XEN_DOMCTL_GETDOMSTATE_CAP_XENSTORE;
+        caps |= DOMAIN_CAPS_XENSTORE;
+    if ( is_dm_domain(d) )
+        caps |= DOMAIN_CAPS_DEVICE_MODEL;
+    if ( !is_hypercall_target(d) )
+        caps |= DOMAIN_CAPS_NOT_HYPERCALL_TARGET;
 
     return caps;
 }
