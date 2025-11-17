@@ -270,6 +270,7 @@ static bool vtimer_cntp_cval(struct cpu_user_regs *regs, uint64_t *r,
     return true;
 }
 
+#ifdef CONFIG_ARM64_AARCH32
 static bool vtimer_emulate_cp32(struct cpu_user_regs *regs, union hsr hsr)
 {
     struct hsr_cp32 cp32 = hsr.cp32;
@@ -310,6 +311,7 @@ static bool vtimer_emulate_cp64(struct cpu_user_regs *regs, union hsr hsr)
         return false;
     }
 }
+#endif /* CONFIG_ARM64_AARCH32 */
 
 #ifdef CONFIG_ARM_64
 static bool vtimer_emulate_sysreg(struct cpu_user_regs *regs, union hsr hsr)
@@ -341,10 +343,12 @@ bool vtimer_emulate(struct cpu_user_regs *regs, union hsr hsr)
 {
 
     switch (hsr.ec) {
+#ifdef CONFIG_ARM64_AARCH32
     case HSR_EC_CP15_32:
         return vtimer_emulate_cp32(regs, hsr);
     case HSR_EC_CP15_64:
         return vtimer_emulate_cp64(regs, hsr);
+#endif
 #ifdef CONFIG_ARM_64
     case HSR_EC_SYSREG:
         return vtimer_emulate_sysreg(regs, hsr);

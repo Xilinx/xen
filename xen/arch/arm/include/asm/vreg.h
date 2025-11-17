@@ -9,6 +9,7 @@ typedef bool (*vreg_reg64_fn_t)(struct cpu_user_regs *regs, uint64_t *r,
 typedef bool (*vreg_reg_fn_t)(struct cpu_user_regs *regs, register_t *r,
                                    bool read);
 
+#ifdef CONFIG_ARM64_AARCH32
 static inline bool vreg_emulate_cp32(struct cpu_user_regs *regs, union hsr hsr,
                                      vreg_reg_fn_t fn)
 {
@@ -62,6 +63,7 @@ static inline bool vreg_emulate_cp64(struct cpu_user_regs *regs, union hsr hsr,
 
     return ret;
 }
+#endif /* CONFIG_ARM64_AARCH32 */
 
 #ifdef CONFIG_ARM_64
 static inline bool vreg_emulate_sysreg(struct cpu_user_regs *regs, union hsr hsr,
