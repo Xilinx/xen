@@ -3012,8 +3012,7 @@ static bool __init has_if_pschange_mc(void)
      * IF_PSCHANGE_MC is only known to affect Intel Family 6 processors at
      * this time.
      */
-    if ( boot_cpu_data.x86_vendor != X86_VENDOR_INTEL ||
-         boot_cpu_data.x86 != 6 )
+    if ( !(cpu_vendor() & X86_VENDOR_INTEL) || boot_cpu_data.x86 != 6 )
         return false;
 
     switch ( boot_cpu_data.x86_model )
@@ -3369,7 +3368,7 @@ static void __init lbr_tsx_fixup_check(void)
      * fixed up as well.
      */
     if ( cpu_has_hle || cpu_has_rtm ||
-         boot_cpu_data.x86_vendor != X86_VENDOR_INTEL ||
+         !(cpu_vendor() & X86_VENDOR_INTEL) ||
          boot_cpu_data.x86 != 6 )
         return;
 
@@ -3414,8 +3413,7 @@ static void __init ler_to_fixup_check(void)
      * that are not equal to bit[47].  Attempting to context switch this value
      * may cause a #GP.  Software should sign extend the MSR.
      */
-    if ( boot_cpu_data.x86_vendor != X86_VENDOR_INTEL ||
-         boot_cpu_data.x86 != 6 )
+    if ( !(cpu_vendor() & X86_VENDOR_INTEL) || boot_cpu_data.x86 != 6 )
         return;
 
     switch ( boot_cpu_data.x86_model )

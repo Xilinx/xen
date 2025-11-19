@@ -2759,8 +2759,7 @@ bool hvm_vcpu_virtual_to_linear(
         }
         else if ( last_byte > reg->limit )
             goto out; /* last byte is beyond limit */
-        else if ( last_byte < offset &&
-                  v->domain->arch.cpuid->x86_vendor == X86_VENDOR_AMD )
+        else if ( (cpu_vendor() & X86_VENDOR_AMD) && last_byte < offset )
             goto out; /* access wraps */
     }
 

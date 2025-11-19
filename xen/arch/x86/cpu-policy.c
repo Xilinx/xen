@@ -765,7 +765,7 @@ static void __init calculate_hvm_max_policy(void)
      * long mode (and init_amd() has cleared it out of host capabilities), but
      * HVM guests are able if running in protected mode.
      */
-    if ( (boot_cpu_data.vendor & (X86_VENDOR_AMD | X86_VENDOR_HYGON)) &&
+    if ( (cpu_vendor() & (X86_VENDOR_AMD | X86_VENDOR_HYGON)) &&
          raw_cpu_policy.basic.sep )
         __set_bit(X86_FEATURE_SEP, fs);
 
@@ -958,8 +958,8 @@ void recalculate_cpuid_policy(struct domain *d)
     p->basic.max_leaf   = min(p->basic.max_leaf,   max->basic.max_leaf);
     p->feat.max_subleaf = min(p->feat.max_subleaf, max->feat.max_subleaf);
     p->extd.max_leaf    = 0x80000000U | min(p->extd.max_leaf & 0xffff,
-                                            ((p->x86_vendor & (X86_VENDOR_AMD |
-                                                               X86_VENDOR_HYGON))
+                                            ((cpu_vendor() & (X86_VENDOR_AMD |
+                                                              X86_VENDOR_HYGON))
                                              ? CPUID_GUEST_NR_EXTD_AMD
                                              : CPUID_GUEST_NR_EXTD_INTEL) - 1);
 
@@ -993,7 +993,7 @@ void recalculate_cpuid_policy(struct domain *d)
     if ( is_pv_32bit_domain(d) )
     {
         __clear_bit(X86_FEATURE_LM, max_fs);
-        if ( !(boot_cpu_data.vendor & (X86_VENDOR_AMD | X86_VENDOR_HYGON)) )
+        if ( !(cpu_vendor() & (X86_VENDOR_AMD | X86_VENDOR_HYGON)) )
             __clear_bit(X86_FEATURE_SYSCALL, max_fs);
     }
 

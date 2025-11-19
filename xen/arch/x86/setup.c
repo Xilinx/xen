@@ -1238,8 +1238,7 @@ void asmlinkage __init noreturn __start_xen(void)
          * CPUs with this addressed enumerate CET-SSS to indicate that
          * supervisor shadow stacks are now safe to use.
          */
-        bool cpu_has_bug_shstk_fracture =
-            boot_cpu_data.x86_vendor == X86_VENDOR_INTEL &&
+        bool cpu_has_bug_shstk_fracture = (cpu_vendor() & X86_VENDOR_INTEL) &&
             !boot_cpu_has(X86_FEATURE_CET_SSS);
 
         /*
@@ -1878,10 +1877,10 @@ void asmlinkage __init noreturn __start_xen(void)
 
     /* Do not enable SMEP/SMAP in PV shim on AMD and Hygon by default */
     if ( opt_smep == -1 )
-        opt_smep = !pv_shim || !(boot_cpu_data.x86_vendor &
+        opt_smep = !pv_shim || !(cpu_vendor() &
                                  (X86_VENDOR_AMD | X86_VENDOR_HYGON));
     if ( opt_smap == -1 )
-        opt_smap = !pv_shim || !(boot_cpu_data.x86_vendor &
+        opt_smap = !pv_shim || !(cpu_vendor() &
                                  (X86_VENDOR_AMD | X86_VENDOR_HYGON));
 
     if ( !opt_smep )

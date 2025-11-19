@@ -435,8 +435,7 @@ void guest_cpuid(const struct vcpu *v, uint32_t leaf,
 
     case 0xa:
         /* TODO: Rework vPMU control in terms of toolstack choices. */
-        if ( boot_cpu_data.x86_vendor != X86_VENDOR_INTEL ||
-             !vpmu_available(v) )
+        if ( !(cpu_vendor() & X86_VENDOR_INTEL) || !vpmu_available(v) )
             *res = EMPTY_LEAF;
         else
         {
@@ -481,7 +480,7 @@ void guest_cpuid(const struct vcpu *v, uint32_t leaf,
 
     case 0x80000001U:
         /* SYSCALL is hidden outside of long mode on Intel. */
-        if ( p->x86_vendor == X86_VENDOR_INTEL &&
+        if ( (cpu_vendor() & X86_VENDOR_INTEL) &&
              is_hvm_domain(d) && !hvm_long_mode_active(v) )
             res->d &= ~cpufeat_mask(X86_FEATURE_SYSCALL);
 

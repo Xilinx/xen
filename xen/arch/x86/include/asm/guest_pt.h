@@ -314,8 +314,7 @@ static always_inline bool guest_l4e_rsvd_bits(const struct vcpu *v,
                                               guest_l4e_t l4e)
 {
     return l4e.l4 & (guest_rsvd_bits(v) | GUEST_L4_PAGETABLE_RSVD |
-                     ((v->domain->arch.cpuid->x86_vendor == X86_VENDOR_AMD)
-                      ? _PAGE_GLOBAL : 0));
+                     ((cpu_vendor() & X86_VENDOR_AMD) ? _PAGE_GLOBAL : 0));
 }
 #endif /* GUEST_PAGING_LEVELS >= 4 */
 #endif /* GUEST_PAGING_LEVELS >= 3 */

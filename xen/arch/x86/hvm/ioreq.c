@@ -304,8 +304,7 @@ bool arch_ioreq_server_get_type_addr(const struct domain *d,
         *type = XEN_DMOP_IO_RANGE_PCI;
         *addr = ((uint64_t)sbdf.sbdf << 32) | reg;
         /* AMD extended configuration space access? */
-        if ( CF8_ADDR_HI(cf8) &&
-             d->arch.cpuid->x86_vendor == X86_VENDOR_AMD &&
+        if ( CF8_ADDR_HI(cf8) && (cpu_vendor() & X86_VENDOR_AMD) &&
              (x86_fam = get_cpu_family(
                  d->arch.cpuid->basic.raw_fms, NULL, NULL)) >= 0x10 &&
              x86_fam < 0x17 )
