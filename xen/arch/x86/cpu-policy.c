@@ -279,7 +279,7 @@ static void recalculate_misc(struct cpu_policy *p)
 
     p->extd.raw[0x8].d = 0;
 
-    switch ( p->x86_vendor )
+    switch ( cpu_vendor() )
     {
     case X86_VENDOR_INTEL:
         p->basic.l2_nr_queries = 1; /* Fixed to 1 query. */
@@ -417,7 +417,7 @@ static void __init guest_common_default_leaves(struct cpu_policy *p)
 
 static void __init guest_common_max_feature_adjustments(uint32_t *fs)
 {
-    switch ( boot_cpu_data.vendor )
+    switch ( cpu_vendor() )
     {
     case X86_VENDOR_INTEL:
         /*
@@ -511,7 +511,7 @@ static void __init guest_common_max_feature_adjustments(uint32_t *fs)
 
 static void __init guest_common_default_feature_adjustments(uint32_t *fs)
 {
-    switch ( boot_cpu_data.vendor )
+    switch ( cpu_vendor() )
     {
     case X86_VENDOR_INTEL:
         /*

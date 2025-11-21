@@ -135,7 +135,7 @@ static int __init cf_check cpufreq_driver_init(void)
 
         ret = -ENOENT;
 
-        switch ( boot_cpu_data.x86_vendor )
+        switch ( cpu_vendor() )
         {
         case X86_VENDOR_INTEL:
             for ( i = 0; i < cpufreq_xen_cnt; i++ )
@@ -143,12 +143,10 @@ static int __init cf_check cpufreq_driver_init(void)
                 switch ( cpufreq_xen_opts[i] )
                 {
                 case CPUFREQ_xen:
-                    ret = IS_ENABLED(CONFIG_INTEL) ?
-                          acpi_cpufreq_register() : -ENODEV;
+                    ret = acpi_cpufreq_register();
                     break;
                 case CPUFREQ_hwp:
-                    ret = IS_ENABLED(CONFIG_INTEL) ?
-                          hwp_register_driver() : -ENODEV;
+                    ret = hwp_register_driver();
                     break;
                 case CPUFREQ_none:
                     ret = 0;
@@ -167,7 +165,6 @@ static int __init cf_check cpufreq_driver_init(void)
 
         case X86_VENDOR_AMD:
         case X86_VENDOR_HYGON:
-#ifdef CONFIG_AMD
             for ( i = 0; i < cpufreq_xen_cnt; i++ )
             {
                 switch ( cpufreq_xen_opts[i] )
@@ -193,9 +190,6 @@ static int __init cf_check cpufreq_driver_init(void)
                 if ( !ret || ret == -EBUSY )
                     break;
             }
-#else
-            ret = -ENODEV;
-#endif /* CONFIG_AMD */
             break;
 
         default:

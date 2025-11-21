@@ -216,7 +216,7 @@ void disable_lapic_nmi_watchdog(void)
 {
     if (nmi_active <= 0)
         return;
-    switch (boot_cpu_data.x86_vendor) {
+    switch (cpu_vendor()) {
     case X86_VENDOR_AMD:
         wrmsr(MSR_K7_EVNTSEL0, 0, 0);
         break;
@@ -387,7 +387,7 @@ void setup_apic_nmi_watchdog(void)
     if ( nmi_watchdog == NMI_NONE )
         return;
 
-    switch ( boot_cpu_data.x86_vendor )
+    switch ( cpu_vendor() )
     {
     case X86_VENDOR_AMD:
         setup_k7_watchdog();

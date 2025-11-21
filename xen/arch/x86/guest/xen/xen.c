@@ -59,7 +59,7 @@ void asmlinkage __init early_hypercall_setup(void)
         boot_cpu_data.x86_vendor = x86_cpuid_lookup_vendor(ebx, ecx, edx);
     }
 
-    switch ( boot_cpu_data.x86_vendor )
+    switch ( cpu_vendor() )
     {
     case X86_VENDOR_INTEL:
     case X86_VENDOR_CENTAUR:

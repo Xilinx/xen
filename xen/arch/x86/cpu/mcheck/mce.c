@@ -766,16 +766,13 @@ void mcheck_init(struct cpuinfo_x86 *c, bool bsp)
     else if ( cpu_bank_alloc(cpu) )
         panic("Insufficient memory for MCE bank allocations\n");
 
-    switch ( c->x86_vendor )
+    switch ( cpu_vendor() )
     {
-#ifdef CONFIG_AMD
     case X86_VENDOR_AMD:
     case X86_VENDOR_HYGON:
         inited = amd_mcheck_init(c, bsp);
         break;
-#endif
 
-#ifdef CONFIG_INTEL
     case X86_VENDOR_INTEL:
         switch ( c->x86 )
         {
@@ -785,7 +782,6 @@ void mcheck_init(struct cpuinfo_x86 *c, bool bsp)
             break;
         }
         break;
-#endif
 
     default:
         break;
