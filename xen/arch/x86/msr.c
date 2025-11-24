@@ -157,8 +157,8 @@ int guest_rdmsr(struct vcpu *v, uint32_t msr, uint64_t *val)
          * The MSR has existed on all Intel parts since before the 64bit days,
          * and is implemented by other vendors.
          */
-        if ( !(cp->x86_vendor & (X86_VENDOR_INTEL | X86_VENDOR_CENTAUR |
-                                 X86_VENDOR_SHANGHAI)) )
+        if ( !(cpu_vendor() & (X86_VENDOR_INTEL | X86_VENDOR_CENTAUR |
+                               X86_VENDOR_SHANGHAI)) )
             goto gp_fault;
 
         *val = IA32_FEATURE_CONTROL_LOCK;
@@ -169,8 +169,7 @@ int guest_rdmsr(struct vcpu *v, uint32_t msr, uint64_t *val)
         break;
 
     case MSR_IA32_PLATFORM_ID:
-        if ( !(cp->x86_vendor & X86_VENDOR_INTEL) ||
-             !(boot_cpu_data.x86_vendor & X86_VENDOR_INTEL) )
+        if ( !(cpu_vendor() & X86_VENDOR_INTEL) )
             goto gp_fault;
         rdmsrl(MSR_IA32_PLATFORM_ID, *val);
         break;
@@ -189,9 +188,7 @@ int guest_rdmsr(struct vcpu *v, uint32_t msr, uint64_t *val)
          * from Xen's last microcode load, which can be forwarded straight to
          * the guest.
          */
-        if ( !(cp->x86_vendor & (X86_VENDOR_INTEL | X86_VENDOR_AMD)) ||
-             !(boot_cpu_data.x86_vendor &
-               (X86_VENDOR_INTEL | X86_VENDOR_AMD)) ||
+        if ( !(cpu_vendor() & (X86_VENDOR_INTEL | X86_VENDOR_AMD)) ||
              rdmsr_safe(MSR_AMD_PATCHLEVEL, val) )
             goto gp_fault;
         break;
@@ -236,7 +233,7 @@ int guest_rdmsr(struct vcpu *v, uint32_t msr, uint64_t *val)
          */
     case MSR_IA32_PERF_STATUS:
     case MSR_IA32_PERF_CTL:
-        if ( !(cp->x86_vendor & (X86_VENDOR_INTEL | X86_VENDOR_CENTAUR)) )
+        if ( !(cpu_vendor() & (X86_VENDOR_INTEL | X86_VENDOR_CENTAUR)) )
             goto gp_fault;
 
         *val = 0;
@@ -245,7 +242,7 @@ int guest_rdmsr(struct vcpu *v, uint32_t msr, uint64_t *val)
         goto gp_fault;
 
     case MSR_IA32_THERM_STATUS:
-        if ( cp->x86_vendor != X86_VENDOR_INTEL )
+        if ( !(cpu_vendor() & X86_VENDOR_INTEL) )
             goto gp_fault;
         *val = 0;
         break;
@@ -302,7 +299,7 @@ int guest_rdmsr(struct vcpu *v, uint32_t msr, uint64_t *val)
     case MSR_K8_IORR_MASK1:
     case MSR_K8_TSEG_BASE:
     case MSR_K8_TSEG_MASK:
-        if ( !(cp->x86_vendor & (X86_VENDOR_AMD | X86_VENDOR_HYGON)) )
+        if ( !(cpu_vendor() & (X86_VENDOR_AMD | X86_VENDOR_HYGON)) )
             goto gp_fault;
         if ( !is_hardware_domain(d) )
             return X86EMUL_UNHANDLEABLE;
@@ -314,14 +311,14 @@ int guest_rdmsr(struct vcpu *v, uint32_t msr, uint64_t *val)
         break;
 
     case MSR_K8_HWCR:
-        if ( !(cp->x86_vendor & (X86_VENDOR_AMD | X86_VENDOR_HYGON)) )
+        if ( !(cpu_vendor() & (X86_VENDOR_AMD | X86_VENDOR_HYGON)) )
             goto gp_fault;
         *val = 0;
         break;
 
     case MSR_FAM10H_MMIO_CONF_BASE:
         if ( !is_hardware_domain(d) ||
-             !(cp->x86_vendor & (X86_VENDOR_AMD | X86_VENDOR_HYGON)) ||
+             !(cpu_vendor() & (X86_VENDOR_AMD | X86_VENDOR_HYGON)) ||
              rdmsr_safe(msr, val) )
             goto gp_fault;
 
@@ -338,7 +335,7 @@ int guest_rdmsr(struct vcpu *v, uint32_t msr, uint64_t *val)
         break;
 
     case MSR_AMD64_DE_CFG:
-        if ( !(cp->x86_vendor & (X86_VENDOR_AMD | X86_VENDOR_HYGON)) )
+        if ( !(cpu_vendor() & (X86_VENDOR_AMD | X86_VENDOR_HYGON)) )
             goto gp_fault;
         *val = AMD64_DE_CFG_LFENCE_SERIALISE;
         break;
@@ -461,7 +458,7 @@ int guest_wrmsr(struct vcpu *v, uint32_t msr, uint64_t val)
          * for backwards compatiblity, the OS should write 0 to it before
          * trying to access the current microcode version.
          */
-        if ( cp->x86_vendor != X86_VENDOR_INTEL || val != 0 )
+        if ( !(cpu_vendor() & X86_VENDOR_INTEL) || val != 0 )
             goto gp_fault;
         break;
 
@@ -470,8 +467,7 @@ int guest_wrmsr(struct vcpu *v, uint32_t msr, uint64_t val)
          * See note on MSR_IA32_UCODE_WRITE below, which may or may not apply
          * to AMD CPUs as well (at least the architectural/CPUID part does).
          */
-        if ( is_pv_domain(d) ||
-             cp->x86_vendor != X86_VENDOR_AMD )
+        if ( is_pv_domain(d) || !(cpu_vendor() & X86_VENDOR_AMD) )
             goto gp_fault;
         break;
 
@@ -482,8 +478,7 @@ int guest_wrmsr(struct vcpu *v, uint32_t msr, uint64_t val)
          * for such attempts. Also the MSR is architectural and not qualified
          * by any CPUID bit.
          */
-        if ( is_pv_domain(d) ||
-             cp->x86_vendor != X86_VENDOR_INTEL )
+        if ( is_pv_domain(d) || !(cpu_vendor() & X86_VENDOR_INTEL) )
             goto gp_fault;
         break;
 
@@ -553,7 +548,7 @@ int guest_wrmsr(struct vcpu *v, uint32_t msr, uint64_t val)
          * a cpufreq controller dom0 which has full access.
          */
     case MSR_IA32_PERF_CTL:
-        if ( !(cp->x86_vendor & (X86_VENDOR_INTEL | X86_VENDOR_CENTAUR)) )
+        if ( !(cpu_vendor() & (X86_VENDOR_INTEL | X86_VENDOR_CENTAUR)) )
             goto gp_fault;
 
         if ( likely(!is_cpufreq_controller(d)) || wrmsr_safe(msr, val) == 0 )
@@ -663,7 +658,7 @@ int guest_wrmsr(struct vcpu *v, uint32_t msr, uint64_t val)
          * OpenBSD 6.7 will panic if writing to DE_CFG triggers a #GP:
          * https://www.illumos.org/issues/12998 - drop writes.
          */
-        if ( !(cp->x86_vendor & (X86_VENDOR_AMD | X86_VENDOR_HYGON)) )
+        if ( !(cpu_vendor() & (X86_VENDOR_AMD | X86_VENDOR_HYGON)) )
             goto gp_fault;
         break;
 
