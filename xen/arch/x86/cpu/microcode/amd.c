@@ -618,7 +618,7 @@ void __init amd_check_entrysign(void)
     uint8_t fixed_rev;
 
     if ( !IS_ENABLED(CONFIG_MICROCODE_LOADING)  ||
-         boot_cpu_data.vendor != X86_VENDOR_AMD ||
+         !(cpu_vendor() & X86_VENDOR_AMD)       ||
          boot_cpu_data.family < 0x17            ||
          boot_cpu_data.family > 0x1a )
         return;

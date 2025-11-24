@@ -1598,7 +1598,7 @@ static int __init mwait_idle_probe(void)
 	const struct x86_cpu_id *id;
 	const char *str;
 
-	if (boot_cpu_data.vendor != X86_VENDOR_INTEL)
+	if (!(cpu_vendor() & X86_VENDOR_INTEL))
 		return -ENODEV;
 
 	id = x86_match_cpu(intel_idle_ids);
@@ -1816,8 +1816,7 @@ bool __init mwait_pc10_supported(void)
 {
 	unsigned int ecx, edx, dummy;
 
-	if (boot_cpu_data.x86_vendor != X86_VENDOR_INTEL ||
-	    !cpu_has_monitor ||
+	if (!(cpu_vendor() & X86_VENDOR_INTEL) || !cpu_has_monitor ||
 	    boot_cpu_data.cpuid_level < CPUID_MWAIT_LEAF)
 		return false;
 
