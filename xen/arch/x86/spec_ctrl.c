@@ -388,7 +388,7 @@ int8_t __ro_after_init opt_xpti_domu = -1;
 
 static __init void xpti_init_default(void)
 {
-    if ( (boot_cpu_data.vendor & (X86_VENDOR_AMD | X86_VENDOR_HYGON)) ||
+    if ( (cpu_vendor() & (X86_VENDOR_AMD | X86_VENDOR_HYGON)) ||
          cpu_has_rdcl_no )
     {
         if ( opt_xpti_hwdom < 0 )
@@ -712,7 +712,7 @@ static bool __init check_smt_enabled(void)
      * At the time of writing, it is almost completely undocumented, so isn't
      * virtualised reliably.
      */
-    if ( boot_cpu_data.vendor == X86_VENDOR_INTEL &&
+    if ( (cpu_vendor() & X86_VENDOR_INTEL) &&
          boot_cpu_data.family != 0xf && !cpu_has_hypervisor &&
          !rdmsr_safe(MSR_INTEL_CORE_THREAD_COUNT, &val) )
         return (MASK_EXTR(val, MSR_CTC_CORE_MASK) !=
@@ -738,11 +738,10 @@ static bool __init retpoline_calculations(void)
     unsigned int ucode_rev = this_cpu(cpu_sig).rev;
     bool safe = false;
 
-    if ( boot_cpu_data.vendor & (X86_VENDOR_AMD | X86_VENDOR_HYGON) )
+    if ( cpu_vendor() & (X86_VENDOR_AMD | X86_VENDOR_HYGON) )
         return true;
 
-    if ( boot_cpu_data.vendor != X86_VENDOR_INTEL ||
-         boot_cpu_data.family != 6 )
+    if ( !(cpu_vendor() & X86_VENDOR_INTEL) || boot_cpu_data.family != 6 )
         return false;
 
     /*
@@ -938,8 +937,7 @@ static bool __init retpoline_calculations(void)
  */
 static bool __init rsb_is_full_width(void)
 {
-    if ( boot_cpu_data.vendor != X86_VENDOR_INTEL ||
-         boot_cpu_data.family != 6 )
+    if ( !(cpu_vendor() & X86_VENDOR_INTEL) || boot_cpu_data.family != 6 )
         return true;
 
     switch ( boot_cpu_data.model )
@@ -966,8 +964,7 @@ static bool __init should_use_eager_fpu(void)
      * Assume all unrecognised processors are ok.  This is only known to
      * affect Intel Family 6 processors.
      */
-    if ( boot_cpu_data.vendor != X86_VENDOR_INTEL ||
-         boot_cpu_data.family != 6 )
+    if ( !(cpu_vendor() & X86_VENDOR_INTEL) || boot_cpu_data.family != 6 )
         return false;
 
     switch ( boot_cpu_data.model )
@@ -1033,7 +1030,7 @@ static bool __init should_use_eager_fpu(void)
  */
 static void __init srso_calculations(bool hw_smt_enabled)
 {
-    if ( !(boot_cpu_data.vendor & (X86_VENDOR_AMD | X86_VENDOR_HYGON)) )
+    if ( !(cpu_vendor() & (X86_VENDOR_AMD | X86_VENDOR_HYGON)) )
         return;
 
     /*
@@ -1099,7 +1096,7 @@ static void __init srso_calculations(bool hw_smt_enabled)
  */
 static bool __init has_div_vuln(void)
 {
-    if ( !(boot_cpu_data.vendor & (X86_VENDOR_AMD | X86_VENDOR_HYGON)) )
+    if ( !(cpu_vendor() & (X86_VENDOR_AMD | X86_VENDOR_HYGON)) )
         return false;
 
     if ( boot_cpu_data.family != 0x17 && boot_cpu_data.family != 0x18 )
@@ -1137,7 +1134,7 @@ static void __init ibpb_calculations(void)
         return;
     }
 
-    if ( boot_cpu_data.vendor & (X86_VENDOR_AMD | X86_VENDOR_HYGON) )
+    if ( cpu_vendor() & (X86_VENDOR_AMD | X86_VENDOR_HYGON) )
     {
         /*
          * AMD/Hygon CPUs to date (June 2022) don't flush the RAS.  Future
@@ -1222,8 +1219,7 @@ static __init void l1tf_calculations(void)
     l1d_maxphysaddr = paddr_bits;
 
     /* L1TF is only known to affect Intel Family 6 processors at this time. */
-    if ( boot_cpu_data.vendor == X86_VENDOR_INTEL &&
-         boot_cpu_data.family == 6 )
+    if ( (cpu_vendor() & X86_VENDOR_INTEL) && boot_cpu_data.family == 6 )
     {
         switch ( boot_cpu_data.model )
         {
@@ -1358,8 +1354,7 @@ static __init void l1tf_calculations(void)
 static __init void mds_calculations(void)
 {
     /* MDS is only known to affect Intel Family 6 processors at this time. */
-    if ( boot_cpu_data.vendor != X86_VENDOR_INTEL ||
-         boot_cpu_data.family != 6 )
+    if ( !(cpu_vendor() & X86_VENDOR_INTEL) || boot_cpu_data.family != 6 )
         return;
 
     /* Any processor advertising MDS_NO should be not vulnerable to MDS. */
@@ -1469,8 +1464,7 @@ static __init void mds_calculations(void)
 static void __init rfds_calculations(void)
 {
     /* RFDS is only known to affect Intel Family 6 processors at this time. */
-    if ( boot_cpu_data.vendor != X86_VENDOR_INTEL ||
-         boot_cpu_data.family != 6 )
+    if ( !(cpu_vendor() & X86_VENDOR_INTEL) || boot_cpu_data.family != 6 )
         return;
 
     /*
@@ -1535,7 +1529,7 @@ static void __init tsa_calculations(void)
     unsigned int curr_rev, min_rev;
 
     /* TSA is only known to affect AMD processors at this time. */
-    if ( boot_cpu_data.vendor != X86_VENDOR_AMD )
+    if ( !(cpu_vendor() & X86_VENDOR_AMD) )
         return;
 
     /* If we're virtualised, don't attempt to synthesise anything. */
@@ -1659,8 +1653,7 @@ static void __init gds_calculations(void)
     bool cpu_has_bug_gds, mitigated = false;
 
     /* GDS is only known to affect Intel Family 6 processors at this time. */
-    if ( boot_cpu_data.vendor != X86_VENDOR_INTEL ||
-         boot_cpu_data.family != 6 )
+    if ( !(cpu_vendor() & X86_VENDOR_INTEL) || boot_cpu_data.family != 6 )
         return;
 
     cpu_has_bug_gds = cpu_has_gds();
@@ -1754,8 +1747,7 @@ static void __init gds_calculations(void)
 static bool __init cpu_has_bug_bhi(void)
 {
     /* BHI is only known to affect Intel Family 6 processors at this time. */
-    if ( boot_cpu_data.vendor != X86_VENDOR_INTEL ||
-         boot_cpu_data.family != 6 )
+    if ( !(cpu_vendor() & X86_VENDOR_INTEL) || boot_cpu_data.family != 6 )
         return false;
 
     if ( boot_cpu_has(X86_FEATURE_BHI_NO) )
@@ -1878,7 +1870,7 @@ static void __init its_calculations(void)
         return;
 
     /* ITS is only known to affect Intel processors at this time. */
-    if ( boot_cpu_data.vendor != X86_VENDOR_INTEL )
+    if ( !(cpu_vendor() & X86_VENDOR_INTEL) )
         return;
 
     /*
@@ -2181,7 +2173,7 @@ void __init init_speculation_mitigations(void)
          * before going idle is less overhead than flushing on PV entry.
          */
         if ( !opt_rsb_pv && hw_smt_enabled &&
-             (boot_cpu_data.vendor & (X86_VENDOR_AMD | X86_VENDOR_HYGON)) &&
+             (cpu_vendor() & (X86_VENDOR_AMD | X86_VENDOR_HYGON)) &&
              (boot_cpu_data.family == 0x17 || boot_cpu_data.family == 0x18) )
             setup_force_cpu_cap(X86_FEATURE_SC_RSB_IDLE);
     }
