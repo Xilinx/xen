@@ -20,4 +20,46 @@ config INTEL
 	  May be turned off in builds targetting other vendors.  Otherwise,
 	  must be enabled for Xen to work suitably on Intel platforms.
 
+config HYGON
+	bool "Support Hygon CPUs"
+	select AMD
+	default y
+	help
+	  Detection, tunings and quirks for Hygon platforms.
+
+	  May be turned off in builds targetting other vendors.  Otherwise,
+	  must be enabled for Xen to work suitably on Hygon platforms.
+
+config CENTAUR
+	bool "Support Centaur CPUs"
+	select INTEL
+	default y
+	help
+	  Detection, tunings and quirks for Centaur platforms.
+
+	  May be turned off in builds targetting other vendors.  Otherwise,
+	  must be enabled for Xen to work suitably on Centaur platforms.
+
+config SHANGHAI
+	bool "Support Shanghai CPUs"
+	select INTEL
+	default y
+	help
+	  Detection, tunings and quirks for Shanghai platforms.
+
+	  May be turned off in builds targetting other vendors.  Otherwise,
+	  must be enabled for Xen to work suitably on Shanghai platforms.
+
+config UNKNOWN_CPU_VENDOR
+	bool "Support unknown CPU vendors"
+	default y
+	help
+	  This option prevents a panic on boot when the host CPU vendor isn't
+	  supported by going into a legacy compatibility mode and not applying
+	  any relevant tunings or quirks.
+
+	  Not selecting this option while selecting multiple vendors doesn't have
+	  any major effect on code size, but selecting a single vendor with this
+	  option cleared produces a much smaller build.
+
 endmenu
