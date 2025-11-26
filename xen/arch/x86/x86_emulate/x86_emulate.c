@@ -3104,7 +3104,7 @@ x86_emulate(
          * in fact risking to make guest OSes vulnerable to the equivalent of
          * XSA-7 (CVE-2012-0217).
          */
-        generate_exception_if(cp->x86_vendor == X86_VENDOR_INTEL &&
+        generate_exception_if((x86emul_cpu_vendor(cp) & X86_VENDOR_INTEL) &&
                               op_bytes == 8 && !is_canonical_address(_regs.rcx),
                               X86_EXC_GP, 0);
 #endif

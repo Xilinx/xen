@@ -15,6 +15,7 @@
 # include <xen/kernel.h>
 
 # include <asm/cpu-user-regs.h>
+# include <asm/cpufeature.h>
 # include <asm/endbr.h>
 # include <asm/msr-index.h>
 # include <asm/stubs.h>
@@ -30,8 +31,15 @@ void BUG(void);
 #  define X86EMUL_NO_SIMD
 # endif
 
+/* intentionally avoid cpu_vendor(), as it produces much worse codegen */
+# define x86emul_cpu_vendor(cp)                                \
+    ((X86_ENABLED_VENDORS == ISOLATE_LSB(X86_ENABLED_VENDORS)) \
+         ? X86_ENABLED_VENDORS                                 \
+         : ((cp)->x86_vendor & X86_ENABLED_VENDORS))
+
 #else /* !__XEN__ */
 # include "x86-emulate.h"
+# define x86emul_cpu_vendor(cp) ((cp)->x86_vendor)
 #endif
 
 #ifdef __i386__
@@ -520,7 +528,7 @@ in_protmode(
 static inline bool
 _amd_like(const struct cpu_policy *cp)
 {
-    return cp->x86_vendor & (X86_VENDOR_AMD | X86_VENDOR_HYGON);
+    return x86emul_cpu_vendor(cp) & (X86_VENDOR_AMD | X86_VENDOR_HYGON);
 }
 
 static inline bool
