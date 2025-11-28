@@ -230,6 +230,7 @@ static void xen_pt_enforce_wnx(void)
     flush_xen_tlb_local();
 }
 
+#if defined(CONFIG_ARM_32) || defined(CONFIG_LLC_COLORING)
 /*
  * Returns the end address of the highest region in the range s..e
  * with required size and alignment that does not conflict with the
@@ -323,6 +324,7 @@ paddr_t __init consider_modules(paddr_t s, paddr_t e,
 
     return e;
 }
+#endif
 
 static void __init create_llc_coloring_mappings(void)
 {
