@@ -25,7 +25,7 @@ CFLAGS_xeninclude = -I$(XEN_INCLUDE)
 XENSTORE_XENSTORED ?= y
 
 # A debug build of tools?
-debug ?= n
+debug ?= y
 debug_symbols ?= $(debug)
 
 XEN_GOCODE_URL    = golang.xenproject.org
