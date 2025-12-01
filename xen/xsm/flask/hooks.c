@@ -1163,11 +1163,6 @@ static int cf_check flask_iomem_permission(
     return security_iterate_iomem_sids(start, end, _iomem_has_perm, &data);
 }
 
-static int cf_check flask_iomem_mapping(struct domain *d, uint64_t start, uint64_t end, uint8_t access)
-{
-    return flask_iomem_permission(d, start, end, access);
-}
-
 static int cf_check flask_pci_config_permission(
     struct domain *d, uint32_t machine_bdf, uint16_t start, uint16_t end,
     uint8_t access)
@@ -1937,7 +1932,7 @@ static const struct xsm_ops __initconst_cf_clobber flask_ops = {
     .unbind_pt_irq = flask_unbind_pt_irq,
     .irq_permission = flask_irq_permission,
     .iomem_permission = flask_iomem_permission,
-    .iomem_mapping = flask_iomem_mapping,
+    .iomem_mapping = flask_iomem_permission,
     .pci_config_permission = flask_pci_config_permission,
 
     .resource_plug_core = flask_resource_plug_core,
