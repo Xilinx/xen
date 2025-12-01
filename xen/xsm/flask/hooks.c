@@ -1108,7 +1108,7 @@ static int cf_check flask_unbind_pt_irq(
     return current_has_perm(d, SECCLASS_RESOURCE, RESOURCE__REMOVE);
 }
 
-static int cf_check flask_irq_permission(
+static int cf_check __maybe_unused flask_irq_permission(
     struct domain *d, int pirq, uint8_t access)
 {
     /* the PIRQ number is not useful; real IRQ is checked during mapping */
@@ -1141,7 +1141,7 @@ static int cf_check _iomem_has_perm(
     return avc_has_perm(data->dsid, sid, SECCLASS_RESOURCE, data->use_perm, &ad);
 }
 
-static int cf_check flask_iomem_permission(
+static int cf_check __maybe_unused flask_iomem_permission(
     struct domain *d, uint64_t start, uint64_t end, uint8_t access)
 {
     struct iomem_has_perm_data data;
@@ -1931,8 +1931,10 @@ static const struct xsm_ops __initconst_cf_clobber flask_ops = {
     .unmap_domain_irq = flask_unmap_domain_irq,
     .bind_pt_irq = flask_bind_pt_irq,
     .unbind_pt_irq = flask_unbind_pt_irq,
+#ifdef CONFIG_MGMT_HYPERCALLS
     .irq_permission = flask_irq_permission,
     .iomem_permission = flask_iomem_permission,
+#endif
     .iomem_mapping = flask_iomem_permission,
     .pci_config_permission = flask_pci_config_permission,
 

@@ -116,9 +116,11 @@ struct xsm_ops {
     int (*unmap_domain_irq)(struct domain *d, int irq, const void *data);
     int (*bind_pt_irq)(struct domain *d, struct xen_domctl_bind_pt_irq *bind);
     int (*unbind_pt_irq)(struct domain *d, struct xen_domctl_bind_pt_irq *bind);
+#ifdef CONFIG_MGMT_HYPERCALLS
     int (*irq_permission)(struct domain *d, int pirq, uint8_t allow);
     int (*iomem_permission)(struct domain *d, uint64_t s, uint64_t e,
                             uint8_t allow);
+#endif
     int (*iomem_mapping)(struct domain *d, uint64_t s, uint64_t e,
                          uint8_t allow);
     int (*pci_config_permission)(struct domain *d, uint32_t machine_bdf,
@@ -512,13 +514,23 @@ static inline int xsm_unbind_pt_irq(
 static inline int xsm_irq_permission(
     xsm_default_t def, struct domain *d, int pirq, uint8_t allow)
 {
+#ifdef CONFIG_MGMT_HYPERCALLS
     return alternative_call(xsm_ops.irq_permission, d, pirq, allow);
+#else
+    BUILD_ERROR("irq_permission requires MGMT_HYPERCALLS");
+    return -EOPNOTSUPP;
+#endif
 }
 
 static inline int xsm_iomem_permission(
     xsm_default_t def, struct domain *d, uint64_t s, uint64_t e, uint8_t allow)
 {
+#ifdef CONFIG_MGMT_HYPERCALLS
     return alternative_call(xsm_ops.iomem_permission, d, s, e, allow);
+#else
+    BUILD_ERROR("iomem_permission requires MGMT_HYPERCALLS");
+    return -EOPNOTSUPP;
+#endif
 }
 
 static inline int xsm_iomem_mapping(
