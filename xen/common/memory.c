@@ -1155,8 +1155,10 @@ static unsigned int resource_max_frames(const struct domain *d,
     case XENMEM_resource_ioreq_server:
         return ioreq_server_max_frames(d);
 
+#ifdef CONFIG_VMTRACE
     case XENMEM_resource_vmtrace_buf:
         return d->vmtrace_size >> PAGE_SHIFT;
+#endif
 
     default:
         return 0;
@@ -1198,6 +1200,7 @@ static int acquire_ioreq_server(struct domain *d,
 #endif
 }
 
+#ifdef CONFIG_VMTRACE
 static int acquire_vmtrace_buf(
     struct domain *d, unsigned int id, unsigned int frame,
     unsigned int nr_frames, xen_pfn_t mfn_list[])
@@ -1220,6 +1223,7 @@ static int acquire_vmtrace_buf(
 
     return nr_frames;
 }
+#endif
 
 /*
  * Returns -errno on error, or positive in the range [1, nr_frames] on
@@ -1238,8 +1242,10 @@ static int _acquire_resource(
     case XENMEM_resource_ioreq_server:
         return acquire_ioreq_server(d, id, frame, nr_frames, mfn_list);
 
+#ifdef CONFIG_VMTRACE
     case XENMEM_resource_vmtrace_buf:
         return acquire_vmtrace_buf(d, id, frame, nr_frames, mfn_list);
+#endif
 
     default:
         ASSERT_UNREACHABLE();
