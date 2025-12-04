@@ -159,7 +159,7 @@ static DEFINE_RSPINLOCK(console_lock);
  * Note, in the above algorithm, to disable rate limiting simply make
  * the lower threshold equal to the upper.
  */
-#ifdef NDEBUG
+#if defined(NDEBUG) && !defined(CONFIG_VERBOSE_DEBUG)
 #define XENLOG_UPPER_THRESHOLD       3 /* Do not print DEBUG  */
 #define XENLOG_LOWER_THRESHOLD       3 /* Always print INFO, ERR and WARNING */
 #define XENLOG_GUEST_UPPER_THRESHOLD 2 /* Do not print INFO and DEBUG  */
