@@ -89,7 +89,7 @@ extern int printk_ratelimit(void);
 #define gprintk(lvl, fmt, args...) \
     printk(XENLOG_GUEST lvl "%pv " fmt, current, ## args)
 
-#ifdef NDEBUG
+#if defined(NDEBUG) && !defined(CONFIG_VERBOSE_DEBUG)
 
 static inline void
 __attribute__ ((__format__ (__printf__, 2, 3)))
