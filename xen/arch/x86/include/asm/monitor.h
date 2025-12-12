@@ -32,7 +32,6 @@ struct monitor_msr_bitmap {
     DECLARE_BITMAP(high, 8192);
 };
 
-#ifdef CONFIG_VM_EVENT
 static inline
 void arch_monitor_allow_userspace(struct domain *d, bool allow_userspace)
 {
@@ -103,7 +102,6 @@ static inline uint32_t arch_monitor_get_capabilities(struct domain *d)
 
     return capabilities;
 }
-#endif /* CONFIG_VM_EVENT */
 
 int arch_monitor_domctl_event(struct domain *d,
                               struct xen_domctl_monitor_op *mop);
@@ -125,14 +123,7 @@ static inline void arch_monitor_cleanup_domain(struct domain *d) {}
 
 #endif
 
-#ifdef CONFIG_VM_EVENT
 bool monitored_msr(const struct domain *d, u32 msr);
-#else
-static inline bool monitored_msr(const struct domain *d, u32 msr)
-{
-    return false;
-}
-#endif
 bool monitored_msr_onchangeonly(const struct domain *d, u32 msr);
 
 #endif /* __ASM_X86_MONITOR_H__ */

@@ -52,7 +52,6 @@
 #include <asm/i387.h>
 #include <asm/mc146818rtc.h>
 #include <asm/mce.h>
-#include <asm/mem_access.h>
 #include <asm/monitor.h>
 #include <asm/msr.h>
 #include <asm/mtrr.h>
@@ -4879,20 +4878,15 @@ static int do_altp2m_op(
         break;
 
     case HVMOP_altp2m_set_mem_access:
-#ifdef CONFIG_VM_EVENT
         if ( a.u.mem_access.pad )
             rc = -EINVAL;
         else
             rc = p2m_set_mem_access(d, _gfn(a.u.mem_access.gfn), 1, 0, 0,
                                     a.u.mem_access.access,
                                     a.u.mem_access.view);
-#else
-        rc = -EOPNOTSUPP;
-#endif
         break;
 
     case HVMOP_altp2m_set_mem_access_multi:
-#ifdef CONFIG_VM_EVENT
         if ( a.u.set_mem_access_multi.pad ||
              a.u.set_mem_access_multi.opaque > a.u.set_mem_access_multi.nr )
         {
@@ -4921,13 +4915,9 @@ static int do_altp2m_op(
                                        &a, u.set_mem_access_multi.opaque) )
                 rc = -EFAULT;
         }
-#else
-        rc = -EOPNOTSUPP;
-#endif
         break;
 
     case HVMOP_altp2m_get_mem_access:
-#ifdef CONFIG_VM_EVENT
         if ( a.u.mem_access.pad )
             rc = -EINVAL;
         else
@@ -4942,9 +4932,6 @@ static int do_altp2m_op(
                 rc = __copy_to_guest(arg, &a, 1) ? -EFAULT : 0;
             }
         }
-#else
-        rc = -EOPNOTSUPP;
-#endif
         break;
 
     case HVMOP_altp2m_change_gfn:
@@ -5063,7 +5050,6 @@ static int compat_altp2m_op(
     switch ( a.cmd )
     {
     case HVMOP_altp2m_set_mem_access_multi:
-#ifdef CONFIG_VM_EVENT
 #define XLAT_hvm_altp2m_set_mem_access_multi_HNDL_pfn_list(_d_, _s_); \
         guest_from_compat_handle((_d_)->pfn_list, (_s_)->pfn_list)
 #define XLAT_hvm_altp2m_set_mem_access_multi_HNDL_access_list(_d_, _s_); \
@@ -5072,7 +5058,6 @@ static int compat_altp2m_op(
                                              &a.u.set_mem_access_multi);
 #undef XLAT_hvm_altp2m_set_mem_access_multi_HNDL_pfn_list
 #undef XLAT_hvm_altp2m_set_mem_access_multi_HNDL_access_list
-#endif
         break;
 
     default:
@@ -5091,7 +5076,6 @@ static int compat_altp2m_op(
     switch ( a.cmd )
     {
     case HVMOP_altp2m_set_mem_access_multi:
-#ifdef CONFIG_VM_EVENT
         if ( rc == -ERESTART )
         {
             a.u.set_mem_access_multi.opaque =
@@ -5101,9 +5085,6 @@ static int compat_altp2m_op(
                                        &a, u.set_mem_access_multi.opaque) )
                 rc = -EFAULT;
         }
-#else
-        rc = -EOPNOTSUPP;
-#endif
         break;
 
     default:
@@ -5325,7 +5306,6 @@ int hvm_debug_op(struct vcpu *v, int32_t op)
     return rc;
 }
 
-#ifdef CONFIG_VM_EVENT
 void hvm_toggle_singlestep(struct vcpu *v)
 {
     ASSERT(atomic_read(&v->pause_count));
@@ -5335,7 +5315,6 @@ void hvm_toggle_singlestep(struct vcpu *v)
 
     v->arch.hvm.single_step = !v->arch.hvm.single_step;
 }
-#endif /* CONFIG_VM_EVENT */
 
 #ifdef CONFIG_ALTP2M
 void hvm_fast_singlestep(struct vcpu *v, uint16_t p2midx)
