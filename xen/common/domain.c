@@ -1698,6 +1698,7 @@ void domain_unpause_except_self(struct domain *d)
         domain_unpause(d);
 }
 
+#ifdef CONFIG_HAS_SOFT_RESET
 int domain_soft_reset(struct domain *d, bool resuming)
 {
     struct vcpu *v;
@@ -1735,6 +1736,7 @@ int domain_soft_reset(struct domain *d, bool resuming)
 
     return rc;
 }
+#endif /* CONFIG_HAS_SOFT_RESET */
 
 int vcpu_reset(struct vcpu *v)
 {
