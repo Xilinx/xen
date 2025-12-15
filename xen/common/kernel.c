@@ -412,6 +412,7 @@ void add_taint(unsigned int taint)
 
 extern const initcall_t __initcall_start[], __presmp_initcall_end[],
     __initcall_end[];
+extern const initcall_t __initcall_boot_test_start[], __initcall_boot_test_end[];
 
 void __init do_presmp_initcalls(void)
 {
@@ -425,6 +426,16 @@ void __init do_initcalls(void)
     const initcall_t *call;
     for ( call = __presmp_initcall_end; call < __initcall_end; call++ )
         (*call)();
+}
+
+void __init do_init_boottests(void)
+{
+#ifdef CONFIG_AMD_TESTS
+    const initcall_t *call;
+    for ( call = __initcall_boot_test_start; call < __initcall_boot_test_end;
+          call++ )
+        (*call)();
+#endif
 }
 
 #ifdef CONFIG_HYPFS

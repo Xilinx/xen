@@ -405,6 +405,8 @@ void asmlinkage noreturn start_secondary(void)
 
     printk(XENLOG_DEBUG "CPU %u booted.\n", smp_processor_id());
 
+    do_init_boottests();
+
     startup_cpu_idle_loop();
 }
 

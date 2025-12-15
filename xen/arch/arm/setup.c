@@ -481,6 +481,8 @@ void asmlinkage __init noreturn start_xen(unsigned long fdt_paddr)
     enable_errata_workarounds();
     enable_cpu_features();
 
+    do_init_boottests();
+
     /* Create initial domain 0. */
     if ( !is_dom0less_mode() )
         create_dom0();

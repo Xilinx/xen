@@ -241,6 +241,10 @@ SECTIONS
        *(.initcall1.init)
        __initcall_end = .;
 
+       __initcall_boot_test_start = .;
+       *(.initcallboottest.init)
+       __initcall_boot_test_end = .;
+
        *(.init.data)
        *(.init.data.rel)
        *(.init.data.rel.*)

@@ -90,6 +90,12 @@ config EXPERT
 	  supported.
 	default n
 
+config AMD_TESTS
+    bool "Enable all AMD safety unit and self tests in Xen"
+    help
+      This option enables all the AMD internal tests in Xen which are enabled
+      for safety certification.
+
 config UNSUPPORTED
 	bool "Configure UNSUPPORTED features"
 	default EXPERT
