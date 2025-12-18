@@ -623,6 +623,7 @@ int dm_op(const struct dmop_args *op_args)
     return rc;
 }
 
+#ifdef CONFIG_COMPAT
 #include <compat/hvm/dm_op.h>
 
 CHECK_dm_op_create_ioreq_server;
@@ -680,6 +681,7 @@ int compat_dm_op(
 
     return rc;
 }
+#endif /* CONFIG_COMPAT */
 
 /*
  * Local variables:
