@@ -53,11 +53,7 @@ unsigned long hypercall_create_continuation(
 
         regs->rax = op;
 
-#ifdef CONFIG_COMPAT
-        if ( !curr->hcall_compat )
-#else
-        if ( true )
-#endif
+        if ( !is_hcall_compat() )
         {
             for ( i = 0; *p != '\0'; i++ )
             {

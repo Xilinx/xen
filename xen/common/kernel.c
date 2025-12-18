@@ -615,7 +615,7 @@ long do_xen_version(int cmd, XEN_GUEST_HANDLE_PARAM(void) arg)
         const struct vcpu *curr = current;
 
 #ifdef CONFIG_COMPAT
-        if ( curr->hcall_compat )
+        if ( is_hcall_compat() )
         {
             compat_platform_parameters_t params = {
                 .virt_start = is_pv_vcpu(curr)

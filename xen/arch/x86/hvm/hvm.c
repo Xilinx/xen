@@ -3514,7 +3514,7 @@ unsigned int copy_to_user_hvm(void *to, const void *from, unsigned int len)
 {
     int rc;
 
-    if ( current->hcall_compat && is_compat_arg_xlat_range(to, len) )
+    if ( is_hcall_compat() && is_compat_arg_xlat_range(to, len) )
     {
         memcpy(to, from, len);
         return 0;
@@ -3528,7 +3528,7 @@ unsigned int clear_user_hvm(void *to, unsigned int len)
 {
     int rc;
 
-    if ( current->hcall_compat && is_compat_arg_xlat_range(to, len) )
+    if ( is_hcall_compat() && is_compat_arg_xlat_range(to, len) )
     {
         memset(to, 0x00, len);
         return 0;
@@ -3543,7 +3543,7 @@ unsigned int copy_from_user_hvm(void *to, const void *from, unsigned int len)
 {
     int rc;
 
-    if ( current->hcall_compat && is_compat_arg_xlat_range(from, len) )
+    if ( is_hcall_compat() && is_compat_arg_xlat_range(from, len) )
     {
         memcpy(to, from, len);
         return 0;
@@ -5251,7 +5251,7 @@ long do_hvm_op(unsigned long op, XEN_GUEST_HANDLE_PARAM(void) arg)
         break;
 
     case HVMOP_altp2m:
-        rc = current->hcall_compat ? compat_altp2m_op(arg) : do_altp2m_op(arg);
+        rc = is_hcall_compat() ? compat_altp2m_op(arg) : do_altp2m_op(arg);
         break;
 
     default:

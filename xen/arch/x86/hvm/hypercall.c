@@ -29,7 +29,7 @@ long hvm_memory_op(unsigned long cmd, XEN_GUEST_HANDLE_PARAM(void) arg)
         return -ENOSYS;
     }
 
-    if ( !current->hcall_compat )
+    if ( !is_hcall_compat() )
         rc = do_memory_op(cmd, arg);
     else
         rc = compat_memory_op(cmd, arg);
@@ -57,7 +57,7 @@ long hvm_grant_table_op(
         return -ENOSYS;
     }
 
-    if ( !current->hcall_compat )
+    if ( !is_hcall_compat() )
         return do_grant_table_op(cmd, uop, count);
     else
         return compat_grant_table_op(cmd, uop, count);
@@ -66,8 +66,7 @@ long hvm_grant_table_op(
 
 long hvm_physdev_op(int cmd, XEN_GUEST_HANDLE_PARAM(void) arg)
 {
-    const struct vcpu *curr = current;
-    const struct domain *currd = curr->domain;
+    const struct domain *currd = current->domain;
 
     switch ( cmd )
     {
@@ -96,7 +95,7 @@ long hvm_physdev_op(int cmd, XEN_GUEST_HANDLE_PARAM(void) arg)
         return -ENOSYS;
     }
 
-    if ( !curr->hcall_compat )
+    if ( !is_hcall_compat() )
         return do_physdev_op(cmd, arg);
     else
         return compat_physdev_op(cmd, arg);

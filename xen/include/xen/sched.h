@@ -313,6 +313,15 @@ struct vcpu
 #endif
 };
 
+static inline bool is_hcall_compat(void)
+{
+#ifdef CONFIG_COMPAT
+    return current->hcall_compat;
+#else
+    return false;
+#endif /* CONFIG_COMPAT */
+}
+
 struct sched_unit {
     struct domain         *domain;
     struct vcpu           *vcpu_list;
