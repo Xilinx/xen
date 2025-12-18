@@ -12,7 +12,11 @@
 #include <public/vcpu.h>
 #include <public/hvm/hvm_info_table.h>
 
-#define has_32bit_shinfo(d)    ((d)->arch.has_32bit_shinfo)
+#ifdef CONFIG_COMPAT
+#define has_32bit_shinfo(d) ((d)->arch.has_32bit_shinfo)
+#else
+#define has_32bit_shinfo(d) ((void)(d), false)
+#endif
 
 /*
  * Set to true if either the global vector-type callback or per-vCPU
@@ -365,8 +369,10 @@ struct arch_domain
     /* NB. protected by d->event_lock and by irq_desc[irq].lock */
     struct radix_tree_root irq_pirq;
 
+#ifdef CONFIG_COMPAT
     /* Is shared-info page in 32-bit format? */
     bool has_32bit_shinfo;
+#endif
 
     /* Is PHYSDEVOP_eoi to automatically unmask the event channel? */
     bool auto_unmask;

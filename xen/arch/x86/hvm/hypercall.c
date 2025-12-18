@@ -170,6 +170,7 @@ int hvm_hypercall(struct cpu_user_regs *regs)
         HVM_DBG_LOG(DBG_LEVEL_HCALL, "hcall%lu(%x, %x, %x, %x, %x)", eax,
                     regs->ebx, regs->ecx, regs->edx, regs->esi, regs->edi);
 
+#ifdef CONFIG_COMPAT
         curr->hcall_compat = true;
         call_handlers_hvm32(eax, regs->eax, regs->ebx, regs->ecx, regs->edx,
                             regs->esi, regs->edi);
@@ -177,6 +178,9 @@ int hvm_hypercall(struct cpu_user_regs *regs)
 
         if ( !curr->hcall_preempted && regs->eax != -ENOSYS )
             clobber_regs(regs, eax, hvm, 32);
+#else
+        regs->eax = -ENOSYS;
+#endif
     }
 
     hvmemul_cache_restore(curr, token);
@@ -207,10 +211,19 @@ enum mc_disposition hvm_do_multicall_call(struct mc_state *state)
     }
     else
     {
+#ifdef CONFIG_COMPAT
         struct compat_multicall_entry *call = &state->compat_call;
 
         call_handlers_hvm32(call->op, call->result, call->args[0], call->args[1],
                             call->args[2], call->args[3], call->args[4]);
+#else
+        /*
+         * code should never reach here in case !CONFIG_COMPAT as any
+         * 32-bit hypercall should bail out earlier from hvm_hypercall()
+         * with -EOPNOTSUPP
+         */
+        ASSERT_UNREACHABLE();
+#endif
     }
 
     return !hvm_get_cpl(curr) ? mc_continue : mc_preempt;

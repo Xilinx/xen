@@ -70,7 +70,9 @@
 #include <public/version.h>
 #include <public/vm_event.h>
 
+#ifdef CONFIG_COMPAT
 #include <compat/hvm/hvm_op.h>
+#endif
 
 bool __read_mostly hvm_enabled;
 
@@ -1262,6 +1264,7 @@ static int cf_check hvm_save_cpu_xsave_states(
     return 0;
 }
 
+#ifdef CONFIG_COMPAT
 /*
  * Structure layout conformity checks, documenting correctness of the cast in
  * the invocation of validate_xstate() below.
@@ -1274,6 +1277,7 @@ CHECK_FIELD_(struct, xsave_hdr, xcomp_bv);
 CHECK_FIELD_(struct, xsave_hdr, reserved);
 #undef compat_xsave_hdr
 #undef xen_xsave_hdr
+#endif /* CONFIG_COMPAT */
 
 static int cf_check hvm_load_cpu_xsave_states(
     struct domain *d, hvm_domain_context_t *h)
@@ -4008,8 +4012,14 @@ static void hvm_latch_shinfo_size(struct domain *d)
      */
     if ( current->domain == d )
     {
+#ifdef CONFIG_COMPAT
+        /*
+         * Only 64-bit shinfo is supported when COMPAT 32-bit hypercalls
+         * interface is disabled
+         */
         d->arch.has_32bit_shinfo =
             hvm_guest_x86_mode(current) != X86_MODE_64BIT;
+#endif
 
         /*
          * Make sure that the timebase in the shared info structure is correct.
@@ -4996,6 +5006,7 @@ static int do_altp2m_op(
 #endif /* CONFIG_ALTP2M */
 }
 
+#ifdef CONFIG_COMPAT
 DEFINE_XEN_GUEST_HANDLE(compat_hvm_altp2m_op_t);
 
 /*
@@ -5023,10 +5034,12 @@ DEFINE_XEN_GUEST_HANDLE(compat_hvm_altp2m_op_t);
 
 CHECK_hvm_altp2m_op;
 CHECK_hvm_altp2m_set_mem_access_multi;
+#endif /* CONFIG_COMPAT */
 
 static int compat_altp2m_op(
     XEN_GUEST_HANDLE_PARAM(void) arg)
 {
+#ifdef CONFIG_COMPAT
     int rc = 0;
     struct compat_hvm_altp2m_op a;
     union
@@ -5100,6 +5113,9 @@ static int compat_altp2m_op(
     }
 
     return rc;
+#else
+    return -EOPNOTSUPP;
+#endif /* CONFIG_COMPAT */
 }
 
 static int hvmop_get_mem_type(

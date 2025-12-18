@@ -80,6 +80,8 @@ rettype: compat int
 #define PREFIX_compat
 #endif
 
+#define PREFIX_compat_always compat
+
 #ifdef CONFIG_ARM
 #define PREFIX_dep dep
 #define PREFIX_do_arm do_arm
@@ -104,10 +106,10 @@ defhandle: trap_info_compat_t
 defhandle: physdev_op_compat_t
 #endif
 
-prefix: do PREFIX_hvm PREFIX_compat PREFIX_do_arm
+prefix: do PREFIX_hvm PREFIX_compat_always PREFIX_do_arm
 physdev_op(int cmd, void *arg)
 
-prefix: do PREFIX_hvm PREFIX_compat
+prefix: do PREFIX_hvm PREFIX_compat_always
 #if defined(CONFIG_GRANT_TABLE) || defined(CONFIG_PV_SHIM)
 grant_table_op(unsigned int cmd, void *uop, unsigned int count)
 #endif
@@ -156,6 +158,9 @@ platform_op(compat_platform_op_t *u_xenpf_op)
 #ifdef CONFIG_KEXEC
 kexec_op(unsigned int op, void *uarg)
 #endif
+#else /* CONFIG_COMPAT */
+prefix: PREFIX_compat_always
+memory_op(unsigned int cmd, void *arg)
 #endif /* CONFIG_COMPAT */
 
 #if defined(CONFIG_PV) || defined(CONFIG_ARM)
