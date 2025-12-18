@@ -2,7 +2,6 @@ menuconfig HVM
 	bool "HVM support"
 	depends on !PV_SHIM_EXCLUSIVE
 	default !PV_SHIM
-	select COMPAT
 	select IOREQ_SERVER
 	help
 	  Interfaces to support HVM domains.  HVM domains require hardware
@@ -45,6 +44,26 @@ config VMTRACE
 	  to the software being traced. The trace data can be retrieved using buffer
 	  shared between Xen and domain
 	  (see XENMEM_acquire_resource(XENMEM_resource_vmtrace_buf)).
+
+	  If unsure, say Y.
+
+config HVM_COMPAT
+	bool "HVM 32-bit hypercalls interface support" if EXPERT
+	select COMPAT
+	default y
+	help
+	  The HVM 32-bit interface must be enabled for HVM domains to be able to
+	  make hypercalls in 32bit mode. Non-PVH domains unconditionally need this
+	  option so that hvmloader may issue hypercalls in 32bit mode.
+
+	  The HVM 32-bit interface can be disabled if:
+	  - Only PVH domains are used
+	  - Guests (OS) are started by using direct Direct Kernel Boot
+	  - Guests (OS) are 64-bit and Guest early boot code, which is running not
+	    in 64-bit mode, does not access Xen interfaces
+	    (hypercalls, shared_info, ..)
+
+	  If unsure, say Y.
 
 config HVM_FEP
 	bool "HVM Forced Emulation Prefix support (UNSUPPORTED)" if UNSUPPORTED
