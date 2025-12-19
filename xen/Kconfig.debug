@@ -44,6 +44,12 @@ config COVERAGE
 
 	  If unsure, say N here.
 
+config COVERAGE_XEN
+	bool "Coverage collection via Xen console"
+	depends on COVERAGE && CC_IS_GCC
+	help
+	  Enable dumping coverage data to Xen's address space with debug key.
+
 config CONDITION_COVERAGE
 	bool "Condition coverage support"
 	depends on COVERAGE && CC_HAS_MCDC

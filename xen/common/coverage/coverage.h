@@ -7,6 +7,9 @@ struct cov_sysctl_ops {
     uint32_t (*get_size)(void);
     void     (*reset_counters)(void);
     int      (*dump)(XEN_GUEST_HANDLE_PARAM(char), uint32_t *);
+#ifdef CONFIG_COVERAGE_XEN
+    int      (*dump_xen)(char *buffer, uint32_t *buffer_size);
+#endif
 };
 extern const struct cov_sysctl_ops cov_ops;
 

@@ -210,10 +210,65 @@ static int cf_check gcov_dump_all(
     return ret;
 }
 
+#ifdef CONFIG_COVERAGE_XEN
+static int cf_check gcov_dump_xen(char *buffer, uint32_t *buffer_size)
+{
+    uint32_t off = 0;
+    uint32_t magic = XEN_GCOV_FORMAT_MAGIC;
+    struct gcov_info *info = NULL;
+
+    if ( *buffer_size < gcov_get_size() )
+        return -ENOBUFS;
+
+    memcpy(buffer + off, &magic, sizeof(magic));
+    off += sizeof(magic);
+
+    while ( (info = gcov_info_next(info)) )
+    {
+        uint32_t payload_size;
+        uint32_t len;
+
+        /* File name, including trailing \0 */
+        len = strlen(gcov_info_filename(info)) + 1;
+        memcpy(buffer + off, gcov_info_filename(info), len);
+        off += len;
+
+        payload_size = gcov_info_payload_size(info);
+        /* Payload size */
+        memcpy(buffer + off, &payload_size, sizeof(uint32_t));
+        off += sizeof(uint32_t);
+
+        /* Payload itself */
+        {
+            char *buf;
+
+            buf = xmalloc_array(char, payload_size);
+
+            if ( !buf )
+                return -ENOMEM;
+
+            gcov_info_to_gcda(buf, info);
+
+            memcpy(buffer + off, buf, payload_size);
+            off += payload_size;
+
+            xfree(buf);
+        }
+    }
+
+    *buffer_size = off;
+
+    return 0;
+}
+#endif
+
 const struct cov_sysctl_ops cov_ops = {
     .get_size = gcov_get_size,
     .reset_counters = gcov_reset_all_counters,
     .dump = gcov_dump_all,
+#ifdef CONFIG_COVERAGE_XEN
+    .dump_xen = gcov_dump_xen,
+#endif
 };
 
 /*
