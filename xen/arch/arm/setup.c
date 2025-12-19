@@ -440,6 +440,10 @@ void asmlinkage __init noreturn start_xen(unsigned long fdt_paddr)
 
     console_init_postirq();
 
+#ifdef CONFIG_COVERAGE_XEN
+    init_constructors();
+#endif
+
     do_presmp_initcalls();
 
     for_each_present_cpu ( i )
@@ -503,7 +507,9 @@ void asmlinkage __init noreturn start_xen(unsigned long fdt_paddr)
 
     heap_init_late();
 
+#ifndef CONFIG_COVERAGE_XEN
     init_constructors();
+#endif
 
     console_endboot();
 

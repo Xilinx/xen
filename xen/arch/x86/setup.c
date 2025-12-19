@@ -1942,6 +1942,10 @@ void asmlinkage __init noreturn __start_xen(void)
 
     console_init_postirq();
 
+#ifdef CONFIG_COVERAGE_XEN
+    init_constructors();
+#endif
+
     system_state = SYS_STATE_smp_boot;
 
     do_presmp_initcalls();
@@ -2021,7 +2025,9 @@ void asmlinkage __init noreturn __start_xen(void)
 
     heap_init_late();
 
+#ifndef CONFIG_COVERAGE_XEN
     init_constructors();
+#endif
 
     console_endboot();
 
