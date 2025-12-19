@@ -36,6 +36,74 @@
 #include <asm/paging.h>
 #include <asm/pci.h>
 
+#define ACPI_OEM_ID             "XenIn"
+#define ACPI_OEM_TABLE_ID       "PVH"
+#define ACPI_OEM_REVISION       0
+
+#define ACPI_CREATOR_ID         "INTL"
+#define ACPI_CREATOR_REVISION   0
+
+#define ACPI_2_0_RSDP_REVISION 0x02
+#define ACPI_2_0_MADT_REVISION 0x02
+#define ACPI_2_0_XSDT_REVISION 0x01
+#define ACPI_2_0_FACS_VERSION 0x01
+
+static const struct acpi_table_header xsdt_hdr = {
+    .signature = ACPI_SIG_XSDT,
+    .length = sizeof(struct acpi_table_header),
+    .revision = ACPI_2_0_XSDT_REVISION,
+    .oem_id = ACPI_OEM_ID,
+    .oem_table_id = ACPI_OEM_TABLE_ID,
+    .oem_revision = ACPI_OEM_REVISION,
+    .asl_compiler_id = ACPI_CREATOR_ID,
+    .asl_compiler_revision = ACPI_CREATOR_REVISION,
+};
+
+static const struct acpi_table_header madt_hdr = {
+    .signature = ACPI_SIG_MADT,
+    .length = sizeof(struct acpi_table_header),
+    .revision = ACPI_2_0_MADT_REVISION,
+    .oem_id = ACPI_OEM_ID,
+    .oem_table_id = ACPI_OEM_TABLE_ID,
+    .oem_revision = ACPI_OEM_REVISION,
+    .asl_compiler_id = ACPI_CREATOR_ID,
+    .asl_compiler_revision = ACPI_CREATOR_REVISION,
+};
+
+static const struct acpi_table_header mcfg_hdr = {
+    .signature = ACPI_SIG_MCFG,
+    .length = 0,
+    .revision = 1,
+    .oem_id = ACPI_OEM_ID,
+    .oem_table_id = ACPI_OEM_TABLE_ID,
+    .oem_revision = ACPI_OEM_REVISION,
+    .asl_compiler_id = ACPI_CREATOR_ID,
+    .asl_compiler_revision = ACPI_CREATOR_REVISION,
+};
+
+static const struct acpi_table_header fadt_hdr = {
+    .signature = ACPI_SIG_FADT,
+    .revision = 5,
+    .oem_id = ACPI_OEM_ID,
+    .oem_table_id = ACPI_OEM_TABLE_ID,
+    .oem_revision = ACPI_OEM_REVISION,
+    .asl_compiler_id = ACPI_CREATOR_ID,
+    .asl_compiler_revision = ACPI_CREATOR_REVISION,
+};
+
+static const struct acpi_table_rsdp rsdp_xen = {
+    .signature = ACPI_SIG_RSDP,
+    .revision = ACPI_2_0_RSDP_REVISION,
+    .length = sizeof(struct acpi_table_rsdp),
+    .oem_id = ACPI_OEM_ID,
+};
+
+static const struct acpi_table_facs facs_xen = {
+    .signature = ACPI_SIG_FACS,
+    .length    = sizeof(struct acpi_table_facs),
+    .version   = ACPI_2_0_FACS_VERSION
+};
+
 static void __hwdom_init pvh_setup_mmcfg(struct domain *d)
 {
     unsigned int i;
@@ -393,28 +461,13 @@ static paddr_t __init find_memory(
 static int __init hvm_setup_acpi_madt(
     struct domain *d, struct acpi_table_madt *madtp)
 {
-    struct acpi_table_header *table;
     struct acpi_table_madt madt = {};
     struct acpi_madt_local_apic lapic = {};
-    acpi_status status;
     unsigned long size = hvm_size_acpi_madt(d);
     unsigned long offs = 0;
 
-    /* Copy the native MADT table header. */
-    status = acpi_get_table(ACPI_SIG_MADT, 0, &table);
-    if ( !ACPI_SUCCESS(status) )
-    {
-        printk("Failed to get MADT ACPI table, aborting.\n");
-        return -EINVAL;
-    }
-    madt.header = *table;
+    madt.header = madt_hdr;
     madt.address = APIC_DEFAULT_PHYS_BASE;
-    /*
-     * NB: this is currently set to 4, which is the revision in the ACPI
-     * spec 6.1. Sadly ACPICA doesn't provide revision numbers for the
-     * tables described in the headers.
-     */
-    madt.header.revision = min_t(unsigned char, table->revision, 4);
 
     offs += sizeof(madt);
 
@@ -472,28 +525,9 @@ static int __init hvm_setup_acpi_xsdt(
     struct domain *d, struct acpi_table_xsdt *xsdt, paddr_t madt_addr,
     paddr_t fadt_addr, paddr_t mcfg_addr)
 {
-    struct acpi_table_header *table;
-    struct acpi_table_rsdp *rsdp;
     unsigned long size = hvm_size_acpi_xsdt(d);
-    paddr_t xsdt_paddr;
 
-    /* Copy the native XSDT table header. */
-    rsdp = acpi_os_map_memory(acpi_os_get_root_pointer(), sizeof(*rsdp));
-    if ( !rsdp )
-    {
-        printk("Unable to map RSDP\n");
-        return -EINVAL;
-    }
-    xsdt_paddr = rsdp->xsdt_physical_address;
-    acpi_os_unmap_memory(rsdp, sizeof(*rsdp));
-    table = acpi_os_map_memory(xsdt_paddr, sizeof(*table));
-    if ( !table )
-    {
-        printk("Unable to map XSDT\n");
-        return -EINVAL;
-    }
-    xsdt->header = *table;
-    acpi_os_unmap_memory(table, sizeof(*table));
+    xsdt->header = xsdt_hdr;
 
     /* Add the custom MADT. */
     xsdt->table_offset_entry[0] = madt_addr;
@@ -521,9 +555,7 @@ static void __init hvm_setup_acpi_dsdt(struct domain *d, void *dsdt)
 static void __init hvm_setup_acpi_facs(struct domain *d,
     struct acpi_table_facs *facs)
 {
-    memcpy(facs->signature, ACPI_SIG_FACS, 4);
-    facs->version = 1;
-    facs->length = sizeof(*facs);
+    *facs = facs_xen;
 }
 
 static void __init hvm_setup_acpi_fadt(struct domain *d,
@@ -532,9 +564,7 @@ static void __init hvm_setup_acpi_fadt(struct domain *d,
     struct acpi_table_fadt fadt = {};
     unsigned long size = sizeof(fadt);
 
-    memcpy(fadt.header.signature, ACPI_SIG_FADT, 4);
-    fadt.header.revision = 1;
-    safe_strcpy(fadt.header.oem_id, "XenIn\0");
+    fadt.header = fadt_hdr;
 
     fadt.sci_interrupt = 9;
     fadt.pm1a_event_block = ACPI_PM1A_EVT_BLK_ADDRESS_V1;
@@ -565,9 +595,7 @@ static void __init hvm_setup_acpi_mcfg(struct domain *d,
     struct acpi_mcfg_allocation mmcfg = {};
     unsigned long size = hvm_size_acpi_mcfg(d);
 
-    memcpy(mcfg.header.signature, ACPI_SIG_MCFG, 4);
-    mcfg.header.revision = 1;
-    safe_strcpy(mcfg.header.oem_id, "XenIn\0");
+    mcfg.header = mcfg_hdr;
 
     mmcfg.address = PCI1_ECAM_BASE;
     mmcfg.pci_segment = 1;
@@ -644,13 +672,8 @@ static int __init hvm_setup_acpi(struct domain *d, paddr_t start_info)
     rsdp_paddr = facs_paddr + hvm_size_acpi_facs(d);
     xsdt_paddr = rsdp_paddr + sizeof(struct acpi_table_rsdp);
 
-    *rsdp = (struct acpi_table_rsdp){
-        .signature = ACPI_SIG_RSDP,
-        .revision = 2,
-        .length = sizeof(struct acpi_table_rsdp),
-        .oem_id = "XenIn\0", /* Xen-Internal */
-        .xsdt_physical_address = xsdt_paddr,
-    };
+    *rsdp = rsdp_xen;
+    rsdp->xsdt_physical_address = xsdt_paddr,
 
     rsdp->checksum -= acpi_tb_checksum(ACPI_CAST_PTR(u8, rsdp),
                                        ACPI_RSDP_REV0_SIZE);
