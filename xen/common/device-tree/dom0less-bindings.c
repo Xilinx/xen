@@ -275,7 +275,13 @@ int __init parse_dom0less_node(struct dt_device_node *node,
 
     /* Default to PVH, if available */
     if ( IS_ENABLED(CONFIG_HVM) )
+    {
         bd->create_cfg.flags |= XEN_DOMCTL_CDF_hvm;
+
+        if ( IS_ENABLED(CONFIG_DOMAIN_FULL_RESET) &&
+             !(*flags & CDF_hardware) )
+            *flags |= CDF_resettable;
+    }
 
     if ( !dt_property_read_u64(node, "memory", &bd->memory) )
         panic("missing memory binding for %s.\n", dt_node_name(node));

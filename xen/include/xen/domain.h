@@ -57,9 +57,15 @@ void domid_free(domid_t domid);
 #endif
 /* This is the hardware domain.  Only 1 allowed. */
 #define CDF_hardware             (1U << 3)
+#ifdef CONFIG_DOMAIN_FULL_RESET
+#define CDF_resettable           (1U << 4)
+#else
+#define CDF_resettable           0
+#endif
 
 #define is_domain_direct_mapped(d) ((d)->cdf & CDF_directmap)
 #define is_domain_using_staticmem(d) ((d)->cdf & CDF_staticmem)
+#define is_domain_resettable(d) ((d)->cdf & CDF_resettable)
 
 #define has_vpci(d) (((d)->options & XEN_DOMCTL_CDF_vpci) && \
                      IS_ENABLED(CONFIG_HVM))
