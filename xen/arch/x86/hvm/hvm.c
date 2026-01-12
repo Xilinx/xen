@@ -598,6 +598,45 @@ static int cf_check hvm_print_line(
     return X86EMUL_OKAY;
 }
 
+static int hvm_reset_info_create(struct domain *d)
+{
+    struct reset_info *reset_info;
+
+    reset_info = xzalloc(struct reset_info);
+    if ( !reset_info )
+        return -ENOMEM;
+
+    reset_info->mem = rangeset_new(NULL, NULL, 0);
+    if ( !reset_info->mem )
+    {
+        xfree(reset_info);
+        return -ENOMEM;
+    }
+
+    d->arch.hvm.reset_info = reset_info;
+    return 0;
+}
+
+static void hvm_reset_info_destroy(struct domain *d)
+{
+    struct reset_info *reset_info = d->arch.hvm.reset_info;
+
+    if ( !reset_info )
+        return;
+
+    if ( reset_info->mem )
+        rangeset_destroy(reset_info->mem);
+    XFREE(reset_info->start_info);
+    XFREE(reset_info->elf);
+    XFREE(reset_info->kernel);
+    XFREE(reset_info->kernel_cmd);
+    XFREE(reset_info->initrd);
+    XFREE(reset_info->acpi);
+    XFREE(reset_info->arch.irqs);
+    XFREE(reset_info->arch.iomem);
+    XFREE(d->arch.hvm.reset_info);
+}
+
 int hvm_domain_initialise(struct domain *d,
                           const struct xen_domctl_createdomain *config)
 {
@@ -619,6 +658,13 @@ int hvm_domain_initialise(struct domain *d,
     INIT_LIST_HEAD(&d->arch.hvm.g2m_ioport_list);
     INIT_LIST_HEAD(&d->arch.hvm.mmcfg_regions);
     INIT_LIST_HEAD(&d->arch.hvm.msix_tables);
+
+    if ( is_domain_resettable(d) )
+    {
+        rc = hvm_reset_info_create(d);
+        if ( rc )
+            goto fail;
+    }
 
     rc = create_perdomain_mapping(d, PERDOMAIN_VIRT_START, 0, NULL, NULL);
     if ( rc )
@@ -740,6 +786,8 @@ int hvm_domain_initialise(struct domain *d,
     hvm_domain_relinquish_resources(d);
     XFREE(d->arch.hvm.io_handler);
     XFREE(d->arch.hvm.pl_time);
+    if ( is_domain_resettable(d) )
+        hvm_reset_info_destroy(d);
     return rc;
 }
 
@@ -803,6 +851,9 @@ void hvm_domain_destroy(struct domain *d)
     }
 
     destroy_vpci_mmcfg(d);
+
+    if ( is_domain_resettable(d) )
+        hvm_reset_info_destroy(d);
 }
 
 #ifdef CONFIG_HVM_SAVE_RESTORE

@@ -9,6 +9,7 @@
 #ifndef __ASM_X86_HVM_DOMAIN_H__
 #define __ASM_X86_HVM_DOMAIN_H__
 
+#include <xen/bootfdt.h>
 #include <xen/list.h>
 #include <xen/mm.h>
 #include <xen/radix-tree.h>
@@ -47,6 +48,25 @@ struct hvm_pi_ops {
      * from vcpu_block() and vcpu_do_poll().
      */
     void (*vcpu_block)(struct vcpu *v);
+};
+
+struct reset_info {
+    paddr_t start_info_gpa;
+    struct hvm_start_info *start_info;
+    paddr_t entry_gpa;
+    struct elf_binary *elf;
+    size_t kernel_sz;
+    void *kernel;
+    paddr_t kernel_cmd_gpa;
+    size_t kernel_cmd_sz;
+    void *kernel_cmd;
+    paddr_t initrd_gpa;
+    size_t initrd_sz;
+    void *initrd;
+    size_t acpi_sz;
+    void *acpi;
+    struct rangeset *mem;
+    struct arch_boot_domain arch;
 };
 
 struct hvm_domain {
@@ -152,6 +172,8 @@ struct hvm_domain {
 #ifdef CONFIG_MEM_SHARING
     struct mem_sharing_domain mem_sharing;
 #endif
+
+    struct reset_info *reset_info;
 };
 
 #endif /* __ASM_X86_HVM_DOMAIN_H__ */
