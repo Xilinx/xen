@@ -1192,7 +1192,15 @@ int arch_domain_soft_reset(struct domain *d)
 
 long arch_domain_full_reset(struct domain *d)
 {
-    return -EOPNOTSUPP;
+    if ( !is_hvm_domain(d) || is_viridian_domain(d) || nestedhvm_enabled(d) )
+    {
+        printk(XENLOG_ERR "%s: hvm=%d viridian=%d nestedhvm=%d not supported\n",
+               __func__, is_hvm_domain(d), is_viridian_domain(d),
+               nestedhvm_enabled(d));
+        return -EINVAL;
+    }
+
+    return hvm_domain_reset(d);
 }
 
 void arch_domain_creation_finished(struct domain *d)
