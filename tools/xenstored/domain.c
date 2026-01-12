@@ -622,6 +622,45 @@ static int destroy_domain(void *_domain)
 	return 0;
 }
 
+static bool domain_has_disconnected(struct domain *domain)
+{
+	return (domain->interface != NULL) &&
+	       (domain->interface->connection == XENSTORE_RECONNECT);
+}
+
+static void domain_conn_reset(struct domain *domain);
+static int reconnect_domain(struct domain *d)
+{
+	int rc;
+
+	syslog(LOG_INFO, "Reconnecting to dom%u rport=%u, old lport=%u\n",
+	       d->domid, d->interface->evtchn_port, d->port);
+
+	/* Unbind old port - hypervisor already unbound both sides */
+	if (d->port >= 0) {
+		syslog(LOG_DEBUG, "Unbinding old lport %d\n", d->port);
+		xenevtchn_unbind(xce_handle, d->port);
+		d->port = -1;
+	}
+
+	rc = xenevtchn_bind_interdomain(xce_handle, d->domid,
+					d->interface->evtchn_port);
+	if (rc < 0) {
+		syslog(LOG_ERR, "Failed to bind to rport %u rc=%d (%s)\n",
+		       d->interface->evtchn_port, rc, strerror(errno));
+		return rc;
+	}
+
+	syslog(LOG_INFO, "Reconnect: new lport %d\n", rc);
+	d->port = rc;
+	domain_conn_reset(d);
+	d->interface->connection = XENSTORE_CONNECTED;
+	xenevtchn_notify(xce_handle, d->port);
+	fire_special_watches("@introduceDomain");
+
+	return 0;
+}
+
 static int do_check_domain(struct domain *domain, bool *notify,
 			   unsigned int state, uint64_t unique_id)
 {
@@ -645,8 +684,13 @@ static int do_check_domain(struct domain *domain, bool *notify,
 			domain->shutdown = true;
 			*notify = true;
 		}
-		if (!(state & XENMANAGE_GETDOMSTATE_STATE_DEAD))
-			return 0;
+		if (!(state & XENMANAGE_GETDOMSTATE_STATE_DEAD)) {
+			if (domain_has_disconnected(domain)) {
+				if (!reconnect_domain(domain))
+					return 0;
+			} else
+				return 0;
+		}
 	}
 	if (domain->conn) {
 		/* domain is a talloc child of domain->conn. */
