@@ -139,6 +139,7 @@ struct vcpu;
 struct cpu_policy;
 
 int init_vcpu_msr_policy(struct vcpu *v);
+void reset_vcpu_msr_policy(struct vcpu *v);
 
 /*
  * Below functions can return X86EMUL_UNHANDLEABLE which means that MSR is

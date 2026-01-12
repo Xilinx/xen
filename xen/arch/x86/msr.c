@@ -114,6 +114,14 @@ static int guest_wrmsr_xen(struct vcpu *v, uint32_t idx, uint64_t val)
     }
 }
 
+void reset_vcpu_msr_policy(struct vcpu *v)
+{
+    if ( !v->arch.msrs )
+        return;
+
+    memset(v->arch.msrs, 0, sizeof(*v->arch.msrs));
+}
+
 int guest_rdmsr(struct vcpu *v, uint32_t msr, uint64_t *val)
 {
     const struct vcpu *curr = current;
