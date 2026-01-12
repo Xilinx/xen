@@ -362,3 +362,8 @@ unsigned long get_upper_mfn_bound(void)
 {
     BUG_ON("unimplemented");
 }
+
+long arch_domain_full_reset(struct domain *d)
+{
+    BUG_ON("unimplemented");
+}

@@ -1156,6 +1156,11 @@ int arch_domain_soft_reset(struct domain *d)
 }
 #endif /* CONFIG_HAS_SOFT_RESET */
 
+long arch_domain_full_reset(struct domain *d)
+{
+    return -EOPNOTSUPP;
+}
+
 void arch_domain_creation_finished(struct domain *d)
 {
     if ( is_hvm_domain(d) )

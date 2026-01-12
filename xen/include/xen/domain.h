@@ -118,6 +118,14 @@ void arch_domain_pause(struct domain *d);
 void arch_domain_unpause(struct domain *d);
 
 int arch_domain_soft_reset(struct domain *d);
+/*
+ * Architecture-specific domain full reset function.
+ * On success, returns a value >= 0
+ * On failure, returns an errno code value.
+ * It may return -ERESTART to indicate that the reset is still in progress
+ * and a continuation will be needed.
+ */
+long arch_domain_full_reset(struct domain *d);
 
 void arch_domain_creation_finished(struct domain *d);
 

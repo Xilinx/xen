@@ -888,6 +888,11 @@ void arch_domain_unpause(struct domain *d)
 {
 }
 
+long arch_domain_full_reset(struct domain *d)
+{
+    return -EOPNOTSUPP;
+}
+
 void arch_domain_creation_finished(struct domain *d)
 {
     if ( domain_vgic_late_init(d) )
