@@ -55,6 +55,7 @@ struct evtchn_expand_array;
 int evtchn_fifo_init_control(struct evtchn_init_control *init_control);
 int evtchn_fifo_expand_array(const struct evtchn_expand_array *expand_array);
 void evtchn_fifo_destroy(struct domain *d);
+void evtchn_fifo_reset(struct domain *d);
 #else
 static inline int evtchn_fifo_init_control(struct evtchn_init_control *init_control)
 {
@@ -65,6 +66,10 @@ static inline int evtchn_fifo_expand_array(const struct evtchn_expand_array *exp
     return -EOPNOTSUPP;
 }
 static inline void evtchn_fifo_destroy(struct domain *d)
+{
+    return;
+}
+static inline void evtchn_fifo_reset(struct domain *d)
 {
     return;
 }

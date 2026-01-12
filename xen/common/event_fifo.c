@@ -713,6 +713,38 @@ void evtchn_fifo_destroy(struct domain *d)
     cleanup_event_array(d);
 }
 
+void evtchn_fifo_reset(struct domain *d)
+{
+    struct vcpu *v;
+    unsigned int i;
+
+    write_lock(&d->event_lock);
+
+    if ( !d->evtchn_fifo )
+        goto unlock;
+
+    for ( i = 0; i < EVTCHN_FIFO_MAX_EVENT_ARRAY_PAGES; i++ )
+    {
+        unmap_guest_page(d->evtchn_fifo->event_array[i]);
+        d->evtchn_fifo->event_array[i] = NULL;
+    }
+    d->evtchn_fifo->num_evtchns = 0;
+
+    for_each_vcpu( d, v )
+    {
+        if ( !v->evtchn_fifo )
+            continue;
+
+        unmap_guest_page(v->evtchn_fifo->control_block);
+        memset(v->evtchn_fifo, 0, sizeof(struct evtchn_fifo_vcpu));
+        for ( i = 0; i <= EVTCHN_FIFO_PRIORITY_MIN; i++ )
+            init_queue(v, &v->evtchn_fifo->queue[i], i);
+    }
+
+ unlock:
+    write_unlock(&d->event_lock);
+}
+
 /*
  * Local variables:
  * mode: C
