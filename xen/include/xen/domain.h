@@ -26,6 +26,7 @@ unsigned int dom0_max_vcpus(void);
 int parse_arch_dom0_param(const char *s, const char *e);
 
 int vcpu_reset(struct vcpu *v);
+void vcpu_state_reset(struct vcpu *v);
 int vcpu_up(struct vcpu *v);
 
 void setup_system_domains(void);

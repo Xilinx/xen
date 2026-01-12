@@ -1799,6 +1799,70 @@ int vcpu_reset(struct vcpu *v)
     return rc;
 }
 
+void vcpu_state_reset(struct vcpu *v)
+{
+    struct domain *d = v->domain;
+
+    if ( v != current )
+        ASSERT(atomic_read(&v->pause_count));
+    domain_lock(d);
+
+    set_bit(_VPF_in_reset, &v->pause_flags);
+    arch_vcpu_state_reset(v);
+
+    set_bit(_VPF_down, &v->pause_flags);
+
+    clear_bit(v->vcpu_id, d->poll_mask);
+    v->poll_evtchn = 0;
+
+    v->fpu_initialised = 0;
+    v->fpu_dirtied     = 0;
+    v->is_initialised  = 0;
+    v->dirty_cpu = VCPU_CPU_CLEAN;
+
+    v->runstate.state = RUNSTATE_offline;
+    v->runstate.state_entry_time = NOW();
+    memset(v->runstate.time, 0, sizeof(v->runstate.time));
+
+    if ( v->affinity_broken & VCPU_AFFINITY_OVERRIDE )
+        vcpu_temporary_affinity(v, NR_CPUS, VCPU_AFFINITY_OVERRIDE);
+    if ( v->affinity_broken & VCPU_AFFINITY_WAIT )
+        vcpu_temporary_affinity(v, NR_CPUS, VCPU_AFFINITY_WAIT);
+    clear_bit(_VPF_blocked, &v->pause_flags);
+    clear_bit(_VPF_blocked_in_xen, &v->pause_flags);
+    clear_bit(_VPF_mem_paging, &v->pause_flags);
+    clear_bit(_VPF_mem_access, &v->pause_flags);
+    clear_bit(_VPF_mem_sharing, &v->pause_flags);
+
+    stop_timer(&v->periodic_timer);
+    v->periodic_period = 0;
+    v->periodic_last_event = 0;
+    stop_timer(&v->singleshot_timer);
+    stop_timer(&v->poll_timer);
+
+    set_xen_guest_handle(runstate_guest(v), NULL);
+    unmap_guest_area(v, &v->vcpu_info_area);
+    unmap_guest_area(v, &v->runstate_guest_area);
+
+    if ( IS_ENABLED(CONFIG_VM_EVENT) )
+    {
+        reset_waitqueue_vcpu(v);
+        ASSERT(!atomic_read(&v->vm_event_pause_count));
+    }
+
+#ifdef CONFIG_IOREQ_SERVER
+    v->mapcache_invalidate = false;
+    v->io.req.state = STATE_IOREQ_NONE;
+    v->io.completion = VIO_no_completion;
+    v->io.suspended = false;
+#endif
+    v->paused_for_shutdown = 0;
+
+    clear_bit(_VPF_in_reset, &v->pause_flags);
+
+    domain_unlock(d);
+}
+
 int map_guest_area(struct vcpu *v, paddr_t gaddr, unsigned int size,
                    struct guest_area *area,
                    void (*populate)(void *dst, struct vcpu *v))
