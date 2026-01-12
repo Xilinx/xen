@@ -19,6 +19,7 @@
 #include <xen/ioreq.h>
 #include <xen/irq.h>
 #include <xen/lib.h>
+#include <xen/libelf.h>
 #include <xen/mem_access.h>
 #include <xen/monitor.h>
 #include <xen/nospec.h>
@@ -64,7 +65,9 @@
 #include <asm/xstate.h>
 
 #include <public/arch-x86/cpuid.h>
+#include <public/arch-x86/hvm/start_info.h>
 #include <public/hvm/ioreq.h>
+#include <public/hvm/hvm_vcpu.h>
 #include <public/memory.h>
 #include <public/sched.h>
 #include <public/version.h>
@@ -793,6 +796,223 @@ int hvm_domain_initialise(struct domain *d,
     XFREE(d->arch.hvm.pl_time);
     if ( is_domain_resettable(d) )
         hvm_reset_info_destroy(d);
+    return rc;
+}
+
+static int load_reset_info(struct domain *d)
+{
+    struct reset_info *rinfo = d->arch.hvm.reset_info;
+    struct vcpu *v = d->vcpu[0];
+    struct hvm_start_info *si = rinfo->start_info;
+    int rc;
+
+    rc = elf_load_binary(rinfo->elf);
+    if ( rc )
+    {
+        printk(XENLOG_ERR "%s: Unable to load kernel\n", __func__);
+        return rc;
+    }
+
+    if ( rinfo->kernel_cmd_sz )
+    {
+        rc = hvm_copy_to_guest_phys(rinfo->kernel_cmd_gpa, rinfo->kernel_cmd,
+                                    rinfo->kernel_cmd_sz, v);
+        if ( rc )
+        {
+            printk(XENLOG_ERR "%s: Unable to copy kernel cmdline\n", __func__);
+            return -EIO;
+        }
+    }
+
+    if ( rinfo->initrd_sz )
+    {
+        struct hvm_modlist_entry mod = {
+            .paddr = rinfo->initrd_gpa,
+            .size = rinfo->initrd_sz
+        };
+
+        rc = hvm_copy_to_guest_phys(rinfo->initrd_gpa, rinfo->initrd,
+                                    rinfo->initrd_sz, v);
+        if ( rc )
+        {
+            printk(XENLOG_ERR "%s: Unable to copy initrd\n", __func__);
+            return -EIO;
+        }
+
+        rc = hvm_copy_to_guest_phys(si->modlist_paddr, &mod, sizeof(mod), v);
+        if ( rc )
+        {
+            printk(XENLOG_ERR "%s: Unable to copy modlist\n", __func__);
+            return -EIO;
+        }
+    }
+
+    /* Load acpi at ACPI_INFO_PHYSICAL_ADDRESS */
+    rc = hvm_copy_to_guest_phys(0xFC000000, rinfo->acpi, rinfo->acpi_sz, v);
+    if ( rc )
+    {
+        printk(XENLOG_ERR "%s: Unable to copy acpi tables\n", __func__);
+        return -EIO;
+    }
+
+    rc = hvm_copy_to_guest_phys(rinfo->start_info_gpa, si, sizeof(*si), v);
+    if ( rc )
+    {
+        printk(XENLOG_ERR "%s: Unable to copy start info\n", __func__);
+        return -EIO;
+    }
+
+    return 0;
+}
+
+static int hvm_vcpu0_init(struct domain *d)
+{
+    struct vcpu *vcpu0 = d->vcpu[0];
+    struct reset_info *rinfo = d->arch.hvm.reset_info;
+    /* Must be kept in sync with pvh_setup_cpus() */
+    vcpu_hvm_context_t ctx = {
+        .mode = VCPU_HVM_MODE_32B,
+        .cpu_regs.x86_32.ebx = rinfo->start_info_gpa,
+        .cpu_regs.x86_32.eip = rinfo->entry_gpa,
+        .cpu_regs.x86_32.cr0 = X86_CR0_PE | X86_CR0_ET,
+        .cpu_regs.x86_32.cs_limit = ~0u,
+        .cpu_regs.x86_32.ds_limit = ~0u,
+        .cpu_regs.x86_32.es_limit = ~0u,
+        .cpu_regs.x86_32.ss_limit = ~0u,
+        .cpu_regs.x86_32.tr_limit = 0x67,
+        .cpu_regs.x86_32.cs_ar = 0xc9b,
+        .cpu_regs.x86_32.ds_ar = 0xc93,
+        .cpu_regs.x86_32.es_ar = 0xc93,
+        .cpu_regs.x86_32.ss_ar = 0xc93,
+        .cpu_regs.x86_32.tr_ar = 0x8b,
+    };
+    int rc;
+
+    rc = arch_set_info_hvm_guest(vcpu0, &ctx);
+    if ( rc )
+    {
+        printk(XENLOG_ERR "%s: arch_set_info_hvm_guest failed (%d)\n",
+               __func__, rc);
+        return rc;
+    }
+
+    update_vcpu_system_time(vcpu0);
+    update_domain_wallclock_time(d);
+
+    clear_bit(_VPF_down, &vcpu0->pause_flags);
+
+    return 0;
+}
+
+int hvm_domain_reset(struct domain *d)
+{
+    struct vcpu *v;
+    int rc;
+
+    switch ( d->teardown.arch_val )
+    {
+#define PROGRESS(x)                             \
+        d->teardown.arch_val = PROG_ ## x;      \
+        fallthrough;                            \
+    case PROG_ ## x
+
+        enum {
+            PROG_none,
+            PROG_p2m_reset,
+            PROG_done,
+        };
+
+    case PROG_none:
+    {
+        struct p2m_domain *p2m = p2m_get_hostp2m(d);
+
+        BUILD_BUG_ON(PROG_none != 0);
+
+        p2m->teardown_gfn = 0;
+    }
+    PROGRESS(p2m_reset):
+        rc = p2m_reset(d);
+        if ( rc )
+            return rc;
+
+    PROGRESS(done):
+        break;
+
+#undef PROGRESS
+
+    default:
+        BUG();
+    }
+
+    d->teardown.arch_val = 0;
+
+    /*
+     * Reinitialize hvm params that can be modified, except from
+     * HVM_PARAM_IOREQ_PFN
+     * HVM_PARAM_BUFIOREQ_PFN
+     * HVM_PARAM_IOREQ_SERVER_PFN
+     * HVM_PARAM_NR_IOREQ_SERVER_PAGES:
+     * HVM_PARAM_STORE_EVTCHN
+     * HVM_PARAM_STORE_PFN
+     * HVM_PARAM_CONSOLE_EVTCHN
+     * HVM_PARAM_CONSOLE_PFN
+     */
+    d->arch.hvm.params[HVM_PARAM_ACPI_S_STATE] = 0;
+    d->arch.hvm.params[HVM_PARAM_CALLBACK_IRQ] = 0;
+    d->arch.hvm.params[HVM_PARAM_VM86_TSS] = 0;
+    d->arch.hvm.params[HVM_PARAM_VM86_TSS_SIZED] = 0;
+    d->arch.hvm.params[HVM_PARAM_VM_GENERATION_ID_ADDR] = 0;
+    d->arch.x87_fip_width = cpu_has_fpu_sel ? 0 : 8;
+
+    hvm_irq_reset(d);
+
+    if ( IS_ENABLED(CONFIG_VPIC) )
+        vpic_reset(d);
+    vioapic_reset(d);
+
+    rtc_reset(d);
+    hpet_reset(d);
+    if ( IS_ENABLED(CONFIG_VPIT) )
+        pit_reset(d);
+    pmtimer_reset(d, false);
+    hvm_reset_guest_time(d);
+
+    for_each_vcpu ( d, v )
+    {
+        rc = vcpu_state_reset(v);
+        if ( rc )
+            return rc;
+    }
+
+    rc = load_reset_info(d);
+    if ( rc )
+        return rc;
+
+    rc = hvm_vcpu0_init(d);
+    if ( rc )
+        return rc;
+
+    if ( current->domain == d )
+    {
+        /*
+         * If the current domain is self-resetting, the reset takes
+         * place in current vcpu's context and the vcpu registers
+         * stored in the CPU stack need to be updated to match the
+         * freshly reset v->arch.user_regs.
+         * Also, to prevent Xen from deliberately clobbering hcall
+         * argument registers, thus corrupting current vcpu's regs,
+         * hcall_preempted is set to true.
+         */
+        struct cpu_user_regs *uregs = guest_cpu_user_regs();
+        /* load ctx */
+        memcpy(uregs, &current->arch.user_regs, sizeof(*uregs));
+        /* restore dirty cpu that was cleared in vcpu_state_reset() */
+        current->dirty_cpu = smp_processor_id();
+        /* avoid ctx being corrupted while returning from hcall */
+        current->hcall_preempted = true;
+        current->runstate.state = RUNSTATE_running;
+    }
+
     return rc;
 }
 
