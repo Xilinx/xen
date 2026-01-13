@@ -2006,7 +2006,8 @@ static const struct gic_hw_operations gicv3_ops = {
     .eoi_irq             = gicv3_eoi_irq,
     .deactivate_irq      = gicv3_dir_irq,
     .read_irq            = gicv3_read_irq,
-    .set_active_state    = gicv3_set_active_state,
+    .set_active_state    = IS_ENABLED(CONFIG_NEW_VGIC) ?
+                           gicv3_set_active_state : NULL,
     .set_pending_state   = gicv3_set_pending_state,
     .set_irq_type        = gicv3_set_irq_type,
     .set_irq_priority    = gicv3_set_irq_priority,
@@ -2019,7 +2020,8 @@ static const struct gic_hw_operations gicv3_ops = {
     .write_lr            = gicv3_write_lr,
     .read_vmcr_priority  = gicv3_read_vmcr_priority,
     .read_apr            = gicv3_read_apr,
-    .read_pending_state  = gicv3_read_pending_state,
+    .read_pending_state  = IS_ENABLED(CONFIG_NEW_VGIC) ?
+                           gicv3_read_pending_state : NULL,
     .secondary_init      = gicv3_secondary_cpu_init,
     .make_hwdom_dt_node  = gicv3_make_hwdom_dt_node,
 #ifdef CONFIG_ACPI
