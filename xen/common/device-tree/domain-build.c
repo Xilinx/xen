@@ -329,6 +329,21 @@ void __init allocate_memory(struct domain *d, struct kernel_info *kinfo)
     return;
 
   fail:
+#ifdef CONFIG_COVERAGE_XEN
+    {
+        struct page_info *page, *tmp;
+
+        /*
+         * If we are here, then all available memory has been exhausted by this
+         * domain's allocation, and it will not be possible to allocate a buffer
+         * for coverage data. Release the memory for the failing domain.
+         */
+        rspin_lock(&d->page_alloc_lock);
+        page_list_for_each_safe( page, tmp, &d->page_list )
+            put_page(page);
+        rspin_unlock(&d->page_alloc_lock);
+    }
+#endif
     panic("Failed to allocate requested domain memory."
           /* Don't want format this as PRIpaddr (16 digit hex) */
           " %ldKB unallocated. Fix the VMs configurations.\n",
