@@ -1330,7 +1330,7 @@ int domain_shutdown(struct domain *d, u8 reason)
         d->shutdown_code = reason;
     reason = d->shutdown_code;
 
-    if ( is_hardware_domain(d) )
+    if ( !IS_ENABLED(CONFIG_COVERAGE_XEN) && is_hardware_domain(d) )
         hwdom_shutdown(reason);
 
     if ( d->is_shutting_down )
