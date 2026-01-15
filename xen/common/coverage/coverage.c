@@ -102,7 +102,10 @@ void coverage_collect(unsigned char key)
 
     size = cov_ops.get_size();
     if ( (chars = xmalloc_bytes(size)) == NULL )
+    {
+        printk("unable to allocate coverage data buffer\n");
         goto back;
+    }
 
     if ( (ret = cov_ops.dump_xen(chars, &size)) != 0 )
     {
