@@ -1365,6 +1365,10 @@ void panic(const char *fmt, ...)
 
     spin_unlock_irqrestore(&lock, flags);
 
+#ifdef CONFIG_COVERAGE_XEN
+    startup_cpu_idle_loop();
+#endif
+
     kexec_crash(CRASHREASON_PANIC);
 
     if ( opt_noreboot )
