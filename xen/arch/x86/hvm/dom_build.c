@@ -1120,6 +1120,22 @@ int __init dom_construct_pvh(struct boot_domain *bd)
         rc = hvm_populate_p2m(bd->d);
     if ( rc )
     {
+#ifdef CONFIG_COVERAGE_XEN
+        {
+            struct page_info *page, *tmp;
+
+            /*
+             * If we are here, then all available memory has been exhausted by
+             * this domain's allocation, and it will not be possible to allocate
+             * a buffer for coverage data. Release the memory for the failing
+             * domain.
+             */
+            rspin_lock(&d->page_alloc_lock);
+            page_list_for_each_safe(page, tmp, &d->page_list)
+                put_page(page);
+            rspin_unlock(&d->page_alloc_lock);
+        }
+#endif
         printk("Failed to setup HVM/PVH %pd physical memory map\n", bd->d);
         return rc;
     }
