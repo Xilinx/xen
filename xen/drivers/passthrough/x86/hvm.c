@@ -156,9 +156,43 @@ struct hvm_irq_dpci *domain_get_irq_dpci(const struct domain *d)
     return hvm_domain_irq(d)->dpci;
 }
 
-void free_hvm_irq_dpci(struct hvm_irq_dpci *dpci)
+void domain_free_irq_dpci(const struct domain *d)
 {
-    xfree(dpci);
+    if ( !d || !is_hvm_domain(d) )
+        return;
+
+    XFREE(hvm_domain_irq(d)->dpci);
+}
+
+int domain_alloc_irq_dpci(const struct domain *d)
+{
+    struct hvm_irq_dpci *hvm_irq_dpci;
+
+    /*
+     * NB: the hardware domain doesn't use a hvm_irq_dpci struct because
+     * it's only allowed to identity map GSIs, and so the data contained in
+     * that struct (used to map guest GSIs into machine GSIs and perform
+     * interrupt routing) is completely useless to it.
+     */
+    if ( is_hardware_domain(d) )
+        return 0;
+
+    hvm_irq_dpci = domain_get_irq_dpci(d);
+    if ( !hvm_irq_dpci )
+    {
+        unsigned int i;
+
+        hvm_irq_dpci = xzalloc(struct hvm_irq_dpci);
+        if ( hvm_irq_dpci == NULL )
+            return -ENOMEM;
+
+        for ( i = 0; i < NR_HVM_DOMU_IRQS; i++ )
+            INIT_LIST_HEAD(&hvm_irq_dpci->girq[i]);
+
+        hvm_domain_irq(d)->dpci = hvm_irq_dpci;
+    }
+
+    return 0;
 }
 
 /*
@@ -232,27 +266,8 @@ int pt_irq_create_bind(
     write_lock(&d->event_lock);
 
     hvm_irq_dpci = domain_get_irq_dpci(d);
-    if ( !hvm_irq_dpci && !is_hardware_domain(d) )
-    {
-        unsigned int i;
 
-        /*
-         * NB: the hardware domain doesn't use a hvm_irq_dpci struct because
-         * it's only allowed to identity map GSIs, and so the data contained in
-         * that struct (used to map guest GSIs into machine GSIs and perform
-         * interrupt routing) is completely useless to it.
-         */
-        hvm_irq_dpci = xzalloc(struct hvm_irq_dpci);
-        if ( hvm_irq_dpci == NULL )
-        {
-            write_unlock(&d->event_lock);
-            return -ENOMEM;
-        }
-        for ( i = 0; i < NR_HVM_DOMU_IRQS; i++ )
-            INIT_LIST_HEAD(&hvm_irq_dpci->girq[i]);
-
-        hvm_domain_irq(d)->dpci = hvm_irq_dpci;
-    }
+    ASSERT(hvm_irq_dpci);
 
     info = pirq_get_info(d, pirq);
     if ( !info )
@@ -1125,8 +1140,7 @@ int arch_pci_clean_pirqs(struct domain *d)
             return ret;
         }
 
-        hvm_domain_irq(d)->dpci = NULL;
-        free_hvm_irq_dpci(hvm_irq_dpci);
+        domain_free_irq_dpci(d);
     }
     write_unlock(&d->event_lock);
 

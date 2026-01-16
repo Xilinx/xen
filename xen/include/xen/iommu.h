@@ -221,7 +221,8 @@ int pt_irq_destroy_bind(struct domain *d,
                         const struct xen_domctl_bind_pt_irq *pt_irq_bind);
 
 struct hvm_irq_dpci *domain_get_irq_dpci(const struct domain *d);
-void free_hvm_irq_dpci(struct hvm_irq_dpci *dpci);
+int domain_alloc_irq_dpci(const struct domain *d);
+void domain_free_irq_dpci(const struct domain *d);
 
 struct msi_desc;
 struct msi_msg;

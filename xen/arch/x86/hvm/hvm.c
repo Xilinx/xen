@@ -695,6 +695,10 @@ int hvm_domain_initialise(struct domain *d,
     BUILD_BUG_ON(NR_HVM_DOMU_IRQS < NR_ISA_IRQS);
     ASSERT(hvm_domain_irq(d)->nr_gsis >= NR_ISA_IRQS);
 
+    rc = domain_alloc_irq_dpci(d);
+    if ( rc )
+        goto fail1;
+
     /* need link to containing domain */
     d->arch.hvm.pl_time->domain = d;
 
@@ -774,6 +778,7 @@ int hvm_domain_initialise(struct domain *d,
 
  fail2:
     vioapic_deinit(d);
+    domain_free_irq_dpci(d);
  fail1:
     if ( is_hardware_domain(d) )
         xfree(d->arch.hvm.io_bitmap);
@@ -841,6 +846,7 @@ void hvm_domain_destroy(struct domain *d)
     vioapic_deinit(d);
 
     XFREE(d->arch.hvm.pl_time);
+    domain_free_irq_dpci(d);
     XFREE(d->arch.hvm.irq);
 
     list_for_each_safe ( ioport_list, tmp, &d->arch.hvm.g2m_ioport_list )
