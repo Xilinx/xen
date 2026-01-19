@@ -215,4 +215,6 @@ void hvm_set_callback_via(struct domain *d, uint64_t via);
 struct pirq;
 bool hvm_domain_use_pirq(const struct domain *d, const struct pirq *pirq);
 
+void hvm_irq_reset(struct domain *d);
+
 #endif /* __ASM_X86_HVM_IRQ_H__ */

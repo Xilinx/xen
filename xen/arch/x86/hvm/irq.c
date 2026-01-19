@@ -823,3 +823,20 @@ HVM_REGISTER_SAVE_RESTORE(ISA_IRQ, irq_save_isa, NULL, irq_load_isa,
 HVM_REGISTER_SAVE_RESTORE(PCI_LINK, irq_save_link, irq_check_link,
                           irq_load_link, 1, HVMSR_PER_DOM);
 #endif /* CONFIG_HVM_SAVE_RESTORE */
+
+void hvm_irq_reset(struct domain *d)
+{
+    struct hvm_irq *hvm_irq = hvm_domain_irq(d);
+
+    spin_lock(&d->arch.hvm.irq_lock);
+
+    hvm_irq->callback_via_asserted = 0;
+    hvm_irq->callback_via_type = HVMIRQ_callback_none;
+    memset(&hvm_irq->callback_via, 0, sizeof(hvm_irq->callback_via));
+    memset(hvm_irq->pci_link_assert_count, 0,
+           sizeof(hvm_irq->pci_link_assert_count));
+    memset(hvm_irq->gsi_assert_count, 0,
+           hvm_irq->nr_gsis * sizeof(*hvm_irq->gsi_assert_count));
+
+    spin_unlock(&d->arch.hvm.irq_lock);
+}
