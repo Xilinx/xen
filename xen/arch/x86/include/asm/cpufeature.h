@@ -11,6 +11,7 @@
 #include <xen/macros.h>
 
 #include <asm/cpuid.h>
+#include <asm/x86-vendors.h>
 
 #define cpufeat_word(idx)	((idx) / 32)
 #define cpufeat_bit(idx)	((idx) % 32)
@@ -118,6 +119,30 @@ static inline bool boot_cpu_has(unsigned int feat)
 #define CPUID6_EAX_HWP_PECI                          BIT(16, U)
 #define CPUID6_EAX_HW_FEEDBACK                       BIT(19, U)
 #define CPUID6_ECX_APERFMPERF_CAPABILITY             BIT(0, U)
+
+#define X86_ENABLED_VENDORS \
+    ((IS_ENABLED(CONFIG_INTEL)    ? X86_VENDOR_INTEL    : 0) | \
+     (IS_ENABLED(CONFIG_AMD)      ? X86_VENDOR_AMD      : 0) | \
+     (IS_ENABLED(CONFIG_CENTAUR)  ? X86_VENDOR_CENTAUR  : 0) | \
+     (IS_ENABLED(CONFIG_SHANGHAI) ? X86_VENDOR_SHANGHAI : 0) | \
+     (IS_ENABLED(CONFIG_HYGON)    ? X86_VENDOR_HYGON    : 0))
+
+static always_inline unsigned int cpu_vendor(void)
+{
+    /*
+     * const-ify the CPU vendor if we compiled for a single vendor and there's
+     * no boot path for an unknown vendor.
+     */
+    if ( !IS_ENABLED(CONFIG_UNKNOWN_CPU_VENDOR) &&
+         (ISOLATE_LSB(X86_ENABLED_VENDORS) == X86_ENABLED_VENDORS) )
+        return X86_ENABLED_VENDORS;
+
+    /*
+     * This allows the compiler to know more in its VRP pass about the valid
+     * range of `vendor`. It enhances DCE by eliminating impossible vendors.
+     */
+    return boot_cpu_data.vendor & X86_ENABLED_VENDORS;
+}
 
 /* CPUID level 0x00000001.edx */
 #define cpu_has_fpu             1

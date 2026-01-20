@@ -340,7 +340,16 @@ void __init early_cpu_init(bool verbose)
 	*(u32 *)&c->x86_vendor_id[4] = edx;
 
 	c->x86_vendor = x86_cpuid_lookup_vendor(ebx, ecx, edx);
-	switch (c->x86_vendor) {
+	if (!IS_ENABLED(CONFIG_UNKNOWN_CPU_VENDOR) &&
+	     c->x86_vendor == X86_VENDOR_UNKNOWN)
+		panic("Unknown CPU vendor not supported in this build\n");
+
+	if (!(c->x86_vendor & X86_ENABLED_VENDORS) &&
+	     c->x86_vendor != X86_VENDOR_UNKNOWN)
+		panic("CPU vendor %s not compiled-in\n",
+		      x86_cpuid_vendor_to_str(c->x86_vendor));
+
+	switch (cpu_vendor()) {
 	case X86_VENDOR_INTEL:    intel_unlock_cpuid_leaves(c);
 				  actual_cpu = intel_cpu_dev;    break;
 	case X86_VENDOR_AMD:      actual_cpu = amd_cpu_dev;      break;
