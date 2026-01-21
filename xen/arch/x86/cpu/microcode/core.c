@@ -58,7 +58,7 @@
  */
 #define MICROCODE_UPDATE_TIMEOUT_US 1000000
 
-static bool __initdata ucode_mod_forced;
+static bool __initdata __maybe_unused ucode_mod_forced;
 static unsigned int nr_cores;
 
 /*
@@ -103,6 +103,7 @@ static int __initdata opt_mod_idx;
 static bool __initdata opt_scan = IS_ENABLED(CONFIG_UCODE_SCAN_DEFAULT);
 bool __ro_after_init opt_digest_check = true;
 
+#ifdef CONFIG_MICROCODE_LOADING
 /*
  * Used by the EFI path only, when xen.cfg identifies an explicit microcode
  * file.  Overrides ucode=<int>|scan on the regular command line.
@@ -161,6 +162,7 @@ static int __init cf_check parse_ucode(const char *s)
     return rc;
 }
 custom_param("ucode", parse_ucode);
+#endif /* CONFIG_MICROCODE_LOADING */
 
 static struct microcode_ops __ro_after_init ucode_ops;
 
@@ -470,7 +472,7 @@ struct ucode_buf {
     char buffer[];
 };
 
-static long cf_check ucode_update_hcall_cont(void *data)
+static long cf_check __maybe_unused ucode_update_hcall_cont(void *data)
 {
     struct microcode_patch *patch = NULL;
     int ret, result;
@@ -614,6 +616,7 @@ static long cf_check ucode_update_hcall_cont(void *data)
     return ret;
 }
 
+#ifdef CONFIG_MICROCODE_LOADING
 int ucode_update_hcall(XEN_GUEST_HANDLE(const_void) buf,
                        unsigned long len, unsigned int flags)
 {
@@ -646,6 +649,7 @@ int ucode_update_hcall(XEN_GUEST_HANDLE(const_void) buf,
      */
     return continue_hypercall_on_cpu(0, ucode_update_hcall_cont, buffer);
 }
+#endif /* CONFIG_MICROCODE_LOADING */
 
 /* Load a cached update to current cpu */
 int microcode_update_one(void)
@@ -659,7 +663,7 @@ int microcode_update_one(void)
     if ( ucode_ops.collect_cpu_info )
         alternative_vcall(ucode_ops.collect_cpu_info);
 
-    if ( !ucode_ops.apply_microcode )
+    if ( !IS_ENABLED(CONFIG_MICROCODE_LOADING) || !ucode_ops.apply_microcode )
         return -EOPNOTSUPP;
 
     spin_lock(&microcode_mutex);
@@ -679,6 +683,7 @@ int microcode_update_one(void)
  */
 static int __initdata early_mod_idx = -1;
 
+#ifdef CONFIG_MICROCODE_LOADING
 static int __init cf_check microcode_init_cache(void)
 {
     struct boot_info *bi = &xen_boot_info;
@@ -735,6 +740,7 @@ static int __init cf_check microcode_init_cache(void)
     return rc;
 }
 presmp_initcall(microcode_init_cache);
+#endif /* CONFIG_MICROCODE_LOADING */
 
 /*
  * There are several tasks:
@@ -898,6 +904,9 @@ int __init early_microcode_init(struct boot_info *bi)
     ucode_ops.collect_cpu_info();
 
     printk(XENLOG_INFO "BSP microcode revision: 0x%08x\n", this_cpu(cpu_sig).rev);
+
+    if ( !IS_ENABLED(CONFIG_MICROCODE_LOADING) )
+        return -ENODEV;
 
     /*
      * Some hypervisors deliberately report a microcode revision of -1 to

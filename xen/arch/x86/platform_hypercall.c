@@ -311,6 +311,10 @@ ret_t do_platform_op(
     {
         XEN_GUEST_HANDLE(const_void) data;
 
+        ret = -EOPNOTSUPP;
+        if ( !IS_ENABLED(CONFIG_MICROCODE_LOADING) )
+            break;
+
         guest_from_compat_handle(data, op->u.microcode.data);
 
         ret = ucode_update_hcall(data, op->u.microcode.length, 0);
@@ -320,6 +324,10 @@ ret_t do_platform_op(
     case XENPF_microcode_update2:
     {
         XEN_GUEST_HANDLE(const_void) data;
+
+        ret = -EOPNOTSUPP;
+        if ( !IS_ENABLED(CONFIG_MICROCODE_LOADING) )
+            break;
 
         guest_from_compat_handle(data, op->u.microcode2.data);
 

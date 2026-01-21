@@ -66,7 +66,7 @@ obj-bin-y += warning.init.o
 obj-$(CONFIG_XENOPROF) += xenoprof.o
 obj-y += xmalloc_tlsf.o
 
-obj-bin-$(CONFIG_X86) += earlycpio.init.o
+obj-bin-$(CONFIG_MICROCODE_LOADING) += earlycpio.init.o
 
 obj-bin-$(CONFIG_DECOMP_COMMON) += decompress.init.o
 obj-bin-$(CONFIG_DECOMP_BUNZIP2) += bunzip2.init.o
