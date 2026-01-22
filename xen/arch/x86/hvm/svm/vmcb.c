@@ -273,6 +273,8 @@ static void __init __maybe_unused build_assertions(void)
     BUILD_BUG_ON(offsetof(typeof(vmcb), _pause_filter_thresh) != 0x03c);
     BUILD_BUG_ON(offsetof(typeof(vmcb), _vintr)               != 0x060);
     BUILD_BUG_ON(offsetof(typeof(vmcb), event_inj)            != 0x0a8);
+    BUILD_BUG_ON(offsetof(typeof(vmcb), bus_lock_count)       != 0x120);
+
     BUILD_BUG_ON(offsetof(typeof(vmcb), es)                   != 0x400);
     BUILD_BUG_ON(offsetof(typeof(vmcb), _cpl)                 != 0x4cb);
     BUILD_BUG_ON(offsetof(typeof(vmcb), _cr4)                 != 0x548);
