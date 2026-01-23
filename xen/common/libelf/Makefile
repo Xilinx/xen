@@ -1,9 +1,10 @@
 obj-bin-y := libelf.o
-nocov-y += libelf.o
 libelf-objs := libelf-tools.o libelf-loader.o libelf-dominfo.o
 
 SECTIONS := text data $(SPECIAL_DATA_SECTIONS)
-OBJCOPYFLAGS := $(foreach s,$(SECTIONS),--rename-section .$(s)=.init.$(s))
+ifneq ($(CONFIG_COVERAGE),y)
+    OBJCOPYFLAGS := $(foreach s,$(SECTIONS),--rename-section .$(s)=.init.$(s))
+endif
 
 CFLAGS-y += -Wno-pointer-sign
 
