@@ -25,4 +25,3 @@ CONFIG_PDX_NONE=y
 # CONFIG_INTEL_IOMMU is not set
 # CONFIG_DEBUG is not set
 # CONFIG_GDBSX is not set
-# CONFIG_SYSCTL is not set

@@ -2064,7 +2064,7 @@ long do_set_timer_op(s_time_t timeout)
     return 0;
 }
 
-#ifdef CONFIG_SYSCTL
+#ifdef CONFIG_MGMT_HYPERCALLS
 /* scheduler_id - fetch ID of current scheduler */
 int scheduler_id(void)
 {
@@ -2107,7 +2107,7 @@ long sched_adjust(struct domain *d, struct xen_domctl_scheduler_op *op)
     return ret;
 }
 
-#ifdef CONFIG_SYSCTL
+#ifdef CONFIG_MGMT_HYPERCALLS
 long sched_adjust_global(struct xen_sysctl_scheduler_op *op)
 {
     struct cpupool *pool;
@@ -2136,7 +2136,7 @@ long sched_adjust_global(struct xen_sysctl_scheduler_op *op)
 
     return rc;
 }
-#endif /* CONFIG_SYSCTL */
+#endif /* CONFIG_MGMT_HYPERCALLS */
 
 static void vcpu_periodic_timer_work_locked(struct vcpu *v)
 {

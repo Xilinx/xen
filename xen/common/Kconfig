@@ -526,7 +526,7 @@ config CRYPTO
 config LIVEPATCH
 	bool "Live patching support"
 	default X86
-	depends on "$(XEN_HAS_BUILD_ID)" = "y" && SYSCTL && HAS_VMAP
+	depends on "$(XEN_HAS_BUILD_ID)" = "y" && MGMT_HYPERCALLS && HAS_VMAP
 	select CC_SPLIT_SECTIONS
 	help
 	  Allows a running Xen hypervisor to be dynamically patched using
@@ -618,7 +618,7 @@ config DTB_FILE
 config TRACEBUFFER
 	bool "Enable tracing infrastructure" if EXPERT
 	default y
-	depends on SYSCTL
+	depends on MGMT_HYPERCALLS
 	help
 	  Enable tracing infrastructure and pre-defined tracepoints within Xen.
 	  This will allow live information about Xen's execution and performance
@@ -669,19 +669,20 @@ config SYSTEM_SUSPEND
 menu "Supported hypercall interfaces"
 	visible if EXPERT
 
-config SYSCTL
-	bool "Enable sysctl hypercall"
+config MGMT_HYPERCALLS
+	bool "Enable privileged hypercalls for system management"
 	depends on !PV_SHIM_EXCLUSIVE
 	default y
 	help
 	  This option shall only be disabled on some dom0less systems, or
-	  PV shim on x86, to reduce Xen footprint.
+	  PV shim on x86, to reduce Xen footprint via managing unnecessary
+	  hypercalls, like sysctl, etc.
 
 endmenu
 
 config PM_OP
 	bool "Enable Performance Management Operation"
-	depends on ACPI && CPUFREQ && SYSCTL
+	depends on ACPI && CPUFREQ && MGMT_HYPERCALLS
 	default y
 	help
 	  This option shall enable userspace performance management control
@@ -689,7 +690,7 @@ config PM_OP
 
 config PM_STATS
 	bool "Enable Performance Management Statistics"
-	depends on ACPI && CPUFREQ && SYSCTL
+	depends on ACPI && CPUFREQ && MGMT_HYPERCALLS
 	default y
 	help
 	  Enable collection of performance management statistics to aid in

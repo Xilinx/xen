@@ -148,7 +148,7 @@ config HAS_ITS
 
 config OVERLAY_DTB
 	bool "DTB overlay support (UNSUPPORTED)" if UNSUPPORTED
-	depends on SYSCTL
+	depends on MGMT_HYPERCALLS
 	help
 	  Dynamic addition/removal of Xen device tree nodes using a dtbo.
 

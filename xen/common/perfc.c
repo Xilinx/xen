@@ -149,7 +149,7 @@ void cf_check perfc_reset(unsigned char key)
     }
 }
 
-#ifdef CONFIG_SYSCTL
+#ifdef CONFIG_MGMT_HYPERCALLS
 static struct xen_sysctl_perfc_desc perfc_d[NR_PERFCTRS];
 static xen_sysctl_perfc_val_t *perfc_vals;
 static unsigned int      perfc_nbr_vals;
@@ -266,7 +266,7 @@ int perfc_control(struct xen_sysctl_perfc_op *pc)
 
     return rc;
 }
-#endif /* CONFIG_SYSCTL */
+#endif /* CONFIG_MGMT_HYPERCALLS */
 
 /*
  * Local variables:

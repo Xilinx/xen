@@ -690,7 +690,7 @@ void cf_check spinlock_profile_reset(unsigned char key)
     spinlock_profile_iterate(spinlock_profile_reset_elem, NULL);
 }
 
-#ifdef CONFIG_SYSCTL
+#ifdef CONFIG_MGMT_HYPERCALLS
 typedef struct {
     struct xen_sysctl_lockprof_op *pc;
     int                      rc;
@@ -750,7 +750,7 @@ int spinlock_profile_control(struct xen_sysctl_lockprof_op *pc)
 
     return rc;
 }
-#endif /* CONFIG_SYSCTL */
+#endif /* CONFIG_MGMT_HYPERCALLS */
 
 void _lock_profile_register_struct(
     int32_t type, struct lock_profile_qhead *qhead, int32_t idx)

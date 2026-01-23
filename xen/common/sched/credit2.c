@@ -3131,8 +3131,7 @@ csched2_aff_cntl(const struct scheduler *ops, struct sched_unit *unit,
         __clear_bit(__CSFLAG_pinned, &svc->flags);
 }
 
-#ifdef CONFIG_SYSCTL
-static int cf_check csched2_sys_cntl(
+static int cf_check __maybe_unused csched2_sys_cntl(
     const struct scheduler *ops, struct xen_sysctl_scheduler_op *sc)
 {
     struct xen_sysctl_credit2_schedule *params = &sc->u.sched_credit2;
@@ -3163,7 +3162,6 @@ static int cf_check csched2_sys_cntl(
 
     return 0;
 }
-#endif /* CONFIG_SYSCTL */
 
 static void *cf_check
 csched2_alloc_domdata(const struct scheduler *ops, struct domain *dom)
@@ -4234,7 +4232,7 @@ static const struct scheduler sched_credit2_def = {
 
     .adjust         = csched2_dom_cntl,
     .adjust_affinity= csched2_aff_cntl,
-#ifdef CONFIG_SYSCTL
+#ifdef CONFIG_MGMT_HYPERCALLS
     .adjust_global  = csched2_sys_cntl,
 #endif
 

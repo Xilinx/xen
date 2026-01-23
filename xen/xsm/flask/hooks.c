@@ -626,8 +626,7 @@ static int cf_check flask_domctl_scheduler_op(struct domain *d, int op)
     }
 }
 
-#ifdef CONFIG_SYSCTL
-static int cf_check flask_sysctl_scheduler_op(int op)
+static int cf_check __maybe_unused flask_sysctl_scheduler_op(int op)
 {
     switch ( op )
     {
@@ -641,7 +640,6 @@ static int cf_check flask_sysctl_scheduler_op(int op)
         return avc_unknown_permission("sysctl_scheduler_op", op);
     }
 }
-#endif /* CONFIG_SYSCTL */
 
 static int cf_check flask_set_target(struct domain *d, struct domain *t)
 {
@@ -858,8 +856,7 @@ static int cf_check flask_domctl(struct domain *d, unsigned int cmd,
     }
 }
 
-#ifdef CONFIG_SYSCTL
-static int cf_check flask_sysctl(int cmd)
+static int cf_check __maybe_unused flask_sysctl(int cmd)
 {
     switch ( cmd )
     {
@@ -937,7 +934,7 @@ static int cf_check flask_sysctl(int cmd)
     }
 }
 
-static int cf_check flask_readconsole(uint32_t clear)
+static int cf_check __maybe_unused flask_readconsole(uint32_t clear)
 {
     uint32_t perms = XEN__READCONSOLE;
 
@@ -946,7 +943,6 @@ static int cf_check flask_readconsole(uint32_t clear)
 
     return domain_has_xen(current->domain, perms);
 }
-#endif /* CONFIG_SYSCTL */
 
 static inline uint32_t resource_to_perm(uint8_t access)
 {
@@ -1208,12 +1204,10 @@ static int cf_check flask_resource_unplug_core(void)
     return avc_current_has_perm(SECINITSID_DOMXEN, SECCLASS_RESOURCE, RESOURCE__UNPLUG, NULL);
 }
 
-#ifdef CONFIG_SYSCTL
 static int flask_resource_use_core(void)
 {
     return avc_current_has_perm(SECINITSID_DOMXEN, SECCLASS_RESOURCE, RESOURCE__USE, NULL);
 }
-#endif /* CONFIG_SYSCTL */
 
 static int cf_check flask_resource_plug_pci(uint32_t machine_bdf)
 {
@@ -1278,8 +1272,7 @@ static int cf_check flask_resource_setup_misc(void)
     return avc_current_has_perm(SECINITSID_XEN, SECCLASS_RESOURCE, RESOURCE__SETUP, NULL);
 }
 
-#ifdef CONFIG_SYSCTL
-static inline int cf_check flask_page_offline(uint32_t cmd)
+static inline int cf_check __maybe_unused flask_page_offline(uint32_t cmd)
 {
     switch ( cmd )
     {
@@ -1293,7 +1286,6 @@ static inline int cf_check flask_page_offline(uint32_t cmd)
         return avc_unknown_permission("page_offline", cmd);
     }
 }
-#endif /* CONFIG_SYSCTL */
 
 static inline int cf_check flask_hypfs_op(void)
 {
@@ -1889,12 +1881,12 @@ static const struct xsm_ops __initconst_cf_clobber flask_ops = {
     .domain_create = flask_domain_create,
     .getdomaininfo = flask_getdomaininfo,
     .domctl_scheduler_op = flask_domctl_scheduler_op,
-#ifdef CONFIG_SYSCTL
+#ifdef CONFIG_MGMT_HYPERCALLS
     .sysctl_scheduler_op = flask_sysctl_scheduler_op,
 #endif
     .set_target = flask_set_target,
     .domctl = flask_domctl,
-#ifdef CONFIG_SYSCTL
+#ifdef CONFIG_MGMT_HYPERCALLS
     .sysctl = flask_sysctl,
     .readconsole = flask_readconsole,
 #endif
@@ -1956,7 +1948,7 @@ static const struct xsm_ops __initconst_cf_clobber flask_ops = {
     .resource_setup_gsi = flask_resource_setup_gsi,
     .resource_setup_misc = flask_resource_setup_misc,
 
-#ifdef CONFIG_SYSCTL
+#ifdef CONFIG_MGMT_HYPERCALLS
     .page_offline = flask_page_offline,
 #endif
     .hypfs_op = flask_hypfs_op,

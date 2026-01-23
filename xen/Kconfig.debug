@@ -43,7 +43,7 @@ config AMD_TESTS
 
 config COVERAGE
 	bool "Code coverage support"
-	depends on SYSCTL && !LIVEPATCH
+	depends on MGMT_HYPERCALLS && !LIVEPATCH
 	select SUPPRESS_DUPLICATE_SYMBOL_WARNINGS if !ENFORCE_UNIQUE_SYMBOLS
 	select RELAX_INIT_CHECK
 	help
