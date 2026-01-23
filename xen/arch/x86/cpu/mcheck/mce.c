@@ -333,8 +333,7 @@ mcheck_mca_logout(enum mca_source who, struct mca_banks *bankmask,
                 ASSERT(mig);
                 mca_init_global(mc_flags, mig);
                 /* A hook here to get global extended msrs */
-                if ( IS_ENABLED(CONFIG_INTEL) &&
-                     boot_cpu_data.x86_vendor == X86_VENDOR_INTEL )
+                if ( cpu_vendor() & X86_VENDOR_INTEL )
                     intel_get_extended_msrs(mig, mci);
             }
         }
@@ -564,8 +563,8 @@ bool mce_available(const struct cpuinfo_x86 *c)
  */
 unsigned int mce_firstbank(struct cpuinfo_x86 *c)
 {
-    return c->x86 == 6 &&
-           c->x86_vendor == X86_VENDOR_INTEL && c->x86_model < 0x1a;
+    return (cpu_vendor() & X86_VENDOR_INTEL) &&
+           c->x86 == 6 && c->x86_model < 0x1a;
 }
 
 static int show_mca_info(int inited, struct cpuinfo_x86 *c)
@@ -862,7 +861,7 @@ static void x86_mcinfo_apei_save(
     memset(&m, 0, sizeof(struct mce));
 
     m.cpu = mc_global->mc_coreid;
-    m.cpuvendor = boot_cpu_data.x86_vendor;
+    m.cpuvendor = cpu_vendor();
     m.cpuid = cpuid_eax(1);
     m.socketid = mc_global->mc_socketid;
     m.apicid = mc_global->mc_apicid;
@@ -964,7 +963,7 @@ static void cf_check __maybe_unused do_mc_get_cpu_info(void *v)
                         &xcp->mc_ncores_active, &xcp->mc_nthreads);
     xcp->mc_cpuid_level = c->cpuid_level;
     xcp->mc_family = c->x86;
-    xcp->mc_vendor = c->x86_vendor;
+    xcp->mc_vendor = cpu_vendor();
     xcp->mc_model = c->x86_model;
     xcp->mc_step = c->x86_mask;
     xcp->mc_cache_size = c->x86_cache_size;
@@ -1122,7 +1121,7 @@ static bool __maybe_unused x86_mc_msrinject_verify(struct xen_mc_msrinject *mci)
 
         if ( IS_MCA_BANKREG(reg, mci->mcinj_cpunr) )
         {
-            if ( c->x86_vendor == X86_VENDOR_AMD )
+            if ( (cpu_vendor() & X86_VENDOR_AMD) )
             {
                 /*
                  * On AMD we can set MCi_STATUS_WREN in the
@@ -1157,7 +1156,7 @@ static bool __maybe_unused x86_mc_msrinject_verify(struct xen_mc_msrinject *mci)
             case MSR_F10_MC4_MISC1:
             case MSR_F10_MC4_MISC2:
             case MSR_F10_MC4_MISC3:
-                if ( c->x86_vendor != X86_VENDOR_AMD )
+                if ( !(cpu_vendor() & X86_VENDOR_AMD) )
                     reason = "only supported on AMD";
                 else if ( c->x86 < 0x10 )
                     reason = "only supported on AMD Fam10h+";
@@ -1165,7 +1164,7 @@ static bool __maybe_unused x86_mc_msrinject_verify(struct xen_mc_msrinject *mci)
 
             /* MSRs that the HV will take care of */
             case MSR_K8_HWCR:
-                if ( c->x86_vendor & (X86_VENDOR_AMD | X86_VENDOR_HYGON) )
+                if ( cpu_vendor() & (X86_VENDOR_AMD | X86_VENDOR_HYGON) )
                     reason = "HV will operate HWCR";
                 else
                     reason = "only supported on AMD or Hygon";

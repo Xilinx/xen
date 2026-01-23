@@ -160,7 +160,7 @@ mcequirk_lookup_amd_quirkdata(const struct cpuinfo_x86 *c)
 {
     unsigned int i;
 
-    BUG_ON(c->x86_vendor != X86_VENDOR_AMD);
+    BUG_ON(!(cpu_vendor() & X86_VENDOR_AMD));
 
     for ( i = 0; i < ARRAY_SIZE(mce_amd_quirks); i++ )
     {
@@ -291,7 +291,7 @@ amd_mcheck_init(const struct cpuinfo_x86 *c, bool bsp)
     uint32_t i;
     enum mcequirk_amd_flags quirkflag = 0;
 
-    if ( c->x86_vendor != X86_VENDOR_HYGON )
+    if ( !(cpu_vendor() & X86_VENDOR_HYGON) )
         quirkflag = mcequirk_lookup_amd_quirkdata(c);
 
     /* Assume that machine check support is available.
@@ -337,6 +337,5 @@ amd_mcheck_init(const struct cpuinfo_x86 *c, bool bsp)
             ppin_msr = MSR_AMD_PPIN;
     }
 
-    return c->x86_vendor == X86_VENDOR_HYGON ?
-            mcheck_hygon : mcheck_amd_famXX;
+    return (cpu_vendor() & X86_VENDOR_HYGON) ? mcheck_hygon : mcheck_amd_famXX;
 }

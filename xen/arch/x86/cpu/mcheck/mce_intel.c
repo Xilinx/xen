@@ -711,8 +711,8 @@ static bool mce_is_broadcast(struct cpuinfo_x86 *c)
      * DisplayFamily_DisplayModel encoding of 06H_EH and above,
      * a MCA signal is broadcast to all logical processors in the system
      */
-    if ( c->x86_vendor == X86_VENDOR_INTEL && c->x86 == 6 &&
-         c->x86_model >= 0xe )
+    if ( (cpu_vendor() & X86_VENDOR_INTEL) &&
+         c->x86 == 6 && c->x86_model >= 0xe )
         return true;
     return false;
 }
@@ -1018,7 +1018,6 @@ int vmce_intel_wrmsr(struct vcpu *v, uint32_t msr, uint64_t val)
 
 int vmce_intel_rdmsr(const struct vcpu *v, uint32_t msr, uint64_t *val)
 {
-    const struct cpu_policy *cp = v->domain->arch.cpu_policy;
     unsigned int bank = msr - MSR_IA32_MC0_CTL2;
 
     switch ( msr )
@@ -1036,7 +1035,7 @@ int vmce_intel_rdmsr(const struct vcpu *v, uint32_t msr, uint64_t *val)
         return 1;
     }
 
-    if ( !(cp->x86_vendor & X86_VENDOR_INTEL) )
+    if ( !(cpu_vendor() & X86_VENDOR_INTEL) )
         return 0;
 
     if ( bank < GUEST_MC_BANK_NUM )
