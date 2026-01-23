@@ -38,6 +38,8 @@
 #include <xen/xvmalloc.h>
 #include <asm/p2m.h>
 #include <asm/processor.h>
+#include <public/io/console.h>
+#include <public/io/xs_wire.h>
 #include <public/sched.h>
 #include <public/sysctl.h>
 #include <public/vcpu.h>
@@ -2655,8 +2657,67 @@ void getdomaininfo(struct domain *d, struct xen_domctl_getdomaininfo *info)
 }
 
 #ifdef CONFIG_DOMAIN_FULL_RESET
+static void __maybe_unused xencons_intf_reset(struct domain *d)
+{
+    struct xencons_interface *intf;
+    struct page_info *page;
+    unsigned long gfn;
+
+    gfn = d->arch.hvm.params[HVM_PARAM_CONSOLE_PFN];
+    if ( gfn_eq(_gfn(gfn), INVALID_GFN) )
+    {
+        printk(XENLOG_G_WARNING "%pd: %s: invalid gfn\n", d, __func__);
+        return;
+    }
+
+    page = get_page_from_gfn(d, gfn, NULL, P2M_ALLOC);
+    if ( !page )
+    {
+        printk(XENLOG_G_WARNING "%pd: %s: unmapped gfn\n", d, __func__);
+        return;
+    }
+
+    intf = __map_domain_page(page);
+    clear_page(intf);
+    intf->connection = XENCONSOLE_DISCONNECTED;
+    unmap_domain_page(intf);
+    put_page(page);
+}
+
+static void __maybe_unused xenstore_intf_reset(struct domain *d)
+{
+    struct xenstore_domain_interface *intf;
+    struct page_info *page;
+    unsigned long gfn;
+    uint32_t server_features;
+
+    gfn = d->arch.hvm.params[HVM_PARAM_STORE_PFN];
+    if ( gfn_eq(_gfn(gfn), INVALID_GFN) )
+    {
+        printk(XENLOG_G_WARNING "%pd: %s: invalid gfn\n", d, __func__);
+        return;
+    }
+
+    page = get_page_from_gfn(d, gfn, NULL, P2M_ALLOC);
+    if ( !page )
+    {
+        printk(XENLOG_G_WARNING "%pd: %s: unmapped gfn\n", d, __func__);
+        return;
+    }
+
+    intf = __map_domain_page(page);
+    server_features = intf->server_features;
+    clear_page(intf);
+    intf->connection = XENSTORE_RECONNECT;
+    intf->evtchn_port = d->arch.hvm.params[HVM_PARAM_STORE_EVTCHN];
+    intf->server_features = server_features;
+    intf->error = XENSTORE_ERROR_NONE;
+    unmap_domain_page(intf);
+    put_page(page);
+}
+
 long do_dom_full_reset(domid_t domid) { return -EOPNOTSUPP; }
-#endif
+#endif /* CONFIG_DOMAIN_FULL_RESET */
 
 /*
  * Local variables:
