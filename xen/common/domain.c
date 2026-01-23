@@ -2716,6 +2716,19 @@ static void __maybe_unused xenstore_intf_reset(struct domain *d)
     put_page(page);
 }
 
+static int __maybe_unused shared_info_reset(struct domain *d)
+{
+    if ( !d->shared_info )
+    {
+        printk(XENLOG_G_ERR "%pd: %s: info is null\n", d, __func__);
+        return -EINVAL;
+    }
+
+    clear_page(d->shared_info);
+
+    return 0;
+}
+
 long do_dom_full_reset(domid_t domid) { return -EOPNOTSUPP; }
 #endif /* CONFIG_DOMAIN_FULL_RESET */
 
