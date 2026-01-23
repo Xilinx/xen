@@ -1183,7 +1183,7 @@ csched_unit_yield(const struct scheduler *ops, struct sched_unit *unit)
     set_bit(CSCHED_FLAG_UNIT_YIELD, &svc->flags);
 }
 
-static int cf_check
+static int cf_check __maybe_unused
 csched_dom_cntl(
     const struct scheduler *ops,
     struct domain *d,
@@ -2286,9 +2286,10 @@ static const struct scheduler sched_credit_def = {
     .wake           = csched_unit_wake,
     .yield          = csched_unit_yield,
 
-    .adjust         = csched_dom_cntl,
+
     .adjust_affinity= csched_aff_cntl,
 #ifdef CONFIG_MGMT_HYPERCALLS
+    .adjust         = csched_dom_cntl,
     .adjust_global  = csched_sys_cntl,
 #endif
 

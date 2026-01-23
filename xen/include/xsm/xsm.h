@@ -57,8 +57,8 @@ struct xsm_ops {
                                 struct xen_domctl_getdomaininfo *info);
     int (*domain_create)(struct domain *d, uint32_t ssidref);
     int (*getdomaininfo)(struct domain *d);
-    int (*domctl_scheduler_op)(struct domain *d, int op);
 #ifdef CONFIG_MGMT_HYPERCALLS
+    int (*domctl_scheduler_op)(struct domain *d, int op);
     int (*sysctl_scheduler_op)(int op);
 #endif
     int (*set_target)(struct domain *d, struct domain *e);
@@ -246,7 +246,11 @@ static inline int xsm_get_domain_state(xsm_default_t def, struct domain *d)
 static inline int xsm_domctl_scheduler_op(
     xsm_default_t def, struct domain *d, int cmd)
 {
+#ifdef CONFIG_MGMT_HYPERCALLS
     return alternative_call(xsm_ops.domctl_scheduler_op, d, cmd);
+#else
+    return -EOPNOTSUPP;
+#endif
 }
 
 #ifdef CONFIG_MGMT_HYPERCALLS

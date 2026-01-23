@@ -2909,7 +2909,7 @@ static void cf_check csched2_unit_migrate(
         sched_set_res(unit, get_sched_res(new_cpu));
 }
 
-static int cf_check
+static int cf_check __maybe_unused
 csched2_dom_cntl(
     const struct scheduler *ops,
     struct domain *d,
@@ -4230,9 +4230,9 @@ static const struct scheduler sched_credit2_def = {
     .wake           = csched2_unit_wake,
     .yield          = csched2_unit_yield,
 
-    .adjust         = csched2_dom_cntl,
     .adjust_affinity= csched2_aff_cntl,
 #ifdef CONFIG_MGMT_HYPERCALLS
+    .adjust         = csched2_dom_cntl,
     .adjust_global  = csched2_sys_cntl,
 #endif
 

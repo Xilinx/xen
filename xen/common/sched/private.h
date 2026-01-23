@@ -349,14 +349,14 @@ struct scheduler {
     void         (*migrate)        (const struct scheduler *ops,
                                     struct sched_unit *unit,
                                     unsigned int new_cpu);
-    int          (*adjust)         (const struct scheduler *ops,
-                                    struct domain *d,
-                                    struct xen_domctl_scheduler_op *op);
     void         (*adjust_affinity)(const struct scheduler *ops,
                                     struct sched_unit *unit,
                                     const struct cpumask *hard,
                                     const struct cpumask *soft);
 #ifdef CONFIG_MGMT_HYPERCALLS
+    int          (*adjust)         (const struct scheduler *ops,
+                                    struct domain *d,
+                                    struct xen_domctl_scheduler_op *op);
     int          (*adjust_global)  (const struct scheduler *ops,
                                     struct xen_sysctl_scheduler_op *sc);
 #endif
@@ -509,7 +509,11 @@ static inline void sched_adjust_affinity(const struct scheduler *s,
 static inline int sched_adjust_dom(const struct scheduler *s, struct domain *d,
                                    struct xen_domctl_scheduler_op *op)
 {
+#ifdef CONFIG_MGMT_HYPERCALLS
     return s->adjust ? s->adjust(s, d, op) : 0;
+#else
+    return -EOPNOTSUPP;
+#endif
 }
 
 #ifdef CONFIG_MGMT_HYPERCALLS

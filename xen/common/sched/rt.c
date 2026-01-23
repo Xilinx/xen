@@ -1365,7 +1365,7 @@ out:
 /*
  * set/get each unit info of each domain
  */
-static int cf_check
+static int cf_check __maybe_unused
 rt_dom_cntl(
     const struct scheduler *ops,
     struct domain *d,
@@ -1572,7 +1572,9 @@ static const struct scheduler sched_rtds_def = {
     .insert_unit    = rt_unit_insert,
     .remove_unit    = rt_unit_remove,
 
+#ifdef CONFIG_MGMT_HYPERCALLS
     .adjust         = rt_dom_cntl,
+#endif
 
     .pick_resource  = rt_res_pick,
     .do_schedule    = rt_schedule,
