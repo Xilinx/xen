@@ -469,7 +469,7 @@ static void ffa_free_domain_ctx(struct domain *d)
     XFREE(d->arch.tee);
 }
 
-static int ffa_relinquish_resources(struct domain *d)
+static int __maybe_unused ffa_relinquish_resources(struct domain *d)
 {
     return 0;
 }
@@ -623,7 +623,9 @@ static const struct tee_mediator_ops ffa_ops =
     .domain_init = ffa_domain_init,
     .domain_teardown = ffa_domain_teardown,
     .free_domain_ctx = ffa_free_domain_ctx,
+#ifdef CONFIG_MGMT_HYPERCALLS
     .relinquish_resources = ffa_relinquish_resources,
+#endif
     .handle_call = ffa_handle_call,
 };
 

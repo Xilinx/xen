@@ -65,6 +65,7 @@ int tee_domain_teardown(struct domain *d)
     return cur_mediator->ops->domain_teardown(d);
 }
 
+#ifdef CONFIG_MGMT_HYPERCALLS
 int tee_relinquish_resources(struct domain *d)
 {
     if ( !cur_mediator )
@@ -72,6 +73,7 @@ int tee_relinquish_resources(struct domain *d)
 
     return cur_mediator->ops->relinquish_resources(d);
 }
+#endif /* CONFIG_MGMT_HYPERCALLS */
 
 uint16_t tee_get_type(void)
 {

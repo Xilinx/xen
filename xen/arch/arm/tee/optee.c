@@ -632,7 +632,7 @@ static void free_optee_shm_buf_pg_list(struct optee_domain *ctx,
                  cookie);
 }
 
-static int optee_relinquish_resources(struct domain *d)
+static int __maybe_unused optee_relinquish_resources(struct domain *d)
 {
     struct arm_smccc_res resp;
     struct optee_std_call *call, *call_tmp;
@@ -1727,7 +1727,9 @@ static const struct tee_mediator_ops optee_ops =
     .probe = optee_probe,
     .domain_init = optee_domain_init,
     .domain_teardown = optee_domain_teardown,
+#ifdef CONFIG_MGMT_HYPERCALLS
     .relinquish_resources = optee_relinquish_resources,
+#endif
     .handle_call = optee_handle_call,
 };
 
