@@ -283,6 +283,15 @@ config ARM64_AARCH32
 
 endmenu
 
+config GICV3_NR_LRS
+	int "Number of GICv3 Link Registers supported" if !AMD
+	depends on GICV3
+	default 4 if AMD
+	default 16
+	help
+	  Controls the number of Link registers to be accessed.
+	  On AMD hardware, 4 link registers are supported.
+
 menu "ARM errata workaround via the alternative framework"
 	depends on HAS_ALTERNATIVE
 

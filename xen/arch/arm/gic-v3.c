@@ -58,8 +58,13 @@ static DEFINE_PER_CPU(void __iomem*, rbase);
  */
 static inline void gicv3_save_lrs(struct vcpu *v)
 {
+    unsigned int nr_lrs = gicv3_info.nr_lrs;
+
+    if ( nr_lrs > CONFIG_GICV3_NR_LRS )
+        panic("Unsupported number of LRs\n");
+
     /* Fall through for all the cases */
-    switch ( gicv3_info.nr_lrs )
+    switch ( nr_lrs )
     {
     case 16:
         v->arch.gic.v3.lr[15] = READ_SYSREG_LR(15);
@@ -120,8 +125,13 @@ static inline void gicv3_save_lrs(struct vcpu *v)
  */
 static inline void gicv3_restore_lrs(const struct vcpu *v)
 {
+    unsigned int nr_lrs = gicv3_info.nr_lrs;
+
+    if ( nr_lrs > CONFIG_GICV3_NR_LRS )
+        panic("Unsupported number of LRs\n");
+
     /* Fall through for all the cases */
-    switch ( gicv3_info.nr_lrs )
+    switch ( nr_lrs )
     {
     case 16:
         WRITE_SYSREG_LR(v->arch.gic.v3.lr[15], 15);
@@ -178,6 +188,9 @@ static inline void gicv3_restore_lrs(const struct vcpu *v)
 
 static uint64_t gicv3_ich_read_lr(int lr)
 {
+    if ( lr >= CONFIG_GICV3_NR_LRS )
+        panic("Unsupported number of LRs\n");
+
     switch ( lr )
     {
     case 0: return READ_SYSREG_LR(0);
@@ -203,6 +216,9 @@ static uint64_t gicv3_ich_read_lr(int lr)
 
 static void gicv3_ich_write_lr(int lr, uint64_t val)
 {
+    if ( lr >= CONFIG_GICV3_NR_LRS )
+        panic("Unsupported number of LRs\n");
+
     switch ( lr )
     {
     case 0:

@@ -12,6 +12,12 @@ config ALL_PLAT
 	  Enable support for all available hardware platforms. It doesn't
 	  automatically select any of the related drivers.
 
+config AMD
+	bool "AMD platform support"
+	depends on ARM_64
+	help
+	  Enable support for AMD platform for functional safety.
+
 config QEMU
 	bool "QEMU aarch virt machine support"
 	depends on ARM_64
