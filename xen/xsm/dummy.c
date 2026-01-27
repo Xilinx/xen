@@ -81,11 +81,13 @@ static const struct xsm_ops __initconst_cf_clobber dummy_ops = {
     .pci_config_permission         = xsm_pci_config_permission,
     .get_vnumainfo                 = xsm_get_vnumainfo,
 
-#if defined(CONFIG_HAS_PASSTHROUGH) && defined(CONFIG_HAS_PCI)
+#if defined(CONFIG_HAS_PASSTHROUGH) && defined(CONFIG_MGMT_HYPERCALLS)
+#ifdef CONFIG_HAS_PCI
     .get_device_group              = xsm_get_device_group,
     .assign_device                 = xsm_assign_device,
     .deassign_device               = xsm_deassign_device,
-#endif
+#endif /* CONFIG_HAS_PCI */
+#endif /* CONFIG_HAS_PASSTHROUGH && CONFIG_MGMT_HYPERCALLS */
 
 #if defined(CONFIG_HAS_PASSTHROUGH) && defined(CONFIG_HAS_DEVICE_TREE_DISCOVERY)
     .assign_dtdevice               = xsm_assign_dtdevice,

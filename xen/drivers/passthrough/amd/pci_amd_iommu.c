@@ -461,7 +461,7 @@ static void amd_iommu_disable_domain_device(const struct domain *domain,
         spin_unlock_irqrestore(&iommu->lock, flags);
 }
 
-static int cf_check reassign_device(
+static int cf_check __maybe_unused reassign_device(
     struct domain *source, struct domain *target, u8 devfn,
     struct pci_dev *pdev)
 {
@@ -521,7 +521,7 @@ static int cf_check reassign_device(
     return 0;
 }
 
-static int cf_check amd_iommu_assign_device(
+static int cf_check __maybe_unused amd_iommu_assign_device(
     struct domain *d, u8 devfn, struct pci_dev *pdev, u32 flag)
 {
     struct ivrs_mappings *ivrs_mappings = get_ivrs_mappings(pdev->seg);
@@ -698,7 +698,8 @@ static int cf_check amd_iommu_remove_device(u8 devfn, struct pci_dev *pdev)
     return 0;
 }
 
-static int cf_check amd_iommu_group_id(u16 seg, u8 bus, u8 devfn)
+static int cf_check __maybe_unused amd_iommu_group_id(u16 seg, u8 bus,
+                                                      u8 devfn)
 {
     unsigned int bdf = PCI_BDF(bus, devfn);
 
@@ -772,14 +773,16 @@ static const struct iommu_ops __initconst_cf_clobber _iommu_ops = {
     .quarantine_init = amd_iommu_quarantine_init,
     .add_device = amd_iommu_add_device,
     .remove_device = amd_iommu_remove_device,
-    .assign_device  = amd_iommu_assign_device,
     .teardown = amd_iommu_domain_destroy,
     .clear_root_pgtable = amd_iommu_clear_root_pgtable,
     .map_page = amd_iommu_map_page,
     .unmap_page = amd_iommu_unmap_page,
     .iotlb_flush = amd_iommu_flush_iotlb_pages,
+#ifdef CONFIG_MGMT_HYPERCALLS
+    .assign_device  = amd_iommu_assign_device,
     .reassign_device = reassign_device,
     .get_device_group_id = amd_iommu_group_id,
+#endif
     .enable_x2apic = iov_enable_xt,
     .update_ire_from_apic = amd_iommu_ioapic_update_ire,
     .update_ire_from_msi = amd_iommu_msi_msg_update_ire,

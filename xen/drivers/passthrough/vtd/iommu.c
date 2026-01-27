@@ -2712,7 +2712,7 @@ static int __init cf_check vtd_setup(void)
     return ret;
 }
 
-static int cf_check reassign_device_ownership(
+static int cf_check __maybe_unused reassign_device_ownership(
     struct domain *source,
     struct domain *target,
     u8 devfn, struct pci_dev *pdev)
@@ -2806,7 +2806,7 @@ static int cf_check reassign_device_ownership(
     return 0;
 }
 
-static int cf_check intel_iommu_assign_device(
+static int cf_check __maybe_unused intel_iommu_assign_device(
     struct domain *d, u8 devfn, struct pci_dev *pdev, u32 flag)
 {
     struct domain *s = pdev->domain;
@@ -2898,7 +2898,8 @@ static int cf_check intel_iommu_assign_device(
     return ret;
 }
 
-static int cf_check intel_iommu_group_id(u16 seg, u8 bus, u8 devfn)
+static int cf_check __maybe_unused intel_iommu_group_id(u16 seg, u8 bus,
+                                                        u8 devfn)
 {
     u8 secbus;
 
@@ -3219,13 +3220,15 @@ static const struct iommu_ops __initconst_cf_clobber vtd_ops = {
     .add_device = intel_iommu_add_device,
     .enable_device = intel_iommu_enable_device,
     .remove_device = intel_iommu_remove_device,
-    .assign_device  = intel_iommu_assign_device,
     .teardown = iommu_domain_teardown,
     .clear_root_pgtable = iommu_clear_root_pgtable,
     .map_page = intel_iommu_map_page,
     .unmap_page = intel_iommu_unmap_page,
+#ifdef CONFIG_MGMT_HYPERCALLS
+    .assign_device  = intel_iommu_assign_device,
     .reassign_device = reassign_device_ownership,
     .get_device_group_id = intel_iommu_group_id,
+#endif
     .enable_x2apic = intel_iommu_enable_eim,
     .disable_x2apic = intel_iommu_disable_eim,
     .update_ire_from_apic = io_apic_write_remap_rte,

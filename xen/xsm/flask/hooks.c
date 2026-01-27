@@ -1380,7 +1380,7 @@ static int cf_check flask_mem_sharing(struct domain *d)
 #endif
 
 #if defined(CONFIG_HAS_PASSTHROUGH) && defined(CONFIG_HAS_PCI)
-static int cf_check flask_get_device_group(uint32_t machine_bdf)
+static int cf_check __maybe_unused flask_get_device_group(uint32_t machine_bdf)
 {
     uint32_t rsid;
     int rc = -EPERM;
@@ -1404,7 +1404,8 @@ static int flask_test_assign_device(uint32_t machine_bdf)
     return avc_current_has_perm(rsid, SECCLASS_RESOURCE, RESOURCE__STAT_DEVICE, NULL);
 }
 
-static int cf_check flask_assign_device(struct domain *d, uint32_t machine_bdf)
+static int cf_check __maybe_unused flask_assign_device(struct domain *d,
+                                                       uint32_t machine_bdf)
 {
     uint32_t dsid, rsid;
     int rc = -EPERM;
@@ -1434,7 +1435,7 @@ static int cf_check flask_assign_device(struct domain *d, uint32_t machine_bdf)
     return avc_has_perm(dsid, rsid, SECCLASS_RESOURCE, dperm, &ad);
 }
 
-static int cf_check flask_deassign_device(
+static int cf_check __maybe_unused flask_deassign_device(
     struct domain *d, uint32_t machine_bdf)
 {
     uint32_t rsid;
@@ -1979,11 +1980,13 @@ static const struct xsm_ops __initconst_cf_clobber flask_ops = {
     .remove_from_physmap = flask_remove_from_physmap,
     .map_gmfn_foreign = flask_map_gmfn_foreign,
 
-#if defined(CONFIG_HAS_PASSTHROUGH) && defined(CONFIG_HAS_PCI)
+#if defined(CONFIG_HAS_PASSTHROUGH) && defined(CONFIG_MGMT_HYPERCALLS)
+#ifdef CONFIG_HAS_PCI
     .get_device_group = flask_get_device_group,
     .assign_device = flask_assign_device,
     .deassign_device = flask_deassign_device,
-#endif
+#endif /* CONFIG_HAS_PCI */
+#endif /* CONFIG_HAS_PASSTHROUGH && CONFIG_MGMT_HYPERCALLS */
 
 #if defined(CONFIG_HAS_PASSTHROUGH) && defined(CONFIG_HAS_DEVICE_TREE_DISCOVERY)
     .assign_dtdevice = flask_assign_dtdevice,

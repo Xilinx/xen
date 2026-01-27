@@ -126,11 +126,13 @@ struct xsm_ops {
     int (*pci_config_permission)(struct domain *d, uint32_t machine_bdf,
                                  uint16_t start, uint16_t end, uint8_t access);
 
-#if defined(CONFIG_HAS_PASSTHROUGH) && defined(CONFIG_HAS_PCI)
+#if defined(CONFIG_HAS_PASSTHROUGH) && defined(CONFIG_MGMT_HYPERCALLS)
+#ifdef CONFIG_HAS_PCI
     int (*get_device_group)(uint32_t machine_bdf);
     int (*assign_device)(struct domain *d, uint32_t machine_bdf);
     int (*deassign_device)(struct domain *d, uint32_t machine_bdf);
-#endif
+#endif /* CONFIG_HAS_PCI */
+#endif /* CONFIG_HAS_PASSTHROUGH && CONFIG_MGMT_HYPERCALLS */
 
 #if defined(CONFIG_HAS_PASSTHROUGH) && defined(CONFIG_HAS_DEVICE_TREE_DISCOVERY)
     int (*assign_dtdevice)(struct domain *d, const char *dtpath);
@@ -554,21 +556,33 @@ static inline int xsm_pci_config_permission(
 #if defined(CONFIG_HAS_PASSTHROUGH) && defined(CONFIG_HAS_PCI)
 static inline int xsm_get_device_group(xsm_default_t def, uint32_t machine_bdf)
 {
+#ifdef CONFIG_MGMT_HYPERCALLS
     return alternative_call(xsm_ops.get_device_group, machine_bdf);
+#else
+    return -EOPNOTSUPP;
+#endif
 }
 
 static inline int xsm_assign_device(
     xsm_default_t def, struct domain *d, uint32_t machine_bdf)
 {
+#ifdef CONFIG_MGMT_HYPERCALLS
     return alternative_call(xsm_ops.assign_device, d, machine_bdf);
+#else
+    return -EOPNOTSUPP;
+#endif
 }
 
 static inline int xsm_deassign_device(
     xsm_default_t def, struct domain *d, uint32_t machine_bdf)
 {
+#ifdef CONFIG_MGMT_HYPERCALLS
     return alternative_call(xsm_ops.deassign_device, d, machine_bdf);
+#else
+    return -EOPNOTSUPP;
+#endif
 }
-#endif /* HAS_PASSTHROUGH && HAS_PCI) */
+#endif /* HAS_PASSTHROUGH && HAS_PCI */
 
 #if defined(CONFIG_HAS_PASSTHROUGH) && defined(CONFIG_HAS_DEVICE_TREE_DISCOVERY)
 static inline int xsm_assign_dtdevice(
