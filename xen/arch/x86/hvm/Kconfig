@@ -65,6 +65,12 @@ config HVM_COMPAT
 
 	  If unsure, say Y.
 
+config HVM_SAVE_RESTORE
+	bool "HVM save/load functionality" if EXPERT
+	default y
+	help
+	  Enables HVM save/load functionality.
+
 config HVM_FEP
 	bool "HVM Forced Emulation Prefix support (UNSUPPORTED)" if UNSUPPORTED
 	default DEBUG

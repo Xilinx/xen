@@ -276,6 +276,7 @@ static int cf_check handle_cnt_io(
     return X86EMUL_OKAY;
 }
 
+#ifdef CONFIG_HVM_SAVE_RESTORE
 static int cf_check acpi_save(struct vcpu *v, hvm_domain_context_t *h)
 {
     struct domain *d = v->domain;
@@ -339,6 +340,7 @@ static int cf_check acpi_load(struct domain *d, hvm_domain_context_t *h)
 
 HVM_REGISTER_SAVE_RESTORE(PMTIMER, acpi_save, NULL, acpi_load,
                           1, HVMSR_PER_DOM);
+#endif /* CONFIG_HVM_SAVE_RESTORE */
 
 int pmtimer_change_ioport(struct domain *d, uint64_t version)
 {

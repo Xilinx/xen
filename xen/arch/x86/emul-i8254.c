@@ -409,7 +409,9 @@ void pit_stop_channel0_irq(PITState *pit)
     destroy_periodic_time(&pit->pt0);
     spin_unlock(&pit->lock);
 }
+#endif
 
+#ifdef CONFIG_HVM_SAVE_RESTORE
 static int cf_check pit_save(struct vcpu *v, hvm_domain_context_t *h)
 {
     struct domain *d = v->domain;
@@ -509,7 +511,7 @@ static int cf_check pit_load(struct domain *d, hvm_domain_context_t *h)
 }
 
 HVM_REGISTER_SAVE_RESTORE(PIT, pit_save, pit_check, pit_load, 1, HVMSR_PER_DOM);
-#endif
+#endif /* CONFIG_HVM_SAVE_RESTORE */
 
 /* The intercept action for PIT DM retval: 0--not handled; 1--handled. */
 static int cf_check handle_pit_io(

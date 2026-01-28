@@ -805,6 +805,7 @@ void hvm_domain_destroy(struct domain *d)
     destroy_vpci_mmcfg(d);
 }
 
+#ifdef CONFIG_HVM_SAVE_RESTORE
 static int cf_check hvm_save_tsc_adjust(struct vcpu *v, hvm_domain_context_t *h)
 {
     struct hvm_tsc_adjust ctxt = {
@@ -952,6 +953,7 @@ static int cf_check hvm_save_cpu_ctxt(struct vcpu *v, hvm_domain_context_t *h)
 
     return hvm_save_entry(CPU, v->vcpu_id, h, &ctxt);
 }
+#endif /* CONFIG_HVM_SAVE_RESTORE */
 
 /* Return a string indicating the error, or NULL for valid. */
 const char *hvm_efer_valid(const struct vcpu *v, uint64_t value,
@@ -1029,6 +1031,7 @@ unsigned long hvm_cr4_guest_valid_bits(const struct domain *d)
             0);
 }
 
+#ifdef CONFIG_HVM_SAVE_RESTORE
 static int cf_check hvm_load_cpu_ctxt(struct domain *d, hvm_domain_context_t *h)
 {
     const struct cpu_policy *p = d->arch.cpu_policy;
@@ -1613,6 +1616,7 @@ static int __init cf_check hvm_register_CPU_save_and_restore(void)
     return 0;
 }
 __initcall(hvm_register_CPU_save_and_restore);
+#endif /* CONFIG_HVM_SAVE_RESTORE */
 
 static void cf_check hvm_assert_evtchn_irq_tasklet(void *v)
 {

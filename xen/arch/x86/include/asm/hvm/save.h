@@ -123,6 +123,7 @@ void hvm_register_savevm(uint16_t typecode,
 
 /* Syntactic sugar around that function: specify the max number of
  * saves, and this calculates the size of buffer needed */
+#ifdef CONFIG_HVM_SAVE_RESTORE
 #define HVM_REGISTER_SAVE_RESTORE(_x, _save, check, _load, _num, _k)      \
 static int __init cf_check __hvm_register_##_x##_save_and_restore(void)   \
 {                                                                         \
@@ -137,7 +138,7 @@ static int __init cf_check __hvm_register_##_x##_save_and_restore(void)   \
     return 0;                                                             \
 }                                                                         \
 __initcall(__hvm_register_##_x##_save_and_restore);
-
+#endif /* HVM_REGISTER_SAVE_RESTORE */
 
 /* Entry points for saving and restoring HVM domain state */
 size_t hvm_save_size(struct domain *d);

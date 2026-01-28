@@ -594,6 +594,7 @@ int vioapic_get_trigger_mode(const struct domain *d, unsigned int gsi)
     return vioapic->redirtbl[pin].fields.trig_mode;
 }
 
+#ifdef CONFIG_HVM_SAVE_RESTORE
 static int cf_check ioapic_save(struct vcpu *v, hvm_domain_context_t *h)
 {
     const struct domain *d = v->domain;
@@ -632,6 +633,7 @@ static int cf_check ioapic_load(struct domain *d, hvm_domain_context_t *h)
 
 HVM_REGISTER_SAVE_RESTORE(IOAPIC, ioapic_save, NULL, ioapic_load, 1,
                           HVMSR_PER_DOM);
+#endif /* CONFIG_HVM_SAVE_RESTORE */
 
 void vioapic_reset(struct domain *d)
 {

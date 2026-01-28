@@ -402,6 +402,7 @@ static int cf_check vpic_intercept_elcr_io(
     return X86EMUL_OKAY;
 }
 
+#ifdef CONFIG_HVM_SAVE_RESTORE
 static int cf_check vpic_save(struct vcpu *v, hvm_domain_context_t *h)
 {
     struct domain *d = v->domain;
@@ -478,6 +479,7 @@ static int cf_check vpic_load(struct domain *d, hvm_domain_context_t *h)
 
 HVM_REGISTER_SAVE_RESTORE(PIC, vpic_save, vpic_check, vpic_load, 2,
                           HVMSR_PER_DOM);
+#endif /* CONFIG_HVM_SAVE_RESTORE */
 
 void vpic_reset(struct domain *d)
 {

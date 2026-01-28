@@ -407,6 +407,7 @@ long arch_do_domctl(
 
     case XEN_DOMCTL_sethvmcontext:
     {
+#ifdef CONFIG_HVM_SAVE_RESTORE
         struct hvm_domain_context c = { .size = domctl->u.hvmcontext.size };
 
         ret = -EINVAL;
@@ -432,11 +433,15 @@ long arch_do_domctl(
 
     sethvmcontext_out:
         xfree(c.data);
+#else
+        ret = -EOPNOTSUPP;
+#endif
         break;
     }
 
     case XEN_DOMCTL_gethvmcontext:
     {
+#ifdef CONFIG_HVM_SAVE_RESTORE
         struct hvm_domain_context c = { 0 };
 
         ret = -EINVAL;
@@ -475,10 +480,14 @@ long arch_do_domctl(
     gethvmcontext_out:
         copyback = true;
         xfree(c.data);
+#else
+        ret = -EOPNOTSUPP;
+#endif
         break;
     }
 
     case XEN_DOMCTL_gethvmcontext_partial:
+#ifdef CONFIG_HVM_SAVE_RESTORE
         ret = -EINVAL;
         if ( (d == currd) || /* no domain_pause() */
              !is_hvm_domain(d) )
@@ -491,6 +500,9 @@ long arch_do_domctl(
 
         if ( !ret )
             copyback = true;
+#else
+        ret = -EOPNOTSUPP;
+#endif
         break;
 
     case XEN_DOMCTL_set_address_size:

@@ -742,6 +742,7 @@ void rtc_migrate_timers(struct vcpu *v)
     }
 }
 
+#ifdef CONFIG_HVM_SAVE_RESTORE
 /* Save RTC hardware state */
 static int cf_check rtc_save(struct vcpu *v, hvm_domain_context_t *h)
 {
@@ -799,6 +800,7 @@ static int cf_check rtc_load(struct domain *d, hvm_domain_context_t *h)
 }
 
 HVM_REGISTER_SAVE_RESTORE(RTC, rtc_save, NULL, rtc_load, 1, HVMSR_PER_DOM);
+#endif /* CONFIG_HVM_SAVE_RESTORE */
 
 void rtc_reset(struct domain *d)
 {

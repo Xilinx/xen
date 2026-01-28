@@ -695,6 +695,7 @@ int hvm_set_mem_pinned_cacheattr(struct domain *d, uint64_t gfn_start,
     return rc;
 }
 
+#ifdef CONFIG_HVM_SAVE_RESTORE
 static int cf_check hvm_save_mtrr_msr(struct vcpu *v, hvm_domain_context_t *h)
 {
     const struct mtrr_state *m = &v->arch.hvm.mtrr;
@@ -785,6 +786,7 @@ static int cf_check hvm_load_mtrr_msr(struct domain *d, hvm_domain_context_t *h)
 
 HVM_REGISTER_SAVE_RESTORE(MTRR, hvm_save_mtrr_msr, NULL, hvm_load_mtrr_msr, 1,
                           HVMSR_PER_VCPU);
+#endif /* CONFIG_HVM_SAVE_RESTORE */
 
 void memory_type_changed(struct domain *d)
 {

@@ -571,7 +571,7 @@ static const struct hvm_mmio_ops hpet_mmio_ops = {
     .write = hpet_write
 };
 
-
+#ifdef CONFIG_HVM_SAVE_RESTORE
 static int cf_check hpet_save(struct vcpu *v, hvm_domain_context_t *h)
 {
     const struct domain *d = v->domain;
@@ -694,6 +694,7 @@ static int cf_check hpet_load(struct domain *d, hvm_domain_context_t *h)
 }
 
 HVM_REGISTER_SAVE_RESTORE(HPET, hpet_save, NULL, hpet_load, 1, HVMSR_PER_DOM);
+#endif /* CONFIG_HVM_SAVE_RESTORE */
 
 static void hpet_set(HPETState *h)
 {

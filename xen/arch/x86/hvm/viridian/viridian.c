@@ -1092,6 +1092,7 @@ void viridian_unmap_guest_page(struct viridian_page *vp)
     put_page_and_type(page);
 }
 
+#ifdef CONFIG_HVM_SAVE_RESTORE
 static int cf_check viridian_save_domain_ctxt(
     struct vcpu *v, hvm_domain_context_t *h)
 {
@@ -1180,6 +1181,7 @@ static int cf_check viridian_load_vcpu_ctxt(
 
 HVM_REGISTER_SAVE_RESTORE(VIRIDIAN_VCPU, viridian_save_vcpu_ctxt, NULL,
                           viridian_load_vcpu_ctxt, 1, HVMSR_PER_VCPU);
+#endif /* CONFIG_HVM_SAVE_RESTORE */
 
 static int __init cf_check parse_viridian_version(const char *arg)
 {

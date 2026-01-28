@@ -1490,6 +1490,7 @@ void vlapic_reset(struct vlapic *vlapic)
     vlapic_do_init(vlapic);
 }
 
+#ifdef CONFIG_HVM_SAVE_RESTORE
 /* rearm the actimer if needed, after a HVM restore */
 static void lapic_rearm(struct vlapic *s)
 {
@@ -1586,7 +1587,6 @@ static void lapic_load_fixup(struct vlapic *vlapic)
                "%pv: bogus x2APIC record: ID %#x, LDR %#x, expected LDR %#x\n",
                v, vlapic->loaded.id, vlapic->loaded.ldr, good_ldr);
 }
-
 
 static int lapic_check_common(const struct domain *d, unsigned int vcpuid)
 {
@@ -1690,6 +1690,7 @@ HVM_REGISTER_SAVE_RESTORE(LAPIC, lapic_save_hidden, lapic_check_hidden,
                           lapic_load_hidden, 1, HVMSR_PER_VCPU);
 HVM_REGISTER_SAVE_RESTORE(LAPIC_REGS, lapic_save_regs, lapic_check_regs,
                           lapic_load_regs, 1, HVMSR_PER_VCPU);
+#endif /* CONFIG_HVM_SAVE_RESTORE */
 
 int vlapic_init(struct vcpu *v)
 {

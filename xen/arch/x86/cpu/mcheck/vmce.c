@@ -349,7 +349,7 @@ int vmce_wrmsr(uint32_t msr, uint64_t val)
     return ret;
 }
 
-#if CONFIG_HVM
+#ifdef CONFIG_HVM_SAVE_RESTORE
 static int cf_check vmce_save_vcpu_ctxt(struct vcpu *v, hvm_domain_context_t *h)
 {
     struct hvm_vmce_vcpu ctxt = {
@@ -383,7 +383,7 @@ static int cf_check vmce_load_vcpu_ctxt(struct domain *d, hvm_domain_context_t *
 
 HVM_REGISTER_SAVE_RESTORE(VMCE_VCPU, vmce_save_vcpu_ctxt, NULL,
                           vmce_load_vcpu_ctxt, 1, HVMSR_PER_VCPU);
-#endif
+#endif /* CONFIG_HVM_SAVE_RESTORE */
 
 /*
  * for Intel MCE, broadcast vMCE to all vcpus

@@ -664,6 +664,7 @@ static int __init cf_check dump_irq_info_key_init(void)
 }
 __initcall(dump_irq_info_key_init);
 
+#ifdef CONFIG_HVM_SAVE_RESTORE
 static int cf_check irq_save_pci(struct vcpu *v, hvm_domain_context_t *h)
 {
     struct domain *d = v->domain;
@@ -821,3 +822,4 @@ HVM_REGISTER_SAVE_RESTORE(ISA_IRQ, irq_save_isa, NULL, irq_load_isa,
                           1, HVMSR_PER_DOM);
 HVM_REGISTER_SAVE_RESTORE(PCI_LINK, irq_save_link, irq_check_link,
                           irq_load_link, 1, HVMSR_PER_DOM);
+#endif /* CONFIG_HVM_SAVE_RESTORE */
