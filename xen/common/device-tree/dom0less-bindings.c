@@ -85,9 +85,6 @@ int __init parse_dom0less_node(struct dt_device_node *node,
         *flags |= CDF_directmap;
     }
 
-    if ( dt_property_read_bool(node, "hypercall-untargetable") )
-        d_cfg->flags |= XEN_DOMCTL_CDF_not_hypercall_target;
-
     if ( !dt_property_read_u32(node, "cpus", &d_cfg->max_vcpus) )
         panic("Missing property 'cpus' for domain %s\n",
               dt_node_name(node));

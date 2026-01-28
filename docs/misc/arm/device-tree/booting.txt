@@ -189,6 +189,9 @@ with the following properties:
     0x4 DOMAIN_CAPS_XENSTORE - The xenstore domain - there can be only 1
     0x8 DOMAIN_CAPS_DEVICE_MODEL - Domain with privileges to run device
                                    models for other domains.
+    0x10 DOMAIN_CAPS_NOT_HYPERCALL_TARGET - This domain cannot be the target
+            of hypercalls.  This protects a domain from interference.  A domain
+            with this property cannot have a device model.
 
     The default is no capabilities.
 
@@ -335,12 +338,6 @@ with the following properties:
     single SCMI OSPM agent support.
     Should be used together with scmi-smc-passthrough Xen command line
     option.
-
-- hypercall-untargetable
-
-    Optional.  An empty property to specify the domain cannot be the target
-    of hypercalls.  This protects a domain from interference.  A device with
-    this property cannot have a device model.
 
 Under the "xen,domain" compatible node, one or more sub-nodes are present
 for the DomU kernel and ramdisk.
