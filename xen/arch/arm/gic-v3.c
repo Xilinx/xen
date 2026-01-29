@@ -2028,7 +2028,8 @@ static const struct gic_hw_operations gicv3_ops = {
     .set_irq_type        = gicv3_set_irq_type,
     .set_irq_priority    = gicv3_set_irq_priority,
     .send_SGI            = gicv3_send_sgi,
-    .disable_interface   = gicv3_disable_interface,
+    .disable_interface   = IS_ENABLED(CONFIG_SYSTEM_SUSPEND) ?
+                           gicv3_disable_interface : NULL,
     .update_lr           = gicv3_update_lr,
     .update_hcr_status   = gicv3_hcr_status,
     .clear_lr            = gicv3_clear_lr,
