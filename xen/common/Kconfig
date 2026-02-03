@@ -26,6 +26,21 @@ config DOM0LESS_BOOT
 	  Xen boot without the need of a control domain (Dom0), which could be
 	  present anyway.
 
+config DOMAIN_FULL_RESET
+	bool "Enable full reset for dom0less domains" if EXPERT
+	depends on DOM0LESS_BOOT && HAS_DOMAIN_FULL_RESET && HVM
+	help
+	  This option enables full reset of dom0less domains. A domain
+	  can be reset via the __HYPERVISOR_dom_full_reset hypercall.
+	  Only non-hardware dom0less domains can be reset.
+
+	  During full reset, the domain's boot modules are reloaded and all
+	  domain state (memory, vCPUs, event channels, grant tables) is reset
+	  to initial values. The domain restarts from scratch as if freshly
+	  booted.
+
+	  If unsure, say N.
+
 config DOMAIN_BUILD_HELPERS
 	bool
 
@@ -126,6 +141,9 @@ config HAS_DEVICE_TREE_DISCOVERY
 	select DEVICE_TREE_PARSE
 
 config HAS_DOM0LESS
+	bool
+
+config HAS_DOMAIN_FULL_RESET
 	bool
 
 config HAS_DIT # Data Independent Timing

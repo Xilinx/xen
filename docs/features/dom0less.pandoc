@@ -132,6 +132,20 @@ The implementation works as follows:
   the initialization
 
 
+Dom0less domain full reset
+--------------------------
+
+If DOMAIN_FULL_RESET is enabled in the Xen configuration, it is
+possible to fully reset dom0less domains using __HYPERVISOR_dom_full_reset
+hypercall. Dom0less domain full reset, unlike xl reboot, preserves the
+domain's id but completely reloads the boot modules and resets all domain
+state to initial values.
+The hypercall receives the domain id of the domain to be reset as
+argument. Dom0less hardware domain reset is not supported.
+
+This is different from soft reset (SHUTDOWN_soft_reset) which preserves
+domain memory and vCPU context for kexec support.
+
 Limitations
 -----------
 
