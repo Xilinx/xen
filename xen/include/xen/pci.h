@@ -243,8 +243,6 @@ void pci_check_disable_device(u16 seg, u8 bus, u8 devfn);
 int pci_iterate_devices(int (*handler)(struct pci_dev *pdev, void *arg),
                         void *arg);
 
-int pci_domain_reset(struct domain *d);
-
 uint8_t pci_conf_read8(pci_sbdf_t sbdf, unsigned int reg);
 uint16_t pci_conf_read16(pci_sbdf_t sbdf, unsigned int reg);
 uint32_t pci_conf_read32(pci_sbdf_t sbdf, unsigned int reg);

@@ -2390,11 +2390,6 @@ long do_reset_domain(domid_t domid)
         BUG();
     }
 
-#ifdef CONFIG_HAS_PCI
-    if ( pci_domain_reset(d) )
-        goto out;
-#endif
-
     num_resets = ACCESS_ONCE(d->reset_info.num_resets);
     if ( num_resets != UINT16_MAX )
         ACCESS_ONCE(d->reset_info.num_resets) = num_resets + 1;
