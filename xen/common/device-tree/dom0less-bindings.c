@@ -7,9 +7,45 @@
 #include <xen/grant_table.h>
 #include <xen/llc-coloring.h>
 #include <xen/sched.h>
+#include <asm/setup.h>
 
 #include <public/bootfdt.h>
 #include <public/domctl.h>
+
+static enum {
+    NONE,
+    EXPLICIT,
+    DEDUCED,
+} domid_policy __initdata = NONE;
+
+static void __init apply_dom0less_domid_policy(struct boot_domain *bd,
+                                               unsigned int flags,
+                                               struct dt_device_node *node)
+{
+    if ( bd->domid == DOMID_INVALID && domid_policy != EXPLICIT )
+    {
+        domid_policy = DEDUCED;
+        if ( flags & CDF_hardware )
+            bd->domid = 0;
+        else
+            bd->domid = ++max_init_domid;
+    }
+    else if ( domid_policy != DEDUCED )
+        domid_policy = EXPLICIT;
+    else
+        panic("can't mix domains with and without domid properties. domain node %s\n",
+              dt_node_name(node));
+
+    /*
+     * At this moment policy is verified and domid could have valid value or
+     * DOMID_INVALID. In both cases, domid_alloc() has to be called to
+     * - verify and store assigned domain ID value
+     * - or allocate domain ID
+     */
+    bd->domid = domid_alloc(bd->domid);
+    if ( bd->domid == DOMID_INVALID )
+        panic("Error allocating ID for domain node %s\n", dt_node_name(node));
+}
 
 int __init parse_dom0less_node(struct dt_device_node *node,
                                struct boot_domain *bd)
@@ -164,6 +200,8 @@ int __init parse_dom0less_node(struct dt_device_node *node,
 
         bd->domid = val;
     }
+
+    apply_dom0less_domid_policy(bd, *flags, node);
 
     /* Default to PVH, if available */
     if ( IS_ENABLED(CONFIG_HVM) )

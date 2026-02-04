@@ -842,44 +842,22 @@ void __init create_domUs(void)
 {
     struct dt_device_node *node;
     const struct dt_device_node *chosen = dt_find_node_by_path("/chosen");
-    enum {
-        NONE,
-        EXPLICIT,
-        DEDUCED,
-    } domid_policy = NONE;
 
     BUG_ON(chosen == NULL);
     dt_for_each_child_node(chosen, node)
     {
         struct kernel_info ki = KERNEL_INFO_INIT;
         int rc = parse_dom0less_node(node, &ki.bd);
-        domid_t domid;
 
         if ( rc == -ENOENT )
             continue;
         if ( rc )
             panic("Malformed DTB: Invalid domain %s\n", dt_node_name(node));
 
-        if ( ki.bd.domid == DOMID_INVALID && domid_policy != EXPLICIT )
-        {
-            domid_policy = DEDUCED;
-            ki.bd.domid = ++max_init_domid;
-        }
-        else if ( domid_policy != DEDUCED )
-            domid_policy = EXPLICIT;
-        else
-            panic("can't mix domains with and without domid properties\n");
+        max_init_domid = max(max_init_domid, ki.bd.domid);
 
-        if ( ki.bd.domid >= DOMID_FIRST_RESERVED )
-            panic("No more domain IDs available\n");
-
-        domid = domid_alloc(ki.bd.domid);
-        if ( domid == DOMID_INVALID )
-            panic("Error allocating ID for domain %s\n", dt_node_name(node));
-
-        max_init_domid = max(max_init_domid, domid);
-
-        ki.bd.d = domain_create(domid, &ki.bd.create_cfg, ki.bd.create_flags);
+        ki.bd.d = domain_create(ki.bd.domid, &ki.bd.create_cfg,
+                                ki.bd.create_flags);
         if ( IS_ERR(ki.bd.d) )
             panic("Error creating domain %s (rc = %ld)\n",
                   dt_node_name(node), PTR_ERR(ki.bd.d));

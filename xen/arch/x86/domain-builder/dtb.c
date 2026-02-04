@@ -61,21 +61,6 @@ static struct boot_module *__init find_boot_module(
 int __init arch_parse_dom0less_node(struct dt_device_node *node,
                                     struct boot_domain *bd)
 {
-    const struct boot_info *bi = &xen_boot_info;
-
-    for ( unsigned int i = 0; i < bi->nr_domains; i++ )
-    {
-        domid_t ith_domid = bi->domains[i].domid;
-
-        if ( (bd->domid == DOMID_INVALID && ith_domid != DOMID_INVALID) ||
-             (bd->domid != DOMID_INVALID && ith_domid == DOMID_INVALID) )
-            panic("can't mix domains with and without domid props (%s).\n",
-                   dt_node_name(node));
-        else if ( bd->domid == ith_domid )
-            panic("can't have domains with duplicate domids domid=%u.\n",
-                  bd->domid);
-    }
-
     if ( bd->create_cfg.flags & XEN_DOMCTL_CDF_hvm )
     {
         if ( hvm_hap_supported() )
