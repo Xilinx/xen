@@ -64,6 +64,7 @@
 #include <asm/pv/domain.h>
 #include <asm/pv/mm.h>
 #include <asm/regs.h>
+#include <asm/setup.h>
 #include <asm/spec_ctrl.h>
 #include <asm/system.h>
 #include <asm/traps.h>
@@ -972,6 +973,8 @@ int arch_domain_create(struct domain *d,
     domain_cpu_policy_changed(d);
 
     d->arch.msr_relaxed = config->arch.misc_flags & XEN_X86_MSR_RELAXED;
+
+    max_init_domid = max(max_init_domid, d->domain_id);
 
     return 0;
 

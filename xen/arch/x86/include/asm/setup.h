@@ -68,6 +68,6 @@ extern bool opt_dom0_verbose;
 extern bool opt_dom0_cpuid_faulting;
 extern bool opt_dom0_msr_relaxed;
 
-#define max_init_domid (0)
+extern domid_t max_init_domid;
 
 #endif

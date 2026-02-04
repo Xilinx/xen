@@ -114,6 +114,8 @@ static bool __initdata opt_xen_ibt = true;
 #define opt_xen_ibt false
 #endif
 
+domid_t __read_mostly max_init_domid;
+
 static int __init cf_check parse_cet(const char *s)
 {
     const char *ss;
