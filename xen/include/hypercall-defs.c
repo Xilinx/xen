@@ -314,7 +314,7 @@ mca                                do       do       -        -        -
 paging_domctl_cont                 do       do       do       do       -
 #endif
 #ifdef CONFIG_DOMAIN_FULL_RESET
-dom_full_reset                     -         -       -        -        -
+dom_full_reset                     -         -       -        -        do
 #endif
 
 #endif /* !CPPCHECK */
