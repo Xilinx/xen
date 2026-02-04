@@ -211,6 +211,10 @@ int p2m_init(struct domain *d);
 int p2m_teardown(struct domain *d);
 void p2m_final_teardown(struct domain *d);
 
+#ifdef CONFIG_DOMAIN_FULL_RESET
+int p2m_reset(struct domain *d);
+#endif
+
 /*
  * Remove mapping refcount on each mapping page in the p2m
  *

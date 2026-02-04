@@ -1469,6 +1469,113 @@ int p2m_teardown(struct domain *d)
     return rc;
 }
 
+#ifdef CONFIG_DOMAIN_FULL_RESET
+/*
+ * Callback to process one GFN range during p2m reset
+ */
+static int p2m_reset_range(unsigned long s, unsigned long e, void *data)
+{
+    struct domain *d = data;
+    unsigned long gfn;
+    int rc;
+
+    for ( gfn = s; gfn <= e; gfn++ )
+    {
+        struct page_info *page;
+        p2m_type_t t;
+        p2m_access_t a;
+        mfn_t mfn;
+        unsigned int order = 0;
+        bool valid;
+
+        mfn = p2m_get_entry(p2m_get_hostp2m(d), _gfn(gfn), &t, &a, &order, &valid);
+
+        /* Skip mapped superpages - process only 4K pages */
+        if ( order > 0 )
+        {
+            ASSERT(valid);
+            gfn += (1UL << order) - 1;
+            continue;
+        }
+
+        if ( valid && !mfn_eq(mfn, INVALID_MFN) )
+        {
+            page = mfn_to_page(mfn);
+
+            if ( p2m_is_foreign(t) && page )
+            {
+                put_page(page);
+                /* Remove the foreign mapping from p2m */
+                rc = p2m_set_entry(p2m_get_hostp2m(d), _gfn(gfn), 1,
+                                  INVALID_MFN, p2m_invalid, p2m_access_rwx);
+                if ( rc )
+                {
+                    printk(XENLOG_ERR "%pd: p2m_reset: failed to unmap foreign GFN %lx: %d\n",
+                           d, gfn, rc);
+                    return rc;
+                }
+            }
+            else if ( page && is_special_page(page) )
+                page_set_xenheap_gfn(page, INVALID_GFN);
+        }
+        else
+        {
+            /*
+             * Hole in the RAM region.
+             * Allocate and remap to restore original memory layout.
+             */
+            page = alloc_domheap_page(d, 0);
+            if ( !page )
+            {
+                printk(XENLOG_ERR "%pd: p2m_reset: failed to allocate page for GFN %lx\n",
+                       d, gfn);
+                return -ENOMEM;
+            }
+
+            rc = p2m_set_entry(p2m_get_hostp2m(d), _gfn(gfn), 1,
+                              page_to_mfn(page), p2m_ram_rw, p2m_access_rwx);
+            if ( rc )
+            {
+                printk(XENLOG_ERR "%pd: p2m_reset: failed to map hole GFN %lx: %d\n",
+                       d, gfn, rc);
+                put_page(page);
+                return rc;
+            }
+        }
+    }
+
+    return 0;
+}
+
+int p2m_reset(struct domain *d)
+{
+    struct p2m_domain *p2m = p2m_get_hostp2m(d);
+    struct reset_info *rinfo = d->arch.reset_info;
+    int rc;
+
+    if ( !rinfo || !rinfo->mem )
+    {
+        printk(XENLOG_ERR "%pd: p2m_reset: no reset_info or mem rangeset\n", d);
+        return -EINVAL;
+    }
+
+    p2m_write_lock(p2m);
+
+    /* Process all GFN ranges in the original memory layout */
+    rc = rangeset_report_ranges(rinfo->mem, 0,
+                                PFN_DOWN((1ULL << p2m_ipa_bits) - 1),
+                                p2m_reset_range, d);
+    if ( rc )
+        printk(XENLOG_ERR "%pd: p2m_reset: failed: %d\n", d, rc);
+    else
+        p2m_force_tlb_flush_sync(p2m);
+
+    p2m_write_unlock(p2m);
+
+    return rc;
+}
+#endif /* CONFIG_DOMAIN_FULL_RESET */
+
 void p2m_final_teardown(struct domain *d)
 {
     struct p2m_domain *p2m = p2m_get_hostp2m(d);
