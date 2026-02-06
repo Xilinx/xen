@@ -2050,7 +2050,8 @@ static const struct gic_hw_operations gicv3_ops = {
     .make_hwdom_madt     = gicv3_make_hwdom_madt,
     .get_hwdom_extra_madt_size = gicv3_get_hwdom_extra_madt_size,
 #endif
-    .iomem_deny_access   = gicv3_iomem_deny_access,
+    .iomem_deny_access   = IS_ENABLED(CONFIG_ACPI) ?
+                           gicv3_iomem_deny_access : NULL,
     .do_LPI              = gicv3_do_LPI,
 };
 
