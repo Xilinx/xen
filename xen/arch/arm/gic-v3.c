@@ -51,6 +51,9 @@ static DEFINE_PER_CPU(void __iomem*, rbase);
 #define GICD                   (gicv3.map_dbase)
 #define GICD_RDIST_BASE        (this_cpu(rbase))
 #define GICD_RDIST_SGI_BASE    (GICD_RDIST_BASE + SZ_64K)
+#define priorities             (CONFIG_GICV3_NR_PRIORITIES ?: \
+                                gicv3.nr_priorities)
+
 
 /*
  * Saves all 16(Max) LR registers. Though number of LRs implemented
@@ -347,7 +350,7 @@ static void restore_aprn_regs(const union gic_state_data *d)
 {
     /* Write APRn register based on number of priorities
        platform has implemented */
-    switch ( gicv3.nr_priorities )
+    switch ( priorities )
     {
     case 7:
         WRITE_SYSREG(d->v3.apr0[2], ICH_AP0R2_EL2);
@@ -370,7 +373,7 @@ static void save_aprn_regs(union gic_state_data *d)
 {
     /* Read APRn register based on number of priorities
        platform has implemented */
-    switch ( gicv3.nr_priorities )
+    switch ( priorities )
     {
     case 7:
         d->v3.apr0[2] = READ_SYSREG(ICH_AP0R2_EL2);
@@ -1338,6 +1341,7 @@ static unsigned int gicv3_read_apr(int apr_reg)
         ASSERT(gicv3.nr_priorities > 4 && gicv3.nr_priorities < 8);
         apr = READ_SYSREG(ICH_AP1R0_EL2);
         break;
+#if CONFIG_GICV3_NR_PRIORITIES > 5
     case 1:
         ASSERT(gicv3.nr_priorities > 5 && gicv3.nr_priorities < 8);
         apr = READ_SYSREG(ICH_AP1R1_EL2);
@@ -1346,6 +1350,7 @@ static unsigned int gicv3_read_apr(int apr_reg)
         ASSERT(gicv3.nr_priorities > 6 && gicv3.nr_priorities < 8);
         apr = READ_SYSREG(ICH_AP1R2_EL2);
         break;
+#endif
     default:
         BUG();
     }

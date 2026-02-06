@@ -292,6 +292,15 @@ config GICV3_NR_LRS
 	  Controls the number of Link registers to be accessed.
 	  On AMD hardware, 4 link registers are supported.
 
+config GICV3_NR_PRIORITIES
+	int "Number of GICv3 priority bits supported" if EXPERT
+	depends on GICV3
+	range 0 7
+	default 0
+	help
+	  Controls the number of priority bits supported.
+	  Keep it set to 0 to use a value obtained from a hardware register.
+
 menu "ARM errata workaround via the alternative framework"
 	depends on HAS_ALTERNATIVE
 
