@@ -45,6 +45,7 @@ static inline void evtchn_port_print_state(struct domain *d,
 /* 2-level */
 
 void evtchn_2l_init(struct domain *d);
+void evtchn_2l_reset(struct domain *d);
 
 /* FIFO */
 

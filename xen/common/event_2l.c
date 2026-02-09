@@ -113,6 +113,32 @@ void evtchn_2l_init(struct domain *d)
     d->evtchn_port_ops = &evtchn_port_ops_2l;
 }
 
+void evtchn_2l_reset(struct domain *d)
+{
+    unsigned int i;
+    struct vcpu *v;
+    unsigned int word_count = BITS_PER_EVTCHN_WORD(d);
+
+    write_lock(&d->event_lock);
+
+    for ( i = 0; i < word_count; i++ )
+    {
+        shared_info(d, evtchn_pending[i]) = 0;
+        shared_info(d, evtchn_mask[i]) = 0;
+    }
+
+    for_each_vcpu ( d, v )
+    {
+        vcpu_info(v, evtchn_pending_sel) = 0;
+        vcpu_info(v, evtchn_upcall_pending) = 0;
+#ifdef XEN_HAVE_PV_UPCALL_MASK
+        vcpu_info(v, evtchn_upcall_mask) = 1;
+#endif
+    }
+
+    write_unlock(&d->event_lock);
+}
+
 /*
  * Local variables:
  * mode: C
