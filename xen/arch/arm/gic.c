@@ -423,12 +423,12 @@ unsigned long gic_get_hwdom_madt_size(const struct domain *d)
 
     return madt_size;
 }
-#endif
 
 int gic_iomem_deny_access(struct domain *d)
 {
     return gic_hw_ops->iomem_deny_access(d);
 }
+#endif
 
 static int cpu_gic_callback(struct notifier_block *nfb,
                             unsigned long action,
