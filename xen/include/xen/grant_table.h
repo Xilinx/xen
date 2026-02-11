@@ -54,6 +54,21 @@ void grant_table_init_vcpu(struct vcpu *v);
  */
 void grant_table_warn_active_grants(struct domain *d);
 
+/*
+ * Reset grant table to a partial initial state
+ *
+ * Releases all grant mappings made by this domain and clears all grant
+ * entries. Reserved entries (xenstore/xenconsole) are preserved across
+ * the reset.
+ *
+ * Returns -EBUSY if remote domains still hold active grants from this
+ * domain. Remote domains must revoke their mappings before reset.
+ *
+ * Returns -EOPNOTSUPP for grant table version 2 (not yet supported) and
+ * !paging_mode_translate(d) are not supported.
+ */
+int grant_table_reset(struct domain *d);
+
 /* Domain death release of granted mappings of other domains' memory. */
 int gnttab_release_mappings(struct domain *d);
 
@@ -90,6 +105,10 @@ static inline void grant_table_destroy(struct domain *d) {}
 static inline void grant_table_init_vcpu(struct vcpu *v) {}
 
 static inline void grant_table_warn_active_grants(struct domain *d) {}
+
+#ifdef CONFIG_DOMAIN_FULL_RESET
+static inline int grant_table_reset(struct domain *d) { return 0; }
+#endif
 
 static inline int gnttab_release_mappings(struct domain *d) { return 0; }
 

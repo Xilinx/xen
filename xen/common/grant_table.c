@@ -3832,7 +3832,7 @@ int gnttab_release_mappings(struct domain *d)
     uint16_t             *status;
     struct page_info     *pg;
 
-    BUG_ON(!d->is_dying);
+    BUG_ON(!d->is_dying && !ACCESS_ONCE(d->is_shutting_down));
 
     if ( !gt || !gt->maptrack )
         return 0;
@@ -3854,7 +3854,8 @@ int gnttab_release_mappings(struct domain *d)
              * to leave gt->maptrack_limit unaltered).
              */
             gt->maptrack_limit = handle;
-            FREE_XENHEAP_PAGE(gt->maptrack[nr_maptrack_frames(gt)]);
+            if ( d->is_dying )
+                FREE_XENHEAP_PAGE(gt->maptrack[nr_maptrack_frames(gt)]);
 
             if ( hypercall_preempt_check() )
                 return -ERESTART;
@@ -3955,9 +3956,12 @@ int gnttab_release_mappings(struct domain *d)
     }
 
     gt->maptrack_limit = 0;
-    FREE_XENHEAP_PAGE(gt->maptrack[0]);
 
-    radix_tree_destroy(&gt->maptrack_tree, NULL);
+    if ( d->is_dying )
+    {
+        FREE_XENHEAP_PAGE(gt->maptrack[0]);
+        radix_tree_destroy(&gt->maptrack_tree, NULL);
+    }
 
     return 0;
 }
@@ -4008,6 +4012,106 @@ void grant_table_warn_active_grants(struct domain *d)
 #undef WARN_GRANT_MAX
 }
 #endif /* CONFIG_HAS_SOFT_RESET */
+
+int grant_table_reset(struct domain *d)
+{
+    struct grant_table *gt = d->grant_table;
+    grant_entry_v1_t reserved_sha1[GNTTAB_NR_RESERVED_ENTRIES];
+    struct active_grant_entry reserved_act[GNTTAB_NR_RESERVED_ENTRIES];
+    unsigned int i, j;
+    int rc = 0;
+
+    if ( !gt )
+        return 0;
+
+    rc = gnttab_release_mappings(d);
+    if ( rc )
+    {
+        if ( rc != -ERESTART )
+            printk(XENLOG_ERR "d%d: Failed to release grant mappings: %d\n",
+                   d->domain_id, rc);
+        return rc;
+    }
+
+    grant_write_lock(gt);
+
+    /* Status pages - version 2 not supported yet */
+    if ( evaluate_nospec(gt->gt_version > 1) )
+    {
+        printk(XENLOG_ERR "d%d: Grant table version 2 reset not supported\n",
+               d->domain_id);
+        rc = -EOPNOTSUPP;
+        goto out;
+    }
+
+    if ( !paging_mode_translate(d) )
+    {
+        rc = -EOPNOTSUPP;
+        goto out;
+    }
+
+#ifdef CONFIG_ARM
+    /*
+     * On ARM, grant table shared pages are allocated from xenheap.
+     * Clear their GFN back-references to allow proper reinitialization
+     * during domain_reset_grant_table_setup().
+     * On x86, grant pages are domheap so this isn't needed.
+     */
+    for ( i = 0; i != nr_grant_frames(gt); i++ )
+        page_set_xenheap_gfn(gnttab_shared_page(gt, i), INVALID_GFN);
+#endif
+
+    /*
+     * Check for inbound mappings (grants that OTHER domains have
+     * mapped FROM this domain). Do this AFTER gnttab_release_mappings() so
+     * we don't count our own outbound mappings.
+     *
+     * Do this check BEFORE clearing entries to avoid inconsistent state.
+     */
+    for ( i = GNTTAB_NR_RESERVED_ENTRIES; i < nr_grant_entries(gt); i++ )
+    {
+        struct active_grant_entry *act = active_entry_acquire(gt, i);
+        if ( act->pin )
+        {
+            active_entry_release(act);
+            rc = -EBUSY;
+            goto out;
+        }
+        active_entry_release(act);
+    }
+
+    /*
+     * Now safe to modify grant table state.
+     * Save reserved entries (xenstore, xenconsole).
+     */
+    memcpy(reserved_sha1, &shared_entry_v1(gt, 0), sizeof(reserved_sha1));
+    memcpy(reserved_act, &_active_entry(gt, 0), sizeof(reserved_act));
+
+    /*
+     * Clear active grant entries.
+     * Safe to reinitialize locks: domain is paused and we've verified
+     * no remote mappings exist (all pin counts are 0).
+     */
+    for ( i = 0; i < nr_active_grant_frames(gt); i++ )
+    {
+        clear_page(gt->active[i]);
+        for ( j = 0; j < ACGNT_PER_PAGE; j++ )
+            spin_lock_init(&gt->active[i][j].lock);
+    }
+
+    for ( i = 0; i < nr_grant_frames(gt); i++ )
+        clear_page(gt->shared_raw[i]);
+
+    gnttab_flush_tlb(d);
+
+    /* Restore reserved entries (xenstore, xenconsole) */
+    memcpy(&shared_entry_v1(gt, 0), reserved_sha1, sizeof(reserved_sha1));
+    memcpy(&_active_entry(gt, 0), reserved_act, sizeof(reserved_act));
+
+out:
+    grant_write_unlock(gt);
+    return rc;
+}
 
 void
 grant_table_destroy(
