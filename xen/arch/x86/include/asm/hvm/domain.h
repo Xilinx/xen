@@ -104,8 +104,10 @@ struct hvm_domain {
 
     bool                   is_s3_suspended;
 
+#ifdef CONFIG_HVM_SAVE_RESTORE
     /* Compatibility setting for a bug in x2APIC LDR */
     bool bug_x2apic_ldr_vcpu_id;
+#endif
 
     /* hypervisor intercepted msix table */
     struct list_head       msixtbl_list;

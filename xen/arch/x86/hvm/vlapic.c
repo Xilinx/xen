@@ -1111,12 +1111,14 @@ static void set_x2apic_id(struct vlapic *vlapic)
     uint32_t apic_id = v->vcpu_id * 2;
     uint32_t apic_ldr = x2apic_ldr_from_id(apic_id);
 
+#ifdef CONFIG_HVM_SAVE_RESTORE
     /*
      * Workaround for migrated domains to derive LDRs as the source host
      * would've.
      */
     if ( v->domain->arch.hvm.bug_x2apic_ldr_vcpu_id )
         apic_ldr = x2apic_ldr_from_id(v->vcpu_id);
+#endif
 
     vlapic_set_reg(vlapic, APIC_ID, apic_id);
     vlapic_set_reg(vlapic, APIC_LDR, apic_ldr);
