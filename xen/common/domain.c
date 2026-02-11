@@ -2590,6 +2590,10 @@ void getdomaininfo(struct domain *d, struct xen_domctl_getdomaininfo *info)
     arch_get_domain_info(d, info);
 }
 
+#ifdef CONFIG_DOMAIN_FULL_RESET
+long do_dom_full_reset(domid_t domid) { return -EOPNOTSUPP; }
+#endif
+
 /*
  * Local variables:
  * mode: C
