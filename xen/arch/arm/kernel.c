@@ -273,9 +273,11 @@ int __init kernel_uimage_probe(struct kernel_info *info,
 #ifdef CONFIG_ARM_64
     switch ( uimage.arch )
     {
+#ifdef CONFIG_ARM64_AARCH32
     case IH_ARCH_ARM:
         info->arch.type = DOMAIN_32BIT;
         break;
+#endif
     case IH_ARCH_ARM64:
         info->arch.type = DOMAIN_64BIT;
         break;
@@ -353,6 +355,7 @@ static int __init kernel_zimage64_probe(struct kernel_info *info,
 }
 #endif
 
+#if defined(CONFIG_ARM_32) || defined(CONFIG_ARM64_AARCH32)
 /*
  * Check if the image is a 32-bit zImage and setup kernel_info
  */
@@ -404,6 +407,7 @@ static int __init kernel_zimage32_probe(struct kernel_info *info,
 
     return 0;
 }
+#endif
 
 int __init kernel_zimage_probe(struct kernel_info *info, paddr_t addr,
                                paddr_t size)
@@ -412,9 +416,14 @@ int __init kernel_zimage_probe(struct kernel_info *info, paddr_t addr,
 
 #ifdef CONFIG_ARM_64
     rc = kernel_zimage64_probe(info, addr, size);
-    if (rc < 0)
+    if ( rc == 0 )
+        return 0;
 #endif
-        rc = kernel_zimage32_probe(info, addr, size);
+
+#if defined(CONFIG_ARM_32) || defined(CONFIG_ARM64_AARCH32)
+    /* Fallback to 32-bit probe if 64-bit failed or wasn't checked */
+    rc = kernel_zimage32_probe(info, addr, size);
+#endif
 
     return rc;
 }
