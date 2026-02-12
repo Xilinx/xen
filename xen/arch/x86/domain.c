@@ -621,6 +621,40 @@ void arch_vcpu_destroy(struct vcpu *v)
 
 int arch_vcpu_state_reset(struct vcpu *v)
 {
+    arch_vcpu_regs_init(v);
+
+    v->arch.flags = TF_kernel_mode;
+
+    if ( IS_ENABLED(CONFIG_VPMU) )
+        vpmu_state_reset(v);
+
+    v->arch.async_exception_mask = 0;
+    memset(v->arch.async_exception_state, 0,
+           sizeof(v->arch.async_exception_state));
+
+    v->arch.fully_eager_fpu = opt_eager_fpu;
+    xstate_reset_save_area(v);
+    vcpu_reset_fpu(v);
+
+    reset_vcpu_msr_policy(v);
+
+    paging_vcpu_reset(v);
+
+    if ( is_hvm_vcpu(v) )
+    {
+        int rc = hvm_vcpu_reset(v);
+        if ( rc )
+            return rc;
+    }
+
+    v->arch.gdbsx_vcpu_event = 0;
+
+    vmce_reset_vcpu(v);
+
+    unmap_guest_area(v, &v->arch.time_guest_area);
+    set_xen_guest_handle(v->arch.time_info_guest, NULL);
+
+    return 0;
 }
 
 int arch_sanitise_domain_config(struct xen_domctl_createdomain *config)
