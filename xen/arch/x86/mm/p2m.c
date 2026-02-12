@@ -2229,6 +2229,83 @@ bool xenmem_access_to_p2m_access(const struct p2m_domain *p2m,
 }
 #endif /* VM_EVENT || ALTP2M */
 
+int p2m_reset(struct domain *d)
+{
+    struct p2m_domain *p2m = p2m_get_hostp2m(d);
+    struct reset_info *reset_info = d->arch.hvm.reset_info;
+    unsigned long gfn;
+    int rc = 0;
+
+    p2m_lock(p2m);
+
+    gfn = p2m->teardown_gfn;
+    while ( gfn <= p2m->max_mapped_pfn )
+    {
+        p2m_type_t p2mt;
+        p2m_access_t a;
+        mfn_t mfn;
+
+        mfn = _get_gfn_type_access(p2m, _gfn(gfn), &p2mt, &a, 0, NULL, 0);
+
+        if ( p2m->nr_foreign && p2m_is_foreign(p2mt) )
+        {
+            /* Release references to foreign memory */
+            rc = p2m_set_entry(p2m, _gfn(gfn), INVALID_MFN, 0, p2m_invalid,
+                               p2m->default_access);
+            if ( rc )
+            {
+                printk(XENLOG_ERR "%s: failed to unmap %" PRI_gfn " (%d)\n",
+                       __func__, gfn, rc);
+                break;
+            }
+            mfn = INVALID_MFN;
+        }
+
+        if ( !mfn_valid(mfn) && reset_info &&
+             rangeset_contains_singleton(reset_info->mem, gfn) )
+        {
+            /* Reallocate guest's foreign mapped or ballooned out RAM */
+            struct page_info *page;
+
+            page = alloc_domheap_page(d, 0);
+            if ( !page )
+            {
+                printk(XENLOG_ERR  "%s: failed to alloc\n", __func__);
+                rc = -ENOMEM;
+                break;
+            }
+            rc = guest_physmap_add_page(d, _gfn(gfn), page_to_mfn(page), 0);
+            if ( rc )
+            {
+                printk(XENLOG_ERR
+                       "%s: failed to map new page to %" PRI_gfn " (%d)\n",
+                       __func__, gfn, rc);
+                free_domheap_page(page);
+                break;
+            }
+        }
+
+        gfn++;
+        if ( !(gfn & 0xff) && hypercall_preempt_check() )
+        {
+            rc = -ERESTART;
+            break;
+        }
+    }
+
+    if ( gfn > p2m->max_mapped_pfn )
+    {
+        p2m->teardown_gfn = 0;
+        rc = 0;
+    }
+    else
+        p2m->teardown_gfn = gfn;
+
+    p2m_unlock(p2m);
+
+    return rc;
+}
+
 /*
  * Local variables:
  * mode: C

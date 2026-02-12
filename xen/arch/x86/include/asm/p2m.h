@@ -388,7 +388,7 @@ struct p2m_domain {
 
     /* Number of foreign mappings. */
     unsigned long      nr_foreign;
-    /* Cursor for iterating over the p2m on teardown. */
+    /* Cursor for iterating over the p2m on teardown and reset. */
     unsigned long      teardown_gfn;
 #endif /* CONFIG_HVM */
 };
@@ -1107,6 +1107,8 @@ static inline int p2m_entry_modify(struct p2m_domain *p2m, p2m_type_t nt,
 
     return 0;
 }
+
+int p2m_reset(struct domain *d);
 
 #endif /* CONFIG_HVM */
 
