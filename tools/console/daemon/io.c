@@ -955,6 +955,40 @@ static void shutdown_domain(struct domain *d)
 	console_iter_void_arg1(d, console_close_evtchn);
 }
 
+/* Reconnect to domain's PV console, if its state is not connected. */
+static void reconnect_domain(struct domain *d)
+{
+	struct console *con = &d->console[0];
+	struct xencons_interface *intf = con->interface;
+	int rc;
+
+	if (d->is_dead || !intf || (intf->connection == XENCONSOLE_CONNECTED))
+		return;
+
+	fprintf(stderr, "Reconnecting Xenconsoled to d%u\n", d->domid);
+	if (!con->xce_handle) {
+		fprintf(stderr, "Event channel was closed, bail out\n");
+		return;
+	}
+	if (con->local_port != -1) {
+		fprintf(stderr, "Unbind local port %d\n", con->local_port);
+		xenevtchn_unbind(con->xce_handle, con->local_port);
+	}
+	rc = xenevtchn_bind_interdomain(con->xce_handle,
+					d->domid, con->remote_port);
+	if (rc == -1) {
+		fprintf(stderr, "Failed to bind to port %d\n",
+			con->remote_port);
+		xenevtchn_close(con->xce_handle);
+		con->xce_handle = NULL;
+		con->local_port = -1;
+		con->remote_port = -1;
+		return;
+	}
+	con->local_port = rc;
+	intf->connection = XENCONSOLE_CONNECTED;
+}
+
 static unsigned enum_pass = 0;
 
 static void enum_domains(void)
@@ -983,6 +1017,8 @@ static void enum_domains(void)
 		} else {
 			if (dom == NULL)
 				dom = create_domain(domaininfo[i].domain);
+			else
+				reconnect_domain(dom);
 		}
 		if (dom)
 			dom->last_seen = enum_pass;
