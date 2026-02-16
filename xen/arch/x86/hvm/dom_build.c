@@ -226,7 +226,7 @@ static unsigned long __init hvm_size_acpi_region(struct domain *d)
 static void __init hvm_setup_e820(struct domain *d, unsigned long nr_pages)
 {
     const uint32_t lowmem_reserved_base = 0xA0000;
-    unsigned long low_pages, ext_pages, mmio_pages, acpi_pages;
+    unsigned long low_pages, ext_pages, acpi_pages;
     unsigned long page_count = 0, high_pages = 0;
     unsigned long max_ext_pages, mmio_start = HVM_BELOW_4G_MMIO_START;
     unsigned nr = 0, e820_entries = 5;
@@ -241,17 +241,16 @@ static void __init hvm_setup_e820(struct domain *d, unsigned long nr_pages)
         panic("Insufficient memory for HVM/PVH domain (%pd)\n", d);
 
     acpi_pages = hvm_size_acpi_region(d) >> PAGE_SHIFT;
-    mmio_pages = acpi_pages + NR_SPECIAL_PAGES;
 
     /* ext pages: from 1MB to mmio hole */
-    ext_pages = nr_pages - (PFN_DOWN(MB(1)) + mmio_pages);
+    ext_pages = nr_pages - PFN_DOWN(MB(1));
     max_ext_pages = PFN_DOWN(mmio_start - MB(1));
     if ( ext_pages > max_ext_pages )
         ext_pages = max_ext_pages;
 
     /* high pages: above 4GB */
-    if ( nr_pages > (PFN_DOWN(MB(1)) + mmio_pages + ext_pages) )
-        high_pages = nr_pages - (PFN_DOWN(MB(1)) + mmio_pages + ext_pages);
+    if ( nr_pages > (PFN_DOWN(MB(1)) + ext_pages) )
+        high_pages = nr_pages - (PFN_DOWN(MB(1)) + ext_pages);
 
     /* If we should have a highmem range, add one more e820 entry */
     if ( high_pages )
@@ -294,14 +293,12 @@ static void __init hvm_setup_e820(struct domain *d, unsigned long nr_pages)
     d->arch.e820[nr].addr = 0xFC000000U;
     d->arch.e820[nr].size = acpi_pages << PAGE_SHIFT;
     d->arch.e820[nr].type = E820_ACPI;
-    page_count += d->arch.e820[nr].size >> PAGE_SHIFT;
     nr++;
 
     /* reserved: HVM special pages, X86_HVM_END_SPECIAL_REGION */
     d->arch.e820[nr].addr = START_SPECIAL_REGION << PAGE_SHIFT;
     d->arch.e820[nr].size = NR_SPECIAL_PAGES << PAGE_SHIFT;
     d->arch.e820[nr].type = E820_RESERVED;
-    page_count += d->arch.e820[nr].size >> PAGE_SHIFT;
     nr++;
 
     /* usable: highmem */

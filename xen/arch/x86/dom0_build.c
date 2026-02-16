@@ -346,6 +346,13 @@ static unsigned long __init default_nr_pages(unsigned long avail)
                             : min(avail / 16, 128UL << (20 - PAGE_SHIFT)));
 }
 
+/*
+ * Extends domain "max_pages"("max_mem") parameter by fixed amount memory 1Mb
+ * to be used for Xen internals (magic pages, ACPI, ..).
+ * See toolstack LIBXL_MAXMEM_CONSTANT(1Mb), libxl__arch_extra_memory().
+ */
+#define DOMU_MAXPAGES_CONSTANT PFN_DOWN(MB(1))
+
 unsigned long __init dom_compute_nr_pages(struct boot_domain *bd,
                                           struct elf_dom_parms *parms)
 {
@@ -358,6 +365,8 @@ unsigned long __init dom_compute_nr_pages(struct boot_domain *bd,
     {
         nr_pages =  (bd->memory * SZ_1K) / PAGE_SIZE;
         max_pages = nr_pages;
+        if ( !(bd->create_flags & CDF_hardware) )
+            max_pages += DOMU_MAXPAGES_CONSTANT;
 
         goto out;
     }
