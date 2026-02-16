@@ -30,7 +30,7 @@ static void __init apply_dom0less_domid_policy(struct boot_domain *bd,
         else
             bd->domid = ++max_init_domid;
     }
-    else if ( domid_policy != DEDUCED )
+    else if ( bd->domid != DOMID_INVALID && domid_policy != DEDUCED )
         domid_policy = EXPLICIT;
     else
         panic("can't mix domains with and without domid properties. domain node %s\n",
