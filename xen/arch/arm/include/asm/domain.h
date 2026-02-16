@@ -60,6 +60,28 @@ struct paging_domain {
     unsigned long p2m_total_pages;
 };
 
+#ifdef CONFIG_DOMAIN_FULL_RESET
+struct reset_info {
+    void *kernel_start;
+    size_t kernel_size;
+    void *initrd_start;
+    size_t initrd_size;
+    void *fdt;
+    size_t fdt_size;
+
+    paddr_t entry;
+    paddr_t initrd_paddr;
+    paddr_t dtb_paddr;
+
+    /* Original GFN ranges allocated at domain creation */
+    struct rangeset *mem;
+
+    /* Continuable state */
+    unsigned int stage;
+    unsigned int size;
+};
+#endif
+
 struct arch_domain
 {
 #ifdef CONFIG_ARM_64
@@ -125,6 +147,10 @@ struct arch_domain
     bool sci_enabled;
     /* ARM SCI driver's specific data */
     void *sci_data;
+#endif
+
+#ifdef CONFIG_DOMAIN_FULL_RESET
+    struct reset_info *reset_info;
 #endif
 
 }  __cacheline_aligned;
