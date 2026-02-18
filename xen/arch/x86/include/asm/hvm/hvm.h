@@ -841,13 +841,13 @@ static inline int hvm_pi_update_irte(const struct vcpu *v,
 
 static inline void hvm_update_vlapic_mode(struct vcpu *v)
 {
-    if ( hvm_funcs.update_vlapic_mode )
+    if ( IS_ENABLED(CONFIG_INTEL_VMX) && hvm_funcs.update_vlapic_mode )
         alternative_vcall(hvm_funcs.update_vlapic_mode, v);
 }
 
 static inline void hvm_sync_pir_to_irr(struct vcpu *v)
 {
-    if ( hvm_funcs.sync_pir_to_irr )
+    if ( IS_ENABLED(CONFIG_INTEL_VMX) && hvm_funcs.sync_pir_to_irr )
         alternative_vcall(hvm_funcs.sync_pir_to_irr, v);
 }
 

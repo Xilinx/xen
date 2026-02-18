@@ -142,7 +142,7 @@ bool vlapic_test_irq(const struct vlapic *vlapic, uint8_t vec)
     if ( unlikely(!APIC_VECTOR_VALID(vec)) )
         return false;
 
-    if ( hvm_funcs.test_pir &&
+    if ( IS_ENABLED(CONFIG_INTEL_VMX) && hvm_funcs.test_pir &&
          alternative_call(hvm_funcs.test_pir, const_vlapic_vcpu(vlapic), vec) )
         return true;
 
@@ -164,10 +164,10 @@ void vlapic_set_irq(struct vlapic *vlapic, uint8_t vec, uint8_t trig)
     else
         vlapic_clear_vector(vec, &vlapic->regs->data[APIC_TMR]);
 
-    if ( hvm_funcs.update_eoi_exit_bitmap )
+    if ( IS_ENABLED(CONFIG_INTEL_VMX) && hvm_funcs.update_eoi_exit_bitmap )
         alternative_vcall(hvm_funcs.update_eoi_exit_bitmap, target, vec, trig);
 
-    if ( hvm_funcs.deliver_posted_intr )
+    if ( IS_ENABLED(CONFIG_INTEL_VMX) && hvm_funcs.deliver_posted_intr )
         alternative_vcall(hvm_funcs.deliver_posted_intr, target, vec);
     else if ( !vlapic_test_and_set_irr(vec, vlapic) )
         vcpu_kick(target);
@@ -453,7 +453,7 @@ void vlapic_EOI_set(struct vlapic *vlapic)
 
     vlapic_clear_vector(vector, &vlapic->regs->data[APIC_ISR]);
 
-    if ( hvm_funcs.handle_eoi )
+    if ( IS_ENABLED(CONFIG_INTEL_VMX) && hvm_funcs.handle_eoi )
         alternative_vcall(hvm_funcs.handle_eoi, vector,
                           vlapic_find_highest_isr(vlapic));
 
@@ -1369,7 +1369,8 @@ int vlapic_has_pending_irq(struct vcpu *v)
     if ( irr == -1 )
         return -1;
 
-    if ( hvm_funcs.caps.virtual_intr_delivery &&
+    if ( IS_ENABLED(CONFIG_INTEL_VMX) &&
+         hvm_funcs.caps.virtual_intr_delivery &&
          !nestedhvm_vcpu_in_guestmode(v) )
         return irr;
 
@@ -1405,7 +1406,7 @@ int vlapic_ack_pending_irq(struct vcpu *v, int vector, bool force_ack)
     struct vlapic *vlapic = vcpu_vlapic(v);
     int isr;
 
-    if ( !force_ack &&
+    if ( !force_ack && IS_ENABLED(CONFIG_INTEL_VMX) &&
          hvm_funcs.caps.virtual_intr_delivery )
         return 1;
 
@@ -1686,7 +1687,7 @@ static int cf_check lapic_load_regs(struct domain *d, hvm_domain_context_t *h)
     if ( s->loaded.hw )
         lapic_load_fixup(s);
 
-    if ( hvm_funcs.process_isr )
+    if ( IS_ENABLED(CONFIG_INTEL_VMX) && hvm_funcs.process_isr )
         alternative_vcall(hvm_funcs.process_isr,
                           vlapic_find_highest_isr(s), v);
 
