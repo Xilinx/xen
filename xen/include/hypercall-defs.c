@@ -215,7 +215,7 @@ hvm_op(unsigned long op, void *arg)
 #ifdef CONFIG_HYPFS
 hypfs_op(unsigned int cmd, const char *arg1, unsigned long arg2, void *arg3, unsigned long arg4)
 #endif
-#ifdef CONFIG_X86
+#if defined(CONFIG_X86) && defined(CONFIG_VPMU)
 xenpmu_op(unsigned int op, xen_pmu_params_t *arg)
 #endif
 
@@ -295,7 +295,9 @@ tmem_op                            -        -        -        -        -
 #ifdef CONFIG_ARGO
 argo_op                            compat   do       compat   do       do
 #endif
+#if defined(CONFIG_X86) && defined(CONFIG_VPMU)
 xenpmu_op                          do       do       do       do       -
+#endif
 #ifdef CONFIG_IOREQ_SERVER
 dm_op                              compat   do       compat   do       do
 #endif

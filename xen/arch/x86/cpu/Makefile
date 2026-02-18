@@ -10,6 +10,8 @@ obj-y += intel.o
 obj-y += intel_cacheinfo.o
 obj-$(CONFIG_INTEL) += mwait-idle.o
 obj-y += shanghai.o
+ifeq ($(CONFIG_VPMU), y)
 obj-y += vpmu.o
 obj-$(CONFIG_AMD) += vpmu_amd.o
 obj-$(CONFIG_INTEL) += vpmu_intel.o
+endif

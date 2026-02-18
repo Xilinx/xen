@@ -12,9 +12,16 @@
 
 #include <public/pmu.h>
 
+#ifdef CONFIG_VPMU
 #define vcpu_vpmu(vcpu)   (&(vcpu)->arch.vpmu)
 #define vpmu_vcpu(vpmu)   container_of((vpmu), struct vcpu, arch.vpmu)
-#define vpmu_available(vcpu) vpmu_is_set(vcpu_vpmu(vcpu), VPMU_AVAILABLE)
+#else
+#define vcpu_vpmu(vcpu) (NULL)
+#define vpmu_vcpu(vpmu) (NULL)
+#endif
+#define vpmu_available(vcpu) (IS_ENABLED(CONFIG_VPMU) \
+                              ? vpmu_is_set(vcpu_vpmu(vcpu), VPMU_AVAILABLE) \
+                              : false)
 
 #define MSR_TYPE_COUNTER            0
 #define MSR_TYPE_CTRL               1
@@ -97,6 +104,7 @@ static inline bool vpmu_are_all_set(const struct vpmu_struct *vpmu,
     return !!((vpmu->flags & mask) == mask);
 }
 
+#ifdef CONFIG_VPMU
 void vpmu_lvtpc_update(uint32_t val);
 int vpmu_do_msr(unsigned int msr, uint64_t *msr_content, bool is_write);
 void vpmu_do_interrupt(void);
@@ -106,6 +114,25 @@ void vpmu_save(struct vcpu *v);
 void cf_check vpmu_save_force(void *arg);
 int vpmu_load(struct vcpu *v, bool from_guest);
 void vpmu_dump(struct vcpu *v);
+#else
+static inline void vpmu_lvtpc_update(uint32_t val) {};
+static inline int vpmu_do_msr(unsigned int msr, uint64_t *msr_content,
+                              bool is_write)
+{
+    return -ENOSYS;
+}
+static inline void vpmu_do_interrupt(void) {}
+static inline void vpmu_initialise(struct vcpu *v) {}
+static inline void vpmu_destroy(struct vcpu *v) {}
+static inline void vpmu_save(struct vcpu *v) {}
+static inline void cf_check vpmu_save_force(void *arg) {}
+static inline int vpmu_load(struct vcpu *v, bool from_guest)
+{
+    return -ENOSYS;
+}
+static inline void vpmu_dump(struct vcpu *v) {}
+#endif
+
 
 static inline int vpmu_do_wrmsr(unsigned int msr, uint64_t msr_content)
 {
@@ -116,8 +143,13 @@ static inline int vpmu_do_rdmsr(unsigned int msr, uint64_t *msr_content)
     return vpmu_do_msr(msr, msr_content, false /* read */);
 }
 
+#ifdef CONFIG_VPMU
 extern unsigned int vpmu_mode;
 extern unsigned int vpmu_features;
+#else
+#define vpmu_mode XENPMU_MODE_OFF
+#define vpmu_features 0
+#endif
 
 /* Context switch */
 static inline void vpmu_switch_from(struct vcpu *prev)
@@ -132,7 +164,7 @@ static inline void vpmu_switch_to(struct vcpu *next)
         vpmu_load(next, 0);
 }
 
-#ifdef CONFIG_MEM_SHARING
+#if defined(CONFIG_VPMU) && defined(CONFIG_MEM_SHARING)
 int vpmu_allocate_context(struct vcpu *v);
 #else
 static inline int vpmu_allocate_context(struct vcpu *v)

@@ -140,7 +140,9 @@ vcpu_info_t dummy_vcpu_info;
 bool __read_mostly vmtrace_available;
 #endif
 
+#ifdef CONFIG_VPMU
 bool __read_mostly vpmu_is_available;
+#endif
 
 static unsigned long *__read_mostly dom_state_changed;
 

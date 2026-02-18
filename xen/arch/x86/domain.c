@@ -568,7 +568,9 @@ int arch_vcpu_create(struct vcpu *v)
     else if ( (rc = xstate_alloc_save_area(v)) != 0 )
         return rc;
 
+#ifdef CONFIG_VPMU
     spin_lock_init(&v->arch.vpmu.vpmu_lock);
+#endif
 
     if ( is_hvm_domain(d) )
         rc = hvm_vcpu_initialise(v);

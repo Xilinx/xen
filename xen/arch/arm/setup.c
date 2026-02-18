@@ -459,8 +459,10 @@ void asmlinkage __init noreturn start_xen(unsigned long fdt_paddr)
     printk("Brought up %ld CPUs\n", (long)num_online_cpus());
     /* TODO: smp_cpus_done(); */
 
+#ifdef CONFIG_VPMU
     /* This should be done in a vpmu driver but we do not have one yet. */
     vpmu_is_available = cpu_has_pmu;
+#endif
 
     /*
      * The IOMMU subsystem must be initialized before P2M as we need

@@ -685,6 +685,22 @@ config PM_STATS
 	  Enable collection of performance management statistics to aid in
 	  analyzing and tuning power/performance characteristics of the system
 
+config VPMU
+	bool "Virtual Performance Monitoring Unit"
+	depends on ARM || X86
+	default y
+	help
+	  Xen Virtual Performance Monitoring Unit exposes Performance Monitoring
+	  Counters to Xen guests.
+
+	  On x86 PV guests have a hypercall interface, and PVH and HVM guests can
+	  use an emulated MSR interface.
+
+	  On ARM, guests can access Performance Monitor system registers.
+
+	  This option controls building the feature.  At boot it must be enabled
+	  with the "vpmu" command line parameter.
+
 source "common/Kconfig.decompress"
 
 config SKIP_WARNING_DELAY

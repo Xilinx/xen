@@ -1664,6 +1664,9 @@ static int copy_vpmu(struct vcpu *d_vcpu, struct vcpu *cd_vcpu)
     struct vpmu_struct *cd_vpmu = vcpu_vpmu(cd_vcpu);
     int ret;
 
+    if ( !IS_ENABLED(CONFIG_VPMU) )
+        return 0;
+
     if ( !vpmu_are_all_set(d_vpmu, VPMU_INITIALIZED | VPMU_CONTEXT_ALLOCATED) )
         return 0;
     if ( (ret = vpmu_allocate_context(cd_vcpu)) )

@@ -613,7 +613,9 @@ struct arch_vcpu
 
     unsigned long      flags; /* TF_ */
 
+#ifdef CONFIG_VPMU
     struct vpmu_struct vpmu;
+#endif
 
     struct {
         bool    pending;

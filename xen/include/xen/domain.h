@@ -196,7 +196,11 @@ extern bool vmtrace_available;
 #define vmtrace_available false
 #endif
 
+#ifdef CONFIG_VPMU
 extern bool vpmu_is_available;
+#else
+#define vpmu_is_available false
+#endif
 
 void domain_vcpu_affinity(struct domain *d, const cpumask_t *hard_affinity);
 
