@@ -81,7 +81,8 @@ static inline bool ioreq_needs_completion(const ioreq_t *ioreq)
 }
 
 #define HANDLE_BUFIOREQ(s) \
-    ((s)->bufioreq_handling != HVM_IOREQSRV_BUFIOREQ_OFF)
+    (IS_ENABLED(CONFIG_IOREQ_BUFFERED) && \
+    (s)->bufioreq_handling != HVM_IOREQSRV_BUFIOREQ_OFF)
 
 bool domain_has_ioreq_server(const struct domain *d);
 

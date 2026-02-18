@@ -341,9 +341,13 @@ config HYPFS_CONFIG
 	  Disable this option in case you want to spare some memory or you
 	  want to hide the .config contents from dom0.
 
+config IOREQ_BUFFERED
+	bool
+
 config IOREQ_SERVER
 	bool "IOREQ support (EXPERT)" if EXPERT && !X86
 	default X86
+	select IOREQ_BUFFERED if X86
 	depends on HVM
 	help
 	  Enables generic mechanism for providing emulated devices to the guests.

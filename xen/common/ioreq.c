@@ -470,7 +470,7 @@ static int ioreq_server_alloc_pages(struct ioreq_server *s)
 
     rc = ioreq_server_alloc_mfn(s, false);
 
-    if ( !rc && (s->bufioreq_handling != HVM_IOREQSRV_BUFIOREQ_OFF) )
+    if ( !rc && HANDLE_BUFIOREQ(s) )
         rc = ioreq_server_alloc_mfn(s, true);
 
     if ( rc )
@@ -481,7 +481,8 @@ static int ioreq_server_alloc_pages(struct ioreq_server *s)
 
 static void ioreq_server_free_pages(struct ioreq_server *s)
 {
-    ioreq_server_free_mfn(s, true);
+    if ( IS_ENABLED(CONFIG_IOREQ_BUFFERED) )
+        ioreq_server_free_mfn(s, true);
     ioreq_server_free_mfn(s, false);
 }
 
@@ -647,7 +648,7 @@ static int ioreq_server_create(struct domain *d, int bufioreq_handling,
     unsigned int i;
     int rc;
 
-    if ( !IS_ENABLED(CONFIG_X86) && bufioreq_handling )
+    if ( !IS_ENABLED(CONFIG_IOREQ_BUFFERED) && bufioreq_handling )
         return -EINVAL;
 
     if ( bufioreq_handling > HVM_IOREQSRV_BUFIOREQ_ATOMIC )
@@ -1153,6 +1154,7 @@ struct ioreq_server *ioreq_server_select(struct domain *d,
     return NULL;
 }
 
+#ifdef CONFIG_IOREQ_BUFFERED
 static int ioreq_send_buffered(struct ioreq_server *s, ioreq_t *p)
 {
     struct domain *d = current->domain;
@@ -1245,6 +1247,12 @@ static int ioreq_send_buffered(struct ioreq_server *s, ioreq_t *p)
 
     return IOREQ_STATUS_HANDLED;
 }
+#else
+static int ioreq_send_buffered(struct ioreq_server *s, ioreq_t *p)
+{
+    return IOREQ_STATUS_UNHANDLED;
+}
+#endif
 
 int ioreq_send(struct ioreq_server *s, ioreq_t *proto_p,
                bool buffered)
@@ -1319,7 +1327,7 @@ unsigned int ioreq_broadcast(ioreq_t *p, bool buffered)
     FOR_EACH_IOREQ_SERVER(d, id, s)
     {
         if ( !s->enabled ||
-             (buffered && s->bufioreq_handling == HVM_IOREQSRV_BUFIOREQ_OFF) )
+             (buffered && !HANDLE_BUFIOREQ(s)) )
             continue;
 
         if ( ioreq_send(s, p, buffered) == IOREQ_STATUS_UNHANDLED )
