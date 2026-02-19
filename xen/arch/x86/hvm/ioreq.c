@@ -55,6 +55,7 @@ bool arch_vcpu_ioreq_completion(enum vio_completion completion)
 }
 #endif
 
+#ifdef CONFIG_IOREQ_LEGACY
 static gfn_t hvm_alloc_legacy_ioreq_gfn(struct ioreq_server *s)
 {
     struct domain *d = s->target;
@@ -234,6 +235,24 @@ void arch_ioreq_server_disable(struct ioreq_server *s)
     hvm_add_ioreq_gfn(s, true);
     hvm_add_ioreq_gfn(s, false);
 }
+#else
+int arch_ioreq_server_map_pages(struct ioreq_server *s)
+{
+    return -EOPNOTSUPP;
+}
+
+void arch_ioreq_server_unmap_pages(struct ioreq_server *s)
+{
+}
+
+void arch_ioreq_server_enable(struct ioreq_server *s)
+{
+}
+
+void arch_ioreq_server_disable(struct ioreq_server *s)
+{
+}
+#endif /* CONFIG_IOREQ_LEGACY */
 
 /* Called when target domain is paused */
 void arch_ioreq_server_destroy(struct ioreq_server *s)

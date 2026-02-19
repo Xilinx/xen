@@ -344,6 +344,10 @@ config HYPFS_CONFIG
 config IOREQ_BUFFERED
 	bool
 
+config IOREQ_LEGACY
+	bool "Legacy IOREQ (magic pages) support"
+	depends on IOREQ_SERVER && X86
+
 config IOREQ_SERVER
 	bool "IOREQ support (EXPERT)" if EXPERT && !X86
 	default X86
