@@ -262,7 +262,6 @@ void __init dt_parse_domains(struct boot_info *bi)
 
         bd->initrd = find_boot_module(bi, node, "multiboot,ramdisk",
                                       &module_node);
-        override_mod_cmdline(bd->initrd, module_node);
 
         bi->nr_domains++;
         bd++;
