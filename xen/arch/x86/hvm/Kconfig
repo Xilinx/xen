@@ -138,6 +138,7 @@ config VPIC
 config VVGA
     bool "Virtual Standard VGA support"
     default y
+    select IOREQ_BUFFERED
     help
       Enable virtual Standard VGA emulation.
       This improves the performance of Standard VGA, the mode used during
@@ -148,6 +149,7 @@ config VVGA
 config VRTC
     bool "Virtual RTC (MC146818) support"
     default y
+    select IOREQ_BUFFERED
     help
       Enable virtual RTC/CMOS (MC146818) emulation.
       This feature is available for HVM and PVH domains.
