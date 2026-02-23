@@ -22,6 +22,7 @@
  * IN THE SOFTWARE.
  */
 
+#include <xen/ioreq.h>
 #include <xen/sched.h>
 #include <asm/mc146818rtc.h>
 #include <asm/hvm/vpt.h>
@@ -572,6 +573,24 @@ static int rtc_ioport_write(void *opaque, uint32_t addr, uint32_t data)
     spin_unlock(&s->lock);
 
     return 1;
+}
+
+static void send_timeoffset_req(unsigned long timeoff)
+{
+    ioreq_t p = {
+        .type = IOREQ_TYPE_TIMEOFFSET,
+        .size = 8,
+        .count = 1,
+        .dir = IOREQ_WRITE,
+        .data = timeoff,
+        .state = STATE_IOREQ_READY,
+    };
+
+    if ( timeoff == 0 )
+        return;
+
+    if ( ioreq_broadcast(&p, true) != 0 )
+        gprintk(XENLOG_ERR, "Unsuccessful timeoffset update\n");
 }
 
 static void rtc_set_time(RTCState *s)

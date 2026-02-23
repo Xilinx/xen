@@ -32,24 +32,6 @@
 #include <xen/iocap.h>
 #include <public/hvm/ioreq.h>
 
-void send_timeoffset_req(unsigned long timeoff)
-{
-    ioreq_t p = {
-        .type = IOREQ_TYPE_TIMEOFFSET,
-        .size = 8,
-        .count = 1,
-        .dir = IOREQ_WRITE,
-        .data = timeoff,
-        .state = STATE_IOREQ_READY,
-    };
-
-    if ( timeoff == 0 )
-        return;
-
-    if ( ioreq_broadcast(&p, true) != 0 )
-        gprintk(XENLOG_ERR, "Unsuccessful timeoffset update\n");
-}
-
 bool hvm_emulate_one_insn(hvm_emulate_validate_t *validate, const char *descr)
 {
     struct hvm_emulate_ctxt ctxt;
