@@ -284,13 +284,13 @@ config ARM64_AARCH32
 endmenu
 
 config GICV3_NR_LRS
-	int "Number of GICv3 Link Registers supported" if !AMD
+	int "Number of GICv3 Link Registers supported" if EXPERT
 	depends on GICV3
-	default 4 if AMD
-	default 16
+	range 0 16
+	default 0
 	help
 	  Controls the number of Link registers to be accessed.
-	  On AMD hardware, 4 link registers are supported.
+	  Keep it set to 0 to use a value obtained from a hardware register.
 
 config GICV3_NR_PRIORITIES
 	int "Number of GICv3 priority bits supported" if EXPERT
