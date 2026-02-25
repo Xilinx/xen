@@ -286,7 +286,23 @@ long do_domctl(XEN_GUEST_HANDLE_PARAM(xen_domctl_t) u_domctl)
          (is_stable_domctl(op->cmd) ? 0 : XEN_DOMCTL_INTERFACE_VERSION) )
         return -EACCES;
 
-    switch ( op->cmd )
+    /*
+     * Replace op->cmd with DOMCTL_CMD(op) to utilize VRP to DCE unnecessary
+     * domctl-ops when CONFIG_MGMT_HYPERCALLS=n.
+     * Right now, only XEN_DOMCTL_getdomaininfo and XEN_DOMCTL_get_domain_state
+     * are available when CONFIG_MGMT_HYPERCALLS=n.
+     */
+#define DOMCTL_CMD(op) ({\
+    IS_ENABLED(CONFIG_MGMT_HYPERCALLS)       ? (op)->cmd                   :\
+    (op)->cmd == XEN_DOMCTL_getdomaininfo    ? XEN_DOMCTL_getdomaininfo    :\
+    (op)->cmd == XEN_DOMCTL_get_domain_state ? XEN_DOMCTL_get_domain_state :\
+    XEN_DOMCTL_get_domain_state; /* innocuous else */                       \
+})
+
+    if ( DOMCTL_CMD(op) != op->cmd )
+        return -EOPNOTSUPP;
+
+    switch ( DOMCTL_CMD(op) )
     {
     case XEN_DOMCTL_createdomain:
         d = NULL;
@@ -318,7 +334,7 @@ long do_domctl(XEN_GUEST_HANDLE_PARAM(xen_domctl_t) u_domctl)
         break;
     }
 
-    ret = xsm_domctl(XSM_OTHER, d, op->cmd,
+    ret = xsm_domctl(XSM_OTHER, d, DOMCTL_CMD(op),
                      /* SSIDRef only applicable for cmd == createdomain */
                      op->u.createdomain.ssidref);
     if ( ret )
@@ -332,7 +348,7 @@ long do_domctl(XEN_GUEST_HANDLE_PARAM(xen_domctl_t) u_domctl)
             __HYPERVISOR_domctl, "h", u_domctl);
     }
 
-    switch ( op->cmd )
+    switch ( DOMCTL_CMD(op) )
     {
 
     case XEN_DOMCTL_setvcpucontext:
