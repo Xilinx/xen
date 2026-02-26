@@ -148,7 +148,11 @@ static inline int acpi_ivrs_init(void) { return -ENODEV; }
 void acpi_mmcfg_init(void);
 
 /* Incremented whenever we transition through S3. Value is 1 during boot. */
+#ifdef CONFIG_SYSTEM_SUSPEND
 extern uint32_t system_reset_counter;
+#else
+#define system_reset_counter 1
+#endif
 
 void hvm_acpi_power_button(struct domain *d);
 void hvm_acpi_sleep_button(struct domain *d);

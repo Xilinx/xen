@@ -67,9 +67,7 @@ static int __init cf_check parse_acpi_sleep(const char *s)
 }
 custom_param("acpi_sleep", parse_acpi_sleep);
 
-#ifdef CONFIG_SYSTEM_SUSPEND
 static DEFINE_SPINLOCK(pm_lock);
-#endif
 
 struct acpi_sleep_info acpi_sinfo;
 
@@ -87,7 +85,6 @@ enum dev_power_saved
     SAVED_ALL,
 };
 
-#ifdef CONFIG_SYSTEM_SUSPEND
 static int device_power_down(void)
 {
     if ( console_suspend() )
@@ -381,7 +378,6 @@ int acpi_enter_sleep(const struct xenpf_enter_acpi_sleep *sleep)
 
     return continue_hypercall_on_cpu(0, enter_state_helper, &acpi_sinfo);
 }
-#endif /* CONFIG_SYSTEM_SUSPEND */
 
 static int acpi_get_wake_status(void)
 {

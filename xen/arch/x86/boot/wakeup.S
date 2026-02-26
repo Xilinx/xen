@@ -1,5 +1,6 @@
         .code16
 
+#ifdef CONFIG_SYSTEM_SUSPEND
 /*
  * The first page of trampoline is permanent, the rest boot-time only.  Reuse
  * the boot logic in the first trampoline page as the stack for S3 wakeup.
@@ -173,3 +174,8 @@ wakeup_64:
         /* Jump to high mappings and the higher-level wakeup code. */
         movabs  $s3_resume, %rbx
         jmp     *%rbx
+
+#else
+        .align 4
+video_mode:     .word 0
+#endif /* CONFIG_SYSTEM_SUSPEND */

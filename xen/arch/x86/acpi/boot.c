@@ -522,7 +522,8 @@ static int __init cf_check acpi_parse_fadt(struct acpi_table_header *table)
 	acpi_enable_value  = fadt->acpi_enable;
 	acpi_disable_value = fadt->acpi_disable;
 
-	acpi_fadt_parse_sleep_info(fadt);
+	if ( IS_ENABLED(CONFIG_SYSTEM_SUSPEND) )
+	    acpi_fadt_parse_sleep_info(fadt);
 
 	return 0;
 }
