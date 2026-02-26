@@ -141,16 +141,6 @@ static int vcpu_set_vmce(struct vcpu *v,
     return vmce_restore_vcpu(v, &vmce);
 }
 
-void arch_get_domain_info(const struct domain *d,
-                          struct xen_domctl_getdomaininfo *info)
-{
-    if ( paging_mode_hap(d) )
-        info->flags |= XEN_DOMINF_hap;
-
-    info->arch_config.emulation_flags = d->arch.emulation_flags;
-    info->gpaddr_bits = hap_paddr_bits;
-}
-
 static int do_vmtrace_op(struct domain *d, struct xen_domctl_vmtrace_op *op,
                          XEN_GUEST_HANDLE_PARAM(xen_domctl_t) u_domctl)
 {

@@ -2717,6 +2717,32 @@ unsigned int domain_max_paddr_bits(const struct domain *d)
     return bits;
 }
 
+void arch_get_domain_info(const struct domain *d,
+                          struct xen_domctl_getdomaininfo *info)
+{
+    if ( paging_mode_hap(d) )
+        info->flags |= XEN_DOMINF_hap;
+
+    info->arch_config.emulation_flags = d->arch.emulation_flags;
+    info->gpaddr_bits = hap_paddr_bits;
+}
+
+void arch_do_physinfo(struct xen_sysctl_physinfo *pi)
+{
+    memcpy(pi->hw_cap, boot_cpu_data.x86_capability,
+           min(sizeof(pi->hw_cap), sizeof(boot_cpu_data.x86_capability)));
+    if ( hvm_enabled )
+        pi->capabilities |= XEN_SYSCTL_PHYSCAP_hvm;
+    if ( IS_ENABLED(CONFIG_PV) )
+        pi->capabilities |= XEN_SYSCTL_PHYSCAP_pv;
+    if ( hvm_hap_supported() )
+        pi->capabilities |= XEN_SYSCTL_PHYSCAP_hap;
+    if ( IS_ENABLED(CONFIG_SHADOW_PAGING) )
+        pi->capabilities |= XEN_SYSCTL_PHYSCAP_shadow;
+    if ( hvm_nested_virt_supported() )
+        pi->capabilities |= XEN_SYSCTL_PHYSCAP_nestedhvm;
+}
+
 /*
  * Local variables:
  * mode: C

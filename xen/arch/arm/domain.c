@@ -1224,6 +1224,23 @@ void vcpu_kick(struct vcpu *v)
     }
 }
 
+void arch_get_domain_info(const struct domain *d,
+                          struct xen_domctl_getdomaininfo *info)
+{
+    /* All ARM domains use hardware assisted paging. */
+    info->flags |= XEN_DOMINF_hap;
+
+    info->gpaddr_bits = p2m_ipa_bits;
+}
+
+void arch_do_physinfo(struct xen_sysctl_physinfo *pi)
+{
+    pi->capabilities |= XEN_SYSCTL_PHYSCAP_hvm | XEN_SYSCTL_PHYSCAP_hap;
+
+    pi->arch_capabilities |= MASK_INSR(sve_encode_vl(get_sys_vl_len()),
+                                       XEN_SYSCTL_PHYSCAP_ARM_SVE_MASK);
+}
+
 /*
  * Local variables:
  * mode: C

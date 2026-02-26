@@ -91,22 +91,6 @@ static long cf_check smt_up_down_helper(void *data)
     return ret;
 }
 
-void arch_do_physinfo(struct xen_sysctl_physinfo *pi)
-{
-    memcpy(pi->hw_cap, boot_cpu_data.x86_capability,
-           min(sizeof(pi->hw_cap), sizeof(boot_cpu_data.x86_capability)));
-    if ( hvm_enabled )
-        pi->capabilities |= XEN_SYSCTL_PHYSCAP_hvm;
-    if ( IS_ENABLED(CONFIG_PV) )
-        pi->capabilities |= XEN_SYSCTL_PHYSCAP_pv;
-    if ( hvm_hap_supported() )
-        pi->capabilities |= XEN_SYSCTL_PHYSCAP_hap;
-    if ( IS_ENABLED(CONFIG_SHADOW_PAGING) )
-        pi->capabilities |= XEN_SYSCTL_PHYSCAP_shadow;
-    if ( hvm_nested_virt_supported() )
-        pi->capabilities |= XEN_SYSCTL_PHYSCAP_nestedhvm;
-}
-
 long arch_do_sysctl(
     struct xen_sysctl *sysctl, XEN_GUEST_HANDLE_PARAM(xen_sysctl_t) u_sysctl)
 {

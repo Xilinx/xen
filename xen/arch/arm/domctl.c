@@ -17,15 +17,6 @@
 #include <xsm/xsm.h>
 #include <public/domctl.h>
 
-void arch_get_domain_info(const struct domain *d,
-                          struct xen_domctl_getdomaininfo *info)
-{
-    /* All ARM domains use hardware assisted paging. */
-    info->flags |= XEN_DOMINF_hap;
-
-    info->gpaddr_bits = p2m_ipa_bits;
-}
-
 static int handle_vuart_init(struct domain *d, 
                              struct xen_domctl_vuart_op *vuart_op)
 {
