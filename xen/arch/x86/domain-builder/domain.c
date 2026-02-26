@@ -68,10 +68,13 @@ static int __init cf_check parse_acpi_param(const char *s)
 }
 custom_param("acpi", parse_acpi_param);
 
-void __init alloc_dom_vcpus(struct domain *d)
+void __init alloc_dom_vcpus(struct domain *d, const cpumask_t *aff)
 {
     for ( unsigned int i = 1; i < d->max_vcpus; i++ )
         vcpu_create(d, i);
+
+    /* Set vcpu hard affinity after vcpu initialization */
+    domain_vcpu_affinity(d, aff);
 
     domain_update_node_affinity(d);
 }

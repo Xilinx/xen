@@ -2476,6 +2476,30 @@ void thaw_domains(void)
 
 #endif /* CONFIG_SYSTEM_SUSPEND */
 
+void __init domain_vcpu_affinity(struct domain *d,
+                                 const cpumask_t *hard_affinity)
+{
+    uint32_t vcpu_id = 0;
+
+    /* No cpu affinity configuration */
+    if ( !hard_affinity )
+        return;
+
+    do
+    {
+        if ( !cpumask_empty(&hard_affinity[vcpu_id]) )
+        {
+            struct vcpu *v = d->vcpu[vcpu_id];
+            int rc;
+
+            rc = vcpu_set_hard_affinity(v, &hard_affinity[vcpu_id]);
+            if ( rc )
+                panic("vcpu%d: failed (rc=%d) to set hard affinity for domain %d\n",
+                      vcpu_id, rc, d->domain_id);
+        }
+    } while ( ++vcpu_id < d->max_vcpus );
+}
+
 /*
  * Local variables:
  * mode: C

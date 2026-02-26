@@ -335,8 +335,10 @@ static void __init pvh_init_p2m(struct boot_domain *bd)
     } while ( preempted );
 }
 
-int __init pvh_setup_cpus(struct domain *d, paddr_t entry, paddr_t start_info)
+static int __init pvh_setup_cpus(struct boot_domain *bd, paddr_t entry,
+                                 paddr_t start_info)
 {
+    struct domain *d = bd->d;
     struct vcpu *v = d->vcpu[0];
     int rc;
     /*
@@ -360,7 +362,7 @@ int __init pvh_setup_cpus(struct domain *d, paddr_t entry, paddr_t start_info)
         .cpu_regs.x86_32.tr_ar = 0x8b,
     };
 
-    alloc_dom_vcpus(d);
+    alloc_dom_vcpus(d, bd->hard_affinity);
 
     rc = arch_set_info_hvm_guest(v, &cpu_ctx);
     if ( rc )
@@ -1120,7 +1122,7 @@ int __init dom_construct_pvh(struct boot_domain *bd)
         return rc;
     }
 
-    rc = pvh_setup_cpus(d, entry, start_info);
+    rc = pvh_setup_cpus(bd, entry, start_info);
     if ( rc )
     {
         printk("Failed to setup Dom%u CPUs: %d\n", d->domain_id, rc);

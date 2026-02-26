@@ -648,30 +648,6 @@ static int __init alloc_xenstore_params(struct kernel_info *kinfo)
     return rc;
 }
 
-static void __init domain_vcpu_affinity(struct domain *d,
-                                        const cpumask_t *hard_affinity)
-{
-    uint32_t vcpu_id = 0;
-
-    /* No cpu affinity configuration */
-    if ( !hard_affinity )
-        return;
-
-    do
-    {
-        if ( !cpumask_empty(&hard_affinity[vcpu_id]) )
-        {
-            struct vcpu *v = d->vcpu[vcpu_id];
-            int rc;
-
-            rc = vcpu_set_hard_affinity(v, &hard_affinity[vcpu_id]);
-            if ( rc )
-                panic("vcpu%d: failed (rc=%d) to set hard affinity for domain %d\n",
-                      vcpu_id, rc, d->domain_id);
-        }
-    } while ( ++vcpu_id < d->max_vcpus );
-}
-
 #ifdef CONFIG_ARCH_PAGING_MEMPOOL
 static unsigned long __init domain_p2m_pages(unsigned long maxmem_kb,
                                              unsigned int smp_cpus)

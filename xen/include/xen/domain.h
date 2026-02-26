@@ -198,4 +198,6 @@ extern bool vmtrace_available;
 
 extern bool vpmu_is_available;
 
+void domain_vcpu_affinity(struct domain *d, const cpumask_t *hard_affinity);
+
 #endif /* __XEN_DOMAIN_H__ */
