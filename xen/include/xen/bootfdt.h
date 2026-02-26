@@ -4,6 +4,7 @@
 
 #include <xen/byteorder.h>
 #include <xen/bug.h>
+#include <xen/cpumask.h>
 #include <xen/types.h>
 #include <xen/lib.h>
 
@@ -137,6 +138,8 @@ struct boot_domain {
         evtchn_port_t evtchn;
         domid_t be_domid;
     } xenstore, console;
+
+    cpumask_t *hard_affinity;
 };
 
 #define BOOTMOD_MAX_CMDLINE 1024

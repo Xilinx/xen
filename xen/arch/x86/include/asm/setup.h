@@ -33,7 +33,7 @@ void setup_io_bitmap(struct domain *d);
 extern struct boot_info xen_boot_info;
 
 unsigned long initial_images_nrpages(nodeid_t node);
-void free_boot_modules(void);
+void free_boot_info(void);
 
 struct boot_module;
 void *bootstrap_map_bm(const struct boot_module *bm);

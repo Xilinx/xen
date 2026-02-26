@@ -359,7 +359,7 @@ void __init release_boot_module(struct boot_module *bm)
     bm->arch.released = true;
 }
 
-void __init free_boot_modules(void)
+void __init free_boot_info(void)
 {
     struct boot_info *bi = &xen_boot_info;
     unsigned int i;
@@ -370,6 +370,13 @@ void __init free_boot_modules(void)
             continue;
 
         release_boot_module(&bi->mods[i]);
+    }
+
+    for ( i = 0; i < bi->nr_domains; ++i )
+    {
+        struct boot_domain *bd = &bi->domains[i];
+
+        XFREE(bd->hard_affinity);
     }
 }
 

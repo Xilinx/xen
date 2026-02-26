@@ -47,6 +47,68 @@ static void __init apply_dom0less_domid_policy(struct boot_domain *bd,
         panic("Error allocating ID for domain node %s\n", dt_node_name(node));
 }
 
+static void __init parse_cpu_affinity_node(const struct dt_device_node *node,
+                                           struct boot_domain *bd)
+{
+    struct dt_device_node *np;
+
+    dt_for_each_child_node(node, np)
+    {
+        const char *hard_affinity_str = NULL;
+        uint32_t max_vcpus = bd->create_cfg.max_vcpus, vcpu_id;
+        int rc;
+
+        if ( !dt_device_is_compatible(np, "xen,vcpu") )
+            continue;
+
+        if ( !dt_property_read_u32(np, "id", &vcpu_id) )
+            panic("Invalid xen,vcpu node for domain %s\n", dt_node_name(node));
+
+        if ( vcpu_id >= max_vcpus )
+            panic("Invalid vcpu_id %u for domain %s, max_vcpus=%u\n", vcpu_id,
+                  dt_node_name(node), max_vcpus);
+
+        if ( !bd->hard_affinity )
+        {
+            bd->hard_affinity = xzalloc_array(cpumask_t, max_vcpus);
+            if ( !bd->hard_affinity )
+                panic("Error allocating hard_affinity buffer for %s\n",
+                      dt_node_name(node));
+        }
+
+        rc = dt_property_read_string(np, "hard-affinity", &hard_affinity_str);
+        if ( rc < 0 )
+            continue;
+
+        cpumask_clear(&bd->hard_affinity[vcpu_id]);
+        while ( *hard_affinity_str != '\0' )
+        {
+            unsigned int start, end;
+
+            start = simple_strtoul(hard_affinity_str, &hard_affinity_str, 0);
+
+            if ( *hard_affinity_str == '-' )    /* Range */
+            {
+                hard_affinity_str++;
+                end = simple_strtoul(hard_affinity_str, &hard_affinity_str, 0);
+            }
+            else                /* Single value */
+                end = start;
+
+            if ( end >= nr_cpu_ids )
+                panic("Invalid pCPU %u for domain %s\n", end, dt_node_name(node));
+
+            for ( ; start <= end; start++ )
+                cpumask_set_cpu(start, &bd->hard_affinity[vcpu_id]);
+
+            if ( *hard_affinity_str == ',' )
+                hard_affinity_str++;
+            else if ( *hard_affinity_str != '\0' )
+                break;
+        }
+    }
+}
+
 int __init parse_dom0less_node(struct dt_device_node *node,
                                struct boot_domain *bd)
 {
@@ -124,6 +186,8 @@ int __init parse_dom0less_node(struct dt_device_node *node,
     if ( !dt_property_read_u32(node, "cpus", &d_cfg->max_vcpus) )
         panic("Missing property 'cpus' for domain %s\n",
               dt_node_name(node));
+
+    parse_cpu_affinity_node(node, bd);
 
     if ( !dt_property_read_string(node, "passthrough", &dom0less_iommu) )
     {

@@ -649,65 +649,27 @@ static int __init alloc_xenstore_params(struct kernel_info *kinfo)
 }
 
 static void __init domain_vcpu_affinity(struct domain *d,
-                                        const struct dt_device_node *node)
+                                        const cpumask_t *hard_affinity)
 {
-    struct dt_device_node *np;
+    uint32_t vcpu_id = 0;
 
-    dt_for_each_child_node(node, np)
+    /* No cpu affinity configuration */
+    if ( !hard_affinity )
+        return;
+
+    do
     {
-        const char *hard_affinity_str = NULL;
-        uint32_t val;
-        int rc;
-        struct vcpu *v;
-        cpumask_t affinity;
-
-        if ( !dt_device_is_compatible(np, "xen,vcpu") )
-            continue;
-
-        if ( !dt_property_read_u32(np, "id", &val) )
-            panic("Invalid xen,vcpu node for domain %s\n", dt_node_name(node));
-
-        if ( val >= d->max_vcpus )
-            panic("Invalid vcpu_id %u for domain %s, max_vcpus=%u\n", val,
-                  dt_node_name(node), d->max_vcpus);
-
-        v = d->vcpu[val];
-        rc = dt_property_read_string(np, "hard-affinity", &hard_affinity_str);
-        if ( rc < 0 )
-            continue;
-
-        cpumask_clear(&affinity);
-        while ( *hard_affinity_str != '\0' )
+        if ( !cpumask_empty(&hard_affinity[vcpu_id]) )
         {
-            unsigned int start, end;
+            struct vcpu *v = d->vcpu[vcpu_id];
+            int rc;
 
-            start = simple_strtoul(hard_affinity_str, &hard_affinity_str, 0);
-
-            if ( *hard_affinity_str == '-' )    /* Range */
-            {
-                hard_affinity_str++;
-                end = simple_strtoul(hard_affinity_str, &hard_affinity_str, 0);
-            }
-            else                /* Single value */
-                end = start;
-
-            if ( end >= nr_cpu_ids )
-                panic("Invalid pCPU %u for domain %s\n", end, dt_node_name(node));
-
-            for ( ; start <= end; start++ )
-                cpumask_set_cpu(start, &affinity);
-
-            if ( *hard_affinity_str == ',' )
-                hard_affinity_str++;
-            else if ( *hard_affinity_str != '\0' )
-                break;
+            rc = vcpu_set_hard_affinity(v, &hard_affinity[vcpu_id]);
+            if ( rc )
+                panic("vcpu%d: failed (rc=%d) to set hard affinity for domain %d\n",
+                      vcpu_id, rc, d->domain_id);
         }
-
-        rc = vcpu_set_hard_affinity(v, &affinity);
-        if ( rc )
-            panic("vcpu%d: failed (rc=%d) to set hard affinity for domain %s\n",
-                  v->vcpu_id, rc, dt_node_name(node));
-    }
+    } while ( ++vcpu_id < d->max_vcpus );
 }
 
 #ifdef CONFIG_ARCH_PAGING_MEMPOOL
@@ -829,7 +791,7 @@ static int __init construct_domU(struct kernel_info *kinfo,
             return rc;
     }
 
-    domain_vcpu_affinity(d, node);
+    domain_vcpu_affinity(d, kinfo->bd.hard_affinity);
 
     rc = alloc_xenstore_params(kinfo);
 
@@ -880,6 +842,9 @@ void __init create_domUs(void)
 
         if ( ki.bd.create_cfg.flags & XEN_DOMCTL_CDF_xs_domain )
             set_xs_domain(ki.bd.d);
+
+        /* Free temporary buffer */
+        XFREE(ki.bd.hard_affinity);
     }
 
     if ( need_xenstore && xs_domid == DOMID_INVALID )
