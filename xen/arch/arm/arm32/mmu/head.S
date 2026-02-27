@@ -160,6 +160,13 @@
 .endm
 
 .section .text.idmap, "ax", %progbits
+/*
+ * Code below wants to all live in the section established above.  Annotations
+ * from xen/linkage.h therefore may not switch sections (honoring
+ * CONFIG_CC_SPLIT_SECTIONS).  Override the respective macro.
+ */
+#undef SYM_PUSH_SECTION
+#define SYM_PUSH_SECTION(name, attr)
 
 /*
  * Rebuild the boot pagetable's first-level entries. The structure

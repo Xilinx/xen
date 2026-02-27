@@ -773,6 +773,10 @@ END(common_interrupt)
 FUNC(entry_PF)
         ENDBR64
         movb  $X86_EXC_PF, EFRAME_entry_vector(%rsp)
+#ifdef CONFIG_CC_SPLIT_SECTIONS
+        jmp   handle_exception
+        int3  /* Halt straight-line speculation */
+#endif
 END(entry_PF)
 /* No special register assumptions. */
 FUNC(handle_exception, 0)
@@ -1086,8 +1090,12 @@ FUNC(entry_NMI)
         ENDBR64
         pushq $0
         movb  $X86_EXC_NMI, EFRAME_entry_vector(%rsp)
+#ifdef CONFIG_CC_SPLIT_SECTIONS
+        jmp   handle_ist_exception
+        int3  /* Halt straight-line speculation */
+#endif
 END(entry_NMI)
-
+/* No special register assumptions. */
 FUNC(handle_ist_exception)
         ALTERNATIVE "", clac, X86_FEATURE_XEN_SMAP
         SAVE_ALL

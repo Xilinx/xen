@@ -31,6 +31,10 @@ FUNC(entry_int82)
 
         mov   %rsp, %rdi
         call  do_entry_int82
+#ifdef CONFIG_CC_SPLIT_SECTIONS
+        jmp   compat_test_all_events
+        int3  /* Halt straight-line speculation */
+#endif
 END(entry_int82)
 
 /* %rbx: struct vcpu */

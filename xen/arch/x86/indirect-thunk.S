@@ -17,6 +17,10 @@
 
 #ifdef CONFIG_INDIRECT_THUNK
 
+/* Section placement is done explicitly here; override the respective macro. */
+#undef SYM_PUSH_SECTION
+#define SYM_PUSH_SECTION(name, attr)
+
 .macro IND_THUNK_RETPOLINE reg:req
         call 1f
         int3
