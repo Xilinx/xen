@@ -145,7 +145,7 @@ SECTIONS
        SETUP_DATA
 
        __initcall_boot_test_start = .;
-       *(.initcallboottest.init)
+       KEEP(*(.initcallboottest.init))
        __initcall_boot_test_end = .;
 
        . = ALIGN(4);
