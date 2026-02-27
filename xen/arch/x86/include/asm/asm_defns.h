@@ -8,6 +8,7 @@
 #endif
 #include <asm/x86-defns.h>
 #include <xen/bug.h>
+#include <xen/linkage.h>
 #include <xen/stringify.h>
 #include <asm/cpufeature.h>
 #include <asm/alternative.h>
@@ -65,17 +66,26 @@ register unsigned long current_stack_pointer asm("rsp");
 
 /* Exception table entry */
 #ifdef __ASSEMBLY__
+
+.macro _ASM_EXTABLE_MACRO ex_table from to
+    .pushsection \ex_table, "a", @progbits
+    .LEXT\@:
+    .balign 4
+    .long _ASM_EX(\from), _ASM_EX(\to)
+    .popsection
+    REF(.LEXT\@)
+.endm
 # define _ASM__EXTABLE(sfx, from, to)             \
-    .section .ex_table##sfx, "a" ;                \
-    .balign 4 ;                                   \
-    .long _ASM_EX(from), _ASM_EX(to) ;            \
-    .previous
+         _ASM_EXTABLE_MACRO SECTNAME(.ex_table##sfx) from to
 #else
+
 # define _ASM__EXTABLE(sfx, from, to)             \
-    " .section .ex_table" #sfx ",\"a\"\n"         \
+    " .pushsection " SECTNAME(".ex_table" #sfx) ",\"a\", @progbits\n" \
     " .balign 4\n"                                \
+    ".LEXT%=: \n"                                 \
     " .long " _ASM_EX(from) ", " _ASM_EX(to) "\n" \
-    " .previous\n"
+    " .popsection\n"                              \
+    " "REF(".LEXT%=")"\n"
 #endif
 
 #define _ASM_EXTABLE(from, to)     _ASM__EXTABLE(, from, to)

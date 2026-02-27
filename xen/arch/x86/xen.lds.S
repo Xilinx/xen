@@ -114,15 +114,25 @@ SECTIONS
        *(.data.ro_after_init)
 
        . = ALIGN(8);
-       /* Exception table */
-       __start___ex_table = .;
-       *(.ex_table)
-       __stop___ex_table = .;
-
+       /*
+        * Order .ex_table.pre before .ex_table, so it doesn't get included
+        * by .ex_table.* when CONFIG_CC_SPLIT_SECTIONS is enabled.
+        */
        /* Pre-exception table */
        __start___pre_ex_table = .;
        *(.ex_table.pre)
+#ifdef CONFIG_CC_SPLIT_SECTIONS
+       *(.ex_table.pre.*)
+#endif
        __stop___pre_ex_table = .;
+
+       /* Exception table */
+       __start___ex_table = .;
+       *(.ex_table)
+#ifdef CONFIG_CC_SPLIT_SECTIONS
+       *(.ex_table.*)
+#endif
+       __stop___ex_table = .;
 
        . = ALIGN(PAGE_SIZE);
        __ro_after_init_end = .;
