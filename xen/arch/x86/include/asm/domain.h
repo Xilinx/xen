@@ -264,7 +264,7 @@ struct paging_vcpu {
 
 #define MAX_EPTP        (PAGE_SIZE / sizeof(uint64_t))
 #define MAX_NR_ALTP2M   MAX_EPTP
-#define MAX_NESTEDP2M   10
+#define MAX_NESTEDP2M   (IS_ENABLED(CONFIG_NESTED_VIRT) ? 10 : 0)
 
 #define INVALID_ALTP2M  0xffff
 

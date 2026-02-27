@@ -100,9 +100,11 @@ struct xen_sysctl_tbuf_op {
 /* Xen supports the Grant v1 and/or v2 ABIs. */
 #define XEN_SYSCTL_PHYSCAP_gnttab_v1     (1u << 8)
 #define XEN_SYSCTL_PHYSCAP_gnttab_v2     (1u << 9)
+/* The platform supports nested HVM. */
+#define XEN_SYSCTL_PHYSCAP_nestedhvm     (1u << 10)
 
 /* Max XEN_SYSCTL_PHYSCAP_* constant.  Used for ABI checking. */
-#define XEN_SYSCTL_PHYSCAP_MAX XEN_SYSCTL_PHYSCAP_gnttab_v2
+#define XEN_SYSCTL_PHYSCAP_MAX XEN_SYSCTL_PHYSCAP_nestedhvm
 
 #if defined(__arm__) || defined(__aarch64__)
 #define XEN_SYSCTL_PHYSCAP_ARM_SVE_MASK  (0x1FU)

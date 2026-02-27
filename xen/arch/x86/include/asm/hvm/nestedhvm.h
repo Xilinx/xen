@@ -25,8 +25,20 @@ enum nestedhvm_vmexits {
 /* Nested HVM on/off per domain */
 static inline bool nestedhvm_enabled(const struct domain *d)
 {
-    return IS_ENABLED(CONFIG_HVM) && (d->options & XEN_DOMCTL_CDF_nested_virt);
+    return IS_ENABLED(CONFIG_NESTED_VIRT) &&
+           (d->options & XEN_DOMCTL_CDF_nested_virt);
 }
+
+/* Nested paging */
+#define NESTEDHVM_PAGEFAULT_DONE       0
+#define NESTEDHVM_PAGEFAULT_INJECT     1
+#define NESTEDHVM_PAGEFAULT_L1_ERROR   2
+#define NESTEDHVM_PAGEFAULT_L0_ERROR   3
+#define NESTEDHVM_PAGEFAULT_MMIO       4
+#define NESTEDHVM_PAGEFAULT_RETRY      5
+#define NESTEDHVM_PAGEFAULT_DIRECT_MMIO 6
+
+#ifdef CONFIG_NESTED_VIRT
 
 /* Nested VCPU */
 int nestedhvm_vcpu_initialise(struct vcpu *v);
@@ -38,14 +50,6 @@ bool nestedhvm_vcpu_in_guestmode(struct vcpu *v);
 #define nestedhvm_vcpu_exit_guestmode(v)  \
     vcpu_nestedhvm(v).nv_guestmode = 0
 
-/* Nested paging */
-#define NESTEDHVM_PAGEFAULT_DONE       0
-#define NESTEDHVM_PAGEFAULT_INJECT     1
-#define NESTEDHVM_PAGEFAULT_L1_ERROR   2
-#define NESTEDHVM_PAGEFAULT_L0_ERROR   3
-#define NESTEDHVM_PAGEFAULT_MMIO       4
-#define NESTEDHVM_PAGEFAULT_RETRY      5
-#define NESTEDHVM_PAGEFAULT_DIRECT_MMIO 6
 int nestedhvm_hap_nested_page_fault(struct vcpu *v, paddr_t *L2_gpa,
                                     struct npfec npfec);
 
@@ -58,6 +62,48 @@ unsigned long *nestedhvm_vcpu_iomap_get(bool ioport_80, bool ioport_ed);
     (!!vcpu_nestedhvm((v)).nv_vmswitch_in_progress)
 
 void nestedhvm_vmcx_flushtlb(struct p2m_domain *p2m);
+
+#else /* !CONFIG_NESTED_VIRT */
+
+static inline int nestedhvm_vcpu_initialise(struct vcpu *v)
+{
+    ASSERT_UNREACHABLE();
+    return -EOPNOTSUPP;
+}
+static inline void nestedhvm_vcpu_destroy(struct vcpu *v) { }
+static inline void nestedhvm_vcpu_reset(struct vcpu *v)
+{
+    ASSERT_UNREACHABLE();
+}
+static inline bool nestedhvm_vcpu_in_guestmode(struct vcpu *v) { return false; }
+static inline int nestedhvm_hap_nested_page_fault(struct vcpu *v, paddr_t *L2_gpa,
+                                                  struct npfec npfec)
+{
+    ASSERT_UNREACHABLE();
+    return NESTEDHVM_PAGEFAULT_L0_ERROR;
+}
+static inline void nestedhvm_vcpu_enter_guestmode(struct vcpu *v)
+{
+    ASSERT_UNREACHABLE();
+}
+static inline void nestedhvm_vcpu_exit_guestmode(struct vcpu *v)
+{
+    ASSERT_UNREACHABLE();
+}
+static inline bool nestedhvm_paging_mode_hap(struct vcpu *v)
+{
+    return false;
+}
+static inline bool nestedhvm_vmswitch_in_progress(struct vcpu *v)
+{
+    return false;
+}
+static inline void nestedhvm_vmcx_flushtlb(struct p2m_domain *p2m)
+{
+    ASSERT_UNREACHABLE();
+}
+
+#endif /* CONFIG_NESTED_VIRT */
 
 static inline bool nestedhvm_is_n2(struct vcpu *v)
 {

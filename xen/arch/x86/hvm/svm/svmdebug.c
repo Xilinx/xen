@@ -93,6 +93,7 @@ void svm_vmcb_dump(const char *from, const struct vmcb_struct *vmcb)
     svm_dump_sel("  TR", &vmcb->tr);
 }
 
+#ifdef CONFIG_NESTED_VIRT
 bool svm_vmcb_isvalid(const char *from, const struct vmcb_struct *vmcb,
                       const struct vcpu *v, bool verbose)
 {
@@ -167,6 +168,7 @@ bool svm_vmcb_isvalid(const char *from, const struct vmcb_struct *vmcb,
 #undef PRINTF
     return ret;
 }
+#endif
 
 /*
  * Local variables:

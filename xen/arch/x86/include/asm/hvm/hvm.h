@@ -710,7 +710,7 @@ static inline bool hvm_altp2m_supported(void)
 /* Returns true if we have the minimum hardware requirements for nested virt */
 static inline bool hvm_nested_virt_supported(void)
 {
-    return hvm_funcs.caps.nested_virt;
+    return IS_ENABLED(CONFIG_NESTED_VIRT) && hvm_funcs.caps.nested_virt;
 }
 
 #ifdef CONFIG_ALTP2M

@@ -25,9 +25,15 @@ void p2m_teardown_altp2m(struct domain *d);
 void p2m_flush_table_locked(struct p2m_domain *p2m);
 int __must_check p2m_remove_entry(struct p2m_domain *p2m, gfn_t gfn, mfn_t mfn,
                                   unsigned int page_order);
+#ifdef CONFIG_NESTED_VIRT
 void p2m_nestedp2m_init(struct p2m_domain *p2m);
 int p2m_init_nestedp2m(struct domain *d);
 void p2m_teardown_nestedp2m(struct domain *d);
+#else
+static inline void p2m_nestedp2m_init(struct p2m_domain *p2m) { }
+static inline int p2m_init_nestedp2m(struct domain *d) { return 0; }
+static inline void p2m_teardown_nestedp2m(struct domain *d) { }
+#endif
 
 int ept_p2m_init(struct p2m_domain *p2m);
 void ept_p2m_uninit(struct p2m_domain *p2m);

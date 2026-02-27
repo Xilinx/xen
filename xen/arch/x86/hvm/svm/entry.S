@@ -28,7 +28,9 @@ FUNC(svm_asm_do_resume)
         GET_CURRENT(bx)
 .Lsvm_do_resume:
         call svm_intr_assist
+#ifdef CONFIG_NESTED_VIRT
         call nsvm_vcpu_switch
+#endif
         ASSERT_NOT_IN_ATOMIC
 
         mov  VCPU_processor(%rbx),%eax
@@ -39,6 +41,7 @@ FUNC(svm_asm_do_resume)
         cmp  %ecx,(%rdx,%rax,1)
         jne  .Lsvm_process_softirqs
 
+#ifdef CONFIG_NESTED_VIRT
         cmp  %cl,VCPU_nsvm_hap_enabled(%rbx)
 UNLIKELY_START(ne, nsvm_hap)
         cmp  %rcx,VCPU_nhvm_p2m(%rbx)
@@ -52,6 +55,7 @@ UNLIKELY_START(ne, nsvm_hap)
         sti
         jmp  .Lsvm_do_resume
 __UNLIKELY_END(nsvm_hap)
+#endif
 
         call svm_vmenter_helper
 
