@@ -31,7 +31,7 @@ SECTIONS
   .text : {
        _stext = .;             /* Text section */
        _idmap_start = .;
-       *(.text.header)
+       KEEP(*(.text.header))
        *(.text.idmap)
 #ifdef CONFIG_CC_SPLIT_SECTIONS
        *(.text.idmap.*)
@@ -66,7 +66,7 @@ SECTIONS
 
        . = ALIGN(4);
        __proc_info_start = .;
-       *(.proc.info)
+       KEEP(*(.proc.info))
        __proc_info_end = .;
   } :text
 
@@ -106,7 +106,7 @@ SECTIONS
   . = ALIGN(8);
   .arch.info : {
       _splatform = .;
-      *(.arch.info)
+      KEEP(*(.arch.info))
       _eplatform = .;
   } :text
 
@@ -119,7 +119,7 @@ SECTIONS
   . = ALIGN(8);
   .teemediator.info : {
       _steemediator = .;
-      *(.teemediator.info)
+      KEEP(*(.teemediator.info))
       _eteemediator = .;
   } :text
 
@@ -134,7 +134,7 @@ SECTIONS
        *(.text.startup)
        _einittext = .;
        . = ALIGN(PAGE_SIZE);        /* Avoid mapping alt insns executable */
-       *(.altinstr_replacement)
+       KEEP(*(.altinstr_replacement))
   } :text
   . = ALIGN(PAGE_SIZE);
   __init_data_begin = .;
@@ -150,7 +150,7 @@ SECTIONS
 
        . = ALIGN(4);
        __alt_instructions = .;
-       *(.altinstructions)
+       KEEP(*(.altinstructions))
        __alt_instructions_end = .;
 
        LOCK_PROFILE_DATA
@@ -161,9 +161,9 @@ SECTIONS
 
        . = ALIGN(8);
        __ctors_start = .;
-       *(.ctors)
-       *(.init_array)
-       *(SORT(.init_array.*))
+       KEEP(*(.ctors))
+       KEEP(*(.init_array))
+       KEEP(*(SORT(.init_array.*)))
        __ctors_end = .;
   } :text
   __init_end_efi = .;
