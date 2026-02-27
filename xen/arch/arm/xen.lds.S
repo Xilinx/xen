@@ -33,6 +33,9 @@ SECTIONS
        _idmap_start = .;
        *(.text.header)
        *(.text.idmap)
+#ifdef CONFIG_CC_SPLIT_SECTIONS
+       *(.text.idmap.*)
+#endif
        *(.rodata.idmap)
        *(.data.idmap)
        _idmap_end = .;
