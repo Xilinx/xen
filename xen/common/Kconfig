@@ -716,4 +716,21 @@ source "common/Kconfig.decompress"
 config SKIP_WARNING_DELAY
 	bool "Skip delay after displaying Xen boot warnings" if EXPERT
 
+config GC_SECTIONS
+	bool "Garbage Collect Sections" if EXPERT
+	depends on X86 || ARM
+	select CC_SPLIT_SECTIONS
+	help
+	  During final linking, garbage collect unused sections.  This will
+	  reduce the size of the final Xen binary
+
+	  On x86, this only supports for ELF/Multiboot xen/xen.gz and not EFI
+	  xen.efi.  Building xen.efi will be disabled when this is enabled.
+
+config PRINT_GC_SECTIONS
+	bool "Print Garbage Collect Sections"
+	depends on GC_SECTIONS
+	help
+	  Print the sections removed when Garbage Collect Sections is in use.
+
 endmenu

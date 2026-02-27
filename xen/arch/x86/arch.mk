@@ -97,6 +97,10 @@ EFI_LDFLAGS += --strip-debug
 XEN_BUILD_PE := $(LD_PE_check_cmd)
 endif
 
+ifeq ($(CONFIG_GC_SECTIONS),y)
+XEN_BUILD_PE := n
+endif
+
 ifeq ($(XEN_BUILD_PE),y)
 
 # Check if the linker produces fixups in PE by default

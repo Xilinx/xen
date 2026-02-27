@@ -473,6 +473,8 @@ all-symbols-$(CONFIG_LIVEPATCH) += --all-symbols
 all-symbols-$(CONFIG_FAST_SYMBOL_LOOKUP) += --sort-by-name
 
 XEN_LDFLAGS_xen-y :=
+XEN_LDFLAGS_xen-$(CONFIG_GC_SECTIONS)       += --gc-sections
+XEN_LDFLAGS_xen-$(CONFIG_PRINT_GC_SECTIONS) += --print-gc-sections
 
 include $(srctree)/arch/$(SRCARCH)/arch.mk
 
