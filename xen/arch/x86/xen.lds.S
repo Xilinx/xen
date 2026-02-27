@@ -215,6 +215,9 @@ SECTIONS
         * the address and the length of them to patch the kernel safely.
         */
        *(.altinstr_replacement)
+#ifdef CONFIG_CC_SPLIT_SECTIONS
+       *(.altinstr_replacement.*)
+#endif
 
 #ifdef EFI /* EFI wants to merge all of .init.*  ELF doesn't. */
        . = ALIGN(SMP_CACHE_BYTES);
@@ -258,10 +261,16 @@ SECTIONS
        . = ALIGN(8);
         __alt_instructions = .;
         *(.altinstructions)
+#ifdef CONFIG_CC_SPLIT_SECTIONS
+        *(.altinstructions.*)
+#endif
         __alt_instructions_end = .;
         . = ALIGN(4);
         __alt_call_sites_start = .;
         *(.alt_call_sites)
+#ifdef CONFIG_CC_SPLIT_SECTIONS
+        *(.alt_call_sites.*)
+#endif
         __alt_call_sites_end = .;
 
        LOCK_PROFILE_DATA

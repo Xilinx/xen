@@ -81,4 +81,43 @@
 
 #endif /*  __ASSEMBLY__ */
 
+/*
+ * REF() create a reference between sections.
+ *
+ * REF() creates a reference between the current section and a label,
+ * presumably in a different section.  BFD_RELOC_NONE is a no-op relocation
+ * that creates the relationship, but a relocation is not written into the
+ * final binary.  This is used when linking with --gc-sections, so special
+ * sections like alternatives and bug_frames are referenced from the
+ * functions using them.  Used functions retain their associated sections, but
+ * a garbage collected function's associated sections will be unreferenced and
+ * garbage collected as well.
+ */
+#if defined(CONFIG_GC_SECTIONS)
+# ifdef __ASSEMBLER__
+#define REF(label)      .reloc ., BFD_RELOC_NONE, label
+# else
+#define REF(label)     ".reloc ., BFD_RELOC_NONE, " label
+# endif
+#else
+#define REF(label)
+#endif
+
+/*
+ * SECTNAME() conditionally creates split section names.
+ *
+ * Split section names, combined with REF(), allow creating fine-grained
+ * section associations.  So BUG() in .text.foo creates .bug_frame.3.text.foo.
+ * They will either be retained or garbage collected together.
+ */
+#if defined(CONFIG_GC_SECTIONS) && defined(HAVE_AS_SECTNAME_SUBST)
+# ifdef __ASSEMBLER__
+#define SECTNAME(section) PASTE(section,%S)
+# else
+#define SECTNAME(section) section "%%S"
+# endif
+#else /* CONFIG_GC_SECTIONS */
+#define SECTNAME(section) section
+#endif
+
 #endif /* __LINKAGE_H__ */

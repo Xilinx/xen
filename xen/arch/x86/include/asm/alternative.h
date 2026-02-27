@@ -8,6 +8,8 @@
 #define ALT_FLAG_NOT (1 << 15)
 #define ALT_NOT(x) (ALT_FLAG_NOT | (x))
 
+#include <xen/linkage.h>
+
 #ifdef __ASSEMBLY__
 #include <asm/alternative-asm.h>
 #else
@@ -55,6 +57,14 @@ extern void alternative_instructions(void);
 
 #define as_max(a, b) "(("a") ^ ((("a") ^ ("b")) & -("AS_TRUE("("a") < ("b")")")))"
 
+#ifdef CONFIG_GC_SECTIONS
+#define ALT_REF(num)               \
+    REF(".LXEN%=_alt" #num) "\n\t" \
+    REF(alt_repl_s(num))    "\n\t"
+#else
+#define ALT_REF(num)
+#endif
+
 #define OLDINSTR(oldinstr, padding)                              \
     ".LXEN%=_orig_s:\n\t" oldinstr "\n .LXEN%=_orig_e:\n\t"      \
     ".LXEN%=_diff = " padding "\n\t"                             \
@@ -62,17 +72,21 @@ extern void alternative_instructions(void);
     ".LXEN%=_orig_p:\n\t"
 
 #define OLDINSTR_1(oldinstr, n1)                                 \
-    OLDINSTR(oldinstr, alt_repl_len(n1) "-" alt_orig_len)
+    OLDINSTR(oldinstr, alt_repl_len(n1) "-" alt_orig_len)        \
+    ALT_REF(n1)
 
 #define OLDINSTR_2(oldinstr, n1, n2)                             \
     OLDINSTR(oldinstr,                                           \
              as_max(alt_repl_len(n1),                            \
-                    alt_repl_len(n2)) "-" alt_orig_len)
+                    alt_repl_len(n2)) "-" alt_orig_len)          \
+    ALT_REF(n1)                                                  \
+    ALT_REF(n2)
 
 #define ALTINSTR_ENTRY(feature, num)                                    \
         " .if (" STR(feature & ~ALT_FLAG_NOT) ") >= " STR(NCAPINTS * 32) "\n" \
         " .error \"alternative feature outside of featureset range\"\n" \
         " .endif\n"                                                     \
+        ".LXEN%=_alt" #num ":\n"                                        \
         " .long .LXEN%=_orig_s - .\n"             /* label           */ \
         " .long " alt_repl_s(num)" - .\n"         /* new instruction */ \
         " .word " STR(feature) "\n"               /* feature bit     */ \
@@ -90,25 +104,29 @@ extern void alternative_instructions(void);
 /* alternative assembly primitive: */
 #define ALTERNATIVE(oldinstr, newinstr, feature)                        \
         OLDINSTR_1(oldinstr, 1)                                         \
-        ".pushsection .altinstructions, \"a\", @progbits\n"             \
+        ".pushsection " SECTNAME(".altinstructions") ", \"a\", @progbits\n" \
         ALTINSTR_ENTRY(feature, 1)                                      \
-        ".section .discard, \"a\", @progbits\n"                         \
+        ".popsection\n"                                                 \
+        ".pushsection .discard, \"a\", @progbits\n"                     \
         ".byte " alt_total_len "\n" /* total_len <= 255 */              \
         DISCARD_ENTRY(1)                                                \
-        ".section .altinstr_replacement, \"ax\", @progbits\n"           \
+        ".popsection\n"                                                 \
+        ".pushsection " SECTNAME(".altinstr_replacement") ", \"ax\", @progbits\n" \
         ALTINSTR_REPLACEMENT(newinstr, 1)                               \
         ".popsection\n"
 
 #define ALTERNATIVE_2(oldinstr, newinstr1, feature1, newinstr2, feature2) \
         OLDINSTR_2(oldinstr, 1, 2)                                      \
-        ".pushsection .altinstructions, \"a\", @progbits\n"             \
+        ".pushsection " SECTNAME(".altinstructions") ", \"a\", @progbits\n" \
         ALTINSTR_ENTRY(feature1, 1)                                     \
         ALTINSTR_ENTRY(feature2, 2)                                     \
-        ".section .discard, \"a\", @progbits\n"                         \
+        ".popsection\n"                                                 \
+        ".pushsection .discard, \"a\", @progbits\n"                     \
         ".byte " alt_total_len "\n" /* total_len <= 255 */              \
         DISCARD_ENTRY(1)                                                \
         DISCARD_ENTRY(2)                                                \
-        ".section .altinstr_replacement, \"ax\", @progbits\n"           \
+        ".popsection\n"                                                 \
+        ".pushsection " SECTNAME(".altinstr_replacement") ", \"ax\", @progbits\n" \
         ALTINSTR_REPLACEMENT(newinstr1, 1)                              \
         ALTINSTR_REPLACEMENT(newinstr2, 2)                              \
         ".popsection\n"

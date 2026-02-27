@@ -59,11 +59,13 @@
 .macro ALTERNATIVE oldinstr, newinstr, feature
     decl_orig(\oldinstr, repl_len(1) - orig_len)
 
-    .pushsection .altinstructions, "a", @progbits
+    .pushsection SECTNAME(.altinstructions), "a", @progbits
+    .L\@__altinstructions:
     altinstruction_entry .L\@_orig_s, .L\@_repl_s1, \feature, \
         orig_len, repl_len(1), pad_len
+    .popsection
 
-    .section .discard, "a", @progbits
+    .pushsection .discard, "a", @progbits
     /*
      * Assembler-time checks:
      *   - total_len <= 255
@@ -71,25 +73,31 @@
      */
     .byte total_len
     .byte 0xff + repl_len(1) - total_len
+    .popsection
 
-    .section .altinstr_replacement, "ax", @progbits
+    .pushsection SECTNAME(.altinstr_replacement), "ax", @progbits
 
+    .L\@__altreplacement:
     decl_repl(\newinstr, 1)
 
     .popsection
+    REF(.L\@__altinstructions)
+    REF(.L\@__altreplacement)
 .endm
 
 .macro ALTERNATIVE_2 oldinstr, newinstr1, feature1, newinstr2, feature2
     decl_orig(\oldinstr, as_max(repl_len(1), repl_len(2)) - orig_len)
 
-    .pushsection .altinstructions, "a", @progbits
+    .pushsection SECTNAME(.altinstructions), "a", @progbits
 
+    .L\@__altinstructions:
     altinstruction_entry .L\@_orig_s, .L\@_repl_s1, \feature1, \
         orig_len, repl_len(1), pad_len
     altinstruction_entry .L\@_orig_s, .L\@_repl_s2, \feature2, \
         orig_len, repl_len(2), pad_len
+    .popsection
 
-    .section .discard, "a", @progbits
+    .pushsection .discard, "a", @progbits
     /*
      * Assembler-time checks:
      *   - total_len <= 255
@@ -98,17 +106,22 @@
     .byte total_len
     .byte 0xff + repl_len(1) - total_len
     .byte 0xff + repl_len(2) - total_len
+    .popsection
 
-    .section .altinstr_replacement, "ax", @progbits
+    .pushsection SECTNAME(.altinstr_replacement), "ax", @progbits
 
+    .L\@__altreplacement:
     decl_repl(\newinstr1, 1)
     .ifnes "\newinstr2", "\newinstr1"
+    .L\@__altrepl2:
     decl_repl(\newinstr2, 2)
     .else
     clone_repl(2, 1)
     .endif
 
     .popsection
+    REF(.L\@__altinstructions)
+    REF(.L\@__altreplacement)
 .endm
 
 #undef as_max

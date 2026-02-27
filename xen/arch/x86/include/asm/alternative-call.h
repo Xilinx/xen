@@ -89,9 +89,11 @@ struct alt_call {
     register unsigned long r11_ asm("r11");                        \
     asm_inline volatile (                                          \
                   "1: call *%c[addr](%%rip)\n\t"                   \
-                  ".pushsection .alt_call_sites, \"a\", @progbits\n\t"  \
+                  ".pushsection " SECTNAME(".alt_call_sites") ", \"a\", @progbits\n\t"  \
+                  ".Laltcall%=: \n"                                \
                   ".long 1b - .\n\t"                               \
-                  ".popsection"                                    \
+                  ".popsection\n\t"                                \
+                  ""REF(".Laltcall%=")"\n\t"                       \
                   : ALT_CALL ## n ## _OUT, "=a" (ret_),            \
                     "=r" (r10_), "=r" (r11_) ASM_CALL_CONSTRAINT   \
                   : [addr] "i" (&(func)), "g" (func)               \
