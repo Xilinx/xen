@@ -138,58 +138,58 @@
   . = ALIGN(POINTER_ALIGN);  \
   DECL_SECTION(.adev.info) { \
       _asdevice = .;         \
-      *(.adev.info)          \
+      KEEP(*(.adev.info))    \
       _aedevice = .;         \
   } :text
 
 #define BUGFRAMES                               \
     __start_bug_frames_0 = .;                   \
-    *(.bug_frames.0)                            \
+    KEEP(*(.bug_frames.0))                      \
     __stop_bug_frames_0 = .;                    \
                                                 \
     __start_bug_frames_1 = .;                   \
-    *(.bug_frames.1)                            \
+    KEEP(*(.bug_frames.1))                      \
     __stop_bug_frames_1 = .;                    \
                                                 \
     __start_bug_frames_2 = .;                   \
-    *(.bug_frames.2)                            \
+    KEEP(*(.bug_frames.2))                      \
     __stop_bug_frames_2 = .;                    \
                                                 \
     __start_bug_frames_3 = .;                   \
-    *(.bug_frames.3)                            \
+    KEEP(*(.bug_frames.3))                      \
     __stop_bug_frames_3 = .;
 
 #define DT_DEV_INFO         \
   . = ALIGN(POINTER_ALIGN); \
   DECL_SECTION(.dev.info) { \
        _sdevice = .;        \
-       *(.dev.info)         \
+       KEEP(*(.dev.info))   \
        _edevice = .;        \
   } :text
 
 #define SCHEDULER_ARRAY              \
        . = ALIGN(POINTER_ALIGN);     \
        __start_schedulers_array = .; \
-       *(.data.schedulers)           \
+       KEEP(*(.data.schedulers))     \
        __end_schedulers_array = .;
 
 #define SETUP_DATA                   \
        . = ALIGN(POINTER_ALIGN);     \
        __setup_start = .;            \
-       *(.init.setup)                \
+       KEEP(*(.init.setup))          \
        __setup_end = .;              \
                                      \
        __initcall_start = .;         \
-       *(.initcallpresmp.init)       \
+       KEEP(*(.initcallpresmp.init)) \
        __presmp_initcall_end = .;    \
-       *(.initcall1.init)            \
+       KEEP(*(.initcall1.init))      \
        __initcall_end = .;
 
 #ifdef CONFIG_HYPFS
 #define HYPFS_PARAM              \
        . = ALIGN(POINTER_ALIGN); \
        __paramhypfs_start = .;   \
-       *(.data.paramhypfs)       \
+       KEEP(*(.data.paramhypfs)) \
        __paramhypfs_end = .;
 #else
 #define HYPFS_PARAM
@@ -199,7 +199,7 @@
 #define LOCK_PROFILE_DATA        \
        . = ALIGN(POINTER_ALIGN); \
        __lock_profile_start = .; \
-       *(.lockprofile.data)      \
+       KEEP(*(.lockprofile.data))\
        __lock_profile_end = .;
 #else
 #define LOCK_PROFILE_DATA
@@ -219,7 +219,7 @@
 #define VPCI_ARRAY               \
        . = ALIGN(POINTER_ALIGN); \
        __start_vpci_array = .;   \
-       *(.data.rel.ro.vpci)      \
+       KEEP(*(.data.rel.ro.vpci))\
        __end_vpci_array = .;
 #else
 #define VPCI_ARRAY
