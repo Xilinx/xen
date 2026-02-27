@@ -4,6 +4,8 @@
 #include <asm/cpufeature.h>
 #include <asm/insn.h>
 
+#include <xen/linkage.h>
+
 #define ARM_CB_PATCH ARM_NCAPS
 
 #ifndef __ASSEMBLY__
@@ -63,11 +65,12 @@ int apply_alternatives(const struct alt_instr *start, const struct alt_instr *en
 	"661:\n\t"							\
 	oldinstr "\n"							\
 	"662:\n"							\
-	".pushsection .altinstructions,\"a\"\n"				\
+	".pushsection " SECTNAME(".altinstructions") ",\"a\"\n"		\
+	"665:\n"							\
 	ALTINSTR_ENTRY(feature,cb)					\
 	".popsection\n"							\
 	" .if " __stringify(cb) " == 0\n"				\
-	".pushsection .altinstr_replacement, \"ax\"\n"			\
+	".pushsection " SECTNAME(".altinstr_replacement") ", \"ax\"\n"	\
 	"663:\n\t"							\
 	newinstr "\n"							\
 	"664:\n\t"							\
@@ -78,6 +81,8 @@ int apply_alternatives(const struct alt_instr *start, const struct alt_instr *en
 	"663:\n\t"							\
 	"664:\n\t"							\
 	".endif\n"							\
+	REF("665b")"\n"							\
+	REF("663b")"\n"							\
 	".endif\n"
 
 #define _ALTERNATIVE_CFG(oldinstr, newinstr, feature, cfg, ...)	\
@@ -85,12 +90,14 @@ int apply_alternatives(const struct alt_instr *start, const struct alt_instr *en
 
 #define ALTERNATIVE_CB(oldinstr, cb) \
 	__ALTERNATIVE_CFG(oldinstr, "NOT_AN_INSTRUCTION", ARM_CB_PATCH, 1, cb)
-#else
+
+#else /* __ASSEMBLER__ */
 
 #include <asm/asm_defns.h>
 #include <asm/macros.h>
 
 .macro altinstruction_entry orig_offset repl_offset feature orig_len repl_len
+665:
 	.word \orig_offset - .
 	.word \repl_offset - .
 	.hword \feature
@@ -101,14 +108,16 @@ int apply_alternatives(const struct alt_instr *start, const struct alt_instr *en
 .macro alternative_insn insn1, insn2, cap, enable = 1
 	.if \enable
 661:	\insn1
-662:	.pushsection .altinstructions, "a"
+662:	.pushsection SECTNAME(.altinstructions), "a"
 	altinstruction_entry 661b, 663f, \cap, 662b-661b, 664f-663f
 	.popsection
-	.pushsection .altinstr_replacement, "ax"
+	.pushsection SECTNAME(.altinstr_replacement), "ax"
 663:	\insn2
 664:	.popsection
 	.org	. - (664b-663b) + (662b-661b)
 	.org	. - (662b-661b) + (664b-663b)
+	REF(665b)
+	REF(663b)
 	.endif
 .endm
 
@@ -136,7 +145,8 @@ int apply_alternatives(const struct alt_instr *start, const struct alt_instr *en
  */
 .macro alternative_if_not cap
 	.set .Lasm_alt_mode, 0
-	.pushsection .altinstructions, "a"
+	REF(665f)
+	.pushsection SECTNAME(.altinstructions), "a"
 	altinstruction_entry 661f, 663f, \cap, 662f-661f, 664f-663f
 	.popsection
 661:
@@ -144,10 +154,11 @@ int apply_alternatives(const struct alt_instr *start, const struct alt_instr *en
 
 .macro alternative_if cap
 	.set .Lasm_alt_mode, 1
-	.pushsection .altinstructions, "a"
+	REF(665f)
+	.pushsection SECTNAME(.altinstructions), "a"
 	altinstruction_entry 663f, 661f, \cap, 664f-663f, 662f-661f
 	.popsection
-	.pushsection .altinstr_replacement, "ax"
+	.pushsection SECTNAME(.altinstr_replacement), "ax"
 	.align 2	/* So GAS knows label 661 is suitably aligned */
 661:
 .endm
@@ -158,7 +169,7 @@ int apply_alternatives(const struct alt_instr *start, const struct alt_instr *en
 .macro alternative_else
 662:
 	.if .Lasm_alt_mode==0
-	.pushsection .altinstr_replacement, "ax"
+	.pushsection SECTNAME(.altinstr_replacement), "ax"
 	.else
 	.popsection
 	.endif
@@ -167,7 +178,8 @@ int apply_alternatives(const struct alt_instr *start, const struct alt_instr *en
 
 .macro alternative_cb cb
 	.set .Lasm_alt_mode, 0
-	.pushsection .altinstructions, "a"
+	REF(665f)
+	.pushsection SECTNAME(.altinstructions), "a"
 	altinstruction_entry 661f, \cb, ARM_CB_PATCH, 662f-661f, 0
 	.popsection
 661:

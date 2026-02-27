@@ -134,7 +134,10 @@ SECTIONS
        *(.text.startup)
        _einittext = .;
        . = ALIGN(PAGE_SIZE);        /* Avoid mapping alt insns executable */
-       KEEP(*(.altinstr_replacement))
+       *(.altinstr_replacement)
+#ifdef CONFIG_CC_SPLIT_SECTIONS
+       *(.altinstr_replacement.*)
+#endif
   } :text
   . = ALIGN(PAGE_SIZE);
   __init_data_begin = .;
@@ -150,7 +153,10 @@ SECTIONS
 
        . = ALIGN(4);
        __alt_instructions = .;
-       KEEP(*(.altinstructions))
+       *(.altinstructions)
+#ifdef CONFIG_CC_SPLIT_SECTIONS
+       *(.altinstructions.*)
+#endif
        __alt_instructions_end = .;
 
        LOCK_PROFILE_DATA
