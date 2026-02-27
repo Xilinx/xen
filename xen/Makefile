@@ -472,12 +472,15 @@ all-symbols-y :=
 all-symbols-$(CONFIG_LIVEPATCH) += --all-symbols
 all-symbols-$(CONFIG_FAST_SYMBOL_LOOKUP) += --sort-by-name
 
+XEN_LDFLAGS_xen-y :=
+
 include $(srctree)/arch/$(SRCARCH)/arch.mk
 
 # define new variables to avoid the ones defined in Config.mk
 export XEN_CFLAGS := $(CFLAGS)
 export XEN_AFLAGS := $(AFLAGS)
 export XEN_LDFLAGS := $(LDFLAGS)
+export XEN_LDFLAGS_xen := $(XEN_LDFLAGS) $(XEN_LDFLAGS_xen-y)
 export CFLAGS_UBSAN
 
 endif # need-config
