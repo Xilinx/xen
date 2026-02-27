@@ -72,12 +72,13 @@ static inline int rdmsr_safe(unsigned int msr, uint64_t *val)
 
     asm_inline volatile (
         "1: rdmsr\n2:\n"
-        ".section .fixup,\"ax\"\n"
+        ".section "SECTNAME(".fixup")",\"ax\"\n"
         "3: xorl %k0,%k0\n\t"
         "   xorl %k1,%k1\n\t"
         "   movl %5,%2\n\t"
         "   jmp 2b\n\t"
-        ".previous"
+        ".previous\n\t"
+        REF("3b")"\n\t"
         _ASM_EXTABLE(1b, 3b)
         : "=a" (lo), "=d" (hi), "=&r" (rc)
         : "c" (msr), "2" (0), "i" (-EFAULT) );

@@ -722,11 +722,12 @@ struct stub_exn {
                    ".Lret%=:\n\t"                                       \
                    post "\n\t"                                          \
                    ".Lskip%=:\n\t"                                      \
-                   ".pushsection .fixup,\"ax\"\n"                       \
+                   ".pushsection "SECTNAME(".fixup")",\"ax\"\n"         \
                    ".Lfix%=:\n\t"                                       \
                    "pop %[exn]\n\t"                                     \
                    "jmp .Lskip%=\n\t"                                   \
                    ".popsection\n\t"                                    \
+                   REF(".Lfix%=")"\n\t"                                 \
                    _ASM_EXTABLE(.Lret%=, .Lfix%=)                       \
                    : [exn] "+g" (stub_exn.info) ASM_CALL_CONSTRAINT,    \
                      constraints,                                       \

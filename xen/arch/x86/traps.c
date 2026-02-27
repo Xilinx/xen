@@ -771,9 +771,10 @@ static void show_trace(const struct cpu_user_regs *regs)
     /* Guarded read of the stack top. */
     asm_inline (
         "1: mov %[data], %[tos]; 2:\n"
-        ".pushsection .fixup,\"ax\"\n"
+        ".pushsection "SECTNAME(".fixup")",\"ax\"\n"
         "3: movb $1, %[fault]; jmp 2b\n"
         ".popsection\n"
+        REF("3b")"\n\t"
         _ASM_EXTABLE(1b, 3b)
         : [tos] "+r" (tos), [fault] "+qm" (fault)
         : [data] "m" (*sp) );

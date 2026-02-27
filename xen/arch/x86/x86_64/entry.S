@@ -606,7 +606,7 @@ __UNLIKELY_END(create_bounce_frame_bad_bounce_ip)
         mov   %al,  TRAPBOUNCE_flags(%rdx)
         RET
 
-        .pushsection .fixup, "ax", @progbits
+        .pushsection SECTNAME(.fixup), "ax", @progbits
         # Numeric tags below represent the intended overall %rsi adjustment.
 domain_crash_page_fault_6x8:
         addq  $8,%rsi
@@ -643,6 +643,7 @@ LABEL(dom_crash_sync_extable, 0)
         xorl  %edi,%edi
         jmp   asm_domain_crash_synchronous /* Does not return */
         .popsection
+        REF(domain_crash_page_fault_6x8)
 END(create_bounce_frame)
 #endif /* CONFIG_PV */
 

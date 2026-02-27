@@ -335,11 +335,12 @@ __UNLIKELY_END(compat_bounce_null_selector)
         mov   %al,  TRAPBOUNCE_flags(%rdx)
         RET
 
-.section .fixup,"ax"
+.section SECTNAME(.fixup),"ax"
 .Lfx13:
         xorl  %edi,%edi
         jmp   .Lft13
 .previous
+        REF(.Lfx13)
         _ASM_EXTABLE(.Lft1,  dom_crash_sync_extable)
         _ASM_EXTABLE(.Lft2,  compat_crash_page_fault)
         _ASM_EXTABLE(.Lft3,  compat_crash_page_fault_4)
@@ -360,10 +361,11 @@ compat_crash_page_fault:
         movl  %esi,%edi
         call  show_page_walk
         jmp   dom_crash_sync_extable
-.section .fixup,"ax"
+.section SECTNAME(.fixup),"ax"
 .Lfx14:
         xorl  %edi,%edi
         jmp   .Lft14
 .previous
+        REF(.Lfx14)
         _ASM_EXTABLE(.Lft14, .Lfx14)
 END(compat_create_bounce_frame)

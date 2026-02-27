@@ -98,7 +98,10 @@ SECTIONS
 #endif
        *(.text.__x86_indirect_thunk_*)
 
-       KEEP(*(.fixup))
+       *(.fixup)
+#ifdef CONFIG_CC_SPLIT_SECTIONS
+       *(.fixup.*)
+#endif
        *(.gnu.warning)
        _etext = .;             /* End of text section */
   } PHDR(text) = 0x9090

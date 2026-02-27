@@ -191,11 +191,12 @@ int __init cf_check stub_selftest(void)
         asm_inline volatile (
             "INDIRECT_CALL %[stb]\n"
             ".Lret%=:\n\t"
-            ".pushsection .fixup,\"ax\"\n"
+            ".pushsection "SECTNAME(".fixup")",\"ax\"\n"
             ".Lfix%=:\n\t"
             "pop %[exn]\n\t"
             "jmp .Lret%=\n\t"
             ".popsection\n\t"
+            REF(".Lfix%=")"\n\t"
             _ASM_EXTABLE(.Lret%=, .Lfix%=)
             : [exn] "+m" (res) ASM_CALL_CONSTRAINT
             : [stb] "r" (addr), "a" (tests[i].rax) );

@@ -64,7 +64,7 @@ static inline void fpu_fxrstor(struct vcpu *v)
     default:
         asm_inline volatile (
             "1: fxrstorq %0\n"
-            ".section .fixup,\"ax\"   \n"
+            ".section "SECTNAME(".fixup")",\"ax\"\n"
             "2: push %%"__OP"ax       \n"
             "   push %%"__OP"cx       \n"
             "   push %%"__OP"di       \n"
@@ -77,6 +77,7 @@ static inline void fpu_fxrstor(struct vcpu *v)
             "   pop  %%"__OP"ax       \n"
             "   jmp  1b               \n"
             ".previous                \n"
+            REF("2b")"                \n"
             _ASM_EXTABLE(1b, 2b)
             :
             : "m" (*fpu_ctxt), "i" (sizeof(*fpu_ctxt) / 4) );
@@ -84,7 +85,7 @@ static inline void fpu_fxrstor(struct vcpu *v)
     case 4: case 2:
         asm_inline volatile (
             "1: fxrstor %0         \n"
-            ".section .fixup,\"ax\"\n"
+            ".section "SECTNAME(".fixup")",\"ax\"\n"
             "2: push %%"__OP"ax    \n"
             "   push %%"__OP"cx    \n"
             "   push %%"__OP"di    \n"
@@ -97,6 +98,7 @@ static inline void fpu_fxrstor(struct vcpu *v)
             "   pop  %%"__OP"ax    \n"
             "   jmp  1b            \n"
             ".previous             \n"
+            REF("2b")"             \n"
             _ASM_EXTABLE(1b, 2b)
             :
             : "m" (*fpu_ctxt), "i" (sizeof(*fpu_ctxt) / 4) );

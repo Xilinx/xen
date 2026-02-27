@@ -413,10 +413,11 @@ void xrstor(struct vcpu *v, uint64_t mask)
 #define _xrstor(insn) \
         asm volatile ( "1: .byte " insn "\n" \
                        "3:\n" \
-                       "   .section .fixup,\"ax\"\n" \
+                       "   .section "SECTNAME(".fixup")",\"ax\"\n" \
                        "2: incl %[faults]\n" \
                        "   jmp 3b\n" \
                        "   .previous\n" \
+                       REF("2b")"\n" \
                        _ASM_EXTABLE(1b, 2b) \
                        : [mem] "+m" (*ptr), [faults] "+g" (faults) \
                        : [lmask] "a" (lmask), [hmask] "d" (hmask), \

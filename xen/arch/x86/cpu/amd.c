@@ -77,10 +77,11 @@ static inline int rdmsr_amd_safe(unsigned int msr, unsigned int *lo,
 
     asm_inline volatile (
         "1: rdmsr\n2:\n"
-        ".section .fixup,\"ax\"\n"
+        ".section "SECTNAME(".fixup")",\"ax\"\n"
         "3: movl %6,%2\n"
         "   jmp 2b\n"
         ".previous\n"
+        REF("3b")"\n"
         _ASM_EXTABLE(1b, 3b)
         : "=a" (*lo), "=d" (*hi), "=r" (err)
         : "c" (msr), "D" (0x9c5a203a), "2" (0), "i" (-EFAULT) );

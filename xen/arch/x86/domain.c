@@ -1816,11 +1816,12 @@ static void load_segments(struct vcpu *n)
     asm_inline volatile (                               \
         "1: mov %k[_val], %%" #seg "\n\t"               \
         "2:\n\t"                                        \
-        ".section .fixup, \"ax\"\n\t"                   \
+        ".section "SECTNAME(".fixup")",\"ax\"\n\t"      \
         "3: xor %k[ok], %k[ok]\n\t"                     \
         "   mov %k[ok], %%" #seg "\n\t"                 \
         "   jmp 2b\n\t"                                 \
         ".previous\n\t"                                 \
+        REF("3b")"\n\t"                                 \
         _ASM_EXTABLE(1b, 3b)                            \
         : [ok] "+r" (all_segs_okay)                     \
         : [_val] "rm" (val) )

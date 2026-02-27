@@ -45,7 +45,7 @@ unsigned int copy_from_guest_ll(void *to, const void __user *from, unsigned int 
         )
         "1:  rep movsb\n"
         "2:\n"
-        ".section .fixup,\"ax\"\n"
+        ".section "SECTNAME(".fixup")",\"ax\"\n"
         "6:  mov  %[cnt], %k[from]\n"
         "    xchg %%eax, %[aux]\n"
         "    xor  %%eax, %%eax\n"
@@ -54,6 +54,7 @@ unsigned int copy_from_guest_ll(void *to, const void __user *from, unsigned int 
         "    mov  %k[from], %[cnt]\n"
         "    jmp 2b\n"
         ".previous\n"
+        REF("6b")"\n"
         _ASM_EXTABLE(1b, 6b)
         : [cnt] "+c" (n), [to] "+D" (to), [from] "+S" (from),
           [aux] "=&r" (dummy)

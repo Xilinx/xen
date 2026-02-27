@@ -233,11 +233,12 @@ long do_set_segment_base(unsigned int which, unsigned long base)
          */
         asm_inline volatile (
             "1: mov %[sel], %%gs\n\t"
-            ".section .fixup, \"ax\", @progbits\n\t"
+            ".section "SECTNAME(".fixup")",\"ax\", @progbits\n\t"
             "2: mov %k[flat], %%gs\n\t"
             "   xor %[sel], %[sel]\n\t"
             "   jmp 1b\n\t"
             ".previous\n\t"
+            REF("2b")"\n\t"
             _ASM_EXTABLE(1b, 2b)
             : [sel] "+r" (sel)
             : [flat] "r" (FLAT_USER_DS32) );

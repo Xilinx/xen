@@ -160,10 +160,11 @@ struct __large_struct { unsigned long buf[100]; };
 		)							\
 		"1:	mov"itype" %"rtype"[val], (%[ptr])\n"		\
 		"2:\n"							\
-		".section .fixup,\"ax\"\n"				\
+		".section "SECTNAME(".fixup")",\"ax\"\n"                \
 		"3:	mov %[errno], %[ret]\n"				\
 		"	jmp 2b\n"					\
 		".previous\n"						\
+		REF("3b")"\n"                                           \
 		_ASM_EXTABLE(1b, 3b)					\
 		: [ret] "+r" (err), [ptr] "=&r" (dummy_)		\
 		  GUARD(, [scr1] "=&r" (dummy_), [scr2] "=&r" (dummy_))	\
@@ -177,11 +178,12 @@ struct __large_struct { unsigned long buf[100]; };
 		)							\
 		"1:	mov (%[ptr]), %"rtype"[val]\n"			\
 		"2:\n"							\
-		".section .fixup,\"ax\"\n"				\
+		".section "SECTNAME(".fixup")",\"ax\"\n"                \
 		"3:	mov %[errno], %[ret]\n"				\
 		"	xor %k[val], %k[val]\n"				\
 		"	jmp 2b\n"					\
 		".previous\n"						\
+		REF("3b")"\n"                                           \
 		_ASM_EXTABLE(1b, 3b)					\
 		: [ret] "+r" (err), [val] ltype (x),			\
 		  [ptr] "=&r" (dummy_)					\
