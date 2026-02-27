@@ -1,6 +1,8 @@
 #ifndef __X86_BUG_H__
 #define __X86_BUG_H__
 
+#include <xen/linkage.h>
+
 /*
  * Please do not include in the header any header that might
  * use BUG/ASSERT/etc maros asthey will be defined later after
@@ -42,8 +44,9 @@
     .pushsection .rodata.str1, "aMS", @progbits, 1
          .L\@s1: .asciz "\file_str"
     .popsection
+    REF(.L\@s1)
 
-    .pushsection .bug_frames.\type, "a", @progbits
+    .pushsection SECTNAME(.bug_frames.\type), "a", @progbits
         .p2align 2
         .L\@bf:
         .long (.L\@ud - .L\@bf) + \
@@ -55,9 +58,11 @@
             .pushsection .rodata.str1, "aMS", @progbits, 1
                 .L\@s2: .asciz "\msg"
             .popsection
+            REF(.L\@s2)
             .long 0, (.L\@s2 - .L\@bf)
         .endif
     .popsection
+    REF(.L\@bf)
     .endm
 
 #define WARN BUG_FRAME BUGFRAME_warn, __LINE__, __FILE__, 0, 0

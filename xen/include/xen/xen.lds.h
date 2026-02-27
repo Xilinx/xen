@@ -144,19 +144,23 @@
 
 #define BUGFRAMES                               \
     __start_bug_frames_0 = .;                   \
-    KEEP(*(.bug_frames.0))                      \
+    *(.bug_frames.0)                            \
+    *(.bug_frames.0.*)                          \
     __stop_bug_frames_0 = .;                    \
                                                 \
     __start_bug_frames_1 = .;                   \
-    KEEP(*(.bug_frames.1))                      \
+    *(.bug_frames.1)                            \
+    *(.bug_frames.1.*)                          \
     __stop_bug_frames_1 = .;                    \
                                                 \
     __start_bug_frames_2 = .;                   \
-    KEEP(*(.bug_frames.2))                      \
+    *(.bug_frames.2)                            \
+    *(.bug_frames.2.*)                          \
     __stop_bug_frames_2 = .;                    \
                                                 \
     __start_bug_frames_3 = .;                   \
-    KEEP(*(.bug_frames.3))                      \
+    *(.bug_frames.3)                            \
+    *(.bug_frames.3.*)                          \
     __stop_bug_frames_3 = .;
 
 #define DT_DEV_INFO         \

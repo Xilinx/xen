@@ -1,6 +1,7 @@
 #ifndef __ARM_BUG_H__
 #define __ARM_BUG_H__
 
+#include <xen/linkage.h>
 #include <xen/types.h>
 
 #if defined(CONFIG_ARM_32)
@@ -26,6 +27,19 @@ struct bug_frame {
 #define bug_line(b) ((b)->line)
 #define bug_msg(b) ((const char *)(b) + (b)->msg_disp)
 
+#ifdef USE_SECTNAME
+/*
+ * SECTNAME() cannot be used because the inline asm BUG_FRAME does
+ * not have any parameters, so % does not need the double %% expansion.
+ * However, the non-assembly variant provides %%S, which throws off compiling.
+ * Specify the single % variant here.
+*/
+#define SECTNAME_BUGFRAME(type) ".bug_frames." __stringify(type) "%S"
+#else
+#define SECTNAME_BUGFRAME(type) ".bug_frames." __stringify(type)
+#endif
+
+
 /* Many versions of GCC doesn't support the asm %c parameter which would
  * be preferable to this unpleasantness. We use mergeable string
  * sections to avoid multiple copies of the string appearing in the
@@ -43,14 +57,16 @@ struct bug_frame {
          "\t.asciz " #msg "\n"                                              \
          ".endif\n"                                                         \
          ".popsection\n"                                                    \
-         ".pushsection .bug_frames." __stringify(type) ", \"a\", %progbits\n"\
+         REF("2b")"\n"                                                      \
+         ".pushsection "SECTNAME_BUGFRAME(type)", \"a\", %progbits\n"       \
          "4:\n"                                                             \
          ".p2align 2\n"                                                     \
          ".long (1b - 4b)\n"                                                \
          ".long (2b - 4b)\n"                                                \
          ".long (3b - 4b)\n"                                                \
          ".hword " __stringify(line) ", 0\n"                                \
-         ".popsection");                                                    \
+         ".popsection\n"                                                    \
+         REF("4b")"\n");                                                    \
 } while (0)
 
 /*
@@ -63,13 +79,14 @@ struct bug_frame {
     register unsigned long _fn asm (STR(BUG_FN_REG)) = (unsigned long)(fn); \
     asm_inline (                                                            \
          "1:"BUG_INSTR"\n"                                                  \
-         ".pushsection .bug_frames." __stringify(BUGFRAME_run_fn) ","       \
+         ".pushsection .bug_frames."SECTNAME(STR(BUGFRAME_run_fn))","       \
          "             \"a\", %%progbits\n"                                 \
          "2:\n"                                                             \
          ".p2align 2\n"                                                     \
          ".long (1b - 2b)\n"                                                \
          ".long 0, 0, 0\n"                                                  \
-         ".popsection" :: "r" (_fn) );                                      \
+         ".popsection\n"                                                    \
+         REF("2b")"\n" :: "r" (_fn) );                                      \
 } while (0)
 
 #define WARN() BUG_FRAME(BUGFRAME_warn, __LINE__, __FILE__, 0, "")

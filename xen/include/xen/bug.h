@@ -17,6 +17,7 @@
 #ifndef __ASSEMBLY__
 
 #include <xen/compiler.h>
+#include <xen/linkage.h>
 #include <xen/macros.h>
 #include <xen/types.h>
 
@@ -66,7 +67,7 @@ struct bug_frame {
 
 #define _ASM_BUGFRAME_TEXT(second_frame)                                            \
     ".Lbug%=:"BUG_INSTR"\n"                                                         \
-    "   .pushsection .bug_frames.%"BUG_ASM_CONST"[bf_type], \"a\", %%progbits\n"    \
+    "   .pushsection " SECTNAME(".bug_frames.%"BUG_ASM_CONST"[bf_type]") ", \"a\", @progbits\n"  \
     "   .p2align 2\n"                                                               \
     ".Lfrm%=:\n"                                                                    \
     "   .long (.Lbug%= - .Lfrm%=) + %"BUG_ASM_CONST"[bf_line_hi]\n"                 \
@@ -74,7 +75,8 @@ struct bug_frame {
     "   .if " #second_frame "\n"                                                    \
     "   .long 0, %"BUG_ASM_CONST"[bf_msg] - .Lfrm%=\n"                              \
     "   .endif\n"                                                                   \
-    "   .popsection\n"
+    "   .popsection\n"                                                              \
+    REF(".Lfrm%=")"\n"
 
 #define _ASM_BUGFRAME_INFO(type, line, ptr, msg)                             \
     [bf_type]    "i" (type),                                                 \

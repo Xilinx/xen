@@ -112,6 +112,7 @@
  */
 #if defined(CONFIG_GC_SECTIONS) && defined(HAVE_AS_SECTNAME_SUBST)
 # ifdef __ASSEMBLER__
+#define USE_SECTNAME
 #define SECTNAME(section) PASTE(section,%S)
 # else
 #define SECTNAME(section) section "%%S"
