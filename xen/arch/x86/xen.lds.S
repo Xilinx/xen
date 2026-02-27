@@ -76,12 +76,12 @@ SECTIONS
   _start = .;
   DECL_SECTION(.text) {
         _stext = .;            /* Text and read-only data */
-       *(.text.header)
+       KEEP(*(.text.header))
 
        . = ALIGN(PAGE_SIZE);
        _stextentry = .;
        *(.text.entry)
-       *(.text.entry.*)
+       KEEP(*(.text.entry.*))
        . = ALIGN(PAGE_SIZE);
        _etextentry = .;
 
@@ -98,7 +98,7 @@ SECTIONS
 #endif
        *(.text.__x86_indirect_thunk_*)
 
-       *(.fixup)
+       KEEP(*(.fixup))
        *(.gnu.warning)
        _etext = .;             /* End of text section */
   } PHDR(text) = 0x9090
@@ -205,6 +205,7 @@ SECTIONS
        *(.init.text)
 #ifdef CONFIG_CC_SPLIT_SECTIONS
        *(.init.text.*)
+       KEEP(*(.init.text.early_page_fault))
 #endif
        *(.text.startup)
        _einittext = .;
@@ -244,10 +245,10 @@ SECTIONS
        *(.init.data.rel.*)
        . = ALIGN(4);
        __trampoline_rel_start = .;
-       *(.trampoline_rel)
+       KEEP(*(.trampoline_rel))
        __trampoline_rel_stop = .;
        __trampoline_seg_start = .;
-       *(.trampoline_seg)
+       KEEP(*(.trampoline_seg))
        __trampoline_seg_stop = .;
        /*
         * struct alt_inst entries. From the header (alternative.h):
@@ -267,10 +268,10 @@ SECTIONS
 
        . = ALIGN(8);
        __ctors_start = .;
-       *(SORT_BY_INIT_PRIORITY(.init_array.*))
-       *(SORT_BY_INIT_PRIORITY(.ctors.*))
-       *(.init_array)
-       *(.ctors)
+       KEEP(*(SORT_BY_INIT_PRIORITY(.init_array.*)))
+       KEEP(*(SORT_BY_INIT_PRIORITY(.ctors.*)))
+       KEEP(*(.init_array))
+       KEEP(*(.ctors))
        __ctors_end = .;
   } PHDR(text)
 
