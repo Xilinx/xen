@@ -1246,7 +1246,7 @@ static void gicv3_read_lr(int lr, struct gic_lr *lr_reg)
     {
         lr_reg->virt.eoi = (lrv & ICH_LR_MAINTENANCE_IRQ);
         /* Source only exists in GICv2 compatible mode */
-        if ( current->domain->arch.vgic.version == GIC_V2 )
+        if ( IS_ENABLED(CONFIG_VGICV2) && (current->domain->arch.vgic.version == GIC_V2) )
         {
             /*
              * This is only valid for SGI, but it does not matter to always
@@ -1283,7 +1283,7 @@ static void gicv3_write_lr(int lr, const struct gic_lr *lr_reg)
         if ( lr_reg->virt.eoi )
             lrv |= ICH_LR_MAINTENANCE_IRQ;
         /* Source is only set in GICv2 compatible mode */
-        if ( vgic_version == GIC_V2 )
+        if ( IS_ENABLED(CONFIG_VGICV2) && (vgic_version == GIC_V2) )
         {
             /*
              * Source is only valid for SGIs, the caller should make
