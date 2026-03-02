@@ -24,8 +24,8 @@ static const struct xsm_ops __initconst_cf_clobber dummy_ops = {
 #endif
     .set_target                    = xsm_set_target,
     .domctl                        = xsm_domctl,
-#ifdef CONFIG_MGMT_HYPERCALLS
     .sysctl                        = xsm_sysctl,
+#ifdef CONFIG_MGMT_HYPERCALLS
     .readconsole                   = xsm_readconsole,
 #endif
 

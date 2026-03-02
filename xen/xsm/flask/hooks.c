@@ -856,7 +856,7 @@ static int cf_check flask_domctl(struct domain *d, unsigned int cmd,
     }
 }
 
-static int cf_check __maybe_unused flask_sysctl(int cmd)
+static int cf_check flask_sysctl(int cmd)
 {
     switch ( cmd )
     {
@@ -1886,8 +1886,8 @@ static const struct xsm_ops __initconst_cf_clobber flask_ops = {
 #endif
     .set_target = flask_set_target,
     .domctl = flask_domctl,
-#ifdef CONFIG_MGMT_HYPERCALLS
     .sysctl = flask_sysctl,
+#ifdef CONFIG_MGMT_HYPERCALLS
     .readconsole = flask_readconsole,
 #endif
 

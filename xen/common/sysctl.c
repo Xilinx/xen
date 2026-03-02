@@ -42,7 +42,24 @@ long do_sysctl(XEN_GUEST_HANDLE_PARAM(xen_sysctl_t) u_sysctl)
     if ( op->interface_version != XEN_SYSCTL_INTERFACE_VERSION )
         return -EACCES;
 
-    ret = xsm_sysctl(XSM_OTHER, op->cmd);
+    /*
+     * Replace op->cmd with SYSCTL_CMD(op) to utilize VRP to DCE unnecessary
+     * sysctl-ops when CONFIG_MGMT_HYPERCALLS=n.
+     * Right now, only XEN_SYSCTL_cpupool_op, XEN_SYSCTL_physinfo and
+     * XEN_SYSCTL_getdomaininfolist are available when CONFIG_MGMT_HYPERCALLS=n.
+     */
+#define SYSCTL_CMD(op) ({\
+    IS_ENABLED(CONFIG_MGMT_HYPERCALLS)        ? (op)->cmd                    :\
+    (op)->cmd == XEN_SYSCTL_cpupool_op        ? XEN_SYSCTL_cpupool_op        :\
+    (op)->cmd == XEN_SYSCTL_physinfo          ? XEN_SYSCTL_physinfo          :\
+    (op)->cmd == XEN_SYSCTL_getdomaininfolist ? XEN_SYSCTL_getdomaininfolist :\
+    XEN_SYSCTL_getdomaininfolist; /* innocuous else */                        \
+})
+
+    if ( SYSCTL_CMD(op) != op->cmd )
+        return -EOPNOTSUPP;
+
+    ret = xsm_sysctl(XSM_OTHER, SYSCTL_CMD(op));
     if ( ret )
         return ret;
 
@@ -56,7 +73,7 @@ long do_sysctl(XEN_GUEST_HANDLE_PARAM(xen_sysctl_t) u_sysctl)
             return hypercall_create_continuation(
                 __HYPERVISOR_sysctl, "h", u_sysctl);
 
-    switch ( op->cmd )
+    switch ( SYSCTL_CMD(op) )
     {
     case XEN_SYSCTL_readconsole:
         ret = xsm_readconsole(XSM_HOOK, op->u.readconsole.clear);
