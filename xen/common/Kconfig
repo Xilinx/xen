@@ -157,6 +157,7 @@ config HAS_SCHED_GRANULARITY
 
 config HAS_SOFT_RESET
 	bool
+	depends on MGMT_HYPERCALLS
 
 config HAS_STACK_PROTECTOR
 	bool

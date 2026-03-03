@@ -200,7 +200,7 @@ kexec_op(unsigned long op, void *uarg)
 dm_op(domid_t domid, unsigned int nr_bufs, xen_dm_op_buf_t *bufs)
 #endif
 sysctl(xen_sysctl_t *u_sysctl)
-#if defined(CONFIG_X86) && defined(CONFIG_PAGING) && !defined(CONFIG_PV_SHIM_EXCLUSIVE)
+#if defined(CONFIG_X86) && defined(CONFIG_PAGING) && !defined(CONFIG_PV_SHIM_EXCLUSIVE) && defined(CONFIG_MGMT_HYPERCALLS)
 paging_domctl_cont(xen_domctl_t *u_domctl)
 #endif
 #ifndef CONFIG_PV_SHIM_EXCLUSIVE
@@ -301,7 +301,7 @@ dm_op                              compat   do       compat   do       do
 hypfs_op                           do       do       do       do       do
 #endif
 mca                                do       do       -        -        -
-#if defined(CONFIG_X86) && defined(CONFIG_PAGING) && !defined(CONFIG_PV_SHIM_EXCLUSIVE)
+#if defined(CONFIG_X86) && defined(CONFIG_PAGING) && !defined(CONFIG_PV_SHIM_EXCLUSIVE) && defined(CONFIG_MGMT_HYPERCALLS)
 paging_domctl_cont                 do       do       do       do       -
 #endif
 
