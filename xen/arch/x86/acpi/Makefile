@@ -1,4 +1,4 @@
-obj-y += cpufreq/
+obj-$(CONFIG_CPUFREQ) += cpufreq/
 
 obj-y += lib.o cpu_idle.o cpuidle_menu.o
 obj-$(CONFIG_SYSTEM_SUSPEND) += power.o

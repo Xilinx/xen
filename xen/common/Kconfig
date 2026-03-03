@@ -681,7 +681,7 @@ endmenu
 
 config PM_OP
 	bool "Enable Performance Management Operation"
-	depends on ACPI && HAS_CPUFREQ && SYSCTL
+	depends on ACPI && CPUFREQ && SYSCTL
 	default y
 	help
 	  This option shall enable userspace performance management control
@@ -689,7 +689,7 @@ config PM_OP
 
 config PM_STATS
 	bool "Enable Performance Management Statistics"
-	depends on ACPI && HAS_CPUFREQ && SYSCTL
+	depends on ACPI && CPUFREQ && SYSCTL
 	default y
 	help
 	  Enable collection of performance management statistics to aid in

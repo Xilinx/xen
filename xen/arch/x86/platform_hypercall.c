@@ -546,6 +546,12 @@ ret_t do_platform_op(
     }
 
     case XENPF_set_processor_pminfo:
+        if ( !IS_ENABLED(CONFIG_CPUFREQ) )
+        {
+            ret = -EOPNOTSUPP;
+            break;
+        }
+
         switch ( op->u.set_pminfo.type )
         {
         case XEN_PM_PX:

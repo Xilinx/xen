@@ -1,3 +1,16 @@
 
 config HAS_CPUFREQ
 	bool
+
+config CPUFREQ
+	bool "CPU Frequency scaling"
+	default y
+	depends on HAS_CPUFREQ
+	help
+	  Enable CPU frequency scaling and power management governors.
+	  This allows Xen to dynamically adjust CPU P-states (performance
+	  states) based on system load.
+
+	  Disabling this option removes all cpufreq governors and power
+	  management interfaces. This is useful for real-time systems or
+	  minimal hypervisor builds.
