@@ -773,6 +773,8 @@ static int __init construct_domU(struct kernel_info *kinfo,
 
     rangeset_destroy(kinfo->xen_reg_assigned);
 
+    d->console.input_allowed = true;
+
     return rc;
 }
 

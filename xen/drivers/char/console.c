@@ -613,7 +613,15 @@ static void __serial_rx(char c)
     if ( !d )
         return;
 
-    if ( is_hardware_domain(d) || IS_ENABLED(CONFIG_X86) )
+#ifdef CONFIG_SBSA_VUART_CONSOLE
+    /* Prioritize vpl011 if enabled for this domain */
+    if ( d->arch.vpl011.base_addr )
+    {
+        /* Deliver input to the emulated UART. */
+        rc = vpl011_rx_char_xen(d, c);
+    }
+    else
+#endif
     {
         unsigned long flags;
 
@@ -627,16 +635,11 @@ static void __serial_rx(char c)
         nrspin_unlock_irqrestore(&console_lock, flags);
 
         /*
-         * Always notify the hardware domain: prevents receive path from
+         * Always notify the focus domain: prevents receive path from
          * getting stuck.
          */
         send_guest_domain_virq(d, VIRQ_CONSOLE);
     }
-#ifdef CONFIG_SBSA_VUART_CONSOLE
-    else
-        /* Deliver input to the emulated UART. */
-        rc = vpl011_rx_char_xen(d, c);
-#endif
 
     if ( consoled_is_enabled() )
         /* Deliver input to the PV shim console. */
