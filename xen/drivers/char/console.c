@@ -543,6 +543,12 @@ void console_put_domain(struct domain *d)
         rcu_unlock_domain(d);
 }
 
+static bool is_focus_domain(const struct domain *d)
+{
+    ASSERT(rspin_is_locked(&console_lock));
+    return d != NULL && 1 + d->domain_id == console_rx;
+}
+
 static void console_switch_input(void)
 {
     unsigned int next_rx = ACCESS_ONCE(console_rx);
@@ -561,6 +567,7 @@ static void console_switch_input(void)
         {
             nrspin_lock_irqsave(&console_lock, flags);
             ACCESS_ONCE(console_rx) = 0;
+            serial_rx_cons = serial_rx_prod;
             nrspin_unlock_irqrestore(&console_lock, flags);
             printk("*** Serial input to Xen");
             break;
@@ -580,6 +587,8 @@ static void console_switch_input(void)
 
             nrspin_lock_irqsave(&console_lock, flags);
             ACCESS_ONCE(console_rx) = next_rx;
+            /* Don't let the next dom read the previous dom's unread data. */
+            serial_rx_cons = serial_rx_prod;
             nrspin_unlock_irqrestore(&console_lock, flags);
             printk("*** Serial input to DOM%u", domid);
             break;
@@ -609,7 +618,7 @@ static void __serial_rx(char c)
         unsigned long flags;
 
         /*
-         * Deliver input to the hardware domain buffer, unless it is
+         * Deliver input to the focus domain buffer, unless it is
          * already full.
          */
         nrspin_lock_irqsave(&console_lock, flags);
@@ -751,16 +760,36 @@ static long guest_console_write(XEN_GUEST_HANDLE_PARAM(char) buffer,
         if ( copy_from_guest(kbuf, buffer, kcount) )
             return -EFAULT;
 
-        if ( is_hardware_domain(cd) )
+        /*
+         * Take both pbuf_lock and console_lock:
+         * - pbuf_lock protects cd->pbuf and cd->pbuf_idx
+         * - console_lock protects console_send() and is_focus_domain()
+         *   checks
+         *
+         * The order must be respected. guest_printk() takes the
+         * console_lock and it is called with pbuf_lock held. It is
+         * important that pbuf_lock is taken first.
+         */
+        spin_lock(&cd->pbuf_lock);
+        nrspin_lock_irq(&console_lock);
+        if ( is_focus_domain(cd) )
         {
+            if ( cd->pbuf_idx )
+            {
+                console_send(cd->pbuf, cd->pbuf_idx, flags);
+                cd->pbuf_idx = 0;
+            }
+            spin_unlock(&cd->pbuf_lock);
+
             /* Use direct console output as it could be interactive */
-            nrspin_lock_irq(&console_lock);
             console_send(kbuf, kcount, flags);
             nrspin_unlock_irq(&console_lock);
         }
         else
         {
             char *kin = kbuf, *kout = kbuf, c;
+
+            nrspin_unlock_irq(&console_lock);
 
             /* Strip non-printable characters */
             do
@@ -773,7 +802,6 @@ static long guest_console_write(XEN_GUEST_HANDLE_PARAM(char) buffer,
             } while ( --kcount > 0 );
 
             *kout = '\0';
-            spin_lock(&cd->pbuf_lock);
             kcount = kin - kbuf;
             if ( c != '\n' &&
                  (cd->pbuf_idx + (kout - kbuf) < (DOMAIN_PBUF_SIZE - 1)) )
@@ -826,6 +854,8 @@ long do_console_io(
 
         rc = 0;
         nrspin_lock_irq(&console_lock);
+        if ( !is_focus_domain(current->domain) )
+            count = 0;
         while ( (serial_rx_cons != serial_rx_prod) && (rc < count) )
         {
             idx = SERIAL_RX_MASK(serial_rx_cons);
@@ -843,7 +873,15 @@ long do_console_io(
                 return -EFAULT;
             rc += len;
 
+            /*
+             * Re-check is_focus_domain() after reacquiring console_lock.
+             * If focus switched during copy_to_guest_offset(), stop
+             * reading further data. The data already copied is still
+             * accounted in rc to return the correct value to the VM.
+             */
             nrspin_lock_irq(&console_lock);
+            if ( !is_focus_domain(current->domain) )
+                break;
         }
         nrspin_unlock_irq(&console_lock);
         break;
