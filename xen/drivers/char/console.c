@@ -555,10 +555,13 @@ static void console_switch_input(void)
     {
         domid_t domid;
         struct domain *d;
+        unsigned long flags;
 
         if ( next_rx++ >= max_console_rx )
         {
+            nrspin_lock_irqsave(&console_lock, flags);
             ACCESS_ONCE(console_rx) = 0;
+            nrspin_unlock_irqrestore(&console_lock, flags);
             printk("*** Serial input to Xen");
             break;
         }
@@ -575,7 +578,9 @@ static void console_switch_input(void)
             if ( !d->console.input_allowed )
                 continue;
 
+            nrspin_lock_irqsave(&console_lock, flags);
             ACCESS_ONCE(console_rx) = next_rx;
+            nrspin_unlock_irqrestore(&console_lock, flags);
             printk("*** Serial input to DOM%u", domid);
             break;
         }
@@ -601,12 +606,16 @@ static void __serial_rx(char c)
 
     if ( is_hardware_domain(d) || IS_ENABLED(CONFIG_X86) )
     {
+        unsigned long flags;
+
         /*
          * Deliver input to the hardware domain buffer, unless it is
          * already full.
          */
+        nrspin_lock_irqsave(&console_lock, flags);
         if ( (serial_rx_prod - serial_rx_cons) != SERIAL_RX_SIZE )
             serial_rx_ring[SERIAL_RX_MASK(serial_rx_prod++)] = c;
+        nrspin_unlock_irqrestore(&console_lock, flags);
 
         /*
          * Always notify the hardware domain: prevents receive path from
@@ -794,6 +803,7 @@ long do_console_io(
 {
     long rc;
     unsigned int idx, len;
+    char kbuf[SERIAL_RX_SIZE];
 
     rc = xsm_console_io(XSM_OTHER, current->domain, cmd);
     if ( rc )
@@ -815,6 +825,7 @@ long do_console_io(
             break;
 
         rc = 0;
+        nrspin_lock_irq(&console_lock);
         while ( (serial_rx_cons != serial_rx_prod) && (rc < count) )
         {
             idx = SERIAL_RX_MASK(serial_rx_cons);
@@ -823,14 +834,18 @@ long do_console_io(
                 len = SERIAL_RX_SIZE - idx;
             if ( (rc + len) > count )
                 len = count - rc;
-            if ( copy_to_guest_offset(buffer, rc, &serial_rx_ring[idx], len) )
-            {
-                rc = -EFAULT;
-                break;
-            }
-            rc += len;
+            memcpy(kbuf, &serial_rx_ring[idx], len);
             serial_rx_cons += len;
+
+            nrspin_unlock_irq(&console_lock);
+
+            if ( copy_to_guest_offset(buffer, rc, kbuf, len) )
+                return -EFAULT;
+            rc += len;
+
+            nrspin_lock_irq(&console_lock);
         }
+        nrspin_unlock_irq(&console_lock);
         break;
     default:
         rc = -ENOSYS;
