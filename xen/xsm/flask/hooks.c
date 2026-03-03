@@ -642,7 +642,7 @@ static int cf_check __maybe_unused flask_sysctl_scheduler_op(int op)
     }
 }
 
-static int cf_check flask_set_target(struct domain *d, struct domain *t)
+static int cf_check __maybe_unused flask_set_target(struct domain *d, struct domain *t)
 {
     int rc;
     struct domain_security_struct *dsec, *tsec;
@@ -1879,8 +1879,8 @@ static const struct xsm_ops __initconst_cf_clobber flask_ops = {
 #ifdef CONFIG_MGMT_HYPERCALLS
     .domctl_scheduler_op = flask_domctl_scheduler_op,
     .sysctl_scheduler_op = flask_sysctl_scheduler_op,
-#endif
     .set_target = flask_set_target,
+#endif
     .domctl = flask_domctl,
     .sysctl = flask_sysctl,
 #ifdef CONFIG_MGMT_HYPERCALLS

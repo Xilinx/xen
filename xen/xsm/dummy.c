@@ -21,8 +21,8 @@ static const struct xsm_ops __initconst_cf_clobber dummy_ops = {
 #ifdef CONFIG_MGMT_HYPERCALLS
     .domctl_scheduler_op           = xsm_domctl_scheduler_op,
     .sysctl_scheduler_op           = xsm_sysctl_scheduler_op,
-#endif
     .set_target                    = xsm_set_target,
+#endif
     .domctl                        = xsm_domctl,
     .sysctl                        = xsm_sysctl,
 #ifdef CONFIG_MGMT_HYPERCALLS

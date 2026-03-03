@@ -60,8 +60,8 @@ struct xsm_ops {
 #ifdef CONFIG_MGMT_HYPERCALLS
     int (*domctl_scheduler_op)(struct domain *d, int op);
     int (*sysctl_scheduler_op)(int op);
-#endif
     int (*set_target)(struct domain *d, struct domain *e);
+#endif
     int (*domctl)(struct domain *d, unsigned int cmd, uint32_t ssidref);
     int (*sysctl)(int cmd);
 #ifdef CONFIG_MGMT_HYPERCALLS
@@ -265,7 +265,12 @@ static inline int xsm_sysctl_scheduler_op(xsm_default_t def, int cmd)
 static inline int xsm_set_target(
     xsm_default_t def, struct domain *d, struct domain *e)
 {
+#ifdef CONFIG_MGMT_HYPERCALLS
     return alternative_call(xsm_ops.set_target, d, e);
+#else
+    BUILD_ERROR("set_target requires MGMT_HYPERCALLS");
+    return -EOPNOTSUPP;
+#endif
 }
 
 static inline int xsm_domctl(xsm_default_t def, struct domain *d,
