@@ -7,8 +7,8 @@ obj-$(CONFIG_AMD_SVM) += amd.o
 obj-$(CONFIG_CENTAUR) += centaur.o
 obj-y += common.o
 obj-$(CONFIG_HYGON) += hygon.o
-obj-y += intel.o
-obj-y += intel_cacheinfo.o
+obj-$(CONFIG_INTEL) += intel.o
+obj-$(CONFIG_INTEL) += intel_cacheinfo.o
 obj-$(CONFIG_INTEL) += mwait-idle.o
 obj-$(CONFIG_SHANGHAI) += shanghai.o
 ifeq ($(CONFIG_VPMU), y)

@@ -414,20 +414,26 @@ static inline uint8_t get_cpu_family(uint32_t raw, uint8_t *model,
 }
 
 #ifdef CONFIG_INTEL
+
 extern int8_t opt_tsx;
 extern bool rtm_disabled;
 void tsx_init(void);
-#else
+void update_mcu_opt_ctrl(void);
+void update_pb_opt_ctrl(void);
+void set_in_mcu_opt_ctrl(uint32_t mask, uint32_t val);
+void set_in_pb_opt_ctrl(uint32_t mask, uint32_t val);
+
+#else /* !CONFIG_INTEL */
+
 #define opt_tsx      0     /* explicitly indicate TSX is off */
 #define rtm_disabled false /* RTM was not force-disabled */
 static inline void tsx_init(void) {}
-#endif
+static inline void update_mcu_opt_ctrl(void) {}
+static inline void update_pb_opt_ctrl(void) {}
+static inline void set_in_mcu_opt_ctrl(uint32_t mask, uint32_t val) {}
+static inline void set_in_pb_opt_ctrl(uint32_t mask, uint32_t val) {}
 
-void update_mcu_opt_ctrl(void);
-void set_in_mcu_opt_ctrl(uint32_t mask, uint32_t val);
-
-void update_pb_opt_ctrl(void);
-void set_in_pb_opt_ctrl(uint32_t mask, uint32_t val);
+#endif /* CONFIG_INTEL */
 
 enum ap_boot_method {
     AP_BOOT_NORMAL,

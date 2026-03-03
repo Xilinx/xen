@@ -209,6 +209,7 @@ config TBOOT
 
 config X86_PSR
 	bool "Platform Shared Resource support" if EXPERT
+	depends on INTEL
 	default INTEL
 	help
 	  Support of Platform Shared Resource technology, which is basis for
