@@ -176,7 +176,7 @@ DEFINE_XEN_GUEST_HANDLE(xen_ulong_t);
 /* ` enum virq { */
 #define VIRQ_TIMER      0  /* V. Timebase update, and/or requested timeout.  */
 #define VIRQ_DEBUG      1  /* V. Request guest to dump debug info.           */
-#define VIRQ_CONSOLE    2  /* G. Bytes received on emergency console.        */
+#define VIRQ_CONSOLE    2  /* D. Bytes received on Xen console.              */
 #define VIRQ_DOM_EXC    3  /* G. Exceptional event for some domain.          */
 #define VIRQ_TBUF       4  /* G. Trace buffer has records available.         */
 #define VIRQ_DEBUGGER   6  /* G. A domain has paused for debugging.          */
