@@ -74,6 +74,8 @@ endif
 
 ifneq ($(CONFIG_PV_SHIM_EXCLUSIVE),y)
 
+ifeq ($(CONFIG_EFI),y)
+
 efi-check := arch/x86/efi/check
 
 # Create the directory for out-of-tree build
@@ -114,6 +116,8 @@ endif
 endif
 
 endif # $(XEN_BUILD_PE)
+
+endif # $(CONFIG_EFI)
 
 export XEN_BUILD_EFI XEN_BUILD_PE
 export EFI_LDFLAGS
