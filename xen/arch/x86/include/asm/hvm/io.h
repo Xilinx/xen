@@ -121,6 +121,7 @@ unsigned int hvm_pci_decode_addr(unsigned int cf8, unsigned int addr,
  */
 void register_g2m_portio_handler(struct domain *d);
 
+#ifdef CONFIG_VPCI
 /* HVM port IO handler for vPCI accesses. */
 void register_vpci_portio_handler(struct domain *d);
 
@@ -133,6 +134,18 @@ void destroy_vpci_mmcfg(struct domain *d);
 
 /* Remove MMCFG regions from a domain ->iomem_caps. */
 int vpci_mmcfg_deny_access(struct domain *d);
+#else
+static inline void register_vpci_portio_handler(struct domain *d) { }
+static inline int register_vpci_mmcfg_handler(struct domain *d, paddr_t addr,
+                                              unsigned int start_bus,
+                                              unsigned int end_bus,
+                                              unsigned int seg)
+{
+    return 0;
+}
+static inline void destroy_vpci_mmcfg(struct domain *d) { }
+static inline int vpci_mmcfg_deny_access(struct domain *d) { return 0; }
+#endif
 
 /* r/o MMIO subpage access handler. */
 void register_subpage_ro_handler(struct domain *d);

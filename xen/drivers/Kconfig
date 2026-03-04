@@ -12,6 +12,18 @@ source "drivers/pci/Kconfig"
 
 source "drivers/video/Kconfig"
 
+config VPCI
+   bool "Virtual PCI device emulation" if EXPERT
+   default HVM
+   depends on HAS_VPCI
+   help
+     Enables virtual PCI device emulation, providing emulated PCI
+     configuration space access. This is required for PCI passthrough
+     to PVH and ARM guests.
+
+     PCI support for the hardware domain (Dom0) does not require this.
+     If unsure, say Y.
+
 config HAS_VPCI
 	bool
 	select HAS_PCI
