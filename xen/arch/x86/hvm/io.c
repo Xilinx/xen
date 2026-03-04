@@ -231,7 +231,6 @@ unsigned int hvm_pci_decode_addr(unsigned int cf8, unsigned int addr,
     return CF8_ADDR_LO(cf8) | (addr & 3);
 }
 
-#ifdef CONFIG_VPCI
 /* vPCI config space IO ports handlers (0xcf8/0xcfc). */
 static bool cf_check vpci_portio_accept(
     const struct hvm_io_handler *handler, const ioreq_t *p)
@@ -503,7 +502,6 @@ void destroy_vpci_mmcfg(struct domain *d)
     }
     write_unlock(&d->arch.hvm.mmcfg_lock);
 }
-#endif /* CONFIG_VPCI */
 
 /*
  * Local variables:
