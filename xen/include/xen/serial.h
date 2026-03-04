@@ -9,6 +9,7 @@
 #ifndef __XEN_SERIAL_H__
 #define __XEN_SERIAL_H__
 
+#include <xen/errno.h>
 #include <xen/init.h>
 #include <xen/spinlock.h>
 
@@ -163,7 +164,11 @@ struct ns16550_defaults {
     unsigned long io_base; /* default io_base address */
 };
 void ns16550_init(int index, struct ns16550_defaults *defaults);
+#ifdef CONFIG_HAS_EHCI
 void ehci_dbgp_init(void);
+#else
+static inline void ehci_dbgp_init(void) {}
+#endif
 #ifdef CONFIG_XHCI
 void xhci_dbc_uart_init(void);
 #else
@@ -173,7 +178,14 @@ static void inline xhci_dbc_uart_init(void) {}
 void uart_init(void);
 
 struct physdev_dbgp_op;
+#ifdef CONFIG_HAS_EHCI
 int dbgp_op(const struct physdev_dbgp_op *op);
+#else
+static inline int dbgp_op(const struct physdev_dbgp_op *op)
+{
+    return -ENOSYS;
+}
+#endif
 
 /* Baud rate was pre-configured before invoking the UART driver. */
 #define BAUD_AUTO (-1)

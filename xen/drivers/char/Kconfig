@@ -79,8 +79,9 @@ config HAS_SCIF
 	  or Renesas R-Car Gen 2/3 based board say Y.
 
 config HAS_EHCI
-	bool
+	bool "EHCI debug port support" if EXPERT
 	depends on X86
+	default y
 	help
 	  This selects the USB based EHCI debug port to be used as a UART. If
 	  you have an x86 based system with USB, say Y.
