@@ -80,8 +80,13 @@ bool __acpi_unmap_table(const void *ptr, unsigned long size);
 int acpi_boot_init (void);
 int acpi_boot_table_init (void);
 int acpi_numa_init (void);
+#ifdef CONFIG_APEI
 int erst_init(void);
 void acpi_hest_init(void);
+#else
+static inline int erst_init(void) { return 0; }
+static inline void acpi_hest_init(void) { }
+#endif
 
 int acpi_table_init (void);
 int acpi_table_parse(const char *id, acpi_table_handler handler);

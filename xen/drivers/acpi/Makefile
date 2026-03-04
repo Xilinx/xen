@@ -1,6 +1,6 @@
 obj-y += tables/
 obj-y += utilities/
-obj-$(CONFIG_X86) += apei/
+obj-$(CONFIG_APEI) += apei/
 
 obj-bin-y += tables.init.o
 obj-$(CONFIG_ACPI_NUMA) += numa.o

@@ -5,6 +5,19 @@ config ACPI
 config ACPI_LEGACY_TABLES_LOOKUP
 	bool
 
+config APEI
+   bool "ACPI Platform Error Interface (APEI) support" if EXPERT
+   depends on X86
+   default y
+   help
+     Support for the ACPI Platform Error Interface, including the
+     Hardware Error Source Table (HEST) and Error Record Serialization
+     Table (ERST). ERST is used to persist machine check records to
+     NVRAM on fatal errors. HEST is used for PCIe AER firmware-first
+     error handling.
+
+     If unsure, say Y.
+
 config ACPI_NUMA
 	bool
 	select NUMA

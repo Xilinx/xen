@@ -243,6 +243,10 @@ struct mce {
     uint64_t mcgcap;   /* MCGCAP MSR: machine check capabilities of CPU */
 };
 
+#ifdef CONFIG_APEI
 extern int apei_write_mce(struct mce *m);
+#else
+static inline int apei_write_mce(struct mce *m) { return 0; }
+#endif
 
 #endif /* _MCE_H */

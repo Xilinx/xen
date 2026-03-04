@@ -277,7 +277,14 @@ unsigned int pci_size_mem_bar(pci_sbdf_t sbdf, unsigned int pos,
                               unsigned int flags);
 
 void pci_intx(const struct pci_dev *pdev, bool enable);
+#ifdef CONFIG_APEI
 bool pcie_aer_get_firmware_first(const struct pci_dev *pdev);
+#else
+static inline bool pcie_aer_get_firmware_first(const struct pci_dev *pdev)
+{
+    return false;
+}
+#endif
 
 struct pirq;
 int msixtbl_pt_register(struct domain *d, struct pirq *pirq, uint64_t gtable);

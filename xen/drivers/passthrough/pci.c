@@ -1270,7 +1270,7 @@ void __hwdom_init setup_hwdom_pci_devices(
 }
 
 /* APEI not supported on ARM yet. */
-#if defined(CONFIG_ACPI) && defined(CONFIG_X86)
+#if defined(CONFIG_ACPI) && defined(CONFIG_APEI)
 #include <acpi/acpi.h>
 #include <acpi/apei.h>
 
