@@ -3795,6 +3795,7 @@ int libxl__need_xenpv_qemu(libxl__gc *gc, libxl_domain_config *d_config)
     }
 
     if ((d_config->b_info.type == LIBXL_DOMAIN_TYPE_PVH) &&
+        !libxl_defbool_is_default(d_config->b_info.u.pvh.virtio_pci) &&
         libxl_defbool_val(d_config->b_info.u.pvh.virtio_pci)) {
         ret = 1;
         goto out;
