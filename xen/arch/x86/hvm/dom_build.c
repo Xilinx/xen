@@ -137,8 +137,8 @@ static unsigned long __init hvm_size_acpi_madt(struct domain *d)
     return size;
 }
 
-extern unsigned char __initdata dsdt_pvh[];
-extern int __initdata dsdt_pvh_len;
+extern unsigned char dsdt_pvh[];
+extern int dsdt_pvh_len;
 
 static unsigned long __init hvm_size_acpi_dsdt(struct domain *d)
 {
