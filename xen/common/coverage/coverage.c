@@ -113,7 +113,7 @@ void coverage_collect(unsigned char key)
         goto back;
     }
 
-    printk("coverage: address %" PRIpaddr " bytes %x\n", (paddr_t)chars, size);
+    printk("coverage: address %p bytes %x\n", chars, size);
 
     /* for QEMU testing */
     if ( key == 'B' )
