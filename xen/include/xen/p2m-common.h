@@ -2,6 +2,9 @@
 #define _XEN_P2M_COMMON_H
 
 #include <xen/mm-frame.h>
+#include <xen/mem_access.h>
+
+struct p2m_domain;
 
 /* Set foreign entry in the p2m table */
 int set_foreign_p2m_entry(struct domain *d, const struct domain *fd,
