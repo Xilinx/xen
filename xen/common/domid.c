@@ -45,7 +45,7 @@ domid_t domid_alloc(domid_t domid)
      * Domain ID#0 is reserved for the first boot domain (e.g. control domain)
      * and excluded from allocation.
      */
-    else if ( !IS_ENABLED(CONFIG_DOM0LESS_BOOT) )
+    else
     {
         domid_t bound = DOMID_FIRST_RESERVED;
 
