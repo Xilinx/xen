@@ -119,7 +119,11 @@ uint64_t vlapic_tdt_msr_get(struct vlapic *vlapic);
 int vlapic_accept_pic_intr(struct vcpu *v);
 uint32_t vlapic_set_ppr(struct vlapic *vlapic);
 
+#ifdef CONFIG_VPIC
 void vlapic_adjust_i8259_target(struct domain *d);
+#else
+static inline void vlapic_adjust_i8259_target(struct domain *d) {}
+#endif
 
 void vlapic_EOI_set(struct vlapic *vlapic);
 void vlapic_handle_EOI(struct vlapic *vlapic, u8 vector);
