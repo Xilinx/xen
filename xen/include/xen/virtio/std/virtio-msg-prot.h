@@ -392,8 +392,8 @@ static inline void virtio_msg_print(VirtIOMSG *msg)
         virtio_msg_print_status(msg->set_device_status.status);
         break;
     case VIRTIO_MSG_SET_VQUEUE:
-        printk("set-vqueue: index=%d size=%d desc-addr=%lx driver-addr=%lx "
-               "device-addr=%lx\n",
+        printk("set-vqueue: index=%d size=%d desc-addr=%"PRIx64" driver-addr=%"PRIx64" "
+               "device-addr=%"PRIx64"\n",
                msg->set_vqueue.index, msg->set_vqueue.size,
                msg->set_vqueue.descriptor_addr, msg->set_vqueue.driver_addr,
                msg->set_vqueue.device_addr);
