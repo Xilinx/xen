@@ -105,6 +105,11 @@ SECTIONS
         *(.init.rodata.*)
 
         SETUP_DATA
+
+        __initcall_boot_test_start = .;
+        *(.initcallboottest.init)
+        __initcall_boot_test_end = .;
+
         LOCK_PROFILE_DATA
 
         *(.init.data)
