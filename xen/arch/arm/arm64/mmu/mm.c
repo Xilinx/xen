@@ -280,6 +280,8 @@ void __init setup_mm(void)
     directmap_mfn_start = maddr_to_mfn(ram_start);
     directmap_mfn_end = maddr_to_mfn(ram_end);
 
+    frametable_base_pdx = mfn_to_pdx(maddr_to_mfn(ram_start));
+
     init_frametable();
 
     init_staticmem_pages();

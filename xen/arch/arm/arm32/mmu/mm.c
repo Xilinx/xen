@@ -178,6 +178,8 @@ void __init setup_mm(void)
 
     setup_directmap_mappings(mfn_x(directmap_mfn_start), xenheap_pages);
 
+    frametable_base_pdx = mfn_to_pdx(maddr_to_mfn(ram_start));
+
     init_frametable();
 
     /*
