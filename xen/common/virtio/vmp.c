@@ -722,7 +722,7 @@ int vmp_mmio_read(struct vmp *s, uint64_t addr, int size, uint32_t *data)
         spin_unlock(&s->lock);
         break;
     default:
-        gprintk(XENLOG_DEBUG, "Bad read from addr=%lx\n", offset);
+        gprintk(XENLOG_DEBUG, "Bad read from addr=%"PRIpaddr"\n", offset);
         return 0;
     }
     return 1;
@@ -832,7 +832,7 @@ int vmp_mmio_write(struct vmp *s, uint64_t addr, int size, uint32_t data)
         vmp_update_interrupts(s);
         break;
     default:
-        gdprintk(XENLOG_DEBUG, "Write to unknown register! base=%lx %lx = %x\n",
+        gdprintk(XENLOG_DEBUG, "Write to unknown register! base=%"PRIpaddr" %"PRIpaddr" = %x\n",
                  s->base_addr, offset, data);
         goto io_abort;
     }
@@ -841,7 +841,7 @@ int vmp_mmio_write(struct vmp *s, uint64_t addr, int size, uint32_t data)
     return 1;
 io_abort:
     gdprintk(XENLOG_DEBUG,
-             "FATAL: Bad write! state %d size=%d offset %lx data=%x\n",
+             "FATAL: Bad write! state %d size=%d offset %"PRIpaddr" data=%x\n",
              s->state, size, offset, data);
     spin_unlock(&s->lock);
     return 0;

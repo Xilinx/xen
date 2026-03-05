@@ -111,14 +111,14 @@ static int __init parse_vmp(struct dt_device_node *np, struct boot_domain *bd)
     if ( size != VMP_MMIO_SIZE )
     {
         printk(XENLOG_ERR
-               "%s: Bad size of 0x%lx, the only supported size is 0x%x\n",
+               "%s: Bad size of 0x%"PRIx64", the only supported size is 0x%x\n",
                dt_node_full_name(np), size, VMP_MMIO_SIZE);
         return -EINVAL;
     }
 
     if ( addr & (~PAGE_MASK) )
     {
-        printk(XENLOG_ERR "%s: Address needs to be page aligned 0x%lx\n",
+        printk(XENLOG_ERR "%s: Address needs to be page aligned 0x%"PRIx64"\n",
                dt_node_full_name(np), addr);
         return -EINVAL;
     }
@@ -151,7 +151,7 @@ static int __init parse_vmp(struct dt_device_node *np, struct boot_domain *bd)
 
         if ( bus_id >= ARRAY_SIZE(bd->virtio_mmio) )
         {
-            printk(XENLOG_ERR "%s: bus-id %d out of bounds (max %ld)\n",
+            printk(XENLOG_ERR "%s: bus-id %d out of bounds (max %zu)\n",
                    dt_node_full_name(bus_np), bus_id,
                    ARRAY_SIZE(bd->virtio_mmio) - 1);
             return -EINVAL;
@@ -180,7 +180,7 @@ static int __init parse_vmp(struct dt_device_node *np, struct boot_domain *bd)
     bd->virtio_mmio[bus_id].irq = irq;
     bd->virtio_mmio[bus_id].msg_bus.xen.device_domid = device_domid;
 
-    printk(XENLOG_INFO "%s: found virtio@%lx sz=%lx irq%d bus%d d%d\n",
+    printk(XENLOG_INFO "%s: found virtio@%"PRIx64" sz=%"PRIx64" irq%d bus%d d%d\n",
            dt_node_full_name(np), addr, size, irq, bus_id, device_domid);
     return 0;
 }
