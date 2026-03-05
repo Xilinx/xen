@@ -92,6 +92,8 @@ static int libxl__device_nic_setdefault(libxl__gc *gc, uint32_t domid,
     rc = libxl__resolve_domid(gc, nic->backend_domname, &nic->backend_domid);
     if (rc < 0) return rc;
 
+    libxl_defbool_setdefault(&nic->trusted, true);
+
     switch (libxl__domain_type(gc, domid)) {
     case LIBXL_DOMAIN_TYPE_HVM:
         if (!nic->nictype) {
@@ -115,8 +117,6 @@ static int libxl__device_nic_setdefault(libxl__gc *gc, uint32_t domid,
     default:
         abort();
     }
-
-    libxl_defbool_setdefault(&nic->trusted, true);
 
     return rc;
 }
