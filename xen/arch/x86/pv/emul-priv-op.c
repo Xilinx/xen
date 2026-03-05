@@ -282,7 +282,8 @@ static uint32_t guest_io_read(unsigned int port, unsigned int bytes,
         unsigned int size = 1;
         uint32_t sub_data = ~0;
 
-        if ( (port == 0x42) || (port == 0x43) || (port == 0x61) )
+        if ( IS_ENABLED(CONFIG_VPIT) &&
+             ((port == 0x42) || (port == 0x43) || (port == 0x61)) )
         {
             sub_data = pv_pit_handler(port, 0, 0);
         }
@@ -423,7 +424,8 @@ static void guest_io_write(unsigned int port, unsigned int bytes,
     {
         unsigned int size = 1;
 
-        if ( (port == 0x42) || (port == 0x43) || (port == 0x61) )
+        if ( IS_ENABLED(CONFIG_VPIT) &&
+             ((port == 0x42) || (port == 0x43) || (port == 0x61)) )
         {
             pv_pit_handler(port, (uint8_t)data, 1);
         }
