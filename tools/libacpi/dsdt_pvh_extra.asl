@@ -2,6 +2,56 @@ DefinitionBlock ("DSDT.aml", "DSDT", 5, "Xen", "PVH", 0)
 {
     Scope ( \_SB )
     {
+        /* Reserve PCI Segment 1 Root Bridge ECAM */
+        Device (RES1)
+        {
+            Name (_HID, EISAID("PNP0C02"))
+            Method (_STA, 0, NotSerialized)
+            {
+                If(LEqual(\_SB.ECA1, 0)) {
+                    Return(0x00)
+                } Else {
+                    Return(0x0F)
+                }
+            }
+            Method (_CRS, 0, NotSerialized)
+            {
+                Store (ResourceTemplate ()
+                {
+                    DWordMemory (
+                        ResourceProducer, PosDecode, MinFixed, MaxFixed,
+                        NonCacheable, ReadWrite,
+                        0x0, /* _GRA */
+                        0x0, /* _MIN */
+                        0x0, /* _MAX */
+                        0x0, /* _TRA */
+                        0x0, /* _LEN */
+                        ,, _Y01)
+                 }, Local1)
+
+                 CreateDWordField(Local1, \_SB.RES1._CRS._Y01._MIN, MMIN)
+                 CreateDWordField(Local1, \_SB.RES1._CRS._Y01._MAX, MMAX)
+                 CreateDWordField(Local1, \_SB.RES1._CRS._Y01._LEN, MLEN)
+
+                 /* If PCI Segment 1 Root Bridge is not enabled, expose
+                    a zero-length resource to be ignored */
+                 If(LEqual(\_SB.ECA1, Zero)) {
+                     Store (Zero, MMIN)
+                     Store (Zero, MMAX)
+                     Store (Zero, MLEN)
+                 } Else {
+                     Store(\_SB.ECA1, MMIN)
+                     Store(\_SB.MXB1, MLEN)
+                     Add(MLEN, One, MLEN)
+                     Multiply(MLEN, 0x100000, MLEN)
+                     Subtract(MLEN, One, MMAX)
+                     Add(MMAX, MMIN, MMAX)
+                 }
+
+                 Return(Local1)
+             }
+        }
+
         /* PCI Segment 1 Root Bridge */
         Device (PCI1)
         {
