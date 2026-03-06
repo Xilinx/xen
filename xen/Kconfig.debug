@@ -35,6 +35,12 @@ config SELF_TESTS
 	help
 	  Enable extra unit and functional testing.
 
+config AMD_TESTS
+    bool "Enable all AMD safety unit and self tests in Xen"
+    help
+      This option enables all the AMD internal tests in Xen which are enabled
+      for safety certification.
+
 config COVERAGE
 	bool "Code coverage support"
 	depends on SYSCTL && !LIVEPATCH
