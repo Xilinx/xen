@@ -16,15 +16,15 @@
 /* Size of each side of the queue.  */
 #define VIRTIO_MSG_QUEUE_SIZE 1024
 
-static bool virtio_msg_bus_xen_back_pressure(struct virtio_msg_bus *bd)
+static bool cf_check virtio_msg_bus_xen_back_pressure(struct virtio_msg_bus *bd)
 {
     struct virtio_msg_bus_xen *bus = (void *) bd;
 
     return spsc_queue_is_full(&bus->queues.driver);
 }
 
-static bool virtio_msg_bus_xen_send(struct virtio_msg_bus *bd,
-                                    VirtIOMSG *msg_req)
+static bool cf_check virtio_msg_bus_xen_send(struct virtio_msg_bus *bd,
+                                             VirtIOMSG *msg_req)
 {
     struct virtio_msg_bus_xen *bus = (void *) bd;
     bool sent;
@@ -38,7 +38,7 @@ static bool virtio_msg_bus_xen_send(struct virtio_msg_bus *bd,
 
 /* Rx budget of messages to process back-to-back before returning.  */
 #define VMP_RX_BUDGET 2
-static void virtio_msg_bus_xen_rx_process(struct virtio_msg_bus *bd)
+static void cf_check virtio_msg_bus_xen_rx_process(struct virtio_msg_bus *bd)
 {
     struct virtio_msg_bus_xen *bus = (void *) bd;
     unsigned int i = 0;
@@ -62,7 +62,7 @@ static void virtio_msg_bus_xen_rx_process(struct virtio_msg_bus *bd)
     } while ( r && i++ < VMP_RX_BUDGET );
 }
 
-static void virtio_msg_bus_xen_deinit(struct virtio_msg_bus *bd)
+static void cf_check virtio_msg_bus_xen_deinit(struct virtio_msg_bus *bd)
 {
     struct virtio_msg_bus_xen *bus = (void *) bd;
 
@@ -81,7 +81,7 @@ static void virtio_msg_bus_xen_deinit(struct virtio_msg_bus *bd)
     bus->evtchn = 0;
 }
 
-static void vmb_xen_notify(struct vcpu *v, unsigned int port)
+static void cf_check vmb_xen_notify(struct vcpu *v, unsigned int port)
 {
     struct domain *d = v->domain;
     unsigned int i;
