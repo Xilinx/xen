@@ -166,8 +166,9 @@ config VHPET
       If unsure, say Y.
 
 config NESTED_VIRT
-	bool "Nested virtualization support"
+	bool "Nested virtualization support" if EXPERT
 	depends on HVM
+	default y
 	help
 	  Enable nested virtualization, allowing guests to run their own
 	  hypervisors. This requires hardware support.

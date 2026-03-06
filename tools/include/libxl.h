@@ -568,6 +568,12 @@
 #define LIBXL_HAVE_PHYSINFO_CAP_GNTTAB 1
 
 /*
+ * LIBXL_HAVE_PHYSINFO_CAP_NESTED_HVM indicates that libxl_physinfo has a
+ * cap_nested_hvm field, which indicates the availability of nested HVM.
+ */
+#define LIBXL_HAVE_PHYSINFO_CAP_NESTED_HVM 1
+
+/*
  * LIBXL_HAVE_PHYSINFO_ARCH_CAPABILITIES indicates that libxl_physinfo has a
  * arch_capabilities field.
  */

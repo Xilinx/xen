@@ -409,6 +409,8 @@ int libxl_get_physinfo(libxl_ctx *ctx, libxl_physinfo *physinfo)
         !!(xcphysinfo.capabilities & XEN_SYSCTL_PHYSCAP_gnttab_v1);
     physinfo->cap_gnttab_v2 =
         !!(xcphysinfo.capabilities & XEN_SYSCTL_PHYSCAP_gnttab_v2);
+    physinfo->cap_nested_hvm =
+        !!(xcphysinfo.capabilities & XEN_SYSCTL_PHYSCAP_nestedhvm);
     physinfo->arch_capabilities = xcphysinfo.arch_capabilities;
 
     GC_FREE;

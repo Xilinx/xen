@@ -118,6 +118,7 @@ type physinfo_cap_flag =
   | CAP_Vpmu
   | CAP_Gnttab_v1
   | CAP_Gnttab_v2
+  | CAP_NestedHVM
 
 type arm_physinfo_caps =
   {
