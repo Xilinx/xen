@@ -65,6 +65,24 @@ static int cf_check cleanup_msix(const struct pci_dev *pdev, bool hide)
     if ( !hide )
         return 0;
 
+    rc = vpci_remove_registers(vpci, msix_pba_offset_reg(msix_pos), 4);
+    if ( rc )
+    {
+        printk(XENLOG_ERR "%pd: %pp remove msix_pba_offset failed rc=%d\n",
+               pdev->domain, &pdev->sbdf, rc);
+        ASSERT_UNREACHABLE();
+        return rc;
+    }
+
+    rc = vpci_remove_registers(vpci, msix_table_offset_reg(msix_pos), 4);
+    if ( rc )
+    {
+        printk(XENLOG_ERR "%pd: %pp remove msix_table_offset failed rc=%d\n",
+               pdev->domain, &pdev->sbdf, rc);
+        ASSERT_UNREACHABLE();
+        return rc;
+    }
+
     rc = vpci_remove_registers(vpci, msix_control_reg(msix_pos), 2);
     if ( rc )
     {
@@ -163,9 +181,33 @@ static int cf_check init_msix(struct pci_dev *pdev)
     rc = vpci_add_register(pdev->vpci, control_read, control_write,
                            msix_control_reg(msix_offset), 2, msix);
     if ( rc )
+        goto out;
+
+    if ( !is_hardware_domain(d) )
     {
-        xfree(msix);
-        return rc;
+        unsigned long val;
+
+        val = pci_conf_read32(pdev->sbdf, msix_table_offset_reg(msix_offset));
+        rc = vpci_add_register(pdev->vpci, vpci_read_val, NULL,
+                               msix_table_offset_reg(msix_offset), 4,
+                               (void *)(uintptr_t)val);
+        if ( rc )
+        {
+            printk("%pd: %pp register msix_table_offset_reg failed\n",
+                   d, &pdev->sbdf);
+            goto out;
+        }
+
+        val = pci_conf_read32(pdev->sbdf, msix_pba_offset_reg(msix_offset));
+        rc = vpci_add_register(pdev->vpci, vpci_read_val, NULL,
+                               msix_pba_offset_reg(msix_offset), 4,
+                               (void *)(uintptr_t)val);
+        if ( rc )
+        {
+            printk("%pd: %pp register msix_pba_offset failed\n",
+                   d, &pdev->sbdf);
+            goto out;
+        }
     }
 
     msix->max_entries = max_entries;
@@ -187,6 +229,10 @@ static int cf_check init_msix(struct pci_dev *pdev)
      * the MSI-X table here, so that Xen can trap accesses.
      */
     return vpci_make_msix_hole(pdev);
+
+ out:
+    xfree(msix);
+    return rc;
 }
 REGISTER_VPCI_CAP(MSIX, init_msix, cleanup_msix);
 
