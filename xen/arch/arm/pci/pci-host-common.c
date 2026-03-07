@@ -455,7 +455,7 @@ int __init pci_host_bridge_mappings(struct domain *d)
                     bridge->child_ops->need_p2m_hwdom_mapping(d, bridge, addr);
             if ( need_mapping )
             {
-                err = map_range_to_domain(dev, addr, size, &mr_data);
+                err = map_range_to_domain(dev, 0, addr, size, &mr_data);
                 if ( err )
                     return err;
             }
@@ -471,7 +471,7 @@ int __init pci_host_bridge_mappings(struct domain *d)
  * right place for alignment check.
  */
 static int is_bar_valid(const struct dt_device_node *dev,
-                        uint64_t addr, uint64_t len, void *data)
+                        uint32_t flags, uint64_t addr, uint64_t len, void *data)
 {
     struct pdev_bar_check *bar_data = data;
     paddr_t s = bar_data->start;
