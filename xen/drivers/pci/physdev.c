@@ -19,6 +19,9 @@ ret_t pci_physdev_op(int cmd, XEN_GUEST_HANDLE_PARAM(void) arg)
         struct pci_dev_info pdev_info;
         nodeid_t node = NUMA_NO_NODE;
 
+        if ( hwdom_uses_vpci() )
+            return 0;
+
         if ( !is_pci_passthrough_enabled() && !arch_pci_device_physdevop() )
             return -EOPNOTSUPP;
 
@@ -58,6 +61,9 @@ ret_t pci_physdev_op(int cmd, XEN_GUEST_HANDLE_PARAM(void) arg)
     case PHYSDEVOP_pci_device_remove: {
         struct physdev_pci_device dev;
 
+        if ( hwdom_uses_vpci() )
+            return 0;
+
         if ( !is_pci_passthrough_enabled() && !arch_pci_device_physdevop() )
             return -EOPNOTSUPP;
 
@@ -74,6 +80,9 @@ ret_t pci_physdev_op(int cmd, XEN_GUEST_HANDLE_PARAM(void) arg)
         struct pci_device_reset dev_reset;
         struct pci_dev *pdev;
         pci_sbdf_t sbdf;
+
+        if ( hwdom_uses_vpci() )
+            return 0;
 
         if ( !is_pci_passthrough_enabled() && !arch_pci_device_physdevop() )
             return -EOPNOTSUPP;
