@@ -42,7 +42,7 @@ static int __init make_gicv2_domU_node(struct kernel_info *kinfo)
     if ( res )
         return res;
 
-    res = fdt_property_cell(fdt, "#address-cells", 0);
+    res = fdt_property_cell(fdt, "#address-cells", GUEST_ROOT_ADDRESS_CELLS);
     if ( res )
         return res;
 
