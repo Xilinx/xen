@@ -8,12 +8,13 @@
 
 #include <asm/mmio.h>
 
-static pci_sbdf_t vpci_sbdf_from_gpa(const struct pci_host_bridge *bridge,
+static pci_sbdf_t vpci_sbdf_from_gpa(const struct domain *d,
+                                     const struct pci_host_bridge *bridge,
                                      paddr_t gpa, bool use_root)
 {
     pci_sbdf_t sbdf;
 
-    if ( bridge )
+    if ( !has_vpci_bridge(d) )
     {
         const struct pci_config_window *cfg = use_root ? bridge->cfg
                                                        : bridge->child_cfg;
@@ -22,7 +23,11 @@ static pci_sbdf_t vpci_sbdf_from_gpa(const struct pci_host_bridge *bridge,
         sbdf.bus += cfg->busn_start;
     }
     else
-        sbdf.sbdf = VPCI_ECAM_BDF(gpa - GUEST_VPCI_ECAM_BASE);
+    {
+        paddr_t start = domain_use_host_layout(d) ? bridge->cfg->phys_addr :
+                                                    GUEST_VPCI_ECAM_BASE;
+        sbdf.sbdf = VPCI_ECAM_BDF(gpa - start);
+    }
 
     return sbdf;
 }
@@ -51,9 +56,7 @@ static int vpci_mmio_read_root(struct vcpu *v, mmio_info_t *info, register_t *r,
                                void *p)
 {
     struct pci_host_bridge *bridge = p;
-    pci_sbdf_t sbdf = vpci_sbdf_from_gpa(bridge, info->gpa, true);
-
-    ASSERT(!bridge == !is_hardware_domain(v->domain));
+    pci_sbdf_t sbdf = vpci_sbdf_from_gpa(v->domain, bridge, info->gpa, true);
 
     return vpci_mmio_read(v, info, r, sbdf);
 }
@@ -62,9 +65,7 @@ static int vpci_mmio_read_child(struct vcpu *v, mmio_info_t *info,
                                 register_t *r, void *p)
 {
     struct pci_host_bridge *bridge = p;
-    pci_sbdf_t sbdf = vpci_sbdf_from_gpa(bridge, info->gpa, false);
-
-    ASSERT(!bridge == !is_hardware_domain(v->domain));
+    pci_sbdf_t sbdf = vpci_sbdf_from_gpa(v->domain, bridge, info->gpa, false);
 
     return vpci_mmio_read(v, info, r, sbdf);
 }
@@ -80,9 +81,7 @@ static int vpci_mmio_write_root(struct vcpu *v, mmio_info_t *info, register_t r,
                                 void *p)
 {
     struct pci_host_bridge *bridge = p;
-    pci_sbdf_t sbdf = vpci_sbdf_from_gpa(bridge, info->gpa, true);
-
-    ASSERT(!bridge == !is_hardware_domain(v->domain));
+    pci_sbdf_t sbdf = vpci_sbdf_from_gpa(v->domain, bridge, info->gpa, true);
 
     return vpci_mmio_write(v, info, r, sbdf);
 }
@@ -91,9 +90,7 @@ static int vpci_mmio_write_child(struct vcpu *v, mmio_info_t *info,
                                  register_t r, void *p)
 {
     struct pci_host_bridge *bridge = p;
-    pci_sbdf_t sbdf = vpci_sbdf_from_gpa(bridge, info->gpa, false);
-
-    ASSERT(!bridge == !is_hardware_domain(v->domain));
+    pci_sbdf_t sbdf = vpci_sbdf_from_gpa(v->domain, bridge, info->gpa, false);
 
     return vpci_mmio_write(v, info, r, sbdf);
 }
@@ -139,7 +136,7 @@ int domain_vpci_init(struct domain *d)
      * physical host bridge.
      * Guests get the virtual platform layout: one virtual host bridge for now.
      */
-    if ( is_hardware_domain(d) )
+    if ( !has_vpci_bridge(d) )
     {
         int ret;
 
@@ -154,8 +151,23 @@ int domain_vpci_init(struct domain *d)
             gdprintk(XENLOG_ERR, "vPCI requested but guest support not enabled\n");
             return -EINVAL;
         }
-        register_mmio_handler(d, &vpci_mmio_handler,
-                              GUEST_VPCI_ECAM_BASE, GUEST_VPCI_ECAM_SIZE, NULL);
+        if ( domain_use_host_layout(d) )
+        {
+            struct pci_host_bridge *bridge;
+
+            /* XXX: assume physical bridge is segment 0 bus 0 */
+            bridge = pci_find_host_bridge(0, 0);
+            if ( !bridge )
+                return 0;
+
+            register_mmio_handler(d, &vpci_mmio_handler,
+                                  bridge->cfg->phys_addr, bridge->cfg->size, bridge);
+        }
+        else
+        {
+            register_mmio_handler(d, &vpci_mmio_handler,
+                                  GUEST_VPCI_ECAM_BASE, GUEST_VPCI_ECAM_SIZE, NULL);
+        }
     }
 
     return 0;
@@ -177,7 +189,7 @@ unsigned int domain_vpci_get_num_mmio_handlers(struct domain *d)
     if ( !has_vpci(d) )
         return 0;
 
-    if ( is_hardware_domain(d) )
+    if ( !has_vpci_bridge(d) )
     {
         int ret = pci_host_iterate_bridges_and_count(d, vpci_get_num_handlers_cb);
 
