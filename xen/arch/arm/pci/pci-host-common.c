@@ -254,6 +254,21 @@ static int pci_bus_find_domain_nr(struct dt_device_node *dev)
     return domain;
 }
 
+static int add_bar_range(const struct dt_device_node *dev, uint32_t flags,
+                         uint64_t addr, uint64_t len, void *data)
+{
+    struct pci_host_bridge *bridge = data;
+
+    if ( !dt_range_is_memory(flags) )
+        return 0;
+
+    if ( dt_range_is_prefetchable(flags) )
+        return rangeset_add_range(bridge->bar_ranges_prefetch, addr,
+                                  addr + len - 1);
+    else
+        return rangeset_add_range(bridge->bar_ranges, addr, addr + len - 1);
+}
+
 struct pci_host_bridge *
 pci_host_common_probe(struct dt_device_node *dev,
                       const struct pci_ecam_ops *ops,
@@ -309,13 +324,40 @@ pci_host_common_probe(struct dt_device_node *dev,
     if ( err )
         goto err_child2;
 
+    bridge->bar_ranges = rangeset_new(NULL, "BAR ranges",
+                                      RANGESETF_prettyprint_hex);
+    if ( !bridge->bar_ranges )
+    {
+        err = -ENOMEM;
+        goto err_child2;
+    }
+
+    bridge->bar_ranges_prefetch = rangeset_new(NULL,
+                                               "BAR ranges (prefetchable)",
+                                               RANGESETF_prettyprint_hex);
+    if ( !bridge->bar_ranges_prefetch )
+    {
+        err = -ENOMEM;
+        goto err_rangeset1;
+    }
+
+    err = dt_for_each_range(bridge->dt_node, add_bar_range, bridge);
+    if ( err )
+        goto err_rangeset2;
+
     err = pci_add_segment(bridge->segment);
     if ( err )
-        goto err_child2;
+        goto err_rangeset2;
 
     pci_add_host_bridge(bridge);
 
     return bridge;
+
+ err_rangeset2:
+    rangeset_destroy(bridge->bar_ranges_prefetch);
+
+ err_rangeset1:
+    rangeset_destroy(bridge->bar_ranges);
 
  err_child2:
     xfree(bridge->child_cfg);
