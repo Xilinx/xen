@@ -276,6 +276,118 @@ static uint64_t its_cmd_mask_field(uint64_t *its_cmd, unsigned int word,
     return (its_cmd[word] >> shift) & GENMASK(size - 1, 0);
 }
 
+#ifdef CONFIG_HAS_VPCI_GUEST_SUPPORT
+/*
+ * Map RID (BDF) to msi-specifier.
+ * https://www.kernel.org/doc/Documentation/devicetree/bindings/pci/pci-msi.txt
+ */
+static int dt_msi_map_id(pci_sbdf_t sbdf, uint32_t *id_out)
+{
+    const struct pci_host_bridge *bridge;
+
+    bridge = pci_find_host_bridge(sbdf.seg, sbdf.bus);
+    if ( unlikely(!bridge) )
+        return -ENODEV;
+
+    return dt_map_id(bridge->dt_node, sbdf.bdf, "msi-map", "msi-map-mask", NULL,
+                     id_out);
+}
+
+static int its_get_host_devid(struct domain *d, uint32_t guest_devid,
+                              uint32_t *host_devid)
+{
+    const struct pci_dev *pdev;
+    pci_sbdf_t sbdf = {
+        .sbdf = guest_devid,
+    };
+
+    if ( !is_pci_passthrough_enabled() )
+    {
+        *host_devid = guest_devid;
+        return 0;
+    }
+
+    if ( is_hardware_domain(d) )
+    {
+        /*
+         * Guests with the host msi-map node exposed and virtual BDF == host BDF
+         * topology will perform ITS device ID lookup. Use the guest-provided
+         * ITS device ID directly.
+         */
+        *host_devid = guest_devid;
+        return 0;
+    }
+
+    /*
+     * For guests with virtual PCI topology, we need to look up the host SBDF
+     * and map to ITS device ID.
+     *
+     * Platform MSI is not supported in domU guests for now.
+     */
+    read_lock(&d->pci_lock);
+    pdev = vpci_translate_virtual_device(d, &sbdf);
+    read_unlock(&d->pci_lock);
+
+    if ( !pdev )
+        return -ENODEV;
+
+    return dt_msi_map_id(sbdf, host_devid);
+}
+
+static int its_get_host_doorbell(struct virt_its *its, uint32_t guest_devid,
+                                 paddr_t *host_doorbell)
+{
+    const struct pci_host_bridge *bridge;
+    const struct pci_dev *pdev;
+    pci_sbdf_t sbdf = {
+        .sbdf = guest_devid,
+    };
+
+    if ( !is_pci_passthrough_enabled() )
+    {
+        *host_doorbell = its->doorbell_address;
+        return 0;
+    }
+
+    if ( is_hardware_domain(its->d) )
+    {
+        *host_doorbell = its->doorbell_address;
+        return 0;
+    }
+
+    read_lock(&its->d->pci_lock);
+    pdev = vpci_translate_virtual_device(its->d, &sbdf);
+    read_unlock(&its->d->pci_lock);
+
+    if ( !pdev )
+        return -ENODEV;
+
+    bridge = pci_find_host_bridge(sbdf.seg, sbdf.bus);
+    if ( unlikely(!bridge) )
+        return -ENODEV;
+
+    *host_doorbell = bridge->its_msi_base + ITS_DOORBELL_OFFSET;
+
+    return 0;
+}
+#else /* !CONFIG_HAS_VPCI_GUEST_SUPPORT */
+static int its_get_host_devid(struct domain *d, uint32_t guest_devid,
+                              uint32_t *host_devid)
+{
+    *host_devid = guest_devid;
+
+    return 0;
+}
+
+static int its_get_host_doorbell(struct virt_its *its, uint32_t guest_devid,
+                                 paddr_t *host_doorbell)
+{
+    *host_doorbell = its->doorbell_address;
+
+    return 0;
+}
+#endif /* CONFIG_HAS_VPCI_GUEST_SUPPORT */
+
 #define its_cmd_get_command(cmd)        its_cmd_mask_field(cmd, 0,  0,  8)
 #define its_cmd_get_deviceid(cmd)       its_cmd_mask_field(cmd, 0, 32, 32)
 #define its_cmd_get_size(cmd)           its_cmd_mask_field(cmd, 1,  0,  5)
@@ -518,7 +630,6 @@ static int its_handle_invall(struct virt_its *its, uint64_t *cmdptr)
      * However this command is very rare, also we don't expect many
      * LPIs to be actually mapped, so it's fine for Dom0 to use.
      */
-    ASSERT(is_hardware_domain(its->d));
 
     /*
      * If no redistributor has its LPIs enabled yet, we can't access the
@@ -629,14 +740,6 @@ static void its_unmap_device(struct virt_its *its, uint32_t devid)
     if ( its_get_itt(its, devid, &itt) )
         goto out;
 
-    /*
-     * For DomUs we need to check that the number of events per device
-     * is really limited, otherwise looping over all events can take too
-     * long for a guest. This ASSERT can then be removed if that is
-     * covered.
-     */
-    ASSERT(is_hardware_domain(its->d));
-
     for ( evid = 0; evid < DEV_TABLE_ITT_SIZE(itt); evid++ )
         /* Don't care about errors here, clean up as much as possible. */
         its_discard_event(its, devid, evid);
@@ -648,10 +751,12 @@ out:
 static int its_handle_mapd(struct virt_its *its, uint64_t *cmdptr)
 {
     /* size and devid get validated by the functions called below. */
-    uint32_t devid = its_cmd_get_deviceid(cmdptr);
+    uint32_t guest_devid = its_cmd_get_deviceid(cmdptr);
+    uint32_t host_devid;
     unsigned int size = its_cmd_get_size(cmdptr) + 1;
     bool valid = its_cmd_get_validbit(cmdptr);
     paddr_t itt_addr = its_cmd_get_ittaddr(cmdptr);
+    paddr_t host_doorbell_address;
     int ret;
 
     /* Sanitize the number of events. */
@@ -660,36 +765,28 @@ static int its_handle_mapd(struct virt_its *its, uint64_t *cmdptr)
 
     if ( !valid )
         /* Discard all events and remove pending LPIs. */
-        its_unmap_device(its, devid);
+        its_unmap_device(its, guest_devid);
 
-    /*
-     * There is no easy and clean way for Xen to know the ITS device ID of a
-     * particular (PCI) device, so we have to rely on the guest telling
-     * us about it. For *now* we are just using the device ID *Dom0* uses,
-     * because the driver there has the actual knowledge.
-     * Eventually this will be replaced with a dedicated hypercall to
-     * announce pass-through of devices.
-     */
-    if ( is_hardware_domain(its->d) )
-    {
+    ret = its_get_host_devid(its->d, guest_devid, &host_devid);
+    if ( ret )
+        return ret;
 
-        /*
-         * Dom0's ITSes are mapped 1:1, so both addresses are the same.
-         * Also the device IDs are equal.
-         */
-        ret = gicv3_its_map_guest_device(its->d, its->doorbell_address, devid,
-                                         its->doorbell_address, devid,
-                                         BIT(size, UL), valid);
-        if ( ret && valid )
-            return ret;
-    }
+    ret = its_get_host_doorbell(its, guest_devid, &host_doorbell_address);
+    if ( ret )
+        return ret;
+
+    ret = gicv3_its_map_guest_device(its->d, host_doorbell_address, host_devid,
+                                     its->doorbell_address, guest_devid,
+                                     BIT(size, UL), valid);
+    if ( ret && valid )
+        return ret;
 
     spin_lock(&its->its_lock);
 
     if ( valid )
-        ret = its_set_itt_address(its, devid, itt_addr, size);
+        ret = its_set_itt_address(its, guest_devid, itt_addr, size);
     else
-        ret = its_set_itt_address(its, devid, INVALID_PADDR, 1);
+        ret = its_set_itt_address(its, guest_devid, INVALID_PADDR, 1);
 
     spin_unlock(&its->its_lock);
 
@@ -1177,7 +1274,6 @@ static bool vgic_v3_verify_its_status(struct virt_its *its, bool status)
      * an LPI), which should go away with proper per-IRQ locking.
      * So for now we ignore this issue and rely on Dom0 not doing bad things.
      */
-    ASSERT(is_hardware_domain(its->d));
 
     return true;
 }
@@ -1457,6 +1553,9 @@ static int vgic_v3_its_init_virtual(struct domain *d, paddr_t guest_addr,
     if ( !its )
         return -ENOMEM;
 
+    ASSERT(devid_bits <= 0x20);
+    ASSERT(evid_bits <= 0x20);
+
     base_attr  = GIC_BASER_InnerShareable << GITS_BASER_SHAREABILITY_SHIFT;
     base_attr |= GIC_BASER_CACHE_SameAsInner << GITS_BASER_OUTER_CACHEABILITY_SHIFT;
     base_attr |= GIC_BASER_CACHE_RaWaWb << GITS_BASER_INNER_CACHEABILITY_SHIFT;
@@ -1511,9 +1610,8 @@ unsigned int vgic_v3_its_count(const struct domain *d)
     struct host_its *hw_its;
     unsigned int ret = 0;
 
-    /* Only Dom0 can use emulated ITSes so far. */
     if ( !is_hardware_domain(d) )
-        return 0;
+        return d->arch.vgic.has_its ? 1 : 0;
 
     list_for_each_entry(hw_its, &host_its_list, entry)
         ret++;
@@ -1570,7 +1668,7 @@ void vgic_v3_its_free_domain(struct domain *d)
         list_del(&pos->vits_list);
         xfree(pos);
     }
-
+    gicv3_its_unmap_all_guest_device(d);
     ASSERT(RB_EMPTY_ROOT(&d->arch.vgic.its_devices));
 }
 

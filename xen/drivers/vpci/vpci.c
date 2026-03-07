@@ -423,8 +423,8 @@ int vpci_assign_device(struct pci_dev *pdev)
  * Find the physical device which is mapped to the virtual device
  * and translate virtual SBDF to the physical one.
  */
-static const struct pci_dev *translate_virtual_device(const struct domain *d,
-                                                      pci_sbdf_t *sbdf)
+const struct pci_dev *vpci_translate_virtual_device(const struct domain *d,
+                                                    pci_sbdf_t *sbdf)
 {
 #ifdef CONFIG_HAS_VPCI_GUEST_SUPPORT
     const struct pci_dev *pdev;
@@ -742,7 +742,7 @@ uint32_t vpci_read(pci_sbdf_t sbdf, unsigned int reg, unsigned int size)
             pdev = pci_get_pdev(dom_xen, sbdf);
     }
     else
-        pdev = translate_virtual_device(d, &sbdf);
+        pdev = vpci_translate_virtual_device(d, &sbdf);
 
     if ( !pdev || !pdev->vpci )
     {
@@ -866,7 +866,7 @@ void vpci_write(pci_sbdf_t sbdf, unsigned int reg, unsigned int size,
             pdev = pci_get_pdev(dom_xen, sbdf);
     }
     else
-        pdev = translate_virtual_device(d, &sbdf);
+        pdev = vpci_translate_virtual_device(d, &sbdf);
 
     if ( !pdev || !pdev->vpci )
     {

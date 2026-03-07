@@ -73,6 +73,7 @@ struct pci_host_bridge {
     struct pci_config_window *child_cfg;
     const struct pci_ops *child_ops;
     void *priv;                      /* Private data of the bridge. */
+    uint64_t its_msi_base;
 };
 
 struct pci_ops {

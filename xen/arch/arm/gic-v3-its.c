@@ -711,6 +711,33 @@ static int gicv3_its_map_host_events(struct host_its *its,
     return gicv3_its_wait_commands(its);
 }
 
+int gicv3_its_unmap_all_guest_device(struct domain *d)
+{
+    struct rb_node **new = &d->arch.vgic.its_devices.rb_node;
+    int ret;
+
+    spin_lock(&d->arch.vgic.its_devices_lock);
+    while ( *new )
+    {
+        struct its_device *temp = rb_entry(*new, struct its_device, rbnode);
+
+        rb_erase(&temp->rbnode, &d->arch.vgic.its_devices);
+
+        /* Discard all events and remove pending LPIs. */
+        ret = remove_mapped_guest_device(temp);
+        if ( ret )
+        {
+            spin_unlock(&d->arch.vgic.its_devices_lock);
+            return ret;
+        }
+
+        new = &d->arch.vgic.its_devices.rb_node;
+    }
+    spin_unlock(&d->arch.vgic.its_devices_lock);
+
+    return 0;
+}
+
 /*
  * Map a hardware device, identified by a certain host ITS and its device ID
  * to domain d, a guest ITS (identified by its doorbell address) and device ID.

@@ -52,6 +52,9 @@ int __must_check vpci_assign_device(struct pci_dev *pdev);
 /* Remove all handlers and free vpci related structures. */
 void vpci_deassign_device(struct pci_dev *pdev);
 
+const struct pci_dev *vpci_translate_virtual_device(const struct domain *d,
+                                                    pci_sbdf_t *sbdf);
+
 /* Add/remove a register handler. */
 int __must_check vpci_add_register_mask(struct vpci *vpci,
                                         vpci_read_t *read_handler,
