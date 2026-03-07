@@ -1625,31 +1625,34 @@ unsigned int vgic_v3_its_count(const struct domain *d)
  */
 int vgic_v3_its_init_domain(struct domain *d)
 {
+    struct host_its *hw_its;
     int ret;
 
     INIT_LIST_HEAD(&d->arch.vgic.vits_list);
     spin_lock_init(&d->arch.vgic.its_devices_lock);
     d->arch.vgic.its_devices = RB_ROOT;
 
-    if ( is_hardware_domain(d) )
+    list_for_each_entry(hw_its, &host_its_list, entry)
     {
-        struct host_its *hw_its;
+        /*
+         * For each host ITS create a virtual ITS using the same
+         * base and thus doorbell address.
+         * Use the same number of device ID and event ID bits as the host.
+         */
+        ret = vgic_v3_its_init_virtual(d, is_hardware_domain(d)
+                                          ? hw_its->addr
+                                          : GUEST_GICV3_ITS_BASE,
+                                       hw_its->addr,
+                                       hw_its->devid_bits,
+                                       hw_its->evid_bits);
+        if ( ret )
+            return ret;
+        else
+            d->arch.vgic.has_its = true;
 
-        list_for_each_entry(hw_its, &host_its_list, entry)
-        {
-            /*
-             * For each host ITS create a virtual ITS using the same
-             * base and thus doorbell address.
-             * Use the same number of device ID and event ID bits as the host.
-             */
-            ret = vgic_v3_its_init_virtual(d, hw_its->addr, hw_its->addr,
-                                           hw_its->devid_bits,
-                                           hw_its->evid_bits);
-            if ( ret )
-                return ret;
-            else
-                d->arch.vgic.has_its = true;
-        }
+        if ( !is_hardware_domain(d) )
+            /* XXX: At the moment we only support a single hardware ITS */
+            break;
     }
 
     return 0;
