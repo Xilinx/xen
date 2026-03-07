@@ -23,7 +23,9 @@
 #include <asm/arm64/sve.h>
 #include <asm/domain_build.h>
 #include <asm/firmware/sci.h>
+#include <asm/gic_v3_its.h>
 #include <asm/grant_table.h>
+#include <asm/pci.h>
 #include <asm/setup.h>
 
 #ifdef CONFIG_VGICV2
@@ -94,7 +96,15 @@ static int __init make_gicv3_domU_node(struct kernel_info *kinfo)
     if ( res )
         return res;
 
-    res = fdt_property_cell(fdt, "#address-cells", 0);
+    res = fdt_property_cell(fdt, "#address-cells", GUEST_ROOT_ADDRESS_CELLS);
+    if ( res )
+        return res;
+
+    res = fdt_property_cell(fdt, "#size-cells", GUEST_ROOT_SIZE_CELLS);
+    if ( res )
+        return res;
+
+    res = fdt_property(fdt, "ranges", NULL, 0);
     if ( res )
         return res;
 
@@ -144,6 +154,14 @@ static int __init make_gicv3_domU_node(struct kernel_info *kinfo)
     res = fdt_property_cell(fdt, "phandle", kinfo->phandle_intc);
     if (res)
         return res;
+
+    /* Add ITS node only if domain will use vpci */
+    if ( has_vpci(d) )
+    {
+        res = gicv3_its_make_emulated_dt_node(fdt);
+        if ( res )
+            return res;
+    }
 
     res = fdt_end_node(fdt);
 
