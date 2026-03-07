@@ -162,6 +162,11 @@ void pci_generic_init_bus_range_child(struct dt_device_node *dev,
 
 bool arch_pci_device_physdevop(void);
 
+int pci_get_new_bar_addr(const struct pci_dev *pdev, uint64_t size,
+                         bool is_64bit, bool prefetch, uint64_t *addr);
+int pci_reserve_bar_range(const struct pci_dev *pdev, uint64_t addr,
+                          uint64_t size, bool prefetch);
+
 static inline int
 pci_msi_conf_write_intercept(struct pci_dev *pdev, unsigned int reg,
                              unsigned int size, uint32_t *data)

@@ -76,6 +76,20 @@ int pci_sanitize_bar_memory(struct rangeset *r);
 
 void pci_setup(void);
 
+static inline int pci_get_new_bar_addr(const struct pci_dev *pdev,
+                                       uint64_t size, bool is_64bit,
+                                       bool prefetch, uint64_t *addr)
+{
+    return -ENOSYS;
+}
+
+static inline int pci_reserve_bar_range(const struct pci_dev *pdev,
+                                        uint64_t addr, uint64_t size,
+                                        bool prefetch)
+{
+    return -ENOSYS;
+}
+
 /* Unlike ARM, HW domain does not ever use vpci for x86 */
 static inline bool hwdom_uses_vpci(void)
 {

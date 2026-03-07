@@ -555,6 +555,64 @@ bool pci_check_bar(const struct pci_dev *pdev, mfn_t start, mfn_t end)
 
     return bar_data.is_valid;
 }
+
+int __init pci_get_new_bar_addr(const struct pci_dev *pdev, uint64_t size,
+                                bool is_64bit, bool prefetch, uint64_t *addr)
+{
+    struct pci_host_bridge *bridge;
+    struct rangeset *range;
+    int ret;
+
+    bridge = pci_find_host_bridge(pdev->seg, pdev->bus);
+    if ( !bridge )
+        return -ENODEV;
+
+    range = prefetch ? bridge->bar_ranges_prefetch : bridge->bar_ranges;
+
+    if ( size < PAGE_SIZE )
+        size = PAGE_SIZE;
+
+    if ( is_64bit && !rangeset_find_aligned_range(range, size, GB(4), addr) )
+    {
+        ret = rangeset_remove_range(range, *addr, *addr + size - 1);
+        if ( ret )
+            printk(XENLOG_ERR "%s: failed to remove BAR range %d\n",
+                   __func__, ret);
+
+        return ret;
+    }
+
+    if ( !rangeset_find_aligned_range(range, size, 0, addr) )
+    {
+        if ( !is_64bit && *addr >= GB(4) )
+            return -EADDRNOTAVAIL;
+
+        ret = rangeset_remove_range(range, *addr, *addr + size - 1);
+        if ( ret )
+            printk(XENLOG_ERR "%s: failed to remove BAR range %d\n",
+                   __func__, ret);
+
+        return ret;
+    }
+
+    return -EADDRNOTAVAIL;
+}
+
+int __init pci_reserve_bar_range(const struct pci_dev *pdev, uint64_t addr,
+                                 uint64_t size, bool prefetch)
+{
+    struct pci_host_bridge *bridge;
+    struct rangeset *range;
+
+    bridge = pci_find_host_bridge(pdev->seg, pdev->bus);
+    if ( !bridge )
+        return -ENODEV;
+
+    range = prefetch ? bridge->bar_ranges_prefetch : bridge->bar_ranges;
+
+    return rangeset_remove_range(range, addr, addr + size - 1);
+}
+
 /*
  * Local variables:
  * mode: C
