@@ -617,7 +617,8 @@ int arch_sanitise_domain_config(struct xen_domctl_createdomain *config)
                                    XEN_DOMCTL_CDF_xs_domain |
                                    XEN_DOMCTL_CDF_trap_unmapped_accesses |
                                    XEN_DOMCTL_CDF_device_model |
-                                   XEN_DOMCTL_CDF_not_hypercall_target);
+                                   XEN_DOMCTL_CDF_not_hypercall_target |
+                                   XEN_DOMCTL_CDF_vpci);
     unsigned int sve_vl_bits = sve_decode_vl(config->arch.sve_vl);
 
     if ( (config->flags & ~flags_optional) != flags_required )

@@ -2070,6 +2070,12 @@ void __init create_dom0(void)
     if ( !llc_coloring_enabled )
         flags |= CDF_directmap;
 
+    if ( IS_ENABLED(CONFIG_HAS_VPCI) &&
+         iommu_enabled &&
+         is_pci_passthrough_enabled() &&
+         (pci_host_iterate_bridges_and_count(NULL, NULL) > 0) )
+        dom0_cfg.flags |= XEN_DOMCTL_CDF_vpci;
+
     domid = domid_alloc(0);
     if ( domid == DOMID_INVALID )
         panic("Error allocating domain ID 0\n");
