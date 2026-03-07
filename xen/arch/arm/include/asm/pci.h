@@ -112,6 +112,7 @@ struct pci_host_bridge *
 pci_host_common_probe(struct dt_device_node *dev,
                       const struct pci_ecam_ops *ops,
                       const struct pci_ecam_ops *child_ops);
+int pci_init_bridge(pci_sbdf_t sbdf);
 int pci_generic_config_read(struct pci_host_bridge *bridge, pci_sbdf_t sbdf,
                             uint32_t reg, uint32_t len, uint32_t *value);
 int pci_generic_config_write(struct pci_host_bridge *bridge, pci_sbdf_t sbdf,
