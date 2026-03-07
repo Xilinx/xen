@@ -320,11 +320,16 @@ static int cf_check init_msi(struct pci_dev *pdev)
                                 4, pdev->vpci->msi);
         if ( ret )
             return ret;
-        /*
-         * FIXME: do not add any handler for the pending bits for the hardware
-         * domain, which means direct access. This will be revisited when
-         * adding unprivileged domain support.
-         */
+
+        if ( !is_hardware_domain(pdev->domain) )
+        {
+            ret = vpci_add_register(pdev->vpci, vpci_hw_read32, NULL,
+                                    msi_pending_bits_reg(pos,
+                                                         pdev->vpci->msi->address64),
+                                    4, NULL);
+            if ( ret )
+                return ret;
+        }
     }
 
     return 0;
