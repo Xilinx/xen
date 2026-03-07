@@ -6,6 +6,7 @@
 
 typedef __be32 gic_interrupt_t[3];
 int make_psci_node(void *fdt);
+int make_vpci_node(void *fdt);
 void evtchn_allocate(struct domain *d);
 
 /*

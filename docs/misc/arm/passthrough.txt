@@ -186,6 +186,36 @@ assign a network card to a dom0-less guest on Xilinx Ultrascale+ MPSoC:
     };
 };
 
+Dom0-less PCI Device Passthrough
+================================
+
+PCI devices can be assigned to the domU guests by using the partial device tree.
+To address one or more PCI devices to be assigned, use the xen,pci-assigned
+property for the passthrough node as in the example below.
+
+/dts-v1/;
+
+/ {
+    #address-cells = <2>;
+    #size-cells = <1>;
+
+
+    passthrough {
+        compatible = "simple-bus";
+        ranges;
+        #address-cells = <2>;
+        #size-cells = <1>;
+        xen,pci-assigned = <0 7 0>, <0xFE 0xBC 0x8>;
+    };
+};
+
+The example is assigning to the guest the PCI devices at these addresses:
+ - 0000:07:00.0
+ - 00FE:BC:01.0
+
+so xen,pci-assigned values are <segment bus device_function>. Bits [3-7] of
+device_function are the slot/device, and bits [0-2] are the function.
+
 
 [arm,gic.yaml]: https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/Documentation/devicetree/bindings/interrupt-controller/arm,gic.yaml
 [arm,gic-v3.yaml]: https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/Documentation/devicetree/bindings/interrupt-controller/arm,gic-v3.yaml
