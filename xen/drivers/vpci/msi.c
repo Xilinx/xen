@@ -321,7 +321,7 @@ static int cf_check init_msi(struct pci_dev *pdev)
         if ( ret )
             return ret;
 
-        if ( !is_hardware_domain(pdev->domain) )
+        if ( has_vpci_bridge(pdev->domain) )
         {
             ret = vpci_add_register(pdev->vpci, vpci_hw_read32, NULL,
                                     msi_pending_bits_reg(pos,

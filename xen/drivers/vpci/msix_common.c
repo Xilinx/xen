@@ -96,7 +96,7 @@ static int cf_check cleanup_msix(const struct pci_dev *pdev, bool hide)
      * Unprivileged domains have a deny by default register access policy, no
      * need to add any further handlers for them.
      */
-    if ( !is_hardware_domain(pdev->domain) )
+    if ( has_vpci_bridge(pdev->domain) )
         return 0;
 
     /*
@@ -183,7 +183,7 @@ static int cf_check init_msix(struct pci_dev *pdev)
     if ( rc )
         goto out;
 
-    if ( !is_hardware_domain(d) )
+    if ( has_vpci_bridge(d) )
     {
         unsigned long val;
 
