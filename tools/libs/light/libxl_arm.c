@@ -248,6 +248,9 @@ int libxl__arch_domain_prepare_config(libxl__gc *gc,
     }
     LOG(DEBUG, " - SCI type=%u", config->arch.arm_sci_type);
 
+    if (d_config->num_pcidevs)
+        config->flags |= XEN_DOMCTL_CDF_vpci;
+
     return 0;
 }
 
