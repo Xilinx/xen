@@ -26,8 +26,8 @@
 #include <xen/tasklet.h>
 #include <xen/sched.h>
 #include <xen/domain_page.h>
+#include <xen/msi.h>
 
-#include <asm/msi.h>
 #include <asm/apicdef.h>
 
 #include "iommu-defs.h"
