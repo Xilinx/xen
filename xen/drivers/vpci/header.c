@@ -309,7 +309,6 @@ static int modify_bars(const struct pci_dev *pdev, uint16_t cmd, bool rom_only)
     struct vpci_header *header = &pdev->vpci->header;
     struct pci_dev *tmp;
     const struct domain *d;
-    const struct vpci_msix *msix = pdev->vpci->msix;
     unsigned int i, j;
     int rc;
 
@@ -404,30 +403,11 @@ static int modify_bars(const struct pci_dev *pdev, uint16_t cmd, bool rom_only)
         }
     }
 
-    /* Remove any MSIX regions if present. */
-    for ( i = 0; msix && i < ARRAY_SIZE(msix->tables); i++ )
-    {
-        unsigned long start = PFN_DOWN(vmsix_table_addr(pdev->vpci, i));
-        unsigned long end = PFN_DOWN(vmsix_table_addr(pdev->vpci, i) +
-                                     vmsix_table_size(pdev->vpci, i) - 1);
-
-        for ( j = 0; j < ARRAY_SIZE(header->bars); j++ )
-        {
-            const struct vpci_bar *bar = &header->bars[j];
-
-            if ( rangeset_is_empty(bar->mem) )
-                continue;
-
-            rc = rangeset_remove_range(bar->mem, start, end);
-            if ( rc )
-            {
-                gprintk(XENLOG_WARNING,
-                       "%pp: failed to remove MSIX table [%lx, %lx]: %d\n",
-                        &pdev->sbdf, start, end, rc);
-                return rc;
-            }
-        }
-    }
+#ifdef CONFIG_HAS_PCI_MSI
+    rc = vpci_remove_msix_regions(pdev);
+    if ( rc )
+        return rc;
+#endif
 
     /*
      * Check for overlaps with other BARs. Note that only BARs that are

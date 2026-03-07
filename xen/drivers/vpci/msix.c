@@ -590,6 +590,41 @@ static const struct hvm_mmio_ops vpci_msix_table_ops = {
     .write = msix_write,
 };
 
+int vpci_remove_msix_regions(const struct pci_dev *pdev)
+{
+    const struct vpci_msix *msix = pdev->vpci->msix;
+    struct vpci_header *header = &pdev->vpci->header;
+    unsigned int i, j;
+    int rc;
+
+    /* Remove any MSIX regions if present. */
+    for ( i = 0; msix && i < ARRAY_SIZE(msix->tables); i++ )
+    {
+        unsigned long start = PFN_DOWN(vmsix_table_addr(pdev->vpci, i));
+        unsigned long end = PFN_DOWN(vmsix_table_addr(pdev->vpci, i) +
+                                     vmsix_table_size(pdev->vpci, i) - 1);
+
+        for ( j = 0; j < ARRAY_SIZE(header->bars); j++ )
+        {
+            const struct vpci_bar *bar = &header->bars[j];
+
+            if ( rangeset_is_empty(bar->mem) )
+                continue;
+
+            rc = rangeset_remove_range(bar->mem, start, end);
+            if ( rc )
+            {
+                gprintk(XENLOG_WARNING,
+                       "%pp: failed to remove MSIX table [%lx, %lx]: %d\n",
+                        &pdev->sbdf, start, end, rc);
+                return rc;
+            }
+        }
+    }
+
+    return 0;
+}
+
 int vpci_make_msix_hole(const struct pci_dev *pdev)
 {
     struct domain *d = pdev->domain;

@@ -220,6 +220,8 @@ struct vpci_vcpu {
 #ifdef __XEN__
 void vpci_dump_msi(void);
 
+int vpci_remove_msix_regions(const struct pci_dev *pdev);
+
 /* Make sure there's a hole in the p2m for the MSIX mmio areas. */
 int vpci_make_msix_hole(const struct pci_dev *pdev);
 
