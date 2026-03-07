@@ -218,6 +218,7 @@ bool pci_known_segment(u16 seg);
 bool pci_device_detect(u16 seg, u8 bus, u8 dev, u8 func);
 int scan_pci_devices(void);
 int add_discovered_pci_devices(void);
+int pci_fixup_bars(void);
 int assign_hwdom_pci_devices(void);
 void cf_check dump_pci_devices(unsigned char ch);
 enum pdev_type pdev_type(u16 seg, u8 bus, u8 devfn);

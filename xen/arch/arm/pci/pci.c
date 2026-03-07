@@ -123,6 +123,10 @@ static int __init pci_init(void)
         if ( ret < 0 )
             return ret;
 
+        ret = pci_fixup_bars();
+        if ( ret )
+            return ret;
+
         ret = add_discovered_pci_devices();
         if ( ret )
             return ret;
