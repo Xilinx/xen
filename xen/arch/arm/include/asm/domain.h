@@ -28,6 +28,8 @@ enum domain_type {
 # include <asm/arm32/domain.h>
 #endif
 
+#define arch_needs_vpci(d) (!is_hardware_domain(d))
+
 /*
  * Is the domain using the host memory layout?
  *
