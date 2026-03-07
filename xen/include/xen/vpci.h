@@ -304,6 +304,11 @@ bool vpci_ecam_write(pci_sbdf_t sbdf, unsigned int reg, unsigned int len,
 bool vpci_ecam_read(pci_sbdf_t sbdf, unsigned int reg, unsigned int len,
                     unsigned long *data);
 
+void vpci_msix_arch_control_write(
+    const struct pci_dev *pdev, unsigned int reg, uint32_t val, void *data);
+void vpci_msix_arch_cleanup(struct vpci *vpci);
+void vpci_msix_arch_register(struct vpci_msix *msix, struct domain *d);
+
 #endif /* __XEN__ */
 
 #else /* !CONFIG_HAS_VPCI */
