@@ -158,7 +158,7 @@ static int __init make_gicv3_domU_node(struct kernel_info *kinfo)
     /* Add ITS node only if domain will use vpci */
     if ( has_vpci(d) )
     {
-        res = gicv3_its_make_emulated_dt_node(fdt);
+        res = gicv3_its_make_emulated_dt_node(d, fdt);
         if ( res )
             return res;
     }

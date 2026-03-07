@@ -1123,9 +1123,9 @@ int gicv3_its_make_hwdom_dt_nodes(const struct domain *d,
     return res;
 }
 
-int __init gicv3_its_make_emulated_dt_node(void *fdt)
+int __init gicv3_its_make_emulated_dt_node(const struct domain *d, void *fdt)
 {
-    const uint64_t its_base = GUEST_GICV3_ITS_BASE;
+    uint64_t its_base = 0;
     const uint64_t its_size = GUEST_GICV3_ITS_SIZE;
     __be32 reg[GUEST_ROOT_ADDRESS_CELLS + GUEST_ROOT_SIZE_CELLS];
     __be32 *cells;
@@ -1134,6 +1134,21 @@ int __init gicv3_its_make_emulated_dt_node(void *fdt)
 
     if ( list_empty(&host_its_list) )
         return 0;
+
+    if ( domain_use_host_layout(d) )
+    {
+        struct host_its *hw_its;
+
+        list_for_each_entry(hw_its, &host_its_list, entry)
+        {
+            its_base = hw_its->addr;
+            break;
+        }
+    }
+    else
+    {
+        its_base = GUEST_GICV3_ITS_BASE;
+    }
 
     snprintf(buf, sizeof(buf), "its@%"PRIx64, its_base);
     dt_dprintk("Create emulated its node\n");

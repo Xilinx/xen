@@ -307,7 +307,7 @@ static int its_get_host_devid(struct domain *d, uint32_t guest_devid,
         return 0;
     }
 
-    if ( is_hardware_domain(d) )
+    if ( !has_vpci_bridge(d) )
     {
         /*
          * Guests with the host msi-map node exposed and virtual BDF == host BDF
@@ -349,7 +349,7 @@ static int its_get_host_doorbell(struct virt_its *its, uint32_t guest_devid,
         return 0;
     }
 
-    if ( is_hardware_domain(its->d) )
+    if ( !has_vpci_bridge(its->d) )
     {
         *host_doorbell = its->doorbell_address;
         return 0;
@@ -1610,7 +1610,7 @@ unsigned int vgic_v3_its_count(const struct domain *d)
     struct host_its *hw_its;
     unsigned int ret = 0;
 
-    if ( !is_hardware_domain(d) )
+    if ( has_vpci_bridge(d) )
         return d->arch.vgic.has_its ? 1 : 0;
 
     list_for_each_entry(hw_its, &host_its_list, entry)
@@ -1622,6 +1622,7 @@ unsigned int vgic_v3_its_count(const struct domain *d)
 /*
  * For a hardware domain, this will iterate over the host ITSes
  * and map one virtual ITS per host ITS at the same address.
+ * If pci-scan is enabled, the hardware domain will not use the real host ITSes.
  */
 int vgic_v3_its_init_domain(struct domain *d)
 {
@@ -1639,7 +1640,7 @@ int vgic_v3_its_init_domain(struct domain *d)
          * base and thus doorbell address.
          * Use the same number of device ID and event ID bits as the host.
          */
-        ret = vgic_v3_its_init_virtual(d, is_hardware_domain(d)
+        ret = vgic_v3_its_init_virtual(d, domain_use_host_layout(d)
                                           ? hw_its->addr
                                           : GUEST_GICV3_ITS_BASE,
                                        hw_its->addr,
@@ -1650,7 +1651,7 @@ int vgic_v3_its_init_domain(struct domain *d)
         else
             d->arch.vgic.has_its = true;
 
-        if ( !is_hardware_domain(d) )
+        if ( has_vpci_bridge(d) || !domain_use_host_layout(d) )
             /* XXX: At the moment we only support a single hardware ITS */
             break;
     }
