@@ -123,6 +123,10 @@ static int __init pci_init(void)
         if ( ret < 0 )
             return ret;
 
+        ret = add_discovered_pci_devices();
+        if ( ret )
+            return ret;
+
 #ifdef CONFIG_PCI_DEVICE_DEBUG
         dump_pci_devices('c');
 #endif
