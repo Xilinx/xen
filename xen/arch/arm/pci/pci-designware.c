@@ -280,7 +280,7 @@ void __iomem *dw_pcie_child_map_bus(struct pci_host_bridge *bridge,
              PCIE_ATU_FUNC(PCI_FUNC(sbdf.devfn));
 
     /* FIXME: Parent is the root bus, so use PCIE_ATU_TYPE_CFG0. */
-    ret = dw_pcie_prog_outbound_atu(bridge, PCIE_ATU_REGION_INDEX1,
+    ret = dw_pcie_prog_outbound_atu(bridge, PCIE_ATU_REGION_INDEX0,
                                     PCIE_ATU_TYPE_CFG0,
                                     bridge->child_cfg->phys_addr, busdev,
                                     bridge->child_cfg->size);
@@ -311,7 +311,7 @@ int dw_pcie_child_config_read(struct pci_host_bridge *bridge, pci_sbdf_t sbdf,
 
     ret = pci_generic_config_read(bridge, sbdf, reg, len, value);
     if ( !ret && (priv->num_viewport <= 2) )
-        ret = dw_pcie_prog_outbound_atu(bridge, PCIE_ATU_REGION_INDEX1,
+        ret = dw_pcie_prog_outbound_atu(bridge, PCIE_ATU_REGION_INDEX0,
                                         PCIE_ATU_TYPE_IO,
                                         bridge->child_cfg->phys_addr, 0,
                                         bridge->child_cfg->size);
@@ -327,7 +327,7 @@ int dw_pcie_child_config_write(struct pci_host_bridge *bridge, pci_sbdf_t sbdf,
 
     ret = pci_generic_config_write(bridge, sbdf, reg, len, value);
     if ( !ret && (priv->num_viewport <= 2) )
-        ret = dw_pcie_prog_outbound_atu(bridge, PCIE_ATU_REGION_INDEX1,
+        ret = dw_pcie_prog_outbound_atu(bridge, PCIE_ATU_REGION_INDEX0,
                                         PCIE_ATU_TYPE_IO,
                                         bridge->child_cfg->phys_addr, 0,
                                         bridge->child_cfg->size);
