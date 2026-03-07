@@ -773,7 +773,8 @@ int arch_sanitise_domain_config(struct xen_domctl_createdomain *config)
  * symbols, to take build-time config options (e.g. CONFIG_HVM) into account
  * for short-circuited emulations.
  */
-static bool emulation_flags_ok(const struct domain *d, uint32_t emflags)
+static bool emulation_flags_ok(const struct domain *d, unsigned int emflags,
+                               unsigned int cdf)
 {
     enum {
         CAP_PV          = BIT(0, U),
@@ -785,12 +786,15 @@ static bool emulation_flags_ok(const struct domain *d, uint32_t emflags)
         unsigned int caps;
         uint32_t min;
         uint32_t opt;
+        uint32_t min_cdf;
+        uint32_t opt_cdf;
     } configs[] = {
 #ifdef CONFIG_PV
         /* PV dom0 and domU */
         {
             .caps   = CAP_PV | CAP_HWDOM | CAP_DOMU,
             .opt    = X86_EMU_PIT,
+            .opt_cdf = GENMASK(31, 0) & ~XEN_DOMCTL_CDF_vpci,
         },
 #endif /* #ifdef CONFIG_PV */
 
@@ -798,21 +802,25 @@ static bool emulation_flags_ok(const struct domain *d, uint32_t emflags)
         /* PVH dom0 */
         {
             .caps   = CAP_HVM | CAP_HWDOM,
-            .min    = X86_EMU_LAPIC | X86_EMU_IOAPIC | X86_EMU_VPCI,
+            .min    = X86_EMU_LAPIC | X86_EMU_IOAPIC,
+            .min_cdf = XEN_DOMCTL_CDF_vpci,
+            .opt_cdf = GENMASK(31, 0) & ~XEN_DOMCTL_CDF_vpci,
         },
 
         /* PVH domU */
         {
             .caps   = CAP_HVM | CAP_DOMU,
             .min    = X86_EMU_LAPIC | X86_EMU_IOAPIC | X86_EMU_PM,
+            .opt_cdf = GENMASK(31, 0) & ~XEN_DOMCTL_CDF_vpci,
         },
 
         /* HVM domU */
         {
             .caps   = CAP_HVM | CAP_DOMU,
-            .min    = X86_EMU_ALL & ~(X86_EMU_VPCI | X86_EMU_USE_PIRQ),
+            .min    = X86_EMU_ALL & ~X86_EMU_USE_PIRQ,
             /* HVM PIRQ feature is user-selectable. */
             .opt    = X86_EMU_USE_PIRQ,
+            .opt_cdf = GENMASK(31, 0) & ~XEN_DOMCTL_CDF_vpci,
         },
 #endif /* #ifdef CONFIG_HVM */
     };
@@ -832,7 +840,8 @@ static bool emulation_flags_ok(const struct domain *d, uint32_t emflags)
 
     for ( i = 0; i < ARRAY_SIZE(configs); i++ )
         if ( (caps & configs[i].caps) == caps &&
-             (emflags & ~configs[i].opt) == configs[i].min )
+             (emflags & ~configs[i].opt) == configs[i].min &&
+             (cdf & ~configs[i].opt_cdf) == configs[i].min_cdf )
             return true;
 
     return false;
@@ -888,7 +897,7 @@ int arch_domain_create(struct domain *d,
         return -EINVAL;
     }
 
-    if ( !emulation_flags_ok(d, emflags) )
+    if ( !emulation_flags_ok(d, emflags, config->flags) )
     {
         printk(XENLOG_G_ERR
                "%pd: will not create %s %sdomain with emulators: %#x\n",

@@ -143,7 +143,7 @@ int __init arch_parse_dom0less_node(struct dt_device_node *node,
         bd->create_cfg.arch.emulation_flags |= XEN_X86_EMU_LAPIC |
                                                XEN_X86_EMU_IOAPIC;
         if ( bd->create_flags & CDF_hardware )
-            bd->create_cfg.arch.emulation_flags |= XEN_X86_EMU_VPCI;
+            bd->create_cfg.flags |= XEN_DOMCTL_CDF_vpci;
         else
             bd->create_cfg.arch.emulation_flags |= XEN_X86_EMU_PM;
     }

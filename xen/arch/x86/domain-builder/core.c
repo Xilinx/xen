@@ -72,7 +72,8 @@ void __init builder_late_init(struct boot_info *bi)
     dom0->create_cfg = (struct xen_domctl_createdomain){
         .flags = (IS_ENABLED(CONFIG_TBOOT) ? XEN_DOMCTL_CDF_s3_integrity : 0) |
                  (iommu_enabled            ? XEN_DOMCTL_CDF_iommu        : 0) |
-                 (opt_dom0_pvh             ? XEN_DOMCTL_CDF_hvm          : 0) |
+                 (opt_dom0_pvh             ? XEN_DOMCTL_CDF_hvm |
+                                             XEN_DOMCTL_CDF_vpci         : 0) |
                  (pvh_hap                  ? XEN_DOMCTL_CDF_hap          : 0) |
                  XEN_DOMCTL_CDF_xs_domain,
         .max_evtchn_port= -1,
@@ -83,7 +84,7 @@ void __init builder_late_init(struct boot_info *bi)
         .arch = {
             .misc_flags = opt_dom0_msr_relaxed ? XEN_X86_MSR_RELAXED : 0,
             .emulation_flags = opt_dom0_pvh                               ?
-                XEN_X86_EMU_LAPIC | XEN_X86_EMU_IOAPIC | XEN_X86_EMU_VPCI :
+                XEN_X86_EMU_LAPIC | XEN_X86_EMU_IOAPIC :
                 X86_EMU_PIT,
         },
     };
