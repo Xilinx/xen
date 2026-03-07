@@ -402,6 +402,9 @@ int __init arch_parse_dom0less_node(struct dt_device_node *node,
             d_cfg->flags &= ~XEN_DOMCTL_CDF_trap_unmapped_accesses;
     }
 
+    if ( is_pci_scan_enabled() )
+        d_cfg->flags |= XEN_DOMCTL_CDF_vpci;
+
     return 0;
 }
 
