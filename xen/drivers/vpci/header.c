@@ -983,6 +983,19 @@ int vpci_init_header(struct pci_dev *pdev)
     if ( rc )
         return rc;
 
+    if ( type == PCI_HEADER_TYPE_NORMAL )
+    {
+        rc = vpci_add_register(pdev->vpci, vpci_hw_read8, NULL, PCI_MIN_GNT,
+                               1, NULL);
+        if ( rc )
+            return rc;
+
+        rc = vpci_add_register(pdev->vpci, vpci_hw_read8, NULL, PCI_MAX_LAT,
+                               1, NULL);
+        if ( rc )
+            return rc;
+    }
+
     if ( pdev->ignore_bars )
         return 0;
 
