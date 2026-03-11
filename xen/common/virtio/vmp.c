@@ -281,7 +281,7 @@ static bool vmp_expected_msg_resp(struct vmp *s, VirtIOMSG *msg)
     return msg->msg_id == valid[s->state];
 }
 
-static void vmp_receive_msg(void *opaque, VirtIOMSG *msg)
+static void cf_check vmp_receive_msg(void *opaque, VirtIOMSG *msg)
 {
     struct vmp *s = opaque;
 
@@ -847,7 +847,7 @@ io_abort:
     return 0;
 }
 
-static void vmp_deinit(void *opaque)
+static void cf_check vmp_deinit(void *opaque)
 {
     struct vmp *s = opaque;
 
