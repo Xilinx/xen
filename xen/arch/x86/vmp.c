@@ -55,13 +55,13 @@ static struct vmp *vmp_from_domain_addr(struct domain *d, uint64_t addr)
     return NULL;
 }
 
-static int mmio_check(struct vcpu *v, unsigned long addr)
+static int cf_check mmio_check(struct vcpu *v, unsigned long addr)
 {
     return vmp_from_domain_addr(v->domain, addr) != NULL;
 }
 
-static int mmio_read(struct vcpu *v, unsigned long addr, unsigned int length,
-                     unsigned long *val)
+static int cf_check mmio_read(struct vcpu *v, unsigned long addr,
+                              unsigned int length, unsigned long *val)
 {
     struct vmp *s = vmp_from_domain_addr(v->domain, addr);
     uint32_t data = 0;
@@ -78,8 +78,8 @@ static int mmio_read(struct vcpu *v, unsigned long addr, unsigned int length,
     return X86EMUL_OKAY;
 }
 
-static int mmio_write(struct vcpu *v, unsigned long addr, unsigned int length,
-                      unsigned long val)
+static int cf_check mmio_write(struct vcpu *v, unsigned long addr,
+                               unsigned int length, unsigned long val)
 {
     struct vmp *s = vmp_from_domain_addr(v->domain, addr);
     int rc;
