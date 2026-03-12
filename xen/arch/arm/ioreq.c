@@ -164,19 +164,6 @@ void arch_ioreq_server_destroy(struct ioreq_server *s)
 {
 }
 
-int arch_ioreq_server_map_mem_type(struct domain *d,
-                                   struct ioreq_server *s,
-                                   uint32_t flags)
-{
-    return -EOPNOTSUPP;
-}
-
-void arch_ioreq_server_map_mem_type_completed(struct domain *d,
-                                              struct ioreq_server *s,
-                                              uint32_t flags)
-{
-}
-
 bool arch_ioreq_server_destroy_all(struct domain *d)
 {
     return true;

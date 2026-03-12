@@ -958,6 +958,9 @@ int ioreq_server_map_mem_type(struct domain *d, ioservid_t id,
     struct ioreq_server *s;
     int rc;
 
+    if ( !IS_ENABLED(CONFIG_X86) )
+        return -EOPNOTSUPP;
+
     if ( type != HVMMEM_ioreq_server )
         return -EINVAL;
 
