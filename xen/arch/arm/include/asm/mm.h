@@ -306,7 +306,9 @@ struct page_info *get_page_from_gva(struct vcpu *v, vaddr_t va,
 
 /* Xen always owns P2M on ARM */
 #define set_gpfn_from_mfn(mfn, pfn) do { (void) (mfn), (void)(pfn); } while (0)
-#define mfn_to_gfn(d, mfn) ((void)(d), _gfn(mfn_x(mfn)))
+#define mfn_to_gfn(d, mfn) \
+    (is_xen_heap_mfn(mfn) ? page_get_xenheap_gfn(mfn_to_page(mfn)) \
+                          : _gfn(mfn_x(mfn)))
 
 /* Arch-specific portion of memory_op hypercall. */
 long arch_memory_op(int op, XEN_GUEST_HANDLE_PARAM(void) arg);
