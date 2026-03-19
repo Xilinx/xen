@@ -3,4 +3,4 @@ obj-y += intr.o
 obj-y += realmode.o
 obj-y += vmcs.o
 obj-y += vmx.o
-obj-y += vvmx.o
+obj-$(CONFIG_NESTED_VIRT) += vvmx.o
