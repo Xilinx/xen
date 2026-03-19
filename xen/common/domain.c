@@ -2880,8 +2880,14 @@ long do_dom_full_reset(domid_t domid)
     d = rcu_lock_domain_by_id(domid);
     if ( !d )
         return -ESRCH;
+
+    ret = xsm_domain_full_reset(XSM_TARGET, d);
+    if ( ret )
+        goto out;
+
     ret = domain_full_reset(d);
 
+ out:
     rcu_unlock_domain(d);
 
     if ( ret == -ERESTART )

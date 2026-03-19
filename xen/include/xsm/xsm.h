@@ -212,6 +212,9 @@ struct xsm_ops {
     int (*argo_send)(const struct domain *d, const struct domain *t);
 #endif
     int (*get_domain_state)(struct domain *d);
+#ifdef CONFIG_DOMAIN_FULL_RESET
+    int (*domain_full_reset)(struct domain *d);
+#endif
 };
 
 #ifdef CONFIG_XSM
@@ -246,6 +249,13 @@ static inline int xsm_get_domain_state(xsm_default_t def, struct domain *d)
 {
     return alternative_call(xsm_ops.get_domain_state, d);
 }
+
+#ifdef CONFIG_DOMAIN_FULL_RESET
+static inline int xsm_domain_full_reset(xsm_default_t def, struct domain *d)
+{
+    return alternative_call(xsm_ops.domain_full_reset, d);
+}
+#endif
 
 static inline int xsm_domctl_scheduler_op(
     xsm_default_t def, struct domain *d, int cmd)

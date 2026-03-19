@@ -857,6 +857,15 @@ static XSM_INLINE int cf_check xsm_get_domain_state(
     return xsm_default_action(action, current->domain, d);
 }
 
+#ifdef CONFIG_DOMAIN_FULL_RESET
+static XSM_INLINE int cf_check xsm_domain_full_reset(
+    XSM_DEFAULT_ARG struct domain *d)
+{
+    XSM_ASSERT_ACTION(XSM_TARGET);
+    return xsm_default_action(action, current->domain, d);
+}
+#endif
+
 #include <public/version.h>
 static XSM_INLINE int cf_check xsm_xen_version(XSM_DEFAULT_ARG uint32_t op)
 {

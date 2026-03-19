@@ -159,6 +159,9 @@ static const struct xsm_ops __initconst_cf_clobber dummy_ops = {
     .argo_send                     = xsm_argo_send,
 #endif
     .get_domain_state              = xsm_get_domain_state,
+#ifdef CONFIG_DOMAIN_FULL_RESET
+    .domain_full_reset             = xsm_domain_full_reset,
+#endif
 };
 
 void __init xsm_fixup_ops(struct xsm_ops *ops)

@@ -259,6 +259,8 @@ class domain2
     set_llc_colors
 # XEN_DOMCTL_get_domain_state
     get_domain_state
+# domain_full_reset hypercall
+    full_reset
 }
 
 # Similar to class domain, but primarily contains domctls related to HVM domains

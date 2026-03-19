@@ -1872,6 +1872,13 @@ static int cf_check flask_get_domain_state(struct domain *d)
     return current_has_perm(d, SECCLASS_DOMAIN2, DOMAIN2__GET_DOMAIN_STATE);
 }
 
+#ifdef CONFIG_DOMAIN_FULL_RESET
+static int cf_check flask_domain_full_reset(struct domain *d)
+{
+    return current_has_perm(d, SECCLASS_DOMAIN2, DOMAIN2__FULL_RESET);
+}
+#endif
+
 static const struct xsm_ops __initconst_cf_clobber flask_ops = {
     .set_system_active = flask_set_system_active,
     .security_domaininfo = flask_security_domaininfo,
@@ -2019,6 +2026,9 @@ static const struct xsm_ops __initconst_cf_clobber flask_ops = {
     .argo_send = flask_argo_send,
 #endif
     .get_domain_state = flask_get_domain_state,
+#ifdef CONFIG_DOMAIN_FULL_RESET
+    .domain_full_reset = flask_domain_full_reset,
+#endif
 };
 
 const struct xsm_ops *__init flask_init(
