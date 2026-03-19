@@ -415,6 +415,13 @@ static int __init hvm_populate_p2m(struct domain *d)
         if ( rc )
             return rc;
 
+        if ( d->arch.hvm.reset_info )
+        {
+            rc = rangeset_add_range(d->arch.hvm.reset_info->mem,
+                                    addr, addr + size - 1);
+            if ( rc )
+                return rc;
+        }
     }
 
     return 0;
@@ -652,6 +659,7 @@ static int __init hvm_setup_acpi(struct boot_domain *bd, paddr_t start_info)
     unsigned long size = hvm_size_acpi_region(bd);
     void *table;
     int rc;
+    struct reset_info *rinfo = d->arch.hvm.reset_info;
 
     table = xzalloc_bytes(size);
     if ( !table )
@@ -747,6 +755,19 @@ static int __init hvm_setup_acpi(struct boot_domain *bd, paddr_t start_info)
         sizeof(((struct hvm_start_info *) NULL)->rsdp_paddr), d->vcpu[0]);
     if ( rc != HVMTRANS_okay )
         printk("Unable to copy RSDP address to start info (rc=%d)\n", rc);
+
+    if ( rinfo )
+    {
+        rinfo->acpi_sz = size;
+        rinfo->acpi = xzalloc_bytes(rinfo->acpi_sz);
+        if ( !rinfo->acpi )
+        {
+            rc = -ENOMEM;
+            goto out;
+        }
+        memcpy(rinfo->acpi, acpi_info, rinfo->acpi_sz);
+        rinfo->start_info->rsdp_paddr = rsdp_paddr;
+    }
 
  out:
     if ( acpi_info )
@@ -879,12 +900,23 @@ static int __init pvh_load_kernel(
     struct hvm_modlist_entry mod = { 0 };
     struct vcpu *v = d->vcpu[0];
     int rc;
+    struct reset_info *rinfo = d->arch.hvm.reset_info;
 
     if ( (rc = bzimage_parse(image_base, &image_start, image->arch.headroom,
                              &image_len)) != 0 )
     {
         printk("Error trying to detect bz compressed kernel\n");
         return rc;
+    }
+
+    if ( rinfo )
+    {
+        rinfo->kernel_sz = image_len;
+        rinfo->kernel = xmalloc_bytes(rinfo->kernel_sz);
+        if ( !rinfo->kernel )
+            return -ENOMEM;
+        memcpy(rinfo->kernel, image_start, rinfo->kernel_sz);
+        image_start = rinfo->kernel;
     }
 
     if ( (rc = elf_init(&elf, image_start, image_len)) != 0 )
@@ -926,6 +958,14 @@ static int __init pvh_load_kernel(
         return rc;
     }
 
+    if ( rinfo )
+    {
+        rinfo->elf = xmalloc_bytes(sizeof(struct elf_binary));
+        if ( !rinfo->elf )
+            return -ENOMEM;
+        *rinfo->elf = elf;
+    }
+
     /*
      * Find a RAM region big enough (and that doesn't overlap with the loaded
      * kernel) in order to load the initrd and the metadata. Note it could be
@@ -965,6 +1005,17 @@ static int __init pvh_load_kernel(
 
         mod.paddr = last_addr;
         mod.size = initrd_len;
+
+        if ( rinfo )
+        {
+            rinfo->initrd_gpa = last_addr;
+            rinfo->initrd_sz = initrd_len;
+            rinfo->initrd = xmalloc_bytes(rinfo->initrd_sz);
+            if ( !rinfo->initrd )
+                return -ENOMEM;
+            memcpy(rinfo->initrd, __va(initrd->start), rinfo->initrd_sz);
+        }
+
         last_addr += elf_round_up(&elf, initrd_len);
         last_addr = ROUNDUP(last_addr, PAGE_SIZE);
     }
@@ -977,6 +1028,15 @@ static int __init pvh_load_kernel(
     }
 
     start_info.cmdline_paddr = cmdline_len ? last_addr : 0;
+    if ( rinfo && cmdline_len )
+    {
+        rinfo->kernel_cmd_gpa = start_info.cmdline_paddr;
+        rinfo->kernel_cmd_sz = cmdline_len;
+        rinfo->kernel_cmd = xmalloc_bytes(rinfo->kernel_cmd_sz);
+        if ( !rinfo->kernel_cmd )
+            return -ENOMEM;
+        memcpy(rinfo->kernel_cmd, bd->cmdline, rinfo->kernel_cmd_sz);
+    }
 
     /*
      * Round up to 32/64 bits (depending on the guest kernel bitness) so
@@ -1011,6 +1071,16 @@ static int __init pvh_load_kernel(
 
     *entry = parms.phys_entry;
     *start_info_addr = last_addr;
+
+    if ( rinfo )
+    {
+        rinfo->start_info = xmalloc_bytes(sizeof(struct hvm_start_info));
+        if ( !rinfo->start_info )
+            return -ENOMEM;
+        *rinfo->start_info = start_info;
+        rinfo->start_info_gpa = *start_info_addr;
+        rinfo->entry_gpa = *entry;
+    }
 
     return 0;
 }
@@ -1141,7 +1211,14 @@ static int __init map_iomem(struct boot_domain *bd)
         }
     }
 
+    if ( d->arch.hvm.reset_info )
+    {
+        d->arch.hvm.reset_info->arch.nr_iomem = bd->arch.nr_iomem;
+        SWAP(d->arch.hvm.reset_info->arch.iomem, bd->arch.iomem);
+    }
+
     XFREE(bd->arch.iomem);
+    bd->arch.nr_iomem = 0;
 
     return ret;
 }
@@ -1198,7 +1275,14 @@ static int __init map_irqs(struct boot_domain *bd)
         printk(XENLOG_INFO "%pd: Success irq %d pirq %d\n", d, hw_irq, pirq);
     }
 
+    if ( d->arch.hvm.reset_info )
+    {
+        d->arch.hvm.reset_info->arch.nr_irqs = bd->arch.nr_irqs;
+        SWAP(d->arch.hvm.reset_info->arch.irqs, bd->arch.irqs);
+    }
+
     XFREE(bd->arch.irqs);
+    bd->arch.nr_irqs = 0;
 
     return ret;
 }
