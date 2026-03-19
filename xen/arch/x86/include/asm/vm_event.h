@@ -34,6 +34,8 @@ int vm_event_init_domain(struct domain *d);
 
 void vm_event_cleanup_domain(struct domain *d);
 
+void arch_vm_event_reset_domain(struct domain *d);
+
 void vm_event_toggle_singlestep(struct domain *d, struct vcpu *v,
                                 vm_event_response_t *rsp);
 

@@ -592,6 +592,86 @@ void vm_event_cleanup(struct domain *d)
 #endif
 }
 
+static void vm_event_domain_reset(struct domain *d, struct vm_event_domain *ved)
+{
+    struct vcpu *v;
+
+    if ( !vm_event_check_ring(ved) )
+        return;
+
+    destroy_waitqueue_head(&ved->wq);
+
+    spin_lock(&ved->lock);
+
+    for_each_vcpu ( d, v )
+    {
+        if ( test_and_clear_bit(ved->pause_flag, &v->pause_flags) )
+        {
+            ved->blocked--;
+            vcpu_unpause(v);
+        }
+
+        while ( atomic_read(&v->vm_event_pause_count) )
+        {
+            atomic_dec(&v->vm_event_pause_count);
+            vcpu_unpause(v);
+        }
+    }
+    ASSERT(ved->blocked == 0);
+    ved->last_vcpu_wake_up = 0;
+    clear_page(ved->ring_page);
+    FRONT_RING_INIT(&ved->front_ring,
+                    (vm_event_sring_t *)ved->ring_page,
+                    PAGE_SIZE);
+    ved->foreign_producers = 0;
+    ved->target_producers = 0;
+
+    spin_unlock(&ved->lock);
+}
+
+void vm_event_reset(struct domain *d)
+{
+#ifdef CONFIG_MEM_PAGING
+    vm_event_domain_reset(d, d->vm_event_paging);
+#endif
+
+#ifdef CONFIG_MEM_SHARING
+    vm_event_domain_reset(d, d->vm_event_share);
+#endif
+
+    vm_event_domain_reset(d, d->vm_event_monitor);
+    arch_monitor_reset_domain(d);
+
+    arch_vm_event_reset_domain(d);
+}
+
+bool is_vm_event_evtchn(struct domain *d, unsigned int port)
+{
+#ifdef CONFIG_MEM_PAGING
+    if ( vm_event_check_ring(d->vm_event_paging) )
+    {
+        if ( d->vm_event_paging->xen_port == port )
+            return true;
+    }
+#endif
+
+#ifdef CONFIG_MEM_SHARING
+    if ( vm_event_check_ring(d->vm_event_share) )
+    {
+        if ( d->vm_event_share->xen_port == port )
+            return true;
+    }
+#endif
+
+    if ( vm_event_check_ring(d->vm_event_monitor) )
+    {
+        if ( d->vm_event_monitor->xen_port == port )
+            return true;
+    }
+
+    return false;
+}
+
 int vm_event_domctl(struct domain *d, struct xen_domctl_vm_event_op *vec)
 {
     int rc;

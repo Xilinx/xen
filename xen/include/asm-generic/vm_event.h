@@ -22,6 +22,11 @@ static inline void vm_event_cleanup_domain(struct domain *d)
     memset(&d->monitor, 0, sizeof(d->monitor));
 }
 
+static inline void arch_vm_event_reset_domain(struct domain *d)
+{
+    /* Nothing to do. */
+}
+
 static inline void vm_event_toggle_singlestep(struct domain *d, struct vcpu *v,
                                               vm_event_response_t *rsp)
 {

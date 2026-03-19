@@ -28,6 +28,7 @@
 #include <xen/keyhandler.h>
 #include <xen/sections.h>
 #include <xen/ioreq.h>
+#include <xen/vm_event.h>
 
 #include <asm/current.h>
 
@@ -1433,6 +1434,15 @@ void evtchn_full_reset(struct domain *d)
             /*
              * Do not close ioreq server event channels because
              * device model ioreq servers are still connected.
+             */
+            continue;
+        }
+        else if ( IS_ENABLED(CONFIG_VM_EVENT) && is_vm_event_evtchn(d, port) )
+        {
+            /*
+             * Until the vm events are explicitly disabled by the
+             * monitor domain, the corresponding event channels
+             * need to persist reset.
              */
             continue;
         }

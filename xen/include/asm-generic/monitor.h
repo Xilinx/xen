@@ -52,6 +52,12 @@ void arch_monitor_cleanup_domain(struct domain *d)
     /* No arch-specific domain cleanup on GENERIC. */
 }
 
+static inline
+void arch_monitor_reset_domain(struct domain *d)
+{
+    /* No arch-specific domain reset on GENERIC. */
+}
+
 #endif /* __ASM_GENERIC_MONITOR_H__ */
 
 /*

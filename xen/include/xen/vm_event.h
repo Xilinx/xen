@@ -92,6 +92,10 @@ void vm_event_cancel_slot(struct domain *d, struct vm_event_domain *ved);
 void vm_event_put_request(struct domain *d, struct vm_event_domain *ved,
                           vm_event_request_t *req);
 
+void vm_event_reset(struct domain *d);
+
+bool is_vm_event_evtchn(struct domain *d, unsigned int port);
+
 #ifdef CONFIG_VM_EVENT
 /* Clean up on domain destruction */
 void vm_event_cleanup(struct domain *d);

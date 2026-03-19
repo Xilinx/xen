@@ -42,6 +42,19 @@ void arch_monitor_cleanup_domain(struct domain *d)
     memset(&d->monitor, 0, sizeof(d->monitor));
 }
 
+void arch_monitor_reset_domain(struct domain *d)
+{
+    struct monitor_msr_bitmap *msr_bitmap = d->arch.monitor.msr_bitmap;
+
+    memset(&d->arch.monitor, 0, sizeof(d->arch.monitor));
+    if ( msr_bitmap )
+    {
+        memset(msr_bitmap, 0, sizeof(struct monitor_msr_bitmap) * 2);
+        d->arch.monitor.msr_bitmap = msr_bitmap;
+    }
+    memset(&d->monitor, 0, sizeof(d->monitor));
+}
+
 static unsigned long *monitor_bitmap_for_msr(const struct domain *d, u32 *msr)
 {
     ASSERT(d->arch.monitor.msr_bitmap && msr);

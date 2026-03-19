@@ -58,6 +58,20 @@ void vm_event_cleanup_domain(struct domain *d)
     d->arch.mem_access_emulate_each_rep = 0;
 }
 
+void arch_vm_event_reset_domain(struct domain *d)
+{
+    struct vcpu *v;
+
+    for_each_vcpu ( d, v )
+    {
+        if ( v->arch.vm_event )
+            memset(v->arch.vm_event, 0, sizeof(struct arch_vm_event));
+        v->arch.monitor.next_interrupt_enabled = false;
+    }
+
+    d->arch.mem_access_emulate_each_rep = 0;
+}
+
 void vm_event_toggle_singlestep(struct domain *d, struct vcpu *v,
                                 vm_event_response_t *rsp)
 {

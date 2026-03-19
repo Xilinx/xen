@@ -2794,6 +2794,9 @@ static long domain_full_reset(struct domain *d)
 
         ioreq_server_disable_all(d);
 
+        if ( IS_ENABLED(CONFIG_VM_EVENT) )
+            vm_event_reset(d);
+
         if ( !is_hardware_domain(d) )
             xencons_intf_reset(d);
 
