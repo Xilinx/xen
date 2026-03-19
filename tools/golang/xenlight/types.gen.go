@@ -1138,6 +1138,7 @@ CapVmtrace bool
 CapVpmu bool
 CapGnttabV1 bool
 CapGnttabV2 bool
+CapNestedHvm bool
 ArchCapabilities uint32
 }
 
