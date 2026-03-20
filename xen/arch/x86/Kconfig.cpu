@@ -12,6 +12,7 @@ config AMD
 
 config INTEL
 	bool "Support Intel CPUs"
+	select CPUFREQ
 	default y
 	help
 	  Detection, tunings and quirks for Intel platforms.
