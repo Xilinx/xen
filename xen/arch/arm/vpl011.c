@@ -26,6 +26,9 @@
 #include <asm/vpl011.h>
 #include <asm/vreg.h>
 
+#define VPL011_BACKEND_IN_DOMAIN(v) \
+    (IS_ENABLED(CONFIG_MGMT_HYPERCALLS) && (v)->backend_in_domain)
+
 /*
  * Since pl011 registers are 32-bit registers, all registers
  * are handled similarly allowing 8-bit, 16-bit and 32-bit
@@ -262,7 +265,7 @@ static void vpl011_update_tx_fifo_status(struct vpl011 *vpl011,
     unsigned int fifo_threshold = sizeof(intf->out) - SBSA_UART_FIFO_LEVEL;
 
     /* No TX FIFO handling when backend is in Xen */
-    ASSERT(vpl011->backend_in_domain);
+    ASSERT(VPL011_BACKEND_IN_DOMAIN(vpl011));
 
     BUILD_BUG_ON(sizeof(intf->out) < SBSA_UART_FIFO_SIZE);
 
@@ -357,7 +360,7 @@ static int vpl011_mmio_read(struct vcpu *v,
     case DR:
         if ( !vpl011_reg32_check_access(dabt) ) goto bad_width;
 
-        if ( vpl011->backend_in_domain )
+        if ( VPL011_BACKEND_IN_DOMAIN(vpl011) )
             *r = vreg_reg32_extract(vpl011_read_data(d), info);
         else
             *r = vreg_reg32_extract(vpl011_read_data_xen(d), info);
@@ -451,7 +454,7 @@ static int vpl011_mmio_write(struct vcpu *v,
 
         vreg_reg32_update(&data, r, info);
         data &= 0xFF;
-        if ( vpl011->backend_in_domain )
+        if ( VPL011_BACKEND_IN_DOMAIN(vpl011) )
             vpl011_write_data(v->domain, data);
         else
             vpl011_write_data_xen(v->domain, data);
@@ -555,7 +558,7 @@ static void vpl011_data_avail(struct domain *d,
          * written (i.e. no TX FIFO handling), therefore we do not want
          * to change the TX FIFO status in such case.
          */
-        if ( vpl011->backend_in_domain )
+        if ( VPL011_BACKEND_IN_DOMAIN(vpl011) )
             vpl011_update_tx_fifo_status(vpl011, out_fifo_level);
     }
 
@@ -576,7 +579,7 @@ int vpl011_rx_char_xen(struct domain *d, char c)
     XENCONS_RING_IDX in_cons, in_prod, in_fifo_level;
 
     /* Forward input iff the vpl011 backend is in Xen. */
-    if ( vpl011->backend_in_domain )
+    if ( VPL011_BACKEND_IN_DOMAIN(vpl011) )
         return -ENODEV;
 
     if ( intf == NULL )
@@ -692,7 +695,7 @@ int domain_vpl011_init(struct domain *d, struct vpl011_init_info *info)
      * info is NULL when the backend is in Xen.
      * info is != NULL when the backend is in a domain.
      */
-    if ( info != NULL )
+    if ( IS_ENABLED(CONFIG_MGMT_HYPERCALLS) && info != NULL )
     {
         vpl011->backend_in_domain = true;
 
@@ -762,7 +765,7 @@ void domain_vpl011_deinit(struct domain *d)
         vpl011->virq = 0;
     }
 
-    if ( vpl011->backend_in_domain )
+    if ( VPL011_BACKEND_IN_DOMAIN(vpl011) )
     {
         if ( vpl011->backend.dom.ring_buf )
             destroy_ring_for_helper(&vpl011->backend.dom.ring_buf,
