@@ -873,6 +873,36 @@ static long handle_add_overlay_nodes(void *overlay_fdt,
     return rc;
 }
 
+/* Handle a node and all its descendants during overlay attach */
+static int handle_node_and_descendants(struct domain *d,
+                                       struct dt_device_node *node,
+                                       p2m_type_t p2mt,
+                                       struct rangeset *iomem_ranges,
+                                       struct rangeset *irq_ranges)
+{
+    int rc;
+    struct dt_device_node *child;
+
+    rc = handle_device(d, node, p2mt, iomem_ranges, irq_ranges);
+    if ( rc )
+    {
+        printk(XENLOG_ERR "handle_device failed for node %s (rc = %d)\n",
+               dt_node_full_name(node), rc);
+        return rc;
+    }
+
+    /* Recursively handle all children */
+    dt_for_each_child_node(node, child)
+    {
+        rc = handle_node_and_descendants(d, child, p2mt, iomem_ranges,
+                                         irq_ranges);
+        if ( rc )
+            return rc;
+    }
+
+    return 0;
+}
+
 static long handle_attach_overlay_nodes(struct domain *d,
                                         const void *overlay_fdt,
                                         uint32_t overlay_fdt_size)
@@ -923,12 +953,14 @@ static long handle_attach_overlay_nodes(struct domain *d,
         }
 
         write_lock(&dt_host_lock);
-        rc = handle_device(d, overlay_node, p2m_mmio_direct_c,
-                           entry->iomem_ranges, entry->irq_ranges);
+        rc = handle_node_and_descendants(d, overlay_node, p2m_mmio_direct_c,
+                                         entry->iomem_ranges,
+                                         entry->irq_ranges);
         write_unlock(&dt_host_lock);
         if ( rc )
         {
-            printk(XENLOG_ERR "Adding IRQ and IOMMU failed\n");
+            printk(XENLOG_ERR "Adding IRQ and IOMMU failed for node %s\n",
+                   dt_node_full_name(overlay_node));
             goto out;
         }
     }
