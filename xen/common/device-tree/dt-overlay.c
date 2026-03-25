@@ -1036,8 +1036,8 @@ long dt_overlay_domctl(struct domain *d, struct xen_domctl_dt_overlay *op)
     if ( op->pad[0] || op->pad[1] || op->pad[2] )
         return -EINVAL;
 
-    /* TODO: add support for non-1:1 domains using xen,reg */
-    if ( !is_domain_direct_mapped(d) )
+    /* TODO: add support for non-1:1 domains (except hwdom) using xen,reg */
+    if ( !is_domain_direct_mapped(d) && !is_hardware_domain(d))
         return -EOPNOTSUPP;
 
     overlay_fdt = xmalloc_bytes(op->overlay_fdt_size);
