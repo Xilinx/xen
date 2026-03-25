@@ -242,6 +242,8 @@ bool xilinx_eemi(struct cpu_user_regs *regs, const uint32_t fid,
     case EEMI_FID(PM_PINCTRL_CONFIG_PARAM_GET):
     case EEMI_FID(PM_PINCTRL_CONFIG_PARAM_SET):
     case EEMI_FID(PM_SECURE_AES):
+    case EEMI_FID(PM_FPGA_GET_VERSION):
+    case EEMI_FID(PM_FPGA_GET_FEATURE_LIST):
         if ( !is_hardware_domain(current->domain) )
         {
             gprintk(XENLOG_WARNING, "eemi: fn=%u No access\n", pm_fn);
@@ -427,10 +429,12 @@ bool xilinx_eemi(struct cpu_user_regs *regs, const uint32_t fid,
         goto forward_to_fw;
 
     default:
-        if ( is_hardware_domain(current->domain) )
-            goto forward_to_fw;
         gprintk(XENLOG_WARNING, "xilinx-pm: Unhandled PM Call: %u, domid=%u\n",
                 fid, current->domain->domain_id);
+
+        if ( is_hardware_domain(current->domain) )
+            goto forward_to_fw;
+
         return false;
     }
 

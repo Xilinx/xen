@@ -121,6 +121,8 @@ enum pm_api_id {
     PM_PLL_GET_MODE,
     /* PM Feature Check */
     PM_FEATURE_CHECK = 63,
+    PM_FPGA_GET_VERSION = 72,
+    PM_FPGA_GET_FEATURE_LIST,
     PM_API_MAX
 };
 
