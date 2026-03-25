@@ -2097,23 +2097,12 @@ static struct page_info *alloc_color_heap_page(unsigned int memflags,
     return pg;
 }
 
+#ifdef CONFIG_LLC_COLORING
 static void __init init_color_heap_pages(struct page_info *pg,
                                          unsigned long nr_pages)
 {
     unsigned long i;
     bool need_scrub = opt_bootscrub == BOOTSCRUB_IDLE;
-
-#ifdef CONFIG_LLC_COLORING
-    if ( buddy_alloc_size >= PAGE_SIZE )
-    {
-        unsigned long buddy_pages = min(PFN_DOWN(buddy_alloc_size), nr_pages);
-
-        init_heap_pages(pg, buddy_pages);
-        nr_pages -= buddy_pages;
-        buddy_alloc_size -= buddy_pages << PAGE_SHIFT;
-        pg += buddy_pages;
-    }
-#endif
 
     if ( !_color_heap )
     {
@@ -2134,6 +2123,7 @@ static void __init init_color_heap_pages(struct page_info *pg,
         free_color_heap_page(&pg[i], need_scrub);
     }
 }
+#endif
 
 static void dump_color_heap(void)
 {
@@ -2162,17 +2152,56 @@ void __init end_boot_allocator(void)
             break;
         }
     }
-    for ( i = nr_bootmem_regions; i-- > 0; )
+
+#ifdef CONFIG_LLC_COLORING
+    if ( llc_coloring_enabled )
     {
-        struct bootmem_region *r = &bootmem_region_list[i];
+        /*
+         * First pass ascending trying to allocate buddy pages from low memory.
+         * With LLC coloring we might need lowmem for bounce buffers for DMA.
+         * Only consume buddy_alloc_size, don't add remaining to colored heap
+         * yet.
+         */
+        for ( i = 0;
+              (i < nr_bootmem_regions) && (buddy_alloc_size >= PAGE_SIZE);
+              i++ )
+        {
+            struct bootmem_region *r = &bootmem_region_list[i];
+            unsigned long buddy_pages;
 
-        if ( r->s >= r->e )
-            continue;
+            if ( r->s >= r->e )
+                continue;
 
-        if ( llc_coloring_enabled )
+            buddy_pages = min(PFN_DOWN(buddy_alloc_size), r->e - r->s);
+            init_heap_pages(mfn_to_page(_mfn(r->s)), buddy_pages);
+
+            r->s += buddy_pages;
+            buddy_alloc_size -= buddy_pages << PAGE_SHIFT;
+        }
+
+        /* Second pass descending: process remaining pages for colored heap */
+        for ( i = nr_bootmem_regions; i-- > 0; )
+        {
+            struct bootmem_region *r = &bootmem_region_list[i];
+
+            if ( r->s >= r->e )
+                continue;
+
             init_color_heap_pages(mfn_to_page(_mfn(r->s)), r->e - r->s);
-        else
+        }
+    }
+    else
+#endif
+    {
+        for ( i = nr_bootmem_regions; i-- > 0; )
+        {
+            struct bootmem_region *r = &bootmem_region_list[i];
+
+            if ( r->s >= r->e )
+                continue;
+
             init_heap_pages(mfn_to_page(_mfn(r->s)), r->e - r->s);
+        }
     }
     nr_bootmem_regions = 0;
 
