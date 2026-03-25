@@ -18,9 +18,15 @@
 
 #include <asm/regs.h>
 #include <xen/iocap.h>
+#include <xen/llc-coloring.h>
 #include <xen/sched.h>
 #include <asm/smccc.h>
 #include <asm/platforms/xilinx-eemi.h>
+#include <xen/mm.h>
+#include <asm/page.h>
+#include <asm/guest_access.h>
+
+static DEFINE_SPINLOCK(eemi_bounce_lock);
 
 /*
  * Check if a domain has access to a clock control.
@@ -152,6 +158,143 @@ static bool is_clock_enabled(struct cpu_user_regs *regs)
     return !!(res1.a0 >> 32);
 }
 
+/*
+ * Pass EEMI call to firmware with GPA translated to MA. This is because when
+ * LLC coloring is enabled, hwdom is no longer 1:1 mapped.
+ *
+ * EEMI calls passing addresses (for now only the ones tested on ZynqMP):
+ * PM_SECURE_SHA - illformed
+ * PM_SECURE_AES - illformed
+ * PM_SECURE_RSA - illformed
+ * PM_FPGA_LOAD
+ * PM_FPGA_READ
+ *
+ * PM_FPGA_LOAD passes bitstram size, so we need to create a bounce buffer.
+ *
+ * Illformed - upper 32-bits stored in lower 32-bits of the register.
+ */
+static bool eemi_translate(struct cpu_user_regs *regs, enum pm_api_id api_id)
+{
+    struct domain *d = current->domain;
+    register_t addr, guest_addr;
+    paddr_t maddr = 0;
+    struct arm_smccc_res res;
+    bool illformed = false;
+    size_t buffer_size = 0;
+    void *bounce_vaddr = NULL;
+    unsigned int bounce_order = 0;
+    int ret;
+    mfn_t mfn;
+
+    if ( !is_hardware_domain(d) || !llc_coloring_enabled )
+        return false;
+
+    switch ( api_id )
+    {
+    case PM_SECURE_AES:
+    case PM_SECURE_RSA:
+    case PM_SECURE_SHA:
+        illformed = true;
+        break;
+    case PM_FPGA_LOAD:
+        buffer_size = (uint32_t)get_user_reg(regs, 2);
+        break;
+    case PM_FPGA_READ:
+        break;
+    default:
+        return false;
+    }
+
+    if ( !illformed )
+        guest_addr = get_user_reg(regs, 1);
+    else
+        guest_addr = ((register_t)get_user_reg(regs, 1) << 32) |
+                     (get_user_reg(regs, 1) >> 32);
+
+    /* Some calls pass 0 as addr to denote something else, don't translate */
+    if ( !guest_addr )
+    {
+        addr = guest_addr;
+        goto done;
+    }
+
+    /*
+     * Use bounce buffer for multi-page FPGA_LOAD.
+     * For LLC domains, GPA != MA and the contiguous buffers in guest address
+     * space are not contiguous in PA (with LLC max order for domheap is 0).
+     */
+    if ( (api_id == PM_FPGA_LOAD) && (buffer_size > PAGE_SIZE) )
+    {
+        unsigned long nr_pages = PFN_UP(buffer_size);
+
+        spin_lock(&eemi_bounce_lock);
+
+        bounce_order = get_order_from_pages(nr_pages);
+        bounce_vaddr = alloc_xenheap_pages(bounce_order, MEMF_bits(32));
+        if ( !bounce_vaddr )
+        {
+            spin_unlock(&eemi_bounce_lock);
+            printk(XENLOG_ERR "EEMI: Failed to allocate %zu byte bounce buffer\n",
+                   buffer_size);
+            return false;
+        }
+
+        maddr = virt_to_maddr(bounce_vaddr);
+
+        /* Copy guest data to bounce buffer */
+        ret = access_guest_memory_by_gpa(d, guest_addr, bounce_vaddr,
+                                         buffer_size, false);
+        if ( ret )
+        {
+            free_xenheap_pages(bounce_vaddr, bounce_order);
+            spin_unlock(&eemi_bounce_lock);
+            printk(XENLOG_ERR "EEMI: Failed to copy from guest buffer: %d\n",
+                   ret);
+            return false;
+        }
+
+        clean_dcache_va_range(bounce_vaddr, buffer_size);
+    }
+    else
+    {
+        /* Single page or small buffer - direct translation */
+        mfn = gfn_to_mfn(d, gaddr_to_gfn(guest_addr));
+        if ( !mfn_valid(mfn) )
+            return false;
+
+        maddr = mfn_to_maddr(mfn) + (guest_addr & ~PAGE_MASK);
+    }
+
+    if ( illformed )
+        addr = ((register_t)maddr << 32) | (maddr >> 32);
+    else
+        addr = maddr;
+
+done:
+    arm_smccc_1_1_smc(get_user_reg(regs, 0),
+                      addr,
+                      get_user_reg(regs, 2),
+                      get_user_reg(regs, 3),
+                      get_user_reg(regs, 4),
+                      get_user_reg(regs, 5),
+                      get_user_reg(regs, 6),
+                      get_user_reg(regs, 7),
+                      &res);
+
+    set_user_reg(regs, 0, res.a0);
+    set_user_reg(regs, 1, res.a1);
+    set_user_reg(regs, 2, res.a2);
+    set_user_reg(regs, 3, res.a3);
+
+    if ( bounce_vaddr )
+    {
+        free_xenheap_pages(bounce_vaddr, bounce_order);
+        spin_unlock(&eemi_bounce_lock);
+    }
+
+    return true;
+}
+
 bool xilinx_eemi(struct cpu_user_regs *regs, const uint32_t fid,
                  uint32_t nodeid,
                  uint32_t pm_fn,
@@ -165,6 +308,9 @@ bool xilinx_eemi(struct cpu_user_regs *regs, const uint32_t fid,
 {
     struct arm_smccc_res res;
     enum pm_ret_status ret;
+
+    if ( IS_ENABLED(CONFIG_LLC_COLORING) && eemi_translate(regs, pm_fn) )
+        return true;
 
     switch ( fid )
     {
