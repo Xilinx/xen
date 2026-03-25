@@ -42,6 +42,7 @@
 #include <xen/grant_table.h>
 #include <asm/grant_table.h>
 #include <xen/serial.h>
+#include <xen/static-memory.h>
 
 static unsigned int __initdata opt_dom0_max_vcpus;
 integer_param("dom0_max_vcpus", opt_dom0_max_vcpus);
@@ -1964,9 +1965,16 @@ static int __init handle_node(struct domain *d, struct kernel_info *kinfo,
                "WARNING: Path %s is reserved, skip the node as we may re-use the path.\n",
                path);
 
-    res = handle_device(d, node, p2mt, NULL, NULL);
-    if ( res)
-        return res;
+    if ( IS_ENABLED(CONFIG_HWDOM_LINUX_CMA) &&
+         dt_device_is_compatible(node, "shared-dma-pool") &&
+         dt_find_property(node, "reusable", NULL) )
+        assign_cma_11(d, kinfo, node);
+    else
+    {
+        res = handle_device(d, node, p2mt, NULL, NULL);
+        if ( res)
+            return res;
+    }
 
     /*
      * The property "name" is used to have a different name on older FDT

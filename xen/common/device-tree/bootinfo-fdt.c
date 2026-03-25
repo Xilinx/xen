@@ -199,7 +199,16 @@ static int __init process_reserved_memory_node(const void *fdt, int node,
                                                u32 size_cells,
                                                void *data)
 {
-    int rc = process_memory_node(fdt, node, name, depth, address_cells,
+    int rc;
+
+    if ( IS_ENABLED(CONFIG_HWDOM_LINUX_CMA) &&
+         device_tree_node_compatible(fdt, node, "shared-dma-pool") &&
+         fdt_get_property(fdt, node, "reusable", NULL) )
+        rc = device_tree_get_meminfo(fdt, node, "reg", address_cells,
+                                     size_cells, bootinfo_get_reserved_mem(),
+                                     MEMBANK_STATIC_CMA);
+    else
+        rc = process_memory_node(fdt, node, name, depth, address_cells,
                                  size_cells, data);
 
     if ( rc == -ENOSPC )

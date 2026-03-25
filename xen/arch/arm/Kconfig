@@ -259,6 +259,12 @@ config ARM64_BTI
 
 source "arch/arm/tee/Kconfig"
 
+config HWDOM_LINUX_CMA
+	bool "CMA Linux support for hardware domain" if UNSUPPORTED
+	depends on STATIC_MEMORY
+	help
+	  This option enables support for Linux CMA for hardware domain.
+
 config PARTIAL_EMULATION
 	bool "Enable partial emulation of system/coprocessor registers"
 	default y

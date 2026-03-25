@@ -257,6 +257,97 @@ void __init assign_static_memory_11(struct domain *d, struct kernel_info *kinfo,
           d);
 }
 
+#ifdef CONFIG_HWDOM_LINUX_CMA
+void __init assign_cma_11(struct domain *d, struct kernel_info *kinfo,
+                          struct dt_device_node *node)
+{
+    struct membanks *mem = kernel_info_get_mem(kinfo);
+    uint32_t addr_cells, size_cells, reg_cells;
+    unsigned int nr_banks, bank = 0;
+    int length;
+    const struct dt_property *prop;
+    const __be32 *cell;
+
+    ASSERT(is_hardware_domain(d));
+    ASSERT(dt_device_is_compatible(node, "shared-dma-pool"));
+    ASSERT(dt_find_property(node, "reusable", NULL));
+
+    prop = dt_find_property(node, "reg", NULL);
+    if ( !prop )
+        return;
+
+    addr_cells = dt_n_addr_cells(node);
+    size_cells = dt_n_size_cells(node);
+
+    length = prop->length;
+    cell = (const __be32 *)prop->value;
+
+    reg_cells = addr_cells + size_cells;
+    nr_banks = length / (reg_cells * sizeof(uint32_t));
+
+    if ( (mem->nr_banks + nr_banks) > mem->max_banks )
+    {
+        printk(XENLOG_ERR
+               "%pd: exceed max number of supported memory banks\n", d);
+        goto fail;
+    }
+
+    for ( ; bank < nr_banks; bank++ )
+    {
+        mfn_t smfn;
+        paddr_t pbase, psize;
+        int res;
+        unsigned long nr_pfns;
+        unsigned int i = mem->nr_banks + bank;
+
+        device_tree_get_reg(&cell, addr_cells, size_cells, &pbase, &psize);
+        ASSERT(IS_ALIGNED(pbase, PAGE_SIZE) && IS_ALIGNED(psize, PAGE_SIZE));
+        nr_pfns = PFN_DOWN(psize);
+
+        if ( nr_pfns > UINT_MAX )
+        {
+            printk(XENLOG_ERR "%pd: CMA size too large: %#"PRIpaddr, d, psize);
+            goto fail;
+        }
+
+        if ( (UINT_MAX - d->max_pages) < nr_pfns )
+        {
+            printk(XENLOG_ERR "%pd: Over-allocation for d->max_pages: %lu\n",
+                   d, nr_pfns);
+            goto fail;
+        }
+        d->max_pages += nr_pfns;
+
+        smfn = maddr_to_mfn(pbase);
+        res = acquire_domstatic_pages(d, smfn, nr_pfns, 0);
+        if ( res )
+        {
+            printk(XENLOG_ERR
+                   "%pd: failed to acquire static memory: %d\n", d, res);
+            d->max_pages -= nr_pfns;
+            goto fail;
+        }
+
+        printk(XENLOG_INFO "%pd: CMA BANK %#"PRIpaddr"-%#"PRIpaddr"\n",
+               d, pbase, pbase + psize);
+
+        mem->bank[i].start = pbase;
+        if ( !append_static_memory_to_bank(d, &mem->bank[i], smfn, psize) )
+        {
+            d->max_pages -= nr_pfns;
+            goto fail;
+        }
+    }
+
+    mem->nr_banks += nr_banks;
+
+    return;
+
+ fail:
+    panic("Failed to assign CMA for %pd\n", d);
+}
+#endif /* CONFIG_HWDOM_LINUX_CMA */
+
 /* Static memory initialization */
 void __init init_staticmem_pages(void)
 {
@@ -265,7 +356,10 @@ void __init init_staticmem_pages(void)
 
     for ( bank = 0 ; bank < reserved_mem->nr_banks; bank++ )
     {
-        if ( reserved_mem->bank[bank].type == MEMBANK_STATIC_DOMAIN )
+        enum membank_type type = reserved_mem->bank[bank].type;
+
+        if ( type == MEMBANK_STATIC_DOMAIN ||
+             type == MEMBANK_STATIC_CMA )
             init_staticmem_bank(&reserved_mem->bank[bank]);
     }
 }

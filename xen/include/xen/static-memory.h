@@ -47,6 +47,14 @@ static inline void init_staticmem_pages(void) {};
 
 #endif /* CONFIG_STATIC_MEMORY */
 
+#ifdef CONFIG_HWDOM_LINUX_CMA
+void assign_cma_11(struct domain *d, struct kernel_info *kinfo,
+                   struct dt_device_node *node);
+#else
+static inline void assign_cma_11(struct domain *d, struct kernel_info *kinfo,
+                                 struct dt_device_node *node) {}
+#endif
+
 #endif /* XEN_STATIC_MEMORY_H */
 
 /*

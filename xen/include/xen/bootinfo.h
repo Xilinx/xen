@@ -36,6 +36,12 @@ enum membank_type {
      * bank is from the FDT reserve map.
      */
     MEMBANK_FDT_RESVMEM,
+    /*
+     * The MEMBANK_STATIC_CMA type is used to indicate whether the memory
+     * bank is reserved as static region for CMA for hwdom. It is only valid
+     * when the bank is in reserved_mem.
+     */
+    MEMBANK_STATIC_CMA,
 };
 
 enum region_type {
