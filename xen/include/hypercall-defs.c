@@ -137,7 +137,9 @@ xenoprof_op(int op, void *arg)
 #ifdef CONFIG_COMPAT
 prefix: compat
 set_timer_op(uint32_t lo, uint32_t hi)
+#ifdef CONFIG_MULTICALL_HYPERCALLS
 multicall(multicall_entry_compat_t *call_list, unsigned long nr_calls)
+#endif
 memory_op(unsigned int cmd, void *arg)
 #ifdef CONFIG_IOREQ_SERVER
 dm_op(domid_t domid, unsigned int nr_bufs, void *bufs)
@@ -177,7 +179,9 @@ console_io(unsigned int cmd, unsigned int count, char *buffer)
 vm_assist(unsigned int cmd, unsigned int type)
 event_channel_op(int cmd, void *arg)
 mmuext_op(mmuext_op_t *uops, unsigned int count, unsigned int *pdone, unsigned int foreigndom)
+#ifdef CONFIG_MULTICALL_HYPERCALLS
 multicall(multicall_entry_t *call_list, unsigned long nr_calls)
+#endif
 #ifdef CONFIG_PV
 mmu_update(mmu_update_t *ureqs, unsigned int count, unsigned int *pdone, unsigned int foreigndom)
 stack_switch(unsigned long ss, unsigned long esp)
@@ -248,7 +252,9 @@ set_debugreg                       do       do       -        -        -
 get_debugreg                       do       do       -        -        -
 update_descriptor                  compat   do       -        -        -
 memory_op                          compat   do       hvm      hvm      do
+#ifdef CONFIG_MULTICALL_HYPERCALLS
 multicall                          compat:2 do:2     compat   do       do
+#endif
 update_va_mapping                  compat   do       -        -        -
 set_timer_op                       compat   do       compat   do       -
 event_channel_op_compat            do       do       -        -        dep

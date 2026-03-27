@@ -9,8 +9,12 @@
 #include <compat/xen.h>
 #endif
 
+#ifdef CONFIG_MULTICALL_HYPERCALLS
 #define _MCSF_in_multicall   0
 #define MCSF_in_multicall    (1<<_MCSF_in_multicall)
+#else
+#define MCSF_in_multicall    0
+#endif
 struct mc_state {
     unsigned long flags;
     union {

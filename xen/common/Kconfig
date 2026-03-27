@@ -679,6 +679,13 @@ config MGMT_HYPERCALLS
 	  PV shim on x86, to reduce Xen footprint via managing unnecessary
 	  hypercalls, like sysctl, etc.
 
+config MULTICALL_HYPERCALLS
+	bool "Multicall support"
+	default y
+	help
+	  Enables support for the multicall hypercall, which allows batching
+	  of hypercalls to reduce overhead.
+
 endmenu
 
 config PM_OP
