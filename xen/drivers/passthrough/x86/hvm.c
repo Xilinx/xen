@@ -267,8 +267,6 @@ int pt_irq_create_bind(
 
     hvm_irq_dpci = domain_get_irq_dpci(d);
 
-    ASSERT(hvm_irq_dpci);
-
     info = pirq_get_info(d, pirq);
     if ( !info )
     {
