@@ -1802,16 +1802,19 @@ int vcpu_reset(struct vcpu *v)
     return rc;
 }
 
-void vcpu_state_reset(struct vcpu *v)
+int vcpu_state_reset(struct vcpu *v)
 {
     struct domain *d = v->domain;
+    int rc;
 
     if ( v != current )
         ASSERT(atomic_read(&v->pause_count));
     domain_lock(d);
 
     set_bit(_VPF_in_reset, &v->pause_flags);
-    arch_vcpu_state_reset(v);
+    rc = arch_vcpu_state_reset(v);
+    if ( rc )
+        goto out_unlock;
 
     set_bit(_VPF_down, &v->pause_flags);
 
@@ -1863,7 +1866,10 @@ void vcpu_state_reset(struct vcpu *v)
 
     clear_bit(_VPF_in_reset, &v->pause_flags);
 
+ out_unlock:
     domain_unlock(d);
+
+    return rc;
 }
 
 int map_guest_area(struct vcpu *v, paddr_t gaddr, unsigned int size,

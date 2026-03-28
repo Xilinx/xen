@@ -283,7 +283,9 @@ long arch_domain_full_reset(struct domain *d)
          * hold here. This works because domain_lock is recursive (rspin_lock),
          * but relies on this implementation detail.
          */
-        vcpu_state_reset(v);
+        ret = vcpu_state_reset(v);
+        if ( ret )
+            return ret;
         /*
          * Secondary vCPUs must remain down. Only vCPU0 will be started.
          * arch_vcpu_state_reset() clears all state but doesn't set the
