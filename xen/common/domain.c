@@ -2892,7 +2892,7 @@ long do_dom_full_reset(domid_t domid)
     struct domain *d;
     long ret;
 
-    d = rcu_lock_domain_by_id(domid);
+    d = rcu_lock_domain_by_any_id(domid);
     if ( !d )
         return -ESRCH;
 
