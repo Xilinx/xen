@@ -2874,6 +2874,12 @@ out:
             domain_unpause_except_self(d);
 
         ACCESS_ONCE(d->is_shutting_down) = false;
+
+        if ( ret < 0 )
+        {
+            printk(XENLOG_ERR "%pd: %s: failed (%ld)\n", d, __func__, ret);
+            domain_crash(d);
+        }
     }
 
     domain_unlock(d);
