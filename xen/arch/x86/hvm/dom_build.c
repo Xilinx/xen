@@ -12,6 +12,7 @@
 #include <xen/config.h>
 #include <xen/event.h>
 #include <xen/grant_table.h>
+#include <xen/iocap.h>
 #include <xen/iommu.h>
 #include <xen/init.h>
 #include <xen/softirq.h>
@@ -1046,6 +1047,55 @@ static int __init alloc_xenstore_page(struct boot_domain *bd)
     return 0;
 }
 
+static int __init map_iomem(struct boot_domain *bd)
+{
+    struct domain *d = bd->d;
+    unsigned int i;
+    int ret = 0;
+
+    for ( i = 0; i < bd->arch.nr_iomem; i++ )
+    {
+        unsigned long nr_mfns;
+        mfn_t mfn, mfn_end;
+        gfn_t gfn;
+
+        mfn = bd->arch.iomem[i].start;
+        nr_mfns = bd->arch.iomem[i].number;
+        gfn = bd->arch.iomem[i].gfn;
+
+        mfn_end = _mfn(mfn_x(mfn) + nr_mfns - 1);
+        ret = iomem_permit_access(d, mfn_x(mfn), mfn_x(mfn_end));
+        if ( ret )
+        {
+            printk(XENLOG_ERR
+                   "%pd: Failed to permit access to %"PRI_mfn"-%"PRI_mfn"\n",
+                   d, mfn_x(mfn), mfn_x(mfn_end));
+            break;
+        }
+
+        ret = map_mmio_regions(d, gfn, nr_mfns, mfn);
+        if ( ret < 0 )
+        {
+            printk(XENLOG_ERR
+                   "%pd: Failed to map mfns %"PRI_mfn"-%"PRI_mfn" to %"PRI_gfn" ret %d\n",
+                   d, mfn_x(mfn), mfn_x(mfn_end), gfn_x(gfn), ret);
+            break;
+        }
+        else if ( ret > 0 )
+        {
+            printk(XENLOG_ERR
+                   "%pd: Only mapped %d/%lu mfns at %"PRI_mfn" to %"PRI_gfn"\n",
+                   d, ret, nr_mfns, mfn_x(mfn), gfn_x(gfn));
+            ret = -ENOMEM;
+            break;
+        }
+    }
+
+    XFREE(bd->arch.iomem);
+
+    return ret;
+}
+
 int __init dom_construct_pvh(struct boot_domain *bd)
 {
     paddr_t entry, start_info;
@@ -1147,6 +1197,13 @@ int __init dom_construct_pvh(struct boot_domain *bd)
 
         if ( !is_xenstore_domain(bd->d) )
             alloc_xenstore_page(bd);
+    }
+
+    if ( !is_hardware_domain(bd->d) )
+    {
+        rc = map_iomem(bd);
+        if ( rc )
+            return rc;
     }
 
     if ( opt_dom0_verbose )

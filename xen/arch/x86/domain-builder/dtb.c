@@ -58,9 +58,57 @@ static struct boot_module *__init find_boot_module(
     return &bi->mods[i];
 }
 
+static int __init parse_xen_reg(struct boot_domain *bd,
+                                struct dt_device_node *node,
+                                const struct dt_property *xen_reg)
+{
+    const __be32 *cell;
+    unsigned int i, num;
+    uint32_t address_cells = dt_n_addr_cells(node);
+    uint32_t size_cells = dt_n_size_cells(node);
+    paddr_t mstart, size, gstart;
+
+    /* xen,reg specifies where to map the MMIO region */
+    cell = (const __be32 *)xen_reg->value;
+    num = xen_reg->length / ((address_cells * 2 + size_cells) *
+                                        sizeof(uint32_t));
+    bd->arch.iomem = xmalloc_array(struct boot_iomem, num);
+    if ( !bd->arch.iomem )
+        return -ENOMEM;
+
+    bd->arch.nr_iomem = num;
+    for ( i = 0; i < bd->arch.nr_iomem; i++ )
+    {
+        device_tree_get_reg(&cell, address_cells, size_cells,
+                            &mstart, &size);
+        gstart = dt_next_cell(address_cells, &cell);
+
+        if ( gstart & ~PAGE_MASK || mstart & ~PAGE_MASK || size & ~PAGE_MASK ||
+             !size )
+        {
+            printk(XENLOG_ERR
+                   "DomU passthrough config has invalid addresses/sizes\n");
+            XFREE(bd->arch.iomem);
+            return -EINVAL;
+        }
+
+        printk(XENLOG_INFO "  xen,reg %lx->%lx #%lx\n", mstart, gstart,
+               size);
+
+        bd->arch.iomem[i].start  = maddr_to_mfn(mstart);
+        bd->arch.iomem[i].number = PFN_UP(size);
+        bd->arch.iomem[i].gfn    = gaddr_to_gfn(gstart);
+    }
+
+    return 0;
+}
+
 int __init arch_parse_dom0less_node(struct dt_device_node *node,
                                     struct boot_domain *bd)
 {
+    const struct dt_property *prop;
+    int ret = 0;
+
     if ( bd->create_cfg.flags & XEN_DOMCTL_CDF_hvm )
     {
         if ( hvm_hap_supported() )
@@ -76,7 +124,15 @@ int __init arch_parse_dom0less_node(struct dt_device_node *node,
     else if ( bd->create_flags & CDF_hardware ) /* PV hwdom */
         bd->create_cfg.arch.emulation_flags |= X86_EMU_PIT;
 
-    return 0;
+    if ( (prop = dt_find_property(node, "xen,reg", NULL)) )
+    {
+        ret = parse_xen_reg(bd, node, prop);
+        if ( ret )
+            goto out;
+    }
+
+ out:
+    return ret;
 }
 
 static int __init cf_check process_module(const void *fdt, int node,

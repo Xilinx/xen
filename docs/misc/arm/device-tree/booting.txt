@@ -499,6 +499,16 @@ follow the convention explained in docs/misc/arm/passthrough.txt. The
 DTB fragment will be added to the guest device tree, so that the guest
 kernel will be able to discover the device.
 
+x86 non-PCI Device Assignment
+=============================
+
+non-PCI Device Assignment is controlled by the following properties:
+
+- xen,reg
+
+    This matches ARM definition of < $hw_addr $size $guest_addr >, but it is
+    defined at the domain node level of the device tree.  4 triplets can be
+    specified.
 
 Static Allocation
 =============

@@ -2,6 +2,7 @@
 #ifndef X86_BOOTFDT_H
 #define X86_BOOTFDT_H
 
+#include <xen/mm-frame.h>
 #include <xen/types.h>
 
 struct arch_boot_module
@@ -38,6 +39,16 @@ struct arch_boot_module
     paddr_t cmdline_pa;
     /* Module physical address before relocation. */
     paddr_t orig_start;
+};
+
+struct arch_boot_domain
+{
+    unsigned int nr_iomem;
+    struct boot_iomem {
+        mfn_t         start;
+        unsigned long number;
+        gfn_t         gfn;
+    } *iomem;
 };
 
 #endif /* X86_BOOTFDT_H */

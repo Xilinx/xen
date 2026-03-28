@@ -140,6 +140,10 @@ struct boot_domain {
     } xenstore, console;
 
     cpumask_t *hard_affinity;
+
+#if __has_include(<asm/bootfdt.h>)
+    struct arch_boot_domain arch;
+#endif
 };
 
 #define BOOTMOD_MAX_CMDLINE 1024
