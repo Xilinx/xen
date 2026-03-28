@@ -279,6 +279,38 @@ int pt_irq_create_bind(
 
     switch ( pt_irq_bind->irq_type )
     {
+    case PT_IRQ_TYPE_ISA:
+    {
+        if ( !(pirq_dpci->flags & HVM_IRQ_DPCI_MAPPED) )
+        {
+            int mask, trigger_mode;
+
+            pirq_dpci->flags |= HVM_IRQ_DPCI_MAPPED |
+                HVM_IRQ_DPCI_IDENTITY_GSI | HVM_IRQ_DPCI_NONPCI;
+            pirq_dpci->dom = d;
+
+            mask = vioapic_get_mask(d, pirq);
+            if ( mask )
+                printk(XENLOG_DEBUG "%s: irq=%d is masked\n", __func__, pirq);
+            trigger_mode = vioapic_get_trigger_mode(d, pirq);
+            if ( trigger_mode == VIOAPIC_EDGE_TRIG )
+                pirq_dpci->flags |= HVM_IRQ_DPCI_NO_EOI;
+
+            rc = pirq_guest_bind(d->vcpu[0], info,
+                                 trigger_mode != VIOAPIC_EDGE_TRIG);
+            if ( rc )
+            {
+                printk(XENLOG_ERR "%s: irq=%d failed to bind to guest\n",
+                       __func__, pirq);
+                pirq_dpci->dom = NULL;
+                pirq_dpci->flags = 0;
+                pirq_cleanup_check(info, d);
+            }
+        }
+
+        write_unlock(&d->event_lock);
+        break;
+    }
     case PT_IRQ_TYPE_MSI:
     {
         uint8_t dest, delivery_mode;
@@ -769,8 +801,9 @@ int hvm_do_IRQ_dpci(struct domain *d, struct pirq *pirq)
 
     ASSERT(is_hvm_domain(d));
 
-    if ( !is_iommu_enabled(d) || (!is_hardware_domain(d) && !dpci) ||
-         !pirq_dpci || !(pirq_dpci->flags & HVM_IRQ_DPCI_MAPPED) )
+    if ( (!is_hardware_domain(d) && !dpci) || !pirq_dpci ||
+          !(pirq_dpci->flags & HVM_IRQ_DPCI_MAPPED) ||
+         (!(pirq_dpci->flags & HVM_IRQ_DPCI_NONPCI) && !is_iommu_enabled(d)) )
         return 0;
 
     pirq_dpci->masked = 1;
@@ -976,13 +1009,51 @@ static void hvm_dpci_isairq_eoi(struct domain *d, unsigned int isairq)
     write_unlock(&d->event_lock);
 }
 
+struct nonpci_state {
+    unsigned int gsi;
+    bool found;
+};
+
+static int cf_check _hvm_dpci_nonpci_eoi(
+    struct domain *d, struct hvm_pirq_dpci *pirq_dpci, void *arg)
+{
+    struct pirq *pirq = dpci_pirq(pirq_dpci);
+    struct nonpci_state *state = arg;
+    const unsigned int mask =
+        HVM_IRQ_DPCI_IDENTITY_GSI | HVM_IRQ_DPCI_NONPCI | HVM_IRQ_DPCI_NO_EOI;
+    const unsigned int expected =
+        HVM_IRQ_DPCI_IDENTITY_GSI | HVM_IRQ_DPCI_NONPCI;
+
+    if ( (pirq_dpci->flags & mask) == expected &&
+         pirq->pirq == state->gsi )
+    {
+        hvm_gsi_eoi(d, state->gsi);
+        state->found = true;
+    }
+
+    return 0;
+}
+
+static bool hvm_dpci_nonpci_eoi(struct domain *d, unsigned int gsi)
+{
+    const struct hvm_irq_dpci *dpci = NULL;
+    struct nonpci_state state = { .gsi = gsi, };
+
+    write_lock(&d->event_lock);
+
+    dpci = domain_get_irq_dpci(d);
+    if ( dpci )
+        pt_pirq_iterate(d, _hvm_dpci_nonpci_eoi, &state);
+
+    write_unlock(&d->event_lock);
+
+    return state.found;
+}
+
 void hvm_dpci_eoi(struct domain *d, unsigned int guest_gsi)
 {
     const struct hvm_irq_dpci *hvm_irq_dpci;
     const struct hvm_girq_dpci_mapping *girq;
-
-    if ( !is_iommu_enabled(d) )
-        return;
 
     if ( is_hardware_domain(d) )
     {
@@ -990,6 +1061,9 @@ void hvm_dpci_eoi(struct domain *d, unsigned int guest_gsi)
         hvm_gsi_eoi(d, guest_gsi);
         goto unlock;
     }
+
+    if ( hvm_dpci_nonpci_eoi(d, guest_gsi) )
+        return;
 
     if ( guest_gsi < NR_ISA_IRQS )
     {
@@ -1035,9 +1109,6 @@ static int cf_check pci_clean_dpci_irq(
 int arch_pci_clean_pirqs(struct domain *d)
 {
     struct hvm_irq_dpci *hvm_irq_dpci = NULL;
-
-    if ( !is_iommu_enabled(d) )
-        return 0;
 
     if ( !is_hvm_domain(d) )
         return 0;

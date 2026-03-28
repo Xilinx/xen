@@ -2206,29 +2206,28 @@ void parse_config_data(const char *config_source,
         b_info->num_irqs = num_irqs;
         b_info->irqs = calloc(num_irqs, sizeof(*b_info->irqs));
         if (b_info->irqs == NULL) {
-            fprintf(stderr, "unable to allocate memory for ioports\n");
+            fprintf(stderr, "unable to allocate memory for irqs\n");
             exit(-1);
         }
         for (i = 0; i < num_irqs; i++) {
-            char *ep;
-            unsigned long ul;
+            int ret, used;
+
             buf = xlu_cfg_get_listitem (irqs, i);
             if (!buf) {
                 fprintf(stderr,
                         "xl: Unable to get element %d in irq list\n", i);
                 exit(1);
             }
-            ul = strtoul(buf, &ep, 10);
-            if (ep == buf || *ep != '\0') {
+            ret = sscanf(buf, "%" SCNu32"%n@%" SCNu32"%n",
+                         &b_info->irqs[i].irq, &used,
+                         &b_info->irqs[i].pirq, &used);
+            if (ret < 1 || buf[used] != '\0') {
                 fprintf(stderr,
-                        "xl: Invalid argument parsing irq: %s\n", buf);
+                        "xl: Invalid argument parsing irqs: %s\n", buf);
                 exit(1);
             }
-            if (ul >= UINT32_MAX) {
-                fprintf(stderr, "xl: irq %lx too big\n", ul);
-                exit(1);
-            }
-            b_info->irqs[i] = ul;
+            if (ret == 1)
+                b_info->irqs[i].pirq = b_info->irqs[i].irq;
         }
     }
 

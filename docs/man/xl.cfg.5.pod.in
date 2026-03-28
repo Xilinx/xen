@@ -1338,12 +1338,17 @@ IOMMU-protected devices.
 It is recommended to only use this option for trusted VMs under
 administrator's control.
 
-=item B<irqs=[ NUMBER, NUMBER, ...]>
+=item B<irqs=[ "IRQ_SPEC", "IRQ_SPEC", ...]>
 
 Allow a guest to access specific physical IRQs.
 
 It is recommended to only use this option for trusted VMs under
 administrator's control.
+
+Each B<IRQ_SPEC> is either B<NUMBER>@B<NUMBER> or a B<NUMBER>.  For the
+@ form, the first number is the Hardware IRQ number, and the second
+number is the Guest IRQ number.  For a single B<NUMBER> the value is
+used for both Physical and Guest IRQ numbers.
 
 If vuart console is enabled then irq 32 is reserved for it. See
 L</vuart="uart"> to know how to enable vuart console.

@@ -272,7 +272,8 @@ static void vioapic_write_redirent(
     spin_unlock(&d->arch.hvm.irq_lock);
 
     if ( ent.fields.trig_mode == VIOAPIC_EDGE_TRIG &&
-         ent.fields.remote_irr && is_iommu_enabled(d) )
+         ent.fields.remote_irr &&
+         (is_iommu_enabled(d) || hvm_irq->dpci) )
     {
             /*
              * Since IRR has been cleared and further interrupts can be
@@ -541,7 +542,7 @@ void vioapic_update_EOI(struct domain *d, u8 vector)
 
             ent->fields.remote_irr = 0;
 
-            if ( is_iommu_enabled(d) )
+            if ( is_iommu_enabled(d) || hvm_irq->dpci )
             {
                 spin_unlock(&d->arch.hvm.irq_lock);
                 hvm_dpci_eoi(d, vioapic->base_gsi + pin);

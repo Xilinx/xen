@@ -1703,11 +1703,20 @@ static void domcreate_launch_dm(libxl__egc *egc, libxl__multidev *multidev,
     }
 
     for (i = 0; i < d_config->b_info.num_irqs; i++) {
-        int irq = d_config->b_info.irqs[i];
+        libxl_irq irq_map = d_config->b_info.irqs[i];
+        int irq = irq_map.irq;
+        int pirq = irq_map.pirq;
 
-        LOGD(DEBUG, domid, "irq %d", irq);
+        LOGD(DEBUG, domid, "irq %d pirq %d", irq, pirq);
 
-        ret = irq >= 0 ? libxl__arch_domain_map_irq(gc, domid, irq)
+        if ( pirq < 0 )
+        {
+            LOGED(ERROR, domid, "pirq %u out of range", irq_map.pirq);
+            ret = ERROR_FAIL;
+            goto error_out;
+        }
+
+        ret = irq >= 0 ? libxl__arch_domain_map_irq2(gc, domid, irq, pirq)
                        : -EOVERFLOW;
         if (ret) {
             LOGED(ERROR, domid, "failed give domain access to irq %d", irq);

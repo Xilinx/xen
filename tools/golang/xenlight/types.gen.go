@@ -282,6 +282,11 @@ First uint32
 Number uint32
 }
 
+type Irq struct {
+Irq uint32
+Pirq uint32
+}
+
 type IomemRange struct {
 Start uint64
 Number uint64
@@ -583,7 +588,7 @@ ExtraPv StringList
 ExtraHvm StringList
 SchedParams DomainSchedParams
 Ioports []IoportRange
-Irqs []uint32
+Irqs []Irq
 Iomem []IomemRange
 LlcColors []uint32
 ClaimMode Defbool

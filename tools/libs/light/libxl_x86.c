@@ -668,6 +668,31 @@ int libxl__arch_domain_map_irq(libxl__gc *gc, uint32_t domid, int irq)
         return ret;
 
     ret = xc_domain_irq_permission(CTX->xch, domid, irq, 1);
+    if (ret)
+        return ret;
+
+    ret = xc_domain_bind_pt_isa_irq(CTX->xch, domid, irq);
+    return ret;
+}
+
+int libxl__arch_domain_map_irq2(libxl__gc *gc, uint32_t domid, int irq,
+                                int pirq)
+{
+    libxl_domain_type type = libxl__domain_type(gc, domid);
+    int ret;
+
+    ret = xc_physdev_map_pirq(CTX->xch, domid, irq, &pirq);
+    if (ret)
+        return ret;
+
+    ret = xc_domain_irq_permission(CTX->xch, domid, irq, true);
+    if (!ret && (type != LIBXL_DOMAIN_TYPE_PV))
+        ret = xc_domain_bind_pt_isa_irq(CTX->xch, domid, pirq);
+
+    if (ret) {
+        xc_domain_irq_permission(CTX->xch, domid, irq, false);
+        xc_physdev_unmap_pirq(CTX->xch, domid, pirq);
+    }
 
     return ret;
 }

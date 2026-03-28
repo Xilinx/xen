@@ -585,13 +585,9 @@ long arch_do_domctl(
         if ( irq <= 0 || !irq_access_permitted(currd, irq) )
             break;
 
-        ret = -ESRCH;
-        if ( is_iommu_enabled(d) )
-        {
-            pcidevs_lock();
-            ret = pt_irq_create_bind(d, bind);
-            pcidevs_unlock();
-        }
+        pcidevs_lock();
+        ret = pt_irq_create_bind(d, bind);
+        pcidevs_unlock();
         if ( ret < 0 )
             printk(XENLOG_G_ERR "pt_irq_create_bind failed (%ld) for dom%d\n",
                    ret, d->domain_id);

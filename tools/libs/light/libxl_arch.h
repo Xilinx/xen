@@ -65,6 +65,9 @@ int libxl__arch_vnuma_build_vmemrange(libxl__gc *gc,
 /* arch specific irq map function */
 _hidden
 int libxl__arch_domain_map_irq(libxl__gc *gc, uint32_t domid, int irq);
+_hidden
+int libxl__arch_domain_map_irq2(libxl__gc *gc, uint32_t domid, int irq,
+                                int pirq);
 
 _hidden
 void libxl__arch_domain_create_info_setdefault(libxl__gc *gc,

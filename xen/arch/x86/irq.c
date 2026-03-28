@@ -1355,7 +1355,7 @@ int init_domain_irq_mapping(struct domain *d)
     {
         struct pirq *info;
 
-        if ( IO_APIC_IRQ(i) )
+        if ( !is_hardware_domain(d) && IO_APIC_IRQ(i) )
             continue;
         err = prepare_domain_irq_pirq(d, i, i, &info);
         if ( err )

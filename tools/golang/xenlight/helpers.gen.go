@@ -57,6 +57,37 @@ xc.number = C.uint32_t(x.Number)
  return nil
  }
 
+// NewIrq returns an instance of Irq initialized with defaults.
+func NewIrq() (*Irq, error) {
+var (
+x Irq
+xc C.libxl_irq)
+
+C.libxl_irq_init(&xc)
+defer C.libxl_irq_dispose(&xc)
+
+if err := x.fromC(&xc); err != nil {
+return nil, err }
+
+return &x, nil}
+
+func (x *Irq) fromC(xc *C.libxl_irq) error {
+ x.Irq = uint32(xc.irq)
+x.Pirq = uint32(xc.pirq)
+
+ return nil}
+
+func (x *Irq) toC(xc *C.libxl_irq) (err error){defer func(){
+if err != nil{
+C.libxl_irq_dispose(xc)}
+}()
+
+xc.irq = C.uint32_t(x.Irq)
+xc.pirq = C.uint32_t(x.Pirq)
+
+ return nil
+ }
+
 // NewIomemRange returns an instance of IomemRange initialized with defaults.
 func NewIomemRange() (*IomemRange, error) {
 var (
@@ -1111,10 +1142,11 @@ return fmt.Errorf("converting field Ioports: %v", err) }
 }
 x.Irqs = nil
 if n := int(xc.num_irqs); n > 0 {
-cIrqs := (*[1<<28]C.uint32_t)(unsafe.Pointer(xc.irqs))[:n:n]
-x.Irqs = make([]uint32, n)
+cIrqs := (*[1<<28]C.libxl_irq)(unsafe.Pointer(xc.irqs))[:n:n]
+x.Irqs = make([]Irq, n)
 for i, v := range cIrqs {
-x.Irqs[i] = uint32(v)
+if err := x.Irqs[i].fromC(&v); err != nil {
+return fmt.Errorf("converting field Irqs: %v", err) }
 }
 }
 x.Iomem = nil
@@ -1484,11 +1516,13 @@ return fmt.Errorf("converting field Ioports: %v", err)
 }
 }
 if numIrqs := len(x.Irqs); numIrqs > 0 {
-xc.irqs = (*C.uint32_t)(C.malloc(C.size_t(numIrqs*numIrqs)))
+xc.irqs = (*C.libxl_irq)(C.malloc(C.ulong(numIrqs)*C.sizeof_libxl_irq))
 xc.num_irqs = C.int(numIrqs)
-cIrqs := (*[1<<28]C.uint32_t)(unsafe.Pointer(xc.irqs))[:numIrqs:numIrqs]
+cIrqs := (*[1<<28]C.libxl_irq)(unsafe.Pointer(xc.irqs))[:numIrqs:numIrqs]
 for i,v := range x.Irqs {
-cIrqs[i] = C.uint32_t(v)
+if err := v.toC(&cIrqs[i]); err != nil {
+return fmt.Errorf("converting field Irqs: %v", err)
+}
 }
 }
 if numIomem := len(x.Iomem); numIomem > 0 {

@@ -145,7 +145,8 @@ int libxl__arch_domain_prepare_config(libxl__gc *gc,
     }
 
     for (i = 0; i < d_config->b_info.num_irqs; i++) {
-        uint32_t irq = d_config->b_info.irqs[i];
+        libxl_irq irq_map = d_config->b_info.irqs[i];
+        uint32_t irq = irq_map.irq;
         uint32_t spi;
 
         /*
@@ -1770,6 +1771,12 @@ int libxl__arch_vnuma_build_vmemrange(libxl__gc *gc,
 int libxl__arch_domain_map_irq(libxl__gc *gc, uint32_t domid, int irq)
 {
     return xc_domain_bind_pt_spi_irq(CTX->xch, domid, irq, irq);
+}
+
+int libxl__arch_domain_map_irq2(libxl__gc *gc, uint32_t domid, int irq,
+                                int pirq)
+{
+    return xc_domain_bind_pt_spi_irq(CTX->xch, domid, irq, pirq);
 }
 
 void libxl__arch_domain_create_info_setdefault(libxl__gc *gc,

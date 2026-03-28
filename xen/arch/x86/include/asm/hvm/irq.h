@@ -109,6 +109,7 @@ struct dev_intx_gsi_link {
 #define _HVM_IRQ_DPCI_GUEST_MSI_SHIFT           5
 #define _HVM_IRQ_DPCI_IDENTITY_GSI_SHIFT        6
 #define _HVM_IRQ_DPCI_NO_EOI_SHIFT              7
+#define _HVM_IRQ_DPCI_NONPCI_SHIFT             14
 #define _HVM_IRQ_DPCI_TRANSLATE_SHIFT          15
 #define HVM_IRQ_DPCI_MACH_PCI        (1u << _HVM_IRQ_DPCI_MACH_PCI_SHIFT)
 #define HVM_IRQ_DPCI_MACH_MSI        (1u << _HVM_IRQ_DPCI_MACH_MSI_SHIFT)
@@ -117,6 +118,7 @@ struct dev_intx_gsi_link {
 #define HVM_IRQ_DPCI_GUEST_MSI       (1u << _HVM_IRQ_DPCI_GUEST_MSI_SHIFT)
 #define HVM_IRQ_DPCI_IDENTITY_GSI    (1u << _HVM_IRQ_DPCI_IDENTITY_GSI_SHIFT)
 #define HVM_IRQ_DPCI_NO_EOI          (1u << _HVM_IRQ_DPCI_NO_EOI_SHIFT)
+#define HVM_IRQ_DPCI_NONPCI          (1u << _HVM_IRQ_DPCI_NONPCI_SHIFT)
 #define HVM_IRQ_DPCI_TRANSLATE       (1u << _HVM_IRQ_DPCI_TRANSLATE_SHIFT)
 
 struct hvm_gmsi_info {
