@@ -16,6 +16,7 @@ const char * __init boot_module_kind_as_string(boot_module_kind kind)
     case BOOTMOD_XSM_POLICY:    return "XSM Policy";
     case BOOTMOD_GUEST_DTB:     return "DTB";
     case BOOTMOD_MICROCODE:     return "Microcode";
+    case BOOTMOD_ACPI_DSDT:     return "ACPI DSDT";
     case BOOTMOD_UNKNOWN:       return "Unknown";
     default: BUG();
     }
@@ -35,6 +36,8 @@ boot_module_kind __init fdt_node_to_kind(const void *fdt, int node)
         return BOOTMOD_GUEST_DTB;
     if ( fdt_node_check_compatible(fdt, node, "multiboot,microcode") == 0 )
         return BOOTMOD_MICROCODE;
+    if ( fdt_node_check_compatible(fdt, node, "multiboot,acpi-dsdt") == 0 )
+        return BOOTMOD_ACPI_DSDT;
 
     return BOOTMOD_UNKNOWN;
 }

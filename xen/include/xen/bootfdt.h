@@ -108,6 +108,7 @@ typedef enum {
     BOOTMOD_XSM_POLICY,
     BOOTMOD_GUEST_DTB,
     BOOTMOD_MICROCODE,
+    BOOTMOD_ACPI_DSDT,
     BOOTMOD_UNKNOWN
 }  boot_module_kind;
 
@@ -118,6 +119,7 @@ struct boot_domain {
 
     struct boot_module *kernel;
     struct boot_module *initrd;
+    struct boot_module *acpi_dsdt;
 
     const char *cmdline;
 

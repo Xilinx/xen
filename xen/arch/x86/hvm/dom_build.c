@@ -141,8 +141,11 @@ static unsigned long __init hvm_size_acpi_madt(struct domain *d)
 extern unsigned char dsdt_pvh[];
 extern int dsdt_pvh_len;
 
-static unsigned long __init hvm_size_acpi_dsdt(struct domain *d)
+static unsigned long __init hvm_size_acpi_dsdt(struct boot_domain *bd)
 {
+    if ( bd->acpi_dsdt )
+        return bd->acpi_dsdt->size;
+
     return dsdt_pvh_len;
 }
 
@@ -186,15 +189,16 @@ static unsigned long __init hvm_size_acpi_xsdt(struct domain *d)
     return size;
 }
 
-static unsigned long __init hvm_size_acpi_region(struct domain *d)
+static unsigned long __init hvm_size_acpi_region(struct boot_domain *bd)
 {
+    struct domain *d = bd->d;
     /* First page is used for ACPI info */
     unsigned long size = PAGE_SIZE;
 
     size += sizeof(struct acpi_table_rsdp);
     size += hvm_size_acpi_xsdt(d);
     size += hvm_size_acpi_madt(d);
-    size += hvm_size_acpi_dsdt(d);
+    size += hvm_size_acpi_dsdt(bd);
     size += hvm_size_acpi_facs(d);
     size += hvm_size_acpi_fadt(d);
     size += hvm_size_acpi_mcfg(d);
@@ -224,8 +228,10 @@ static unsigned long __init hvm_size_acpi_region(struct domain *d)
  * [ Low Mem ][ RDM Mem ][ >1M Mem ][ ACPI ][ Special ][ High Mem ]
  *
  */
-static void __init hvm_setup_e820(struct domain *d, unsigned long nr_pages)
+static void __init hvm_setup_e820(struct boot_domain *bd,
+                                  unsigned long nr_pages)
 {
+    struct domain *d = bd->d;
     const uint32_t lowmem_reserved_base = 0xA0000;
     unsigned long low_pages, ext_pages, acpi_pages;
     unsigned long page_count = 0, high_pages = 0;
@@ -241,7 +247,7 @@ static void __init hvm_setup_e820(struct domain *d, unsigned long nr_pages)
     if ( low_pages > nr_pages )
         panic("Insufficient memory for HVM/PVH domain (%pd)\n", d);
 
-    acpi_pages = hvm_size_acpi_region(d) >> PAGE_SHIFT;
+    acpi_pages = hvm_size_acpi_region(bd) >> PAGE_SHIFT;
 
     /* ext pages: from 1MB to mmio hole */
     ext_pages = nr_pages - PFN_DOWN(MB(1));
@@ -327,7 +333,7 @@ static void __init pvh_init_p2m(struct boot_domain *bd)
     if ( bd->create_flags & CDF_hardware )
         dom0_pvh_setup_e820(bd->d, nr_pages);
     else
-        hvm_setup_e820(bd->d, nr_pages);
+        hvm_setup_e820(bd, nr_pages);
 
     do {
         preempted = false;
@@ -547,9 +553,12 @@ static int __init hvm_setup_acpi_xsdt(
     return 0;
 }
 
-static void __init hvm_setup_acpi_dsdt(struct domain *d, void *dsdt)
+static void __init hvm_setup_acpi_dsdt(struct boot_domain *bd, void *dsdt)
 {
-    memcpy(dsdt, dsdt_pvh, dsdt_pvh_len);
+    if ( bd->acpi_dsdt )
+        memcpy(dsdt, __va(bd->acpi_dsdt->start), bd->acpi_dsdt->size);
+    else
+        memcpy(dsdt, dsdt_pvh, dsdt_pvh_len);
 }
 
 static void __init hvm_setup_acpi_facs(struct domain *d,
@@ -630,14 +639,15 @@ static paddr_t __init hvm_find_acpi_region(struct domain *d, unsigned long size)
     panic("acpi region missing in e820 for %pd\n", d);
 }
 
-static int __init hvm_setup_acpi(struct domain *d, paddr_t start_info)
+static int __init hvm_setup_acpi(struct boot_domain *bd, paddr_t start_info)
 {
+    struct domain *d = bd->d;
     paddr_t rsdp_paddr, xsdt_paddr, madt_paddr;
     paddr_t dsdt_paddr, facs_paddr, fadt_paddr, mcfg_paddr;
     paddr_t acpi_info_paddr;
     struct acpi_info *acpi_info;
     struct acpi_table_rsdp *rsdp;
-    unsigned long size = hvm_size_acpi_region(d);
+    unsigned long size = hvm_size_acpi_region(bd);
     void *table;
     int rc;
 
@@ -684,7 +694,7 @@ static int __init hvm_setup_acpi(struct domain *d, paddr_t start_info)
     table += sizeof(struct acpi_table_rsdp);
     madt_paddr = xsdt_paddr + hvm_size_acpi_xsdt(d);
     dsdt_paddr = madt_paddr + hvm_size_acpi_madt(d);
-    fadt_paddr = dsdt_paddr + hvm_size_acpi_dsdt(d);
+    fadt_paddr = dsdt_paddr + hvm_size_acpi_dsdt(bd);
     mcfg_paddr = fadt_paddr + hvm_size_acpi_fadt(d);
 
     rc = hvm_setup_acpi_xsdt(d, table, madt_paddr, fadt_paddr, mcfg_paddr);
@@ -711,10 +721,10 @@ static int __init hvm_setup_acpi(struct domain *d, paddr_t start_info)
 
     /* DSDT */
     table += hvm_size_acpi_madt(d);
-    hvm_setup_acpi_dsdt(d, table);
+    hvm_setup_acpi_dsdt(bd, table);
 
     /* FADT */
-    table += hvm_size_acpi_dsdt(d);
+    table += hvm_size_acpi_dsdt(bd);
     hvm_setup_acpi_fadt(d, table, facs_paddr, dsdt_paddr);
 
     /* MCFG */
@@ -1239,7 +1249,7 @@ int __init dom_construct_pvh(struct boot_domain *bd)
     if ( is_hardware_domain(bd->d) )
         rc = hwdom_pvh_setup_acpi(bd->d, start_info);
     else
-        rc = hvm_setup_acpi(bd->d, start_info);
+        rc = hvm_setup_acpi(bd, start_info);
 
     if ( rc )
     {

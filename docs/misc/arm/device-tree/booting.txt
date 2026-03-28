@@ -404,6 +404,24 @@ sub-node has the following properties:
     Ranges are hyphen-separated intervals (such as `0-4`) and are inclusive
     on both sides. The numbers refer to logical pCPU ids.
 
+Also, optionally, under the "xen,domain" compatible node, there can be a
+sub-node for the DomU ACPI DSDT table.  This overrides the default DSDT
+provided by Xen, and is useful for specifying devices for non-PCI
+passthrough.  The sub-node has the following properties:
+
+- compatible
+
+    "multiboot,acpi-dsdt", "multiboot,module"
+
+- reg
+
+    Specifies the physical address of the DSDT in RAM and its
+    length.
+
+- module-index (x86 only)
+
+    Specifies the multiboot module index of the module.
+
 
 Example
 =======

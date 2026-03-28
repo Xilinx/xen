@@ -352,6 +352,9 @@ void __init dt_parse_domains(struct boot_info *bi)
         bd->initrd = find_boot_module(bi, node, "multiboot,ramdisk",
                                       &module_node);
 
+        bd->acpi_dsdt = find_boot_module(bi, node, "multiboot,acpi-dsdt",
+                                         &module_node);
+
         bi->nr_domains++;
         bd++;
     }
