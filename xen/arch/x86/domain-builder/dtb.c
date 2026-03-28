@@ -58,6 +58,32 @@ static struct boot_module *__init find_boot_module(
     return &bi->mods[i];
 }
 
+static int __init parse_xen_irqs(struct boot_domain *bd,
+                                 const struct dt_property *xen_irqs)
+{
+    const __be32 *cell = (const __be32 *)xen_irqs->value;
+    unsigned int i, num;
+
+    num = xen_irqs->length / (sizeof(uint32_t) * 2);
+    bd->arch.irqs = xmalloc_array(struct boot_irq, num);
+    if ( !bd->arch.irqs )
+    {
+        printk(XENLOG_ERR "Could not alloc xen,irqs array %u\n", num);
+        return -ENOMEM;
+    }
+
+    bd->arch.nr_irqs = num;
+    for ( i = 0; i < bd->arch.nr_irqs; i++ )
+    {
+        bd->arch.irqs[i].hw_irq = dt_next_cell(1, &cell);
+        bd->arch.irqs[i].guest_irq = dt_next_cell(1, &cell);
+        printk(XENLOG_INFO "  map hw irq %u to guest irq %u\n",
+               bd->arch.irqs[i].hw_irq, bd->arch.irqs[i].guest_irq);
+    }
+
+    return 0;
+}
+
 static int __init parse_xen_reg(struct boot_domain *bd,
                                 struct dt_device_node *node,
                                 const struct dt_property *xen_reg)
@@ -123,6 +149,13 @@ int __init arch_parse_dom0less_node(struct dt_device_node *node,
     }
     else if ( bd->create_flags & CDF_hardware ) /* PV hwdom */
         bd->create_cfg.arch.emulation_flags |= X86_EMU_PIT;
+
+    if ( (prop = dt_find_property(node, "xen,irqs", NULL)) )
+    {
+        ret = parse_xen_irqs(bd, prop);
+        if ( ret )
+            goto out;
+    }
 
     if ( (prop = dt_find_property(node, "xen,reg", NULL)) )
     {

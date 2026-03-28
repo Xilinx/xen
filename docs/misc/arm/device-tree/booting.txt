@@ -510,6 +510,12 @@ non-PCI Device Assignment is controlled by the following properties:
     defined at the domain node level of the device tree.  4 triplets can be
     specified.
 
+- xen,irqs
+
+    This property is pairs of cells < $hw_irq $guest_irq > to map a given
+    hardware IRQ to a guest IRQ.  It is specified at the domain node level.
+    4 pairs can be specified.
+
 Static Allocation
 =============
 

@@ -1096,6 +1096,63 @@ static int __init map_iomem(struct boot_domain *bd)
     return ret;
 }
 
+static int __init map_irqs(struct boot_domain *bd)
+{
+    struct domain *d = bd->d;
+    unsigned int i;
+    int ret = 0;
+
+    for ( i = 0; i < bd->arch.nr_irqs; i++ )
+    {
+        struct xen_domctl_bind_pt_irq pt_irq = {};
+        int hw_irq = bd->arch.irqs[i].hw_irq;
+        int pirq = bd->arch.irqs[i].guest_irq;
+
+        if ( bd->arch.irqs[i].hw_irq > INT_MAX ||
+             bd->arch.irqs[i].guest_irq > INT_MAX )
+        {
+            printk(XENLOG_ERR "%pd: hw_irq %u or guest_irq %u out of range\n",
+                   d, bd->arch.irqs[i].hw_irq, bd->arch.irqs[i].guest_irq);
+            ret = -EOVERFLOW;
+            break;
+        }
+
+        printk(XENLOG_INFO "%pd: hw irq %d -> guest irq %d\n", d, hw_irq, pirq);
+        ret = irq_permit_access(d, hw_irq);
+        if ( ret )
+        {
+            printk(XENLOG_ERR "%pd: Failed to permit access to irq %d\n", d,
+                   hw_irq);
+            break;
+        }
+
+        ret = allocate_and_map_gsi_pirq(d, hw_irq, &pirq);
+        if ( ret )
+        {
+            printk(XENLOG_ERR "%pd: Failed allocate_and_map_gsi_pirq %d\n", d,
+                   ret);
+            break;
+        }
+
+        pt_irq.irq_type = PT_IRQ_TYPE_ISA;
+        pt_irq.machine_irq = pirq;
+        pt_irq.u.isa.isa_irq = pirq;
+
+        ret = pt_irq_create_bind(d, &pt_irq);
+        if ( ret )
+        {
+            printk(XENLOG_ERR "%pd: bind failed %d\n", d, ret);
+            break;
+        }
+
+        printk(XENLOG_INFO "%pd: Success irq %d pirq %d\n", d, hw_irq, pirq);
+    }
+
+    XFREE(bd->arch.irqs);
+
+    return ret;
+}
+
 int __init dom_construct_pvh(struct boot_domain *bd)
 {
     paddr_t entry, start_info;
@@ -1202,6 +1259,10 @@ int __init dom_construct_pvh(struct boot_domain *bd)
     if ( !is_hardware_domain(bd->d) )
     {
         rc = map_iomem(bd);
+        if ( rc )
+            return rc;
+
+        rc = map_irqs(bd);
         if ( rc )
             return rc;
     }

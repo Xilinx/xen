@@ -49,6 +49,12 @@ struct arch_boot_domain
         unsigned long number;
         gfn_t         gfn;
     } *iomem;
+
+    unsigned int nr_irqs;
+    struct boot_irq {
+        uint32_t hw_irq;
+        uint32_t guest_irq;
+    } *irqs;
 };
 
 #endif /* X86_BOOTFDT_H */

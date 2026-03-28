@@ -2177,7 +2177,8 @@ int map_domain_pirq(
 
     ASSERT(rw_is_write_locked(&d->event_lock));
 
-    if ( !irq_access_permitted(current->domain, irq))
+    if ( !irq_access_permitted(current->domain, irq) &&
+         !is_idle_domain(current->domain) )
         return -EPERM;
 
     if ( pirq < 0 || pirq >= d->nr_pirqs || irq <= 0 || irq >= nr_irqs )
@@ -2966,7 +2967,8 @@ int allocate_and_map_gsi_pirq(struct domain *d, int index, int *pirq_p)
     irq = domain_pirq_to_irq(current->domain, index);
     if ( irq <= 0 )
     {
-        if ( is_hardware_domain(current->domain) )
+        if ( is_hardware_domain(current->domain) ||
+             is_idle_domain(current->domain) )
             irq = index;
         else
         {
