@@ -619,7 +619,7 @@ void arch_vcpu_destroy(struct vcpu *v)
         pv_vcpu_destroy(v);
 }
 
-void arch_vcpu_state_reset(struct vcpu *v)
+int arch_vcpu_state_reset(struct vcpu *v)
 {
 }
 

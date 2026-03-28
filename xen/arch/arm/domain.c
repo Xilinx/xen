@@ -1013,7 +1013,7 @@ int arch_vcpu_reset(struct vcpu *v)
     return 0;
 }
 
-void arch_vcpu_state_reset(struct vcpu *v)
+int arch_vcpu_state_reset(struct vcpu *v)
 {
     struct cpu_user_regs *regs;
 
@@ -1038,6 +1038,8 @@ void arch_vcpu_state_reset(struct vcpu *v)
     vcpu_vtimer_init(v);
 
     sync_vcpu_execstate(v);
+
+    return 0;
 }
 
 static int relinquish_memory(struct domain *d, struct page_list_head *list)

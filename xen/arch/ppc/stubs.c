@@ -234,7 +234,7 @@ int arch_vcpu_reset(struct vcpu *v)
     BUG_ON("unimplemented");
 }
 
-void arch_vcpu_state_reset(struct vcpu *v)
+int arch_vcpu_state_reset(struct vcpu *v)
 {
     BUG_ON("unimplemented");
 }
