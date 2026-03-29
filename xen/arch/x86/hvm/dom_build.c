@@ -1013,6 +1013,39 @@ static int __init pvh_load_kernel(
     return 0;
 }
 
+static int __init alloc_console_page(struct boot_domain *bd)
+{
+    paddr_t con_addr = special_pfn(SPECIALPAGE_CONSOLE) << PAGE_SHIFT;
+    uint32_t fields[4] = { 0 };
+
+    if ( !port_is_valid(bd->d, bd->console.evtchn) )
+    {
+        printk("No event channel available for %pd console\n", bd->d);
+        return -EINVAL;
+    }
+
+    /*
+     * Clear the xencons_interface fields that are located after a 1024 rx and
+     * a 2048 tx buffer, 3072 bytes.
+     */
+    if ( hvm_copy_to_guest_phys(con_addr + 3072, fields, sizeof(fields),
+                                bd->d->vcpu[0]) != HVMTRANS_okay )
+    {
+        printk("Unable to set console connection state\n");
+        return -EFAULT;
+    }
+
+    bd->console.gfn = gfn_x(gaddr_to_gfn(con_addr));
+    bd->d->arch.hvm.params[HVM_PARAM_CONSOLE_PFN] = bd->console.gfn;
+    bd->d->arch.hvm.params[HVM_PARAM_CONSOLE_EVTCHN] = bd->console.evtchn;
+
+    if ( IS_ENABLED(CONFIG_GRANT_TABLE) )
+        gnttab_seed_entry(bd->d, GNTTAB_RESERVED_CONSOLE,
+                          bd->console.be_domid, bd->console.gfn);
+
+    return 0;
+}
+
 typedef struct xenstore_domain_interface xsdom_if;
 
 static int __init alloc_xenstore_page(struct boot_domain *bd)
@@ -1259,8 +1292,13 @@ int __init dom_construct_pvh(struct boot_domain *bd)
 
     if ( IS_ENABLED(CONFIG_DOM0LESS_BOOT) )
     {
+        /* Allow console_io. */
         d->is_console = true;
         d->console.input_allowed = true;
+
+        /* Also setup console page. */
+        if ( !is_hardware_domain(bd->d) )
+            alloc_console_page(bd);
 
         if ( !is_xenstore_domain(bd->d) )
             alloc_xenstore_page(bd);
