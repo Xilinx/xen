@@ -25,6 +25,7 @@
 #include <public/hvm/e820.h>
 #include <public/hvm/hvm_vcpu.h>
 #include <public/hvm/params.h>
+#include <public/io/console.h>
 #include <public/io/xs_wire.h>
 
 #include <asm/bootinfo.h>
@@ -1016,7 +1017,11 @@ static int __init pvh_load_kernel(
 static int __init alloc_console_page(struct boot_domain *bd)
 {
     paddr_t con_addr = special_pfn(SPECIALPAGE_CONSOLE) << PAGE_SHIFT;
-    uint32_t fields[4] = { 0 };
+    uint8_t fields[(sizeof(struct xencons_interface) -
+                    offsetof(struct xencons_interface, in_cons))] = {};
+    fields[(offsetof(struct xencons_interface, connection) -
+            offsetof(struct xencons_interface, in_cons))] =
+                XENCONSOLE_DISCONNECTED;
 
     if ( !port_is_valid(bd->d, bd->console.evtchn) )
     {
@@ -1028,8 +1033,9 @@ static int __init alloc_console_page(struct boot_domain *bd)
      * Clear the xencons_interface fields that are located after a 1024 rx and
      * a 2048 tx buffer, 3072 bytes.
      */
-    if ( hvm_copy_to_guest_phys(con_addr + 3072, fields, sizeof(fields),
-                                bd->d->vcpu[0]) != HVMTRANS_okay )
+    if ( hvm_copy_to_guest_phys(
+             con_addr + offsetof(struct xencons_interface, in_cons), fields,
+             sizeof(fields), bd->d->vcpu[0]) != HVMTRANS_okay )
     {
         printk("Unable to set console connection state\n");
         return -EFAULT;
