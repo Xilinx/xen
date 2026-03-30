@@ -285,12 +285,12 @@ long arch_do_sysctl(struct xen_sysctl *sysctl,
 {
     BUG_ON("unimplemented");
 }
+#endif /* CONFIG_MGMT_HYPERCALLS */
 
 void arch_do_physinfo(struct xen_sysctl_physinfo *pi)
 {
     BUG_ON("unimplemented");
 }
-#endif /* CONFIG_MGMT_HYPERCALLS */
 
 /* p2m.c */
 
