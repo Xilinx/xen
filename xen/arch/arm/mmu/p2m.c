@@ -1486,19 +1486,17 @@ static int p2m_reset_range(unsigned long s, unsigned long e, void *data)
         p2m_access_t a;
         mfn_t mfn;
         unsigned int order = 0;
-        bool valid;
 
-        mfn = p2m_get_entry(p2m_get_hostp2m(d), _gfn(gfn), &t, &a, &order, &valid);
+        mfn = p2m_get_entry(p2m_get_hostp2m(d), _gfn(gfn), &t, &a, &order, NULL);
 
-        /* Skip mapped superpages - process only 4K pages */
+        /* Skip regions covered by superpages or unmapped at higher levels */
         if ( order > 0 )
         {
-            ASSERT(valid);
             gfn += (1UL << order) - 1;
             continue;
         }
 
-        if ( valid && !mfn_eq(mfn, INVALID_MFN) )
+        if ( !mfn_eq(mfn, INVALID_MFN) )
         {
             page = mfn_to_page(mfn);
 
