@@ -14,7 +14,7 @@ config OPTEE
 	  OP-TEE running on your platform. This requires
 	  virtualization-enabled OP-TEE present. You can learn more
 	  about virtualization for OP-TEE at
-	  https://optee.readthedocs.io/architecture/virtualization.html
+	  https://optee.readthedocs.io/en/latest/architecture/virtualization.html
 
 config FFA
 	bool "Enable FF-A mediator support (UNSUPPORTED)" if UNSUPPORTED
