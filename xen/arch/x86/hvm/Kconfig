@@ -27,6 +27,7 @@ config INTEL_VMX
 	bool "Intel VT-x" if EXPERT
 	default INTEL
 	select ARCH_VCPU_IOREQ_COMPLETION
+	select NESTED_VIRT
 	help
 	  Enables virtual machine extensions on platforms that implement the
 	  Intel Virtualization Technology (Intel VT-x).
