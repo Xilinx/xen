@@ -304,6 +304,34 @@ static bool vsmccc_handle_call(struct cpu_user_regs *regs)
         case ARM_SMCCC_OWNER_TRUSTED_APP ... ARM_SMCCC_OWNER_TRUSTED_APP_END:
         case ARM_SMCCC_OWNER_TRUSTED_OS ... ARM_SMCCC_OWNER_TRUSTED_OS_END:
             handled = tee_handle_call(regs);
+            /*
+             * When no TEE mediator is registered, forward Trusted
+             * OS/App calls to EL3 for the hardware domain.  This
+             * allows dom0 to communicate with the Trusted OS (e.g.
+             * OP-TEE) directly, which is safe because the hardware
+             * domain is already trusted.  Unprivileged domains never
+             * reach this path and get ARM_SMCCC_ERR_UNKNOWN_FUNCTION.
+             */
+            if ( tee_get_type() == XEN_DOMCTL_CONFIG_TEE_NONE &&
+                 is_hardware_domain(current->domain) )
+            {
+                struct arm_smccc_res resp;
+
+                arm_smccc_smc(funcid,
+                              get_user_reg(regs, 1),
+                              get_user_reg(regs, 2),
+                              get_user_reg(regs, 3),
+                              get_user_reg(regs, 4),
+                              get_user_reg(regs, 5),
+                              get_user_reg(regs, 6),
+                              get_user_reg(regs, 7),
+                              &resp);
+                set_user_reg(regs, 0, resp.a0);
+                set_user_reg(regs, 1, resp.a1);
+                set_user_reg(regs, 2, resp.a2);
+                set_user_reg(regs, 3, resp.a3);
+                handled = true;
+            }
             break;
         }
     }
