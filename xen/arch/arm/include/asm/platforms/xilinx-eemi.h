@@ -28,6 +28,7 @@
  * They follow SMC standard but, PLM firmware is unaware
  * of these calls.
  */
+#define TF_A_PM_FEATURE_CHECK 0xa00
 #define PM_GET_CALLBACK_DATA 0xa01
 #define PM_GET_TRUSTZONE_VERSION 0xa03
 /* From linux kernel to set SGI in TF-A */

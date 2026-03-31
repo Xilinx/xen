@@ -330,6 +330,7 @@ bool xilinx_eemi(struct cpu_user_regs *regs, const uint32_t fid,
 
     /* These calls are safe and always allowed.  */
     case EEMI_FID(PM_FEATURE_CHECK):
+    case EEMI_FID(TF_A_PM_FEATURE_CHECK):
     case EEMI_FID(PM_GET_TRUSTZONE_VERSION):
     case EEMI_FID(PM_GET_API_VERSION):
     case EEMI_FID(PM_GET_CHIPID):
