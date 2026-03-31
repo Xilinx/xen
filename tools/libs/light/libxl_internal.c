@@ -533,6 +533,7 @@ int libxl__get_domain_configuration(libxl__gc *gc, uint32_t domid,
         goto out;
     }
     rc = libxl_domain_config_from_json(CTX, d_config, (const char *)data);
+    libxl_defbool_setdefault(&d_config->b_info.tpm, false);
 
 out:
     free(data);
