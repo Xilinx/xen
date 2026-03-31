@@ -671,7 +671,7 @@ menu "Supported hypercall interfaces"
 	visible if EXPERT
 
 config MGMT_HYPERCALLS
-	bool "Enable privileged hypercalls for system management"
+	bool "Enable privileged hypercalls for system management" if GC_SECTIONS
 	depends on !PV_SHIM_EXCLUSIVE
 	default y
 	help
