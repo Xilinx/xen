@@ -328,8 +328,9 @@ void __init assign_cma_11(struct domain *d, struct kernel_info *kinfo,
             goto fail;
         }
 
-        printk(XENLOG_INFO "%pd: CMA BANK %#"PRIpaddr"-%#"PRIpaddr"\n",
-               d, pbase, pbase + psize);
+        printk(XENLOG_INFO
+               "%pd: expanding memory with CMA region %#"PRIpaddr"-%#"PRIpaddr" (%ldMB)\n",
+               d, pbase, pbase + psize, (unsigned long)(psize >> 20));
 
         mem->bank[i].start = pbase;
         if ( !append_static_memory_to_bank(d, &mem->bank[i], smfn, psize) )
