@@ -1809,7 +1809,7 @@ int vcpu_state_reset(struct vcpu *v)
     int rc;
 
     if ( v != current )
-        ASSERT(atomic_read(&v->pause_count));
+        ASSERT(atomic_read(&v->pause_count) | atomic_read(&d->pause_count));
     domain_lock(d);
 
     set_bit(_VPF_in_reset, &v->pause_flags);
