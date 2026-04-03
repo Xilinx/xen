@@ -289,6 +289,16 @@ config ARM64_AARCH32
     help
       This option enables AArch32 Guests on ARM64.
 
+config DSU_CACHE_PARTITIONING
+	bool "Arm DSU-600AE L3 cache partitioning support (EA)" if EXPERT
+	depends on ARM_64
+	help
+	  Enable L3 (DSU) way-group cache partitioning on SoCs exposing
+	  DSU-600AE partition controls. The hardware provides 4 way-groups
+	  and 8 schemes per cluster. Scheme 0 is reserved for Xen, leaving
+	  schemes 1-7 for domains. Up to 8 physical CPUs and 4 clusters are
+	  supported. Requires the null scheduler.
+	  See docs/misc/arm/dsu-cache-partitioning.rst for more details.
 endmenu
 
 config GICV3_NR_LRS

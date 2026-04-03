@@ -360,6 +360,8 @@ struct xen_arch_domainconfig {
     uint32_t clock_frequency;
     /* IN */
     uint8_t arm_sci_type;
+    /* IN - DSU L3 cache partition scheme (0 = Xen, -1 = unset) */
+    int8_t dsu_scheme;
 };
 #endif /* __XEN__ || __XEN_TOOLS__ */
 

@@ -2064,7 +2064,7 @@ long do_set_timer_op(s_time_t timeout)
     return 0;
 }
 
-#ifdef CONFIG_MGMT_HYPERCALLS
+#if defined(CONFIG_MGMT_HYPERCALLS) || defined(CONFIG_DSU_CACHE_PARTITIONING)
 /* scheduler_id - fetch ID of current scheduler */
 int scheduler_id(void)
 {

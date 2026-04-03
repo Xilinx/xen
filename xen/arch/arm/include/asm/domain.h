@@ -163,6 +163,10 @@ struct arch_domain
      * For now, this variable represents single SGI registration.
      */
     uint8_t firmware_sgi;
+
+#ifdef CONFIG_DSU_CACHE_PARTITIONING
+    int8_t dsu_scheme;
+#endif
 }  __cacheline_aligned;
 
 struct arch_vcpu
