@@ -434,6 +434,8 @@ static int init_domain(struct xs_handle *xsh,
             return rc;
 
         if (!endpts->xenstore.fe_port) {
+            printf("Domain %u is not enhanced, skipping xenstore setup\n",
+                   info->domid);
             return 0;
         }
     }
