@@ -939,6 +939,16 @@ This option is intended for developers to opt dom0 into non-default features,
 and is not intended for use in production circumstances.  If using this option
 is necessary to fix an issue, please report a bug.
 
+### dom0-dsu-part (ARM)
+> `= <scheme>`
+
+> Default: Unset
+
+Assign a DSU L3 cache partitioning scheme to dom0. The scheme applies
+to all pCPUs of the domain. Scheme 0 is reserved for Xen. Valid scheme
+IDs range from 1 to 7. This option is available only when
+`CONFIG_DSU_CACHE_PARTITIONING` is enabled.
+
 ### dom0-iommu
     = List of [ passthrough=<bool>, strict=<bool>, map-inclusive=<bool>,
                 map-reserved=<bool>, none ]
@@ -1106,6 +1116,35 @@ affinities to prefer but be not limited to the specified node(s).
 > Default: `false`
 
 Pin dom0 vcpus to their respective pcpus
+
+### dsu\_partitioning (ARM)
+> `= <boolean>`
+
+> Default: `false`
+
+Enable DSU-600AE L3 cache partitioning. This option is available only
+when `CONFIG_DSU_CACHE_PARTITIONING` is enabled. Requires the null
+scheduler. See docs/misc/arm/dsu-cache-partitioning.rst for details.
+
+### dsu\_part\_config (ARM)
+> `= C<cluster>:(W<range>:S<range>[,...])[;C<cluster>:...]`
+
+> Default: `""`
+
+Override the way-group to scheme mapping per cluster. When omitted, a
+default mapping is applied (WG0,WG3->S0, WG1->S1, WG2->S2).
+This option is available only when `CONFIG_DSU_CACHE_PARTITIONING`
+is enabled. Way-group 0 and scheme 0 are reserved for Xen and cannot
+be reassigned. See docs/misc/arm/dsu-cache-partitioning.rst for the
+full grammar.
+
+### dsu\_part\_sharing (ARM)
+> `= <boolean>`
+
+> Default: `false`
+
+Allow multiple domains to share a DSU partition scheme. This option is available
+only when `CONFIG_DSU_CACHE_PARTITIONING` is enabled.
 
 ### dtuart (ARM)
 > `= path [:options]`

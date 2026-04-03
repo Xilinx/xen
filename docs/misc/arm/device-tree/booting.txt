@@ -356,6 +356,14 @@ with the following properties:
     Should be used together with scmi-smc-passthrough Xen command line
     option.
 
+- dsu-part
+
+    Optional. A 32-bit integer specifying the DSU L3 cache partitioning scheme
+    assigned to the domain. Valid values range from 1 to 7. Scheme 0 is reserved
+    for Xen. When DSU partitioning is enabled (dsu_partitioning=1 on the Xen
+    command line), this property is required for every dom0less domain.
+    See docs/misc/arm/dsu-cache-partitioning.rst for details.
+
 Under the "xen,domain" compatible node, one or more sub-nodes are present
 for the DomU kernel and ramdisk.
 
