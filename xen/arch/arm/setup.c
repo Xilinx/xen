@@ -51,6 +51,7 @@
 #include <asm/setup.h>
 #include <xsm/xsm.h>
 #include <asm/acpi.h>
+#include <asm/dsu-cache.h>
 
 /*
  * Sanitized version of cpuinfo containing only features available on all
@@ -482,6 +483,9 @@ void asmlinkage __init noreturn start_xen(unsigned long fdt_paddr)
 #endif
     enable_errata_workarounds();
     enable_cpu_features();
+
+    if ( dsu_init() )
+        panic("DSU: L3 cache partitioning initialization failed\n");
 
     do_init_boottests();
 

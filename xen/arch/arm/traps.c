@@ -33,6 +33,7 @@
 
 #include <asm/cpuerrata.h>
 #include <asm/cpufeature.h>
+#include <asm/dsu-cache.h>
 #include <asm/event.h>
 #include <asm/hsr.h>
 #include <asm/mem_access.h>
@@ -2333,6 +2334,8 @@ void asmlinkage leave_hypervisor_to_guest(void)
      */
     if ( needs_ssbd_flip(current) )
         arm_smccc_1_1_smc(ARM_SMCCC_ARCH_WORKAROUND_2_FID, 0, NULL);
+
+    dsu_switch_dom_scheme(current->domain);
 }
 
 /*

@@ -1,4 +1,5 @@
 #include <asm/current.h>
+#include <asm/dsu-cache.h>
 #include <asm/regs.h>
 #include <asm/alternative.h>
 #include <asm/smccc.h>
@@ -196,6 +197,9 @@
         mrs     x23, esr_el2
         stp     x22, x23, [x21]
 
+#ifdef CONFIG_DSU_CACHE_PARTITIONING
+        dsu_switch_xen_scheme
+#endif
         .endm
 
         .macro  exit, hyp, compat

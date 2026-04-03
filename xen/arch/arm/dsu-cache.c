@@ -572,6 +572,14 @@ void dsu_switch_dom_scheme(struct domain *d)
     if ( scheme <= DSU_SCHEME_XEN )
         return;
 
+    /*
+     * DSB ST drains the store buffer before switching the cache partition
+     * scheme, preventing pending stores from allocating dirty L3 lines
+     * under the new partition. A full DSB SY would also cover outstanding
+     * loads, but load misses only produce clean lines that are naturally
+     * evicted, while DSB SY introduces measurable latency spikes.
+     */
+    dsb(st);
     WRITE_SYSREG(scheme & DSU_SCHEME_MASK, CLUSTERTHREADSID_EL1);
     WRITE_SYSREG(scheme & DSU_SCHEME_MASK, CLUSTERACPSID_EL1);
     WRITE_SYSREG(scheme & DSU_SCHEME_MASK, CLUSTERSTASHSID_EL1);

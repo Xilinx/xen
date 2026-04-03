@@ -16,6 +16,7 @@
 #include <asm/cpuerrata.h>
 #include <asm/cpufeature.h>
 #include <asm/current.h>
+#include <asm/dsu-cache.h>
 #include <asm/event.h>
 #include <asm/gic.h>
 #include <asm/guest_atomics.h>
@@ -820,6 +821,11 @@ int arch_domain_create(struct domain *d,
     if ( (rc = domain_viommu_init(d, config->arch.viommu_type)) != 0 )
         goto fail;
 
+    if ( (rc = dsu_configure_domain(d, config->arch.dsu_scheme)) != 0 )
+    {
+        printk(XENLOG_ERR "Failed to configure DSU partitions for domain\n");
+        goto fail;
+    }
     return 0;
 
 fail:
@@ -891,6 +897,7 @@ void arch_domain_destroy(struct domain *d)
     free_xenheap_pages(d->arch.efi_acpi_table,
                        get_order_from_bytes(d->arch.efi_acpi_len));
 #endif
+    dsu_deconfigure_domain(d);
     domain_io_free(d);
 }
 
@@ -915,6 +922,13 @@ void arch_domain_creation_finished(struct domain *d)
     }
 
     p2m_domain_creation_finished(d);
+
+    if ( dsu_check_domain(d) )
+    {
+        printk(XENLOG_ERR "DSU: scheme validation failed for d%d\n",
+               d->domain_id);
+        domain_crash(d);
+    }
 }
 
 static int is_guest_pv32_psr(uint32_t psr)
