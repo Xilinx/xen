@@ -10,6 +10,11 @@
 #include <assert.h>
 #include <xen/device_tree_defs.h>
 
+/* DSU L3 cache partitioning scheme limits (must match Xen defines) */
+#define DSU_SCHEME_MIN      1
+#define DSU_SCHEME_MAX      7
+#define DSU_SCHEME_INVALID  (-1)
+
 /*
  * There is no clear requirements for the total size of Virtio MMIO region.
  * The size of control registers is 0x100 and device-specific configuration
@@ -262,6 +267,19 @@ int libxl__arch_domain_prepare_config(libxl__gc *gc,
 
     if (d_config->num_pcidevs)
         config->flags |= XEN_DOMCTL_CDF_vpci;
+
+    if (d_config->b_info.arch_arm.dsu_scheme > 0) {
+        int64_t val = d_config->b_info.arch_arm.dsu_scheme;
+
+        if (val < DSU_SCHEME_MIN || val > DSU_SCHEME_MAX) {
+            LOG(ERROR, "DSU scheme value %" PRId64 " out of range [%d-%d]",
+                val, DSU_SCHEME_MIN, DSU_SCHEME_MAX);
+            return ERROR_FAIL;
+        }
+        config->arch.dsu_scheme = val;
+    } else {
+        config->arch.dsu_scheme = DSU_SCHEME_INVALID;
+    }
 
     switch (d_config->b_info.arch_arm.viommu_type) {
     case LIBXL_VIOMMU_TYPE_NONE:

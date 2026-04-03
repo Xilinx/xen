@@ -28,6 +28,10 @@
 
 #include "xl.h"
 #include "xl_utils.h"
+
+/* DSU L3 cache partitioning scheme limits (must match Xen defines) */
+#define DSU_SCHEME_MIN  1
+#define DSU_SCHEME_MAX  7
 #include "xl_parse.h"
 
 extern void set_default_nic_values(libxl_device_nic *nic);
@@ -1516,6 +1520,19 @@ void parse_config_data(const char *config_source,
             for (k = start; k <= end; k++)
                 b_info->llc_colors[cur_index++] = k;
         }
+    }
+
+    /* DSU L3 cache partitioning: dsu_part = <scheme> */
+    if (!xlu_cfg_get_long(config, "dsu_part", &l, 1)) {
+        /* Scheme 0 is reserved for Xen, valid domain schemes are 1-7 */
+        if (l < DSU_SCHEME_MIN || l > DSU_SCHEME_MAX) {
+            fprintf(stderr,
+                    "dsu_part: scheme %ld out of range [%d-%d]\n",
+                    l, DSU_SCHEME_MIN, DSU_SCHEME_MAX);
+            exit(EXIT_FAILURE);
+        }
+
+        b_info->arch_arm.dsu_scheme = l;
     }
 
     if (!xlu_cfg_get_long (config, "vcpus", &l, 0)) {

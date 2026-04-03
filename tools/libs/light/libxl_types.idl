@@ -770,6 +770,7 @@ libxl_domain_build_info = Struct("domain_build_info",[
                                ("nr_spis", uint32, {'init_val': 'LIBXL_NR_SPIS_DEFAULT'}),
                                ("arm_sci", libxl_arm_sci),
                                ("viommu_type", libxl_viommu_type),
+                               ("dsu_scheme", integer),
                               ])),
     ("arch_x86", Struct(None, [("msr_relaxed", libxl_defbool),
                               ])),
