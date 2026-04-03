@@ -22,6 +22,7 @@
 
 #include <asm/arm64/sve.h>
 #include <asm/domain_build.h>
+#include <asm/dsu-cache.h>
 #include <asm/firmware/sci.h>
 #include <asm/gic_v3_its.h>
 #include <asm/grant_table.h>
@@ -513,6 +514,17 @@ int __init arch_parse_dom0less_node(struct dt_device_node *node,
         else
             panic("Unknown vIOMMU %s\n", viommu_str);
     }
+
+#ifdef CONFIG_DSU_CACHE_PARTITIONING
+    d_cfg->arch.dsu_scheme = DSU_SCHEME_INVALID;
+    if ( dt_property_read_u32(node, "dsu-part", &val) )
+    {
+        if ( val < DSU_SCHEME_MIN || val > DSU_SCHEME_MAX )
+            panic("dsu-part: scheme %u out of range [%u-%u]\n",
+                  val, DSU_SCHEME_MIN, DSU_SCHEME_MAX);
+        d_cfg->arch.dsu_scheme = val;
+    }
+#endif
 
     if ( domu_dt_sci_parse(node, d_cfg) )
         panic("Error getting SCI configuration\n");
