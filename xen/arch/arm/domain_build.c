@@ -35,6 +35,7 @@
 #include <asm/arm64/sve.h>
 #include <asm/cpufeature.h>
 #include <asm/domain_build.h>
+#include <asm/dsu-cache.h>
 #include <asm/viommu.h>
 #include <xen/event.h>
 
@@ -46,6 +47,24 @@
 
 static unsigned int __initdata opt_dom0_max_vcpus;
 integer_param("dom0_max_vcpus", opt_dom0_max_vcpus);
+
+#ifdef CONFIG_DSU_CACHE_PARTITIONING
+static int8_t __initdata opt_dom0_dsu_scheme = DSU_SCHEME_INVALID;
+
+static int __init parse_dom0_dsu_part(const char *s)
+{
+    unsigned long scheme;
+
+    scheme = simple_strtoul(s, NULL, 10);
+    if ( scheme < DSU_SCHEME_MIN || scheme > DSU_SCHEME_MAX )
+        return -EINVAL;
+
+    opt_dom0_dsu_scheme = scheme;
+
+    return 0;
+}
+custom_param("dom0-dsu-part", parse_dom0_dsu_part);
+#endif
 
 static bool __initdata dom0_viommu = false;
 boolean_param("dom0_viommu", dom0_viommu);
@@ -2380,6 +2399,10 @@ void __init create_dom0(void)
         else
             panic("SVE vector length error\n");
     }
+
+#ifdef CONFIG_DSU_CACHE_PARTITIONING
+    dom0_cfg.arch.dsu_scheme = opt_dom0_dsu_scheme;
+#endif
 
     if ( !llc_coloring_enabled )
         flags |= CDF_directmap;
