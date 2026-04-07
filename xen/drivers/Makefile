@@ -5,3 +5,4 @@ obj-$(CONFIG_HAS_VPCI) += vpci/
 obj-$(CONFIG_HAS_PASSTHROUGH) += passthrough/
 obj-$(CONFIG_ACPI) += acpi/
 obj-$(CONFIG_VIDEO) += video/
+obj-$(CONFIG_GPU) += gpu/

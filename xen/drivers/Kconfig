@@ -12,6 +12,8 @@ source "drivers/pci/Kconfig"
 
 source "drivers/video/Kconfig"
 
+source "drivers/gpu/Kconfig"
+
 config HAS_VPCI
 	bool
 	select HAS_PCI
