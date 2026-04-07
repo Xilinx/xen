@@ -3152,3 +3152,34 @@ the hypervisor was compiled with `CONFIG_XSM` enabled.
 * `silo`: this will deny any unmediated communication channels between
   unprivileged VMs.  To choose this, the separated option in kconfig must also
   be enabled.
+
+### ptm_config
+> `= <ptm_config>`
+
+> Default: empty string
+
+The string defines the PTM MaliG78AE configuration using the following syntax:
+```
+<ptm_config> ::= <group> | <group> "." <ptm_config>
+<group> ::= <token> | <token> ":" <group>
+<token> ::= <bus> | <resource>
+<bus> ::= "A" | "B"
+<resource> ::= <slice> | <partition> | <window>
+<slice> ::= "S" <slice_num>
+<slice_num> ::= "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7"
+<partition> ::= "P" <partition_num>
+<partition_num> ::= "0" | "1" | "2" | "3"
+<window> ::= "W" <window_num>
+<window_num> ::= "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" | "10" | "10" | "11" | "12" | "13" | "14" | "15"
+```
+If a AW is not assigned to any partition, it will assigned to partition 0 by default.
+
+Example: ptm_config='A:S0:S1:S2:P0:P1:W0:W1,B:S3:P2:W2'
+
+This string correspond to the following configuration:
+
+* first group assigned to Bus A with slices 0, 1, 2; partition 0, 1 and access windows 0, 1
+
+* second group assigned to Bus B with slice 3; partition 2 and access window 2
+
+* access windows from 3 to 15 will be assigned to parition 0
