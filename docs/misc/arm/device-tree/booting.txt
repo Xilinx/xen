@@ -364,6 +364,12 @@ with the following properties:
     command line), this property is required for every dom0less domain.
     See docs/misc/arm/dsu-cache-partitioning.rst for details.
 
+- mali-aw
+
+    Optional. A 32-bit integer that specifies the Access Window (AW) ID assigned
+    to the domain for GPU virtualization. Valid values range from 0 to 15. This
+    binding is required for associating a VM with a GPU partition in Mali-G78AE.
+
 Under the "xen,domain" compatible node, one or more sub-nodes are present
 for the DomU kernel and ramdisk.
 

@@ -36,6 +36,7 @@
 #include <asm/cpufeature.h>
 #include <asm/domain_build.h>
 #include <asm/dsu-cache.h>
+#include <asm/mali-g78ae.h>
 #include <asm/viommu.h>
 #include <xen/event.h>
 
@@ -105,6 +106,20 @@ int __init parse_arch_dom0_param(const char *s, const char *e)
 #else
         panic("'sve' property found, but CONFIG_ARM64_SVE not selected\n");
 #endif
+    }
+
+    if ( !parse_signed_integer("mali-aw", s, e, &val) )
+    {
+#ifdef CONFIG_MALI_G78AE
+        if ( (val >= AW_MIN) && (val <= AW_MAX) )
+            opt_dom0_mali_aw = val;
+        else
+            printk(XENLOG_ERR "'mali-aw=%lld' value out of range! [%u-%u]\n",
+                   val, AW_MIN, AW_MAX);
+
+        return 0;
+#endif
+        panic("'mali-aw' property found, but CONFIG_MALI_G78AE not selected\n");
     }
 
     return -EINVAL;
@@ -1878,6 +1893,9 @@ static int __init handle_node(struct domain *d, struct kernel_info *kinfo,
         DT_MATCH_COMPATIBLE("arm,cortex-a15-pmu"),
         DT_MATCH_COMPATIBLE("arm,cortex-a53-edac"),
         DT_MATCH_COMPATIBLE("arm,armv8-pmuv3"),
+#ifdef CONFIG_MALI_G78AE
+        DT_MATCH_COMPATIBLE("arm,mali-ptm"),
+#endif
         DT_MATCH_PATH("/cpus"),
         DT_MATCH_TYPE("memory"),
         /* The memory mapped timer is not supported by Xen. */
@@ -2402,6 +2420,10 @@ void __init create_dom0(void)
 
 #ifdef CONFIG_DSU_CACHE_PARTITIONING
     dom0_cfg.arch.dsu_scheme = opt_dom0_dsu_scheme;
+#endif
+
+#ifdef CONFIG_MALI_G78AE
+    dom0_cfg.arch.mali_aw = opt_dom0_mali_aw;
 #endif
 
     if ( !llc_coloring_enabled )

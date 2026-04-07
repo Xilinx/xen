@@ -26,6 +26,7 @@
 #include <asm/firmware/sci.h>
 #include <asm/gic_v3_its.h>
 #include <asm/grant_table.h>
+#include <asm/mali-g78ae.h>
 #include <asm/pci.h>
 #include <asm/setup.h>
 #include <asm/viommu.h>
@@ -524,6 +525,14 @@ int __init arch_parse_dom0less_node(struct dt_device_node *node,
                   val, DSU_SCHEME_MIN, DSU_SCHEME_MAX);
         d_cfg->arch.dsu_scheme = val;
     }
+#endif
+
+#ifdef CONFIG_MALI_G78AE
+    if ( dt_property_read_u32(node, "mali-aw", &val) &&
+            (val >= AW_MIN) && (val <= AW_MAX) )
+        d_cfg->arch.mali_aw = val;
+    else
+        panic("mali-aw property missing or invalid for domain");
 #endif
 
     if ( domu_dt_sci_parse(node, d_cfg) )

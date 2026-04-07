@@ -835,7 +835,7 @@ Specify the bit width of the DMA heap.
                 cpuid-faulting=<bool>, msr-relaxed=<bool>,
                 pf-fixup=<bool> ] (x86)
 
-    = List of [ sve=<integer> ] (Arm64)
+    = List of [ sve=<integer>, mali-aw=<integer> ] (Arm64)
 
 Controls for how dom0 is constructed on x86 systems.
 
@@ -922,6 +922,11 @@ Enables features on dom0 on Arm systems.
     creation will fail and the system will stop, the same will occur if the
     option is provided with a positive non zero value, but the platform doesn't
     support SVE.
+
+*   The `mali-aw` integer parameter specifies the Access Window (AW) ID assigned
+    to dom0 for GPU virtualization. Valid values range from 0 to 15. This
+    binding is required for associating a VM with a GPU partition in Mali-G78AE.
+    Each domain is required to use a unique AW.
 
 ### dom0-cpuid
     = List of comma separated booleans
