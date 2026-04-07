@@ -167,6 +167,10 @@ struct arch_domain
 #ifdef CONFIG_DSU_CACHE_PARTITIONING
     int8_t dsu_scheme;
 #endif
+
+#ifdef CONFIG_MALI_G78AE
+    unsigned int mali_aw;
+#endif
 }  __cacheline_aligned;
 
 struct arch_vcpu

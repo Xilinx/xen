@@ -362,6 +362,8 @@ struct xen_arch_domainconfig {
     uint8_t arm_sci_type;
     /* IN - DSU L3 cache partition scheme (0 = Xen, -1 = unset) */
     int8_t dsu_scheme;
+    /* IN */
+    unsigned int mali_aw;
 };
 #endif /* __XEN__ || __XEN_TOOLS__ */
 
