@@ -1,0 +1,377 @@
+ARM Mali GPU G78AE
+==================
+
+Xen supports hardware virtualization for the ARM Mali GPU G78AE. To enable
+this, the host device tree must include a set of GPU-related nodes
+that configure both the dom0 GPU partition(s) and those assignable to
+dom0less domains. Currently, only dom0less domus are supported.
+
+The host device tree must include:
+ - a "arm,mali-ptm" node to configure GPU partitions
+ - one or more GPU nodes for dom0 or dom0less domains
+
+GPU "arm,mali-ptm" node
+-----------------------
+
+Describes the top level GPU (i.e. Interfaces). It is required in
+the device tree as it acts as a bus for the child nodes (i.e. it creates their
+platform device instances), without it they will not probe.
+
+Required properties:
+
+- compatible : Should contain "arm,mali-ptm".
+- ranges : Required as an empty property for child nodes
+- #address-cells: Required to define address cell layout for children
+- #size-cells: Required to define size cell layout for children
+
+It should contain one or more gpu-interface node(s).
+
+gpu-interface node
+~~~~~~~~~~~~~~~~~~
+
+Maps an address space onto a AXI bus
+
+Required properties:
+
+- compatible : Should contain "arm,mali-ptm-interface".
+- ranges : Defines the base address that child nodes use as an offset for their
+  register base addresses
+- reg : Physical base address of the device and length of the register area.
+- #address-cells: Required to define address cell layout for children
+- #size-cells: Required to define size cell layout for children
+
+Each gpu-interface node must include at least one of each of the following
+subnodes if the interface is not the control interface (i.e., not the control AXI bus):
+- gpu-resource-group: Up to 4 resource groups can be defined per AXI bus.
+- gpu-partition-config: Up to 4 nodes can be defined per AXI bus.
+- gpu-partition-control: Up to 4 nodes can be defined per AXI bus.
+    The number of gpu-partition-control nodes should match the number of
+    gpu-partition-config nodes.
+
+If the gpu-interface node corresponds to the control AXI bus (typically AXI-C),
+it must contain the following nodes:
+- gpu-system - there should be only one of these nodes across all AXI buses,
+               usually it's AXI-C
+- gpu-assign - there should be only one of these nodes across all AXI buses,
+               usually it's AXI-C
+The control interface must not include any of the following nodes:
+gpu-resource-group, gpu-partition-config, or gpu-partition-control.
+
+gpu-resource-group node
+~~~~~~~~~~~~~~~~~~~~~~~
+
+Defines the register mapping for the resource group kernel module.
+
+Required properties:
+- compatible : Should contain "arm,mali-gpu-resource-group"
+- reg : Physical base address of the device and length of the register area.
+- interrupts : Contains the IRQ lines required for the PTM group IRQ
+- interrupt-names : Contains the names of IRQ resources in the order they were
+        provided in the interrupts property
+- partition-control : ordered list of partition control Phandles.
+- partition-config : ordered list of partition config Phandles.
+
+Notes:
+The number of Phandles in partition-control and partition-config must
+match. The first item corresponds to the partition control/config
+instance used for partition 0, the second item for partition 1, etc.
+
+These indices will be used by the Arbiter, but they may be different from
+the ones described by the hardware specification. The integator must
+ensure that the index of each phandle points to a node that is assigned
+to the resource group. Care must be taken to ensure that the pair of partition
+config and control nodes for each index corresponds to the same hardware pair.
+
+gpu-partition-config node
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Defines the register mapping for the partition config kernel module
+
+Required properties:
+- compatible : Should contain "arm,mali-gpu-partition-config"
+- reg : Physical base address of the device and length of the register area.
+
+gpu-partition-control node
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Defines the register mapping for the partition control kernel module
+
+Required properties:
+- compatible : Should contain "arm,mali-gpu-partition-control"
+- reg : Physical base address of the device and length of the register area.
+- interrupts : Contains the IRQ lines required for the PTM partition IRQ
+- interrupt-names : Contains the names of IRQ resources in the order they were
+        provided in the interrupts property
+
+
+gpu-system node
+~~~~~~~~~~~~~~~
+
+Defines the register mapping and interrupt for the system kernel module
+
+Required properties:
+- compatible : Should contain "arm,mali-gpu-system"
+- reg : Physical base address of the device and length of the register area.
+- interrupts : Contains the IRQ lines required for the PTM_UNCORRECTED_ERROR_IRQ
+        and PTM_DEFERRED_ERROR_IRQ
+- interrupt-names : Contains the names of IRQ resources in the order they were
+        provided in the interrupts property
+
+gpu-assign node
+~~~~~~~~~~~~~~~
+
+Defines the register mapping and interrupt for the assign kernel module
+Required properties:
+- compatible : Should contain "arm,mali-gpu-assign"
+- reg : Physical base address of the device and length of the register area.
+
+
+GPU partition
+-------------
+
+To define a GPU partition, the following nodes are required:
+
+- A gpu "arm,mali-midgard" node, which describes the virtualized GPU
+    instance.
+- A "arm,mali-gpu-aw-message", which provides the access window interface for
+    communication with the Arbiter.
+
+For dom0less domains, only the "arm,mali-midgard" node is required in the
+host device tree. In this case, the reg property should specify a size of
+0x20000, as the access window (AW) address space is embedded within the
+GPU's address space.
+
+For dom0 or passthrough scenarios, both nodes should be present, with the
+"arm,mali-midgard" node typically using a reg size of 0x1ffc0 and the
+gpu-aw-message node defining its own address range. The partial device tree
+used for passthrough will include both nodes as shown in the example
+below.
+
+
+gpu "arm,mali-midgard" node
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Describes a virtualized GPU. This node, in combination with a
+gpu-aw-message node, can be used standalone in a VM device tree in conjunction
+with a resource group that is defined in the device tree of a separate VM.
+
+Required properties:
+
+- compatible : Should contain "arm,mali-midgard".
+- reg : Physical base address of the device and length of the register area.
+- interrupts : Contains the three IRQ lines required by the gpu devices
+- interrupt-names : Contains the names of IRQ resources in the order they were
+provided in the interrupts property. Must contain: "JOB, "MMU", "GPU".
+- arbiter-if : Phandle to the corresponding gpu-aw-message instance.
+
+gpu-aw-message node
+~~~~~~~~~~~~~~~~~~~
+
+Defines the register mapping for the access window kernel module. Provides a HW
+communication mechanism between the "arm,mali-midgard" and
+"arm,mali-gpu-resource-group" devices. Provides KBASE with an interface to the
+Arbiter.
+
+Required properties:
+- compatible : Should contain "arm,mali-gpu-aw-message"
+- reg : Physical base address of the device and length of the register area.
+- interrupts : Contains the IRQ lines required for the PTM message IRQ
+- interrupt-names : Contains the names of IRQ resources in the order they were
+        provided in the interrupts property
+
+
+Note: The GPU configuration specified in the device tree must be kept in
+sync with the `ptm_config` option provided to the hypervisor. For more
+details, refer to `docs/misc/xen-command-line.pandoc`.
+
+The following device tree corresponds to the `ptm_config` value:
+    ptm_config='A:S0:P0:W0:W2,B:S1:P1:W1:W3'
+
+Example host dt:
+
+/ {
+    gpu@ed000000 {
+        status = "okay";
+        compatible = "arm,mali-ptm";
+        ranges;
+        #address-cells = <0x02>;
+        #size-cells = <0x02>;
+        #interrupt-cells = <0x02>;
+        phandle = <0xa55>;
+
+        /* System+Assign interface (AXI-C) */
+        gpu_interface@ed700000 {
+            compatible = "arm,mali-ptm-interface";
+            ranges = <0x00 0x00 0x00 0xed700000 0x00 0x20000>;
+            reg = <0x00 0xed700000 0x00 0x20000>;
+            #address-cells = <0x02>;
+            #size-cells = <0x02>;
+
+            gpu_system@0 {
+                compatible = "arm,mali-gpu-system";
+                reg = <0x00 0x00 0x00 0x10000>;
+                interrupt-parent = <0x0f>;
+                interrupt-names = "PTM_UNCORRECTED_ERROR_IRQ","PTM_DEFERRED_ERROR_IRQ";
+                interrupts = <0x00 0xbc 0x04 0x00 0xbd 0x04>;
+            };
+            gpu_assign@10000 {
+                compatible = "arm,mali-gpu-assign";
+                reg = <0x00 0x10000 0x00 0x10000>;
+            };
+        };
+
+        /* GPU partitions setup on AXI-A */
+        gpu_interface@ed000000 {
+            compatible = "arm,mali-ptm-interface";
+            ranges = <0x00 0x00 0x00 0xed000000 0x00 0x300000>;
+            reg = <0x00 0xed000000 0x00 0x300000>;
+            #address-cells = <0x02>;
+            #size-cells = <0x02>;
+
+            /*
+             * For each GPU subinstance, a tuple containing partition
+             * configuration and control is expected. When such a tuple is
+             * present, a corresponding GPU subinstance is instantiated under
+             * the current gpu_interface node (i.e., on the AXI bus). Ensure
+             * this configuration matches the one provided to the hypervisor
+             * via the ptm_config variable to maintain consistency.
+             */
+            gpu_partition_config@20000 {
+                compatible = "arm,mali-gpu-partition-config";
+                reg = <0x00 0x20000 0x00 0x10000>;
+                phandle = <0xab1>;
+            };
+            gpu_partition_control@30000 {
+                compatible = "arm,mali-gpu-partition-control";
+                reg = <0x00 0x30000 0x00 0x10000>;
+                interrupt-parent = <0x0f>;
+                interrupt-names = "PTM_PARTITION_IRQ";
+                interrupts = <0x00 0xbc 0x04>;
+                phandle = <0xab2>;
+            };
+            /*
+             * The Resource Group is used to manage the GPU subinstances.
+             * It is responsible for handling multiple subinstances and their
+             * associated configurations.
+             */
+            gpu_resource_group@a0000 {
+                compatible = "arm,mali-gpu-resource-group";
+                reg = <0x00 0xa0000 0x00 0x10000>;
+                partition-config = <0xab1>;
+                partition-control = <0xab2>;
+                interrupt-parent = <0x0f>;
+                interrupt-names = "PTM_GROUP_IRQ";
+                interrupts = <0x00 0xbc 0x04>;
+            };
+        };
+
+        /* GPU partition setup on AXI-B */
+        gpu_interface@ed400000 {
+            compatible = "arm,mali-ptm-interface";
+            ranges = <0x00 0x00 0x00 0xed400000 0x00 0x300000>;
+            reg = <0x00 0xed400000 0x00 0x300000>;
+            #address-cells = <0x02>;
+            #size-cells = <0x02>;
+
+            gpu_partition_config@40000 {
+                compatible = "arm,mali-gpu-partition-config";
+                reg = <0x00 0x40000 0x00 0x10000>;
+                phandle = <0x1fa>;
+            };
+            gpu_partition_control@50000 {
+                compatible = "arm,mali-gpu-partition-control";
+                reg = <0x00 0x50000 0x00 0x10000>;
+                interrupt-parent = <0x0f>;
+                interrupt-names = "PTM_PARTITION_IRQ";
+                interrupts = <0x00 0xbd 0x04>;
+                phandle = <0x1fb>;
+            };
+            gpu_resource_group@b0000 {
+                compatible = "arm,mali-gpu-resource-group";
+                reg = <0x00 0xb0000 0x00 0x10000>;
+                partition-config = <0x1fa>;
+                partition-control = <0x1fb>;
+                interrupt-parent = <0x0f>;
+                interrupt-names = "PTM_GROUP_IRQ";
+                interrupts = <0x00 0xbd 0x04>;
+            };
+        };
+    };
+
+    // GPU AWs not associated with dom0
+    // AXI-A  AW 0
+    gpu@ed0e0000 {
+        compatible = "arm,mali-midgard";
+        reg = <0x00 0xed0e0000 0x00 0x20000>;
+        interrupts = <0x00 0xb4 0x04 0x00 0xb4 0x04 0x00 0xb4 0x04>;
+        interrupt-names = "JOB","MMU","GPU";
+        interrupt-parent = <0x0f>;
+        xen,passthrough;
+    };
+    // GPU associated with dom0
+    // AXI-B, AW 1
+    gpu_aw_message@ed51ffc0 {
+        compatible = "arm,mali-gpu-aw-message";
+        reg = <0x00 0xed51ffc0 0x00 0x40>;
+        interrupt-names = "PTM_MESSAGE";
+        interrupt-parent = <0x0f>;
+        interrupts = <0x00 0xb5 0x04>;
+        phandle = <0xab3>;
+        status = "okay";
+    };
+    gpu@ed500000 {
+        compatible = "arm,mali-midgard";
+        reg = <0x00 0xed500000 0x00 0x1ffc0>;
+        interrupt-names = "JOB","MMU","GPU";
+        interrupts = <0x00 0xb5 0x04 0x00 0xb5 0x04 0x00 0xb5 0x04>;
+        interrupt-parent = <0x0f>;
+        arbiter-if = <0xab3>;
+        system-coherency = <0x1f>;
+        physical-memory-group-manager = <0xb4>;
+        status = "okay";
+    };
+};
+
+The following example shows a passthrough device tree for a dom0less domain
+that requires access to AW 0. This overlay can be used to enable the domain to
+communicate with the GPU partition via the access window interface:
+
+/dts-v1/;
+
+/ {
+    #address-cells = <0x02>;
+    #size-cells = <0x02>;
+
+    passthrough {
+        compatible = "simple-bus";
+        ranges;
+        #address-cells = <0x02>;
+        #size-cells = <0x02>;
+        #interrupt-cells = <0x02>;
+
+        gpu_aw_message@ed0fffc0 {
+            compatible = "arm,mali-gpu-aw-message";
+            reg = <0x00 0xed0fffc0 0x00 0x40>;
+            interrupt-names = "PTM_MESSAGE";
+            interrupts = <0x00 0xb4 0x04>;
+            interrupt-parent = <0xfde8>;
+            phandle = <0xab3>;
+            status = "okay";
+        };
+
+        gpu@ed0e0000 {
+            compatible = "arm,mali-midgard";
+            reg = <0x00 0xed0e0000 0x00 0x1ffc0>;
+            interrupt-names = "JOB","MMU","GPU";
+            interrupt-parent = <0xfde8>;
+            interrupts = <0x00 0xb4 0x04 0x00 0xb4 0x04 0x00 0xb4 0x04>;
+            arbiter-if = <0xab3>;
+            system-coherency = <0x1f>;
+            xen,reg = <0x00 0xed0e0000 0x00 0x20000 0x00 0xed0e0000>;
+            xen,path = "/axi/gpu@ed0e0000";
+        };
+    };
+};
+
+Finally as described in docs/misc/arm/device-tree/booting.txt, the dom0less domain
+configuration should use the "mali-aw" property.
