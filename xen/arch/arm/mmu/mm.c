@@ -53,6 +53,14 @@ void __init init_frametable(void)
     if ( max_pdx > FRAMETABLE_NR )
         panic("Frametable too small\n");
 
+    /*
+     * pdx_to_page(pdx_s) must be page-aligned for map_pages_to_xen().
+     * Aligning to PDX_GROUP_COUNT guarantees this because
+     * PDX_GROUP_COUNT * sizeof(page_info) is always a multiple of
+     * PAGE_SIZE by construction.
+     */
+    frametable_base_pdx = ROUNDDOWN(frametable_base_pdx, PDX_GROUP_COUNT);
+
     max_idx = DIV_ROUND_UP(max_pdx, PDX_GROUP_COUNT);
 
     for ( sidx = (frametable_base_pdx / PDX_GROUP_COUNT); ; sidx = nidx )
