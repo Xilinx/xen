@@ -85,17 +85,22 @@ static inline unsigned int random_domain_cpu_not_current(void)
 {
     struct domain *d = current->domain;
     unsigned int max_vcpus = d->max_vcpus;
-    struct vcpu* next = current;
+    unsigned int pick;
+    unsigned int i;
 
     if ( max_vcpus <= 1 )
         return current->processor;
 
-    /* Get a random vCPU (from current domain) that is not the current one */
-    do {
-        next = d->vcpu[get_random() % max_vcpus];
-    } while ( current == next );
+    pick = get_random() % max_vcpus;
+    for ( i = 0; i < max_vcpus; i++ )
+    {
+        unsigned int idx = (pick + i) % max_vcpus;
 
-    return next->processor;
+        if ( d->vcpu[idx] && d->vcpu[idx] != current )
+            return d->vcpu[idx]->processor;
+    }
+
+    return current->processor;
 }
 
 /**
