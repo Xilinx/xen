@@ -797,6 +797,7 @@ static int __init mali_ptm_rg_register_vms(struct mali_ptm_rg *rg)
 
             INIT_LIST_HEAD(&rg->ptm_rg_vm[aw]->sched_entry);
             INIT_LIST_HEAD(&rg->ptm_rg_vm[aw]->entry);
+            INIT_LIST_HEAD(&rg->ptm_rg_vm[aw]->wait_entry);
             rg->ptm_rg_vm[aw]->aw = aw;
             rg->ptm_rg_vm[aw]->gsi_idx = rg->id;
             rg->ptm_rg_vm[aw]->arb = rg->arbiter;

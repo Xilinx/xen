@@ -32,18 +32,34 @@ static bool find_vm_by_aw(struct mali_arbiter *arb, unsigned int aw,
 
 /* Must be called with arbiter lock held */
 static bool vm_is_in_wait_list(struct mali_arbiter *arb,
-                              struct mali_vm_data *vm_data)
+                               struct mali_vm_data *vm_data)
 {
-    return find_vm_by_aw(arb, vm_data->aw, &arb->wait_list, NULL);
+    struct mali_vm_data *curr_vm;
+
+    list_for_each_entry(curr_vm, &arb->wait_list, wait_entry)
+    {
+        if ( curr_vm->aw == vm_data->aw )
+            return true;
+    }
+
+    return false;
 }
 
 /* Must be called with arbiter lock held */
 static bool vm_is_in_reg_list(struct mali_arbiter *arb,
                              struct mali_vm_data *vm_data)
 {
-    return find_vm_by_aw(arb, vm_data->aw, &arb->reg_vms_list, NULL);;
+    return find_vm_by_aw(arb, vm_data->aw, &arb->reg_vms_list, NULL);
 }
 
+/*
+ * Find the GSI index that owns a given AW.
+ *
+ * Locking contract:
+ *   - On success (>= 0): returns with arb->gsi_info[ret].lock HELD.
+ *     The caller MUST call spin_unlock(&arb->gsi_info[ret].lock).
+ *   - On failure (-1): returns with NO lock held.
+ */
 static int gsi_idx_from_aw_locked(struct mali_arbiter *arb, unsigned int aw)
 {
     unsigned int i;
@@ -192,7 +208,7 @@ int mali_arbiter_create(struct mali_arbiter **arbiter, struct mali_ptm_rg *rg)
 
     arb->rg = rg;
 
-    for ( i = 0; i < MALI_PTM_PARTITION_COUNT; i++)
+    for ( i = 0; i < MALI_PTM_PARTITION_COUNT; i++ )
     {
         if ( !(rg->partition_mask & (1U << i)) )
         {
@@ -211,7 +227,6 @@ int mali_arbiter_create(struct mali_arbiter **arbiter, struct mali_ptm_rg *rg)
         if ( err )
             goto clean_instances;
 
-
         err = rgif_get_aw_mask(arb->rg, &arb->gsi_info[i].aw_mask);
         if ( err )
             goto clean_instances;
@@ -223,7 +238,7 @@ int mali_arbiter_create(struct mali_arbiter **arbiter, struct mali_ptm_rg *rg)
         printk(XENLOG_DEBUG "P%u: AW mask=0x%x slices=0x%x\n",
                i, arb->gsi_info[i].aw_mask, arb->gsi_info[i].slice_mask);
 
-        if ( arb->gsi_info[i].slice_mask != 0)
+        if ( arb->gsi_info[i].slice_mask != 0 )
             mali_gsi_flag_set(arb->gsi_info[i].gsi,
                                 GSI_FLAG_SLICE_ASSIGNED);
 
@@ -235,8 +250,12 @@ int mali_arbiter_create(struct mali_arbiter **arbiter, struct mali_ptm_rg *rg)
     spin_lock_init(&arb->lock);
 
     /* Init l2 and core slice values */
-    get_max_l2_slices(arb->rg, &arb->l2_slices);
-    get_max_core_mask(arb->rg, &arb->core_mask);
+    err = get_max_l2_slices(arb->rg, &arb->l2_slices);
+    if ( err )
+        goto clean_instances;
+    err = get_max_core_mask(arb->rg, &arb->core_mask);
+    if ( err )
+        goto clean_instances;
 
     *arbiter = arb;
     return 0;
@@ -258,7 +277,6 @@ void mali_arbiter_destroy(struct mali_arbiter *arb)
         if ( arb->gsi_info[i].enabled )
         {
             mali_gsi_destroy(arb->gsi_info[i].gsi);
-            arb->gsi_info[i].enabled = false;
             arb->gsi_info[i].gsi = NULL;
         }
         arb->gsi_info[i].enabled = false;
@@ -270,8 +288,6 @@ void mali_arbiter_destroy(struct mali_arbiter *arb)
 
 int mali_arbif_register_vm(struct mali_arbiter *arb, struct mali_vm_data *vm_data)
 {
-    int err = 0;
-
     spin_lock(&arb->lock);
     if ( vm_is_in_reg_list(arb, vm_data) )
     {
@@ -279,7 +295,6 @@ int mali_arbif_register_vm(struct mali_arbiter *arb, struct mali_vm_data *vm_dat
         spin_unlock(&arb->lock);
         return -EBUSY;
     }
-    printk(XENLOG_DEBUG "Registering AW: %u\n", vm_data->aw);
 
     vm_data->gpu_lost = false;
     vm_data->arb = arb;
@@ -289,7 +304,7 @@ int mali_arbif_register_vm(struct mali_arbiter *arb, struct mali_vm_data *vm_dat
     list_add_tail(&vm_data->entry, &arb->reg_vms_list);
 
     spin_unlock(&arb->lock);
-    return err;
+    return 0;
 }
 
 int mali_arbif_assign_domain(struct mali_arbiter *arb, struct domain *d)
@@ -302,20 +317,22 @@ int mali_arbif_assign_domain(struct mali_arbiter *arb, struct domain *d)
     if ( !arb || !d )
         return -EINVAL;
 
+    /*
+     * Hold arb->lock across the domain pointer and gsi_idx writes so that
+     * concurrent unassign/assign cannot observe a half-initialised state.
+     */
     spin_lock(&arb->lock);
     if ( !find_vm_by_aw(arb, d->arch.mali_aw, &arb->reg_vms_list, &vm_data) )
     {
-        printk(XENLOG_DEBUG "Domain %u (AW: %u) not found in this RG\n",
-               d->domain_id, d->arch.mali_aw);
         spin_unlock(&arb->lock);
         return -EINVAL;
     }
-    spin_unlock(&arb->lock);
 
     if ( vm_data->domain )
     {
         printk(XENLOG_ERR "AW %u is already assigned to Domain %pd.\n",
                d->arch.mali_aw, vm_data->domain);
+        spin_unlock(&arb->lock);
         return -EBUSY;
     }
 
@@ -326,18 +343,21 @@ int mali_arbif_assign_domain(struct mali_arbiter *arb, struct domain *d)
     if ( gsi_idx < 0 )
     {
         printk(XENLOG_ERR "Failed to find GSI instance for AW %u.\n",
-              vm_data->aw);
+               vm_data->aw);
+        vm_data->domain = NULL;
+        vm_data->gsi_idx = -1;
+        spin_unlock(&arb->lock);
         return gsi_idx;
     }
     vm_data->gsi_idx = gsi_idx;
+    spin_unlock(&arb->lock);
 
-    /* Check if the AW is already assigned to the GSI instance */
     err = mali_arbif_get_aw_assignment(arb, gsi_idx, &aw_mask);
     if ( err )
     {
         printk(XENLOG_ERR "Failed to get AW assignment for AW %u.\n",
                vm_data->aw);
-        return err;
+        goto rollback;
     }
 
     err = mali_arbif_set_aw_assignment(arb, gsi_idx,
@@ -346,12 +366,17 @@ int mali_arbif_assign_domain(struct mali_arbiter *arb, struct domain *d)
     {
         printk(XENLOG_ERR "Failed to set AW assignment for AW %u.\n",
                vm_data->aw);
-        return err;
+        goto rollback;
     }
-    printk(XENLOG_DEBUG "AW mask %x set for AW %u on GSI %d.\n",
-           aw_mask | (1U << d->arch.mali_aw), vm_data->aw, gsi_idx);
 
     return 0;
+
+rollback:
+    spin_lock(&arb->lock);
+    vm_data->domain = NULL;
+    vm_data->gsi_idx = -1;
+    spin_unlock(&arb->lock);
+    return err;
 }
 
 void mali_arbif_unregister_vm(struct mali_vm_data *vm_data)
@@ -364,7 +389,7 @@ void mali_arbif_unregister_vm(struct mali_vm_data *vm_data)
 
     spin_lock(&vm_data->arb->lock);
     if ( vm_is_in_wait_list(vm_data->arb, vm_data) )
-        list_del_init(&vm_data->entry);
+        list_del_init(&vm_data->wait_entry);
 
     if ( vm_is_in_reg_list(vm_data->arb, vm_data) )
         list_del_init(&vm_data->entry);
@@ -388,18 +413,18 @@ int mali_arbif_unassign_domain(struct mali_arbiter *arb, struct domain *d)
         spin_unlock(&arb->lock);
         return -EINVAL;
     }
-    spin_unlock(&arb->lock);
 
     if ( !vm_data->domain )
     {
         printk(XENLOG_ERR "AW %u is not assigned to any domain.\n",
                d->arch.mali_aw);
+        spin_unlock(&arb->lock);
         return -ENOENT;
     }
     printk(XENLOG_DEBUG "Unassigning domain %u from AW %u.\n",
            d->domain_id, vm_data->aw);
-
     vm_data->domain = NULL;
+    spin_unlock(&arb->lock);
 
     return 0;
 }
@@ -407,22 +432,24 @@ int mali_arbif_unassign_domain(struct mali_arbiter *arb, struct domain *d)
 void mali_arbif_on_gpu_request(struct mali_vm_data *vm_data)
 {
     int gsi_idx;
-    struct mali_arbiter *arb = vm_data->arb;
+    struct mali_arbiter *arb;
+
+    if ( WARN_ON(!vm_data || !vm_data->arb) )
+        return;
+
+    arb = vm_data->arb;
 
     gsi_idx = gsi_idx_from_aw_locked(arb, vm_data->aw);
     if ( gsi_idx < 0 )
     {
-        printk(XENLOG_DEBUG "Failed to find GSI instance for AW %u\n",
-               vm_data->aw);
         spin_lock(&arb->lock);
         if ( vm_is_in_wait_list(arb, vm_data) )
         {
             spin_unlock(&arb->lock);
             return;
         }
-        list_add_tail(&vm_data->entry, &arb->wait_list);
+        list_add_tail(&vm_data->wait_entry, &arb->wait_list);
         spin_unlock(&arb->lock);
-        printk(XENLOG_DEBUG "Added AW %u to wait list\n", vm_data->aw);
         return;
     }
 
@@ -435,7 +462,12 @@ void mali_arbif_on_gpu_request(struct mali_vm_data *vm_data)
 void mali_arbif_on_gpu_active(struct mali_vm_data *vm_data)
 {
     int gsi_idx;
-    struct mali_arbiter *arb = vm_data->arb;
+    struct mali_arbiter *arb;
+
+    if ( WARN_ON(!vm_data || !vm_data->arb) )
+        return;
+
+    arb = vm_data->arb;
 
     gsi_idx = gsi_idx_from_aw_locked(arb, vm_data->aw);
     if ( gsi_idx < 0 )
@@ -455,22 +487,22 @@ void mali_arbif_on_gpu_idle(struct mali_vm_data *vm_data)
 {
     int gsi_idx;
     struct mali_vm_data *cur_vm, *tmp_vm;
-    struct mali_arbiter *arb = vm_data->arb;
+    struct mali_arbiter *arb;
+
+    if ( WARN_ON(!vm_data || !vm_data->arb) )
+        return;
+
+    arb = vm_data->arb;
 
     gsi_idx = gsi_idx_from_aw_locked(arb, vm_data->aw);
     if ( gsi_idx < 0 )
     {
-        printk(XENLOG_DEBUG "Failed to find GSI instance for VM %u.\n",
-               vm_data->aw);
-        printk(XENLOG_DEBUG "Remove it from arbiter wait list\n");
         spin_lock(&arb->lock);
-        list_for_each_entry_safe(cur_vm, tmp_vm, &arb->wait_list, entry)
+        list_for_each_entry_safe(cur_vm, tmp_vm, &arb->wait_list, wait_entry)
         {
             if ( cur_vm->aw == vm_data->aw )
             {
-                printk(XENLOG_DEBUG "Removing VM %u from wait list.\n",
-                       vm_data->aw);
-                list_del_init(&cur_vm->entry);
+                list_del_init(&cur_vm->wait_entry);
                 break;
             }
         }
@@ -527,12 +559,17 @@ int mali_arbif_get_max_config(struct mali_vm_data *vm_data,
                               uint32_t *max_l2_slices, uint32_t *max_core_mask)
 {
     struct mali_arbiter *arb = vm_data->arb;
+    int err;
 
     if ( !arb || !max_l2_slices || !max_core_mask )
         return -EINVAL;
 
-    get_max_l2_slices(vm_data->arb->rg, &arb->l2_slices);
-    get_max_core_mask(vm_data->arb->rg, &arb->core_mask);
+    err = get_max_l2_slices(arb->rg, &arb->l2_slices);
+    if ( err )
+        return err;
+    err = get_max_core_mask(arb->rg, &arb->core_mask);
+    if ( err )
+        return err;
 
     *max_l2_slices = arb->l2_slices;
     *max_core_mask = arb->core_mask;
@@ -575,13 +612,12 @@ int mali_arbif_set_aw_assignment(struct mali_arbiter *arb, unsigned int gsi_idx,
         return -EINVAL;
 
     /*
-     * We first acquire the GSI info structure, followed by the arbiter
-     * wait list lock, which we only take when managing the wait list.
-     * Although there is no strict intrinsic locking order required,
-     * it is important to note that we always take the GSI lock first.
-     * This is because the GSI structure is the main data we aim to
-     * protect when calling this function. The wait list lock is taken
-     * only if necessary.
+     * Lock ordering: gsi_info[].lock first, then arb->lock.
+     *
+     * This is consistent with gsi_idx_from_aw_locked() which acquires
+     * gsi_info[].lock without arb->lock. The on_gpu_request/idle/active
+     * paths only acquire arb->lock when gsi_idx_from_aw_locked() fails
+     * (i.e. no gsi_info lock is held), so no ordering conflict arises.
      */
     spin_lock(&arb->gsi_info[gsi_idx].lock);
 
@@ -641,13 +677,11 @@ int mali_arbif_set_aw_assignment(struct mali_arbiter *arb, unsigned int gsi_idx,
      * new gpu-subinstance
      */
     spin_lock(&arb->lock);
-    list_for_each_entry_safe(cur_vm, tmp_vm, &arb->wait_list, entry)
+    list_for_each_entry_safe(cur_vm, tmp_vm, &arb->wait_list, wait_entry)
     {
         if ( (1U << cur_vm->aw) & new_aw_mask )
         {
-            /* Remove the VM from Arbiter wait-queue */
-            list_del_init(&cur_vm->entry);
-            /* Add the VM to new gpu-subinstance */
+            list_del_init(&cur_vm->wait_entry);
             mali_gsi_on_gpu_request(cur_vm, gsi_ptr);
         }
     }
@@ -675,8 +709,7 @@ int mali_arbif_set_aw_assignment(struct mali_arbiter *arb, unsigned int gsi_idx,
                     /* Add the VM to the wait-list if it was in req-list */
                     if ( requested )
                     {
-                        list_del_init(&reg_vm->entry);
-                        list_add_tail(&reg_vm->entry, &arb->wait_list);
+                        list_add_tail(&reg_vm->wait_entry, &arb->wait_list);
                     }
                     break;
                 }
@@ -703,7 +736,7 @@ int mali_arbif_gpu_stop(struct mali_vm_data *vm_data)
     if ( ret )
         return ret;
 
-    ret = ptm_msg_buff_write(&arb->rg->msg_handler.send_msgs,vm_data->aw, message);
+    ret = ptm_msg_buff_write(&arb->rg->msg_handler.send_msgs, vm_data->aw, message);
     if ( ret )
         return ret;
 
@@ -723,7 +756,7 @@ int mali_arbif_gpu_granted(struct mali_vm_data *vm_data, uint32_t freq)
     if ( ret )
         return ret;
 
-    ret = ptm_msg_buff_write(&arb->rg->msg_handler.send_msgs,vm_data->aw, message);
+    ret = ptm_msg_buff_write(&arb->rg->msg_handler.send_msgs, vm_data->aw, message);
     if ( ret )
         return ret;
 
@@ -741,7 +774,7 @@ int mali_arbif_gpu_lost(struct mali_vm_data *vm_data)
         return ret;
 
     printk(XENLOG_INFO "P%u: GPU lost for VM %u.\n", vm_data->aw, vm_data->aw);
-    ret = ptm_msg_buff_write(&arb->rg->msg_handler.send_msgs,vm_data->aw, message);
+    ret = ptm_msg_buff_write(&arb->rg->msg_handler.send_msgs, vm_data->aw, message);
     if ( ret )
         return ret;
     printk(XENLOG_DEBUG "P%u: Sending GPU lost message to VM %u.\n",

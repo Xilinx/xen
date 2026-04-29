@@ -21,6 +21,7 @@ struct mali_arbiter;
 struct mali_vm_data {
     struct list_head sched_entry;
     struct list_head entry;
+    struct list_head wait_entry;
     unsigned int aw;
     struct mali_arbiter *arb;
     bool gpu_lost;
