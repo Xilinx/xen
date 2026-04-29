@@ -244,10 +244,10 @@ static inline void ptm_msg_handler_destroy(struct ptm_msg_handler *msg_handler)
     tasklet_kill(&msg_handler->ptm_send_wq);
     for ( i = 0; i < n_buffers; i++ )
     {
-        struct msg_buff *msg_buff = &(msg_handler->recv_msgs.msgs[i]);
-        xvfree(msg_buff->msg);
-        msg_buff = &(msg_handler->send_msgs.msgs[i]);
-        xvfree(msg_buff->msg);
+        if ( msg_handler->recv_msgs.msgs )
+            xvfree(msg_handler->recv_msgs.msgs[i].msg);
+        if ( msg_handler->send_msgs.msgs )
+            xvfree(msg_handler->send_msgs.msgs[i].msg);
     }
     xvfree(msg_handler->send_msgs.msgs);
     xvfree(msg_handler->recv_msgs.msgs);
@@ -292,10 +292,21 @@ static inline int ptm_msg_handler_init(struct ptm_msg_handler *msg_handler,
         .base_addr = base_addr
     };
 
+    /*
+     * Initialize the tasklet and lock early so that
+     * ptm_msg_handler_destroy() is safe to call from any error
+     * path below (tasklet_kill on an already-initialized but
+     * never-scheduled tasklet is harmless).
+     */
+    softirq_tasklet_init(&msg_handler->ptm_send_wq, ptm_send_message_worker,
+                         msg_handler);
+    spin_lock_init(&msg_handler->lock);
+
     if ( !msg_handler->send_msgs.msgs ||
          !msg_handler->recv_msgs.msgs )
     {
         printk(XENLOG_ERR "PTM msg: Failed to allocate message buffers\n");
+        ptm_msg_handler_destroy(msg_handler);
         return -ENOMEM;
     }
 
@@ -325,11 +336,6 @@ static inline int ptm_msg_handler_init(struct ptm_msg_handler *msg_handler,
         }
         msg_buff->size = send_buff_size + 1;
     }
-
-    /* Initialize the PTM send work queue and delayed work */
-    softirq_tasklet_init(&msg_handler->ptm_send_wq, ptm_send_message_worker,
-                         msg_handler);
-    spin_lock_init(&msg_handler->lock);
 
     return 0;
 }
