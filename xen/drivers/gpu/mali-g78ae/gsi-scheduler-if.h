@@ -15,65 +15,69 @@ struct mali_vm_data;
 struct mali_arb_gsi;
 
 /**
- * struct mali_arb_gsi_sched_ops - scheduler operations to schedule the VM
- * requests, these are invoked from the gpu-subinstance to schedule the GPU
- * requests on that gpu-subinstance from the VMs.
+ * struct mali_arb_gsi_sched_ops - scheduler callback interface
  *
- * @sched_get_utilisation: Get gpu-subinstance utilization info
- *     sched_ptr - Pointer to the Scheduler.
- *     gsi_busytime - Out-param that will contain the gpu-subinstance busy time.
- *     gsi_totaltime - Out-param that will contain the gpu-subinstance total
- *         time.
- *     This function provides the GPU busytime and totaltime since last request.
+ * These callbacks are invoked by the GSI layer (gpu-subinstance.c) to
+ * delegate scheduling decisions to the active scheduler backend.
  *
- * @sched_stop_idle_vm: Stop an idle VM.
- *     sched_ptr - Pointer to the Scheduler.
- *     arb_vm - VM to be stopped.
- *     This function sends stop to an idle VM.
+ * Locking contract:
  *
- * @sched_get_active_vm: Get the active VM.
- *     sched_ptr - Pointer to the Scheduler.
- *     This function returns the VM which is currently assigned to the GSI.
+ *   Called WITH gsi_info[].lock held:
+ *     sched_start, sched_stop, sched_add_vm, sched_remove_vm,
+ *     sched_stop_idle_vm, sched_gpu_active, sched_resync_vm,
+ *     sched_get_active_vm
+ *
+ *   Called WITHOUT gsi_info[].lock:
+ *     sched_destroy, sched_get_utilisation, sched_print_stats
+ *
+ * All callbacks run in atomic context and must not sleep.
+ *
+ * @sched_start: Start the scheduler. May immediately grant the GPU to
+ *     a queued VM.
  *
  * @sched_stop: Stop an active AW on a gpu-subinstance.
- *     sched_ptr - Pointer to the Scheduler.
- *     If the gpu-subinstance has an access window assigned, we need to get into
- *     a state where it is not using the GPU.
+ *     If the gpu-subinstance has an access window assigned, we need to
+ *     get into a state where it is not using the GPU.
  *     If the gpu-subinstance state machine is:
- *         - state_RUNNING: Tell the using KBase to stop, and wait for it to
+ *         - RUNNING: Tell the using KBase to stop, and wait for it to
  *           stop or a GPU_LOST state.
- *         - state_SINGLE_REQ: Same as state_RUNNING, but there is only
- *           AW requesting GPU time.
+ *         - SINGLE_REQ: Same as RUNNING, but there is only one AW
+ *           requesting GPU time.
  *         - STOPPING: The using KBase was already stopping, so just
  *           wait for it, or hit a GPU_LOST.
- *         - Anything else: No KBase instance using the GPU, so just do the
- *           reassignment.
+ *         - Anything else: No KBase instance using the GPU, so just do
+ *           the reassignment.
+ *     Queued VMs receive GPU_LOST. The implementation may temporarily
+ *     drop and reacquire gsi_info[].lock (e.g. to cancel synchronous
+ *     timers whose callbacks also take this lock). Callers must not
+ *     assume atomicity across the call but may assume the lock is held
+ *     again on return.
  *
- * @sched_start: Start the scheduler
- *     sched_ptr - Pointer to the Scheduler.
- *     This function starts scheduling the VM requests on the gpu subinstance.
+ * @sched_add_vm: Enqueue a VM that is requesting GPU access.
  *
- * @sched_add_vm: Add new VM to the scheduler.
- *     sched_ptr - Pointer to the Scheduler.
- *     add_vm - Pointer to the requested VM's private data.
- *     This function adds a new VM request to the existing requests so it can be
- *     scheduled by the scheduler.
+ * @sched_remove_vm: Remove a VM from the scheduler. If @req_again is
+ *     set, the VM still wants the GPU and is re-enqueued after yielding
+ *     its current timeslice. Returns true if the VM was found.
  *
- * @sched_remove_vm: Remove a VM from the scheduler.
- *     sched_ptr - Pointer to the Scheduler.
- *     rem_vm - Pointer to the VM's private data to be removed.
- *     req_again - Flag indicates VM has work pending and still wants the GPU;
- *         if set, the VM is not deleted from the scheduler.
- *     This function un-assigns the VM from the GSI if currently assigned and
- *     deletes it from the scheduler.
+ * @sched_stop_idle_vm: Preempt an idle VM that is not actively using
+ *     the GPU, so the next queued VM can be granted.
  *
- * @sched_resync_vm: Resync VM after the arbiter restart.
- *     sched_ptr - Pointer to the Scheduler.
- *     rem_vm - Pointer to the VM's private data to be removed.
- *     This function soft stops the VM when there is an arbiter restart.
- * @sched_print_stats: Print scheduler stats.
- *     sched_ptr - Pointer to the Scheduler.
- *     tab - Tab string to be used for indentation.
+ * @sched_gpu_active: Notify the scheduler that a VM has started using
+ *     the GPU (optional, may be NULL).
+ *
+ * @sched_resync_vm: Soft-stop a VM during arbiter restart.
+ *
+ * @sched_get_active_vm: Return the VM currently assigned to this GSI,
+ *     or NULL if none.
+ *
+ * @sched_get_utilisation: Return busy/total time counters. Read-only,
+ *     must not modify scheduler state.
+ *
+ * @sched_destroy: Release scheduler-private resources. Called once
+ *     during GSI teardown after the scheduler has been stopped.
+ *
+ * @sched_print_stats: Print scheduler state for the debug key handler.
+ *     Must be safe to call concurrently with other callbacks.
  */
 struct mali_arb_gsi_sched_ops {
     void (*sched_get_utilisation)
