@@ -20,6 +20,7 @@ struct mali_arb_gsi_sched_ops;
 
 enum mali_gsi_sched_type {
     MALI_GSI_SCHED_NULL,
+    MALI_GSI_SCHED_TIMESLICE,
 };
 
 /* Default frequency to use when granting GPU access to a VM */

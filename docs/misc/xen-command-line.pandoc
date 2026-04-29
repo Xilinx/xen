@@ -3192,10 +3192,41 @@ This string correspond to the following configuration:
 ### mali\_sched (arm)
 > `= <scheduler_name>`
 
-> Default: `null`
+> Default: Kconfig compile-time default (`CONFIG_MALI_GSI_SCHED_DEFAULT`)
 
 Select the GPU scheduler for the Mali G78AE driver. All partitions
 use the same scheduler.
 
-Currently supported: `null` (static 1:1 assignment, one VM gets
-exclusive access per partition).
+Supported values:
+
+*   `ts`: Timeslice scheduler. Multiple VMs share a GPU partition by
+    taking turns with timer-driven preemption. The quantum and yield
+    timeout are configurable via `mali_ts_quantum_ms` and
+    `mali_ts_yield_ms`.
+
+*   `null`: Null scheduler. Static 1:1 assignment, one VM gets
+    exclusive, indefinite access to the partition. A second VM
+    requesting the same partition is rejected.
+
+Use `null` for partitions dedicated to a single VM and `ts` for
+partitions shared by two or more VMs.
+
+### mali\_ts\_quantum\_ms (arm)
+> `= <integer>`
+
+> Default: `7`
+
+Set the scheduling quantum of the Mali G78AE timeslice scheduler, in
+milliseconds. This is the maximum time a VM holds the GPU before the
+scheduler sends a `GPU_STOP` to trigger preemption. Valid range: [1, 1000].
+
+### mali\_ts\_yield\_ms (arm)
+> `= <integer>`
+
+> Default: `100`
+
+Set the yield timeout of the Mali G78AE timeslice scheduler, in
+milliseconds. After sending `GPU_STOP` to the active VM, the scheduler
+starts this timer. If the VM does not respond with `GPU_STOPPED` before the
+timer expires, the scheduler forces eviction by sending `GPU_LOST` and
+grants the GPU to the next VM in the queue. Valid range: [1, 10000].

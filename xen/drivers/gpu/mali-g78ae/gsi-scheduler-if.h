@@ -92,6 +92,8 @@ struct mali_arb_gsi_sched_ops {
 };
 
 int register_gsi_scheduler(struct mali_arb_gsi *gsi);
+int register_gsi_timeslice_scheduler(struct mali_arb_gsi *gsi,
+                                     spinlock_t *gsi_lock);
 
 #endif /* DRIVERS__GPU_MALI_G78AE_GSI_SCHEDULER_IF_H */
 

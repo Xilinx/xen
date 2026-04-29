@@ -7,3 +7,4 @@ obj-y += gpu-subinstance.o
 obj-y += arbiter.o
 obj-y += core.o
 obj-$(CONFIG_MALI_GSI_SCHED_NULL) += gsi-scheduler-null.o
+obj-$(CONFIG_MALI_GSI_SCHED_TIMESLICE) += gsi-scheduler-timeslice.o

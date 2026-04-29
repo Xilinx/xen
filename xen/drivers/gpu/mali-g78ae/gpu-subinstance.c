@@ -17,7 +17,7 @@
  * Global scheduler selection.
  *
  * Boot parameter: mali_sched=<name>
- * Currently accepted: "null"
+ * Accepted values: "null", "ts"
  *
  * When not specified, the compile-time default from Kconfig is used
  * (CONFIG_MALI_GSI_SCHED_DEFAULT).  All partitions use the same scheduler.
@@ -33,11 +33,17 @@ enum mali_gsi_sched_type __init mali_gsi_get_sched_type(void)
     if ( !strcmp(opt_mali_sched, "null") )
         return MALI_GSI_SCHED_NULL;
 
+    if ( !strcmp(opt_mali_sched, "ts") )
+        return MALI_GSI_SCHED_TIMESLICE;
+
     printk(XENLOG_ERR
            "mali_sched: Unknown scheduler '%s', using default\n",
            opt_mali_sched);
 
 use_default:
+    if ( !strcmp(CONFIG_MALI_GSI_SCHED_DEFAULT, "ts") )
+        return MALI_GSI_SCHED_TIMESLICE;
+
     return MALI_GSI_SCHED_NULL;
 }
 
@@ -69,6 +75,16 @@ int __init mali_gsi_create(struct mali_arb_gsi **gsi, unsigned int idx,
 
     switch ( sched_type )
     {
+#ifdef CONFIG_MALI_GSI_SCHED_TIMESLICE
+    case MALI_GSI_SCHED_TIMESLICE:
+        err = register_gsi_timeslice_scheduler(gsi_instance, gsi_lock);
+        if ( err )
+        {
+            xvfree(gsi_instance);
+            return err;
+        }
+        break;
+#endif
 #ifdef CONFIG_MALI_GSI_SCHED_NULL
     case MALI_GSI_SCHED_NULL:
         err = register_gsi_scheduler(gsi_instance);

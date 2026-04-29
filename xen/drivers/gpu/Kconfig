@@ -45,8 +45,33 @@ config MALI_GSI_SCHED_NULL
 	  assigned GPU partition. Only one VM can use a partition at a time;
 	  additional requests are rejected.
 
+config MALI_GSI_SCHED_TIMESLICE
+	bool "Timeslice scheduler support"
+	default y
+	help
+	  The timeslice scheduler allows multiple VMs to share a GPU
+	  partition by taking turns. Uses timer-driven preemption with
+	  configurable time quantum (default 7ms). When a VM's quantum
+	  expires, it receives GPU_STOP and the next VM in the queue
+	  gets GPU_GRANTED.
+
+choice
+	prompt "Default GPU scheduler"
+	default MALI_GSI_SCHED_TIMESLICE_DEFAULT if MALI_GSI_SCHED_TIMESLICE
+	default MALI_GSI_SCHED_NULL_DEFAULT
+
+config MALI_GSI_SCHED_NULL_DEFAULT
+	bool "Null scheduler" if MALI_GSI_SCHED_NULL
+
+config MALI_GSI_SCHED_TIMESLICE_DEFAULT
+	bool "Timeslice scheduler" if MALI_GSI_SCHED_TIMESLICE
+
+endchoice
+
 config MALI_GSI_SCHED_DEFAULT
 	string
+	default "ts" if MALI_GSI_SCHED_TIMESLICE_DEFAULT
+	default "null" if MALI_GSI_SCHED_NULL_DEFAULT
 	default "null"
 
 endif # MALI_G78AE
