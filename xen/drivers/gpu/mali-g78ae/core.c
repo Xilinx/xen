@@ -137,7 +137,11 @@ void dump_mali_info(unsigned char key)
                         gsi->idx, gpu_info->aw_mask);
                 if ( !gpu_info->aw_mask )
                     continue;
-                spin_lock(&rg->arbiter->lock);
+                if ( !spin_trylock(&rg->arbiter->lock) )
+                {
+                    printk("    (arbiter lock busy, skipping VM list)\n");
+                    goto print_sched_stats;
+                }
                 list_for_each_entry(vm_data, &rg->arbiter->reg_vms_list, entry)
                 {
                     if ( vm_data->gsi_idx != (int)gsi->idx
@@ -151,6 +155,7 @@ void dump_mali_info(unsigned char key)
                            vm_data->aw, dom->domain_id);
                 }
                 spin_unlock(&rg->arbiter->lock);
+            print_sched_stats:
                 if ( gpu_info->gsi->sched_ops &&
                     gpu_info->gsi->sched_ops->sched_print_stats )
                     gpu_info->gsi->sched_ops->sched_print_stats(
