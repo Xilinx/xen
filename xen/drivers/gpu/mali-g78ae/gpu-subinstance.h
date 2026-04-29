@@ -7,15 +7,20 @@
 #ifndef DRIVERS__GPU_MALI_G78AE_ARBITER_GSI_H
 #define DRIVERS__GPU_MALI_G78AE_ARBITER_GSI_H
 
+#include <xen/init.h>
+#include <xen/spinlock.h>
 #include <xen/types.h>
 
-#include "arbiter.h"
-#include "gsi-scheduler-if.h"
 #include "partition-config.h"
 #include "partition-control.h"
 
 struct mali_vm_data;
 struct mali_arbiter;
+struct mali_arb_gsi_sched_ops;
+
+enum mali_gsi_sched_type {
+    MALI_GSI_SCHED_NULL,
+};
 
 /* Default frequency to use when granting GPU access to a VM */
 #define GSI_DEFAULT_FREQ (999)
@@ -31,7 +36,6 @@ enum mali_arb_flags { GSI_FLAG_SLICE_ASSIGNED, GSI_FLAG_MAX };
 
 /**
  * enum mali_arb_state - gpu-subinstance states
- * @STARTING: A gpu-subinstance start request is in progress
  * @STARTED: The gpu-subinstance is started
  * @STOPPING: A gpu-subinstance stop request is in progress
  * @STOPPED: The gpu-subinstance is stopped
@@ -39,7 +43,6 @@ enum mali_arb_flags { GSI_FLAG_SLICE_ASSIGNED, GSI_FLAG_MAX };
  * Definition of the possible arbiter's states
  */
 enum mali_arb_state {
-    STARTING,
     STARTED,
     STOPPING,
     STOPPED
@@ -62,7 +65,8 @@ struct mali_arb_gsi {
 
 /* GSI interface */
 int mali_gsi_create(struct mali_arb_gsi **gsi, unsigned int idx,
-                  struct mali_arbiter *arbiter);
+                    struct mali_arbiter *arbiter,
+                    spinlock_t *gsi_lock);
 void mali_gsi_destroy(struct mali_arb_gsi *gsi);
 void mali_gsi_start(struct mali_arb_gsi *gsi);
 void mali_gsi_stop(struct mali_arb_gsi *gsi);
@@ -91,6 +95,9 @@ int mali_gsi_handle_gpu_granted(struct mali_arb_gsi *gsi,
                             struct mali_vm_data *arb_vm);
 /* Send a gpu lost message to the VM */
 int mali_gsi_handle_gpu_lost(struct mali_vm_data *arb_vm);
+
+/* Scheduler configuration */
+enum mali_gsi_sched_type __init mali_gsi_get_sched_type(void);
 #endif
 
 /*

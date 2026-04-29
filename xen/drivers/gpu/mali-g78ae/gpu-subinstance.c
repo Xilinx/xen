@@ -4,12 +4,50 @@
  *
  * Copyright (C) 2025, Advanced Micro Devices, Inc.
  */
-#include "gpu-subinstance.h"
+#include <xen/lib.h>
+#include <xen/param.h>
 
-int mali_gsi_create(struct mali_arb_gsi **gsi, unsigned int idx,
-                  struct mali_arbiter *arbiter)
+#include "gpu-subinstance.h"
+#include "gsi-scheduler-if.h"
+#include "arbiter.h"
+#include "arb-vm-protocol.h"
+#include "ptm-msg.h"
+
+/*
+ * Global scheduler selection.
+ *
+ * Boot parameter: mali_sched=<name>
+ * Currently accepted: "null"
+ *
+ * When not specified, the compile-time default from Kconfig is used
+ * (CONFIG_MALI_GSI_SCHED_DEFAULT).  All partitions use the same scheduler.
+ */
+static char __initdata opt_mali_sched[16] = CONFIG_MALI_GSI_SCHED_DEFAULT;
+string_param("mali_sched", opt_mali_sched);
+
+enum mali_gsi_sched_type __init mali_gsi_get_sched_type(void)
+{
+    if ( !opt_mali_sched[0] )
+        goto use_default;
+
+    if ( !strcmp(opt_mali_sched, "null") )
+        return MALI_GSI_SCHED_NULL;
+
+    printk(XENLOG_ERR
+           "mali_sched: Unknown scheduler '%s', using default\n",
+           opt_mali_sched);
+
+use_default:
+    return MALI_GSI_SCHED_NULL;
+}
+
+int __init mali_gsi_create(struct mali_arb_gsi **gsi, unsigned int idx,
+                    struct mali_arbiter *arbiter,
+                    spinlock_t *gsi_lock)
 {
     struct mali_arb_gsi *gsi_instance;
+    enum mali_gsi_sched_type sched_type = mali_gsi_get_sched_type();
+    int err;
 
     gsi_instance = xvzalloc(struct mali_arb_gsi);
     if ( !gsi_instance )
@@ -24,12 +62,31 @@ int mali_gsi_create(struct mali_arb_gsi **gsi, unsigned int idx,
 
     if ( gsi_instance->part_cfg == NULL || gsi_instance->part_ctrl == NULL )
     {
-        printk(XENLOG_ERR "GSI%d: Failed to get part_cfg or part_ctrl\n", idx);
+        printk(XENLOG_ERR "GSI%u: Failed to get part_cfg or part_ctrl\n", idx);
         xvfree(gsi_instance);
         return -EINVAL;
     }
 
-    register_gsi_scheduler(gsi_instance);
+    switch ( sched_type )
+    {
+#ifdef CONFIG_MALI_GSI_SCHED_NULL
+    case MALI_GSI_SCHED_NULL:
+        err = register_gsi_scheduler(gsi_instance);
+        if ( err )
+        {
+            xvfree(gsi_instance);
+            return err;
+        }
+        break;
+#endif
+    default:
+        printk(XENLOG_ERR "GSI%u: Unsupported scheduler type %d "
+               "(check Kconfig and mali_sched= parameter)\n",
+               idx, sched_type);
+        xvfree(gsi_instance);
+        return -EINVAL;
+    }
+
     *gsi = gsi_instance;
     return 0;
 }
@@ -38,6 +95,18 @@ void mali_gsi_destroy(struct mali_arb_gsi *gsi)
 {
     if ( !gsi )
         return;
+
+    /* Ensure the GSI is stopped before destroying the scheduler */
+    if ( gsi->sched_ops && gsi->sched_ops->sched_stop )
+    {
+        spin_lock(&gsi->arbiter->gsi_info[gsi->idx].lock);
+        if ( gsi->state == STARTED )
+        {
+            gsi->sched_ops->sched_stop(gsi->sched_ptr);
+            gsi->state = STOPPED;
+        }
+        spin_unlock(&gsi->arbiter->gsi_info[gsi->idx].lock);
+    }
 
     if ( gsi->sched_ops && gsi->sched_ops->sched_destroy )
         gsi->sched_ops->sched_destroy(gsi->sched_ptr);
@@ -48,34 +117,42 @@ void mali_gsi_destroy(struct mali_arb_gsi *gsi)
     xvfree(gsi);
 }
 
+/* Must be called with gsi_info[gsi->idx].lock held */
 void mali_gsi_start(struct mali_arb_gsi *gsi)
 {
     if ( gsi->state != STOPPED )
     {
-        printk(XENLOG_ERR "GPU subinstance is in invalid state %d", gsi->state);
+        printk(XENLOG_ERR "GSI%u: invalid state %d in start\n",
+               gsi->idx, gsi->state);
         return;
     }
     if ( !gsi->sched_ptr || !gsi->sched_ops )
     {
-        printk(XENLOG_ERR "No scheduler defined for GSI %d", gsi->idx);
+        printk(XENLOG_ERR "GSI%u: no scheduler defined\n", gsi->idx);
         return;
     }
 
-    gsi->state = STARTING;
-    gsi->sched_ops->sched_start(gsi->sched_ptr);
+    /*
+     * Set STARTED before sched_start() because the scheduler may
+     * immediately grant the GPU to a queued VM, which calls
+     * mali_gsi_handle_gpu_granted() that requires state == STARTED.
+     */
     gsi->state = STARTED;
+    gsi->sched_ops->sched_start(gsi->sched_ptr);
 }
 
+/* Must be called with gsi_info[gsi->idx].lock held */
 void mali_gsi_stop(struct mali_arb_gsi *gsi)
 {
     if ( gsi->state != STARTED )
     {
-        printk(XENLOG_ERR "GPU subinstance is in invalid state %d", gsi->state);
+        printk(XENLOG_ERR "GSI%u: invalid state %d in stop\n",
+               gsi->idx, gsi->state);
         return;
     }
     if ( !gsi->sched_ptr || !gsi->sched_ops )
     {
-        printk(XENLOG_ERR "No scheduler defined for GSI %d", gsi->idx);
+        printk(XENLOG_ERR "GSI%u: no scheduler defined\n", gsi->idx);
         return;
     }
 
@@ -103,7 +180,7 @@ void mali_gsi_get_utilisation(struct mali_arb_gsi *gsi,
 void mali_gsi_update_freq(struct mali_arb_gsi *gsi,
                           uint32_t new_freq)
 {
-    printk(XENLOG_WARNING "Unimplemented: mali_gsi_update_freq called\n");
+    /* TODO: frequency scaling not yet implemented */
     return;
 }
 
@@ -195,35 +272,60 @@ int mali_gsi_handle_gpu_stop(struct mali_vm_data *arb_vm)
 int mali_gsi_handle_gpu_granted(struct mali_arb_gsi *gsi,
                             struct mali_vm_data *arb_vm)
 {
+    uint64_t message = 0;
+    int ret;
+
     if ( !arb_vm )
     {
-        printk(XENLOG_ERR "GSI%d: Cannot grant GPU, NULL AW context\n", gsi->idx);
+        printk(XENLOG_ERR "GSI%u: Cannot grant GPU, NULL AW context\n", gsi->idx);
         return -EINVAL;
     }
 
     if ( gsi->state != STARTED )
     {
-        printk(XENLOG_ERR "GSI%d: Cannot grant GPU to AW%d, GSI not started\n",
+        printk(XENLOG_ERR "GSI%u: Cannot grant GPU to AW%u, GSI not started\n",
                gsi->idx, arb_vm->aw);
         return -EINVAL;
     }
 
     if ( gsi->flags & (1U << GSI_FLAG_SLICE_ASSIGNED) )
     {
-        ctrlif_assign_partition_to_aw(gsi->part_ctrl, arb_vm->aw);
+        int assign_ret = ctrlif_assign_partition_to_aw(gsi->part_ctrl,
+                                                       arb_vm->aw);
+        if ( assign_ret )
+        {
+            printk(XENLOG_ERR
+                   "GSI%u: partition assign to AW%u failed (%d)\n",
+                   gsi->idx, arb_vm->aw, assign_ret);
+            return -EIO;
+        }
+
     }
     else
     {
-        printk(XENLOG_ERR "GSI%d: Cannot grant GPU to AW%d, no slice assigned\n",
+        printk(XENLOG_ERR "GSI%u: Cannot grant GPU to AW%u, no slice assigned\n",
                gsi->idx, arb_vm->aw);
         return -EINVAL;
     }
 
     /*
-     * Frequency calculation not implemented yet.
-     * Granting access with default frequency.
+     * Try the normal send path first.  If it succeeds (channel free),
+     * the message is delivered immediately.  If the channel is busy
+     * (stale message from a previous timeslice sitting in the HW
+     * register), fall back to force-send which flushes the software
+     * buffer and overwrites the hardware register directly.
      */
-    return mali_arbif_gpu_granted(arb_vm, GSI_DEFAULT_FREQ);
+    ret = mali_arbif_gpu_granted(arb_vm, GSI_DEFAULT_FREQ);
+    if ( ret )
+    {
+        ret = arb_vm_gpu_granted_build_msg(GSI_DEFAULT_FREQ, &message);
+        if ( ret )
+            return ret;
+
+        ptm_msg_send_force(&gsi->arbiter->rg->msg_handler,
+                           arb_vm->aw, &message);
+    }
+    return 0;
 }
 
 int mali_gsi_handle_gpu_lost(struct mali_vm_data *arb_vm)

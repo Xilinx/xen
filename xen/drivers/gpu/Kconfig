@@ -2,17 +2,19 @@ config GPU
 	bool
 
 if ARM
-config MALI_G78AE
+menuconfig MALI_G78AE
 	bool "Mali G78AE GPU support (EA)"	if EXPERT
 	select GPU
+	select MALI_GSI_SCHED_NULL
 	default n
 	help
 	  Support for implementation of hardware virtualization available in the
 	  Mali G78AE GPU.
 
+if MALI_G78AE
+
 config MALI_G78AE_VERSAL2
 	bool "Mali G78AE GPU support for Versal2"
-	depends on MALI_G78AE
 	default n
 	help
 	  Support for Mali G78AE GPU on Versal2 platform.
@@ -33,5 +35,20 @@ config MALI_G78AE_VERSAL_MMI_SLRC_REG_CFG_1
 	  By default, this is set to 0x00FE5432, which is the value used in the Versal2
 	  on reset. This value set the next 2 IRQ lines to be used for RGs and system
 	  blocks.
+
+config MALI_GSI_SCHED_NULL
+	bool "Null scheduler support"
+	default y
+	help
+	  The null scheduler provides static GPU partitioning with no
+	  time-slicing. Each VM gets exclusive, indefinite access to its
+	  assigned GPU partition. Only one VM can use a partition at a time;
+	  additional requests are rejected.
+
+config MALI_GSI_SCHED_DEFAULT
+	string
+	default "null"
+
+endif # MALI_G78AE
 
 endif # ARM

@@ -3187,4 +3187,15 @@ This string correspond to the following configuration:
 
 * second group assigned to Bus B with slice 3; partition 2 and access window 2
 
-* access windows from 3 to 15 will be assigned to parition 0
+* access windows from 3 to 15 will be assigned to partition 0
+
+### mali\_sched (arm)
+> `= <scheduler_name>`
+
+> Default: `null`
+
+Select the GPU scheduler for the Mali G78AE driver. All partitions
+use the same scheduler.
+
+Currently supported: `null` (static 1:1 assignment, one VM gets
+exclusive access per partition).

@@ -1,0 +1,29 @@
+Known issues and future work
+=============================
+
+1. mali_arbif_unassign_domain() does not remove the VM from the scheduler
+
+   When a domain is destroyed without the guest GPU driver performing
+   proper cleanup (e.g. domain crash, xl destroy -F), the arbiter sets
+   vm_data->domain = NULL but leaves the VM in the GSI scheduler -- it
+   may still be current_vm or queued in vm_req_list.
+
+   Impact:
+   - Timeslice scheduler: the partition is blocked for up to
+     yield_timeout_ms (default 100ms) until the yield timer fires,
+     sends GPU_LOST, evicts the dead VM, and grants the GPU to the
+     next VM.  No crash, but a brief stall.
+   - Null scheduler: the partition is permanently occupied by the dead
+     VM.  No other VM can use it until Xen is rebooted.
+
+   The proper fix is to call mali_gsi_on_gpu_stopped() or equivalent
+   from mali_arbif_unassign_domain() to remove the VM from the
+   scheduler before clearing the domain pointer.  This requires
+   acquiring gsi_info[].lock while arb->lock is already held, which
+   conflicts with the documented lock ordering (gsi_info[].lock first,
+   then arb->lock).  Possible approaches:
+   - Drop arb->lock before acquiring gsi_info[].lock, then re-verify
+     state after reacquiring arb->lock (similar to ts_sched_stop).
+   - Introduce a deferred cleanup mechanism (e.g. flag + tasklet).
+   - Rework the lock hierarchy so arb->lock nests inside gsi_info[].lock
+     everywhere (large refactor).

@@ -8,6 +8,7 @@
 
 #include "arbiter.h"
 #include "arb-vm-protocol.h"
+#include "gpu-subinstance.h"
 #include "partition-control.h"
 #include "ptm-msg.h"
 
@@ -222,8 +223,10 @@ int mali_arbiter_create(struct mali_arbiter **arbiter, struct mali_ptm_rg *rg)
         }
 
         arb->gsi_info[i].enabled = true;
+        spin_lock_init(&arb->gsi_info[i].lock);
 
-        err = mali_gsi_create(&arb->gsi_info[i].gsi, i, arb);
+        err = mali_gsi_create(&arb->gsi_info[i].gsi, i, arb,
+                              &arb->gsi_info[i].lock);
         if ( err )
             goto clean_instances;
 
@@ -238,8 +241,6 @@ int mali_arbiter_create(struct mali_arbiter **arbiter, struct mali_ptm_rg *rg)
         if ( arb->gsi_info[i].slice_mask != 0 )
             mali_gsi_flag_set(arb->gsi_info[i].gsi,
                                 GSI_FLAG_SLICE_ASSIGNED);
-
-        spin_lock_init(&arb->gsi_info[i].lock);
     }
 
     INIT_LIST_HEAD(&arb->wait_list);
@@ -739,6 +740,13 @@ int mali_arbif_gpu_stop(struct mali_vm_data *vm_data)
     return ptm_msg_send(&arb->rg->msg_handler, vm_data->aw);
 }
 
+/*
+ * Known protocol limitation: if the PTM channel for this AW is still
+ * busy (the guest has not consumed the previous message), the write
+ * will fail. The caller should handle the error by sending GPU_LOST
+ * to the VM, since flushing the channel here would risk discarding a
+ * message the guest is still processing.
+ */
 int mali_arbif_gpu_granted(struct mali_vm_data *vm_data, uint32_t freq)
 {
     uint64_t message = 0;

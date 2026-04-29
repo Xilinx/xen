@@ -10,7 +10,6 @@
 #include <xen/types.h>
 
 #include "arbiter.h"
-#include "gpu-subinstance.h"
 
 struct mali_vm_data;
 struct mali_arb_gsi;
@@ -93,6 +92,7 @@ struct mali_arb_gsi_sched_ops {
 };
 
 int register_gsi_scheduler(struct mali_arb_gsi *gsi);
+
 #endif /* DRIVERS__GPU_MALI_G78AE_GSI_SCHEDULER_IF_H */
 
 /*
