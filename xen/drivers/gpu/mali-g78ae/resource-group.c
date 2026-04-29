@@ -939,11 +939,10 @@ static int __init scan_interface(struct dt_device_node *node,
          * the first partition. The condition `part_nodes < 0` indicates that at
          * least one partition configuration node was found.
          */
-        printk(XENLOG_DEBUG
-               "Found partition config with ID: %d with slices mask: 0x%08X\n",
-               child_idx, slices);
+        /* Initialize rg->lock before any function that acquires it */
+        spin_lock_init(&rg->lock);
 
-        /* Power on ad enable all slices assigned to this RG */
+        /* Power on and enable all slices assigned to this RG */
         rgif_get_slice_mask(rg, &slices);
         rgif_reset_slices(rg, slices);
         rgif_poweroff_slices(rg, slices);
@@ -1014,7 +1013,6 @@ static int __init scan_interface(struct dt_device_node *node,
         }
 
         softirq_tasklet_init(&rg->recv_task, res_group_process_message, rg);
-        spin_lock_init(&rg->lock);
 
         for ( i = 0; i < MALI_PTM_ACCESS_WINDOW_COUNT; i++ )
         {
