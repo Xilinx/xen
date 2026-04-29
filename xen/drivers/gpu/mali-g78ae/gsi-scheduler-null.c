@@ -45,28 +45,21 @@ static void gsi_scheduler_null_get_utilisation(void *sched_ptr,
     return;
 }
 
-static void gsi_scheduler_null_stop_idle_vm(void *sched_ptr, struct mali_vm_data *arb_vm)
+static void gsi_scheduler_null_stop_idle_vm(void *sched_ptr,
+                                            struct mali_vm_data *arb_vm)
 {
-    struct gsi_scheduler_null *sched_ptr_null =
-        (struct gsi_scheduler_null *)sched_ptr;
+    (void)sched_ptr;
+    (void)arb_vm;
 
-    if ( sched_ptr_null->current_vm == NULL )
-    {
-        printk(XENLOG_ERR "current_vm is NULL\n");
-        return;
-    }
-
-    if ( sched_ptr_null->current_vm != arb_vm )
-    {
-        printk(XENLOG_ERR "current_vm != arb_vm\n");
-        return;
-    }
-    mali_gsi_handle_gpu_stop(sched_ptr_null->current_vm);
-
-    return;
+    /*
+     * The null scheduler has a single VM with exclusive GPU access.
+     * When the VM reports idle there is no contention, so there is
+     * nothing to preempt. Do not send GPU_STOP; the VM will
+     * re-request the GPU when it has new work.
+     */
 }
 
-struct mali_vm_data *gsi_scheduler_null_get_active_vm(void *sched_ptr)
+static struct mali_vm_data *gsi_scheduler_null_get_active_vm(void *sched_ptr)
 {
     return ((struct gsi_scheduler_null *)sched_ptr)->current_vm;
 }
@@ -76,11 +69,9 @@ static void gsi_scheduler_null_stop(void *sched_ptr)
     struct gsi_scheduler_null *sched_ptr_null =
         (struct gsi_scheduler_null *)sched_ptr;
 
+    /* No VM active, nothing to stop */
     if ( sched_ptr_null->current_vm == NULL )
-    {
-        printk(XENLOG_ERR "current_vm is NULL\n");
         return;
-    }
 
     if ( mali_gsi_handle_gpu_stop(sched_ptr_null->current_vm) )
     {
@@ -111,7 +102,12 @@ static void gsi_scheduler_null_add_vm(void *sched_ptr, struct mali_vm_data *add_
     }
 
     sched_ptr_null->current_vm = add_vm;
-    mali_gsi_handle_gpu_granted(sched_ptr_null->gsi, add_vm);
+    if ( mali_gsi_handle_gpu_granted(sched_ptr_null->gsi, add_vm) )
+    {
+        printk(XENLOG_ERR "GSI%u: Failed to grant GPU to AW%u\n",
+               sched_ptr_null->gsi->idx, add_vm->aw);
+        sched_ptr_null->current_vm = NULL;
+    }
 
     return;
 }
@@ -153,27 +149,39 @@ static bool gsi_scheduler_null_remove_vm(void *sched_ptr,
     return true;
 }
 
+static void gsi_scheduler_null_resync_vm(void *sched_ptr,
+                                         struct mali_vm_data *vm)
+{
+    struct gsi_scheduler_null *sched_ptr_null =
+        (struct gsi_scheduler_null *)sched_ptr;
+
+    if ( sched_ptr_null->current_vm == vm )
+        mali_gsi_handle_gpu_stop(vm);
+}
+
 static void gsi_scheduler_print_stats(void *sched_ptr, const char *tab)
 {
     struct gsi_scheduler_null *sched_ptr_null =
                                 (struct gsi_scheduler_null *)sched_ptr;
-    printk("%sGSI Null Scheduler Statistics:\n", tab);
     if ( sched_ptr_null->current_vm )
-        printk("%s- Current VM AW: %u\n", tab, sched_ptr_null->current_vm->aw);
+        printk("%sScheduler: null  current=AW%u\n",
+               tab, sched_ptr_null->current_vm->aw);
     else
-        printk("%s- Current VM AW: None\n", tab);
+        printk("%sScheduler: null  current=none\n", tab);
 }
 
-const struct mali_arb_gsi_sched_ops gsi_scheduler_null = {
+static const struct mali_arb_gsi_sched_ops gsi_scheduler_null = {
     .sched_get_utilisation = gsi_scheduler_null_get_utilisation,
-    .sched_stop_idle_vm = gsi_scheduler_null_stop_idle_vm,
-    .sched_get_active_vm = gsi_scheduler_null_get_active_vm,
-    .sched_stop = gsi_scheduler_null_stop,
-    .sched_start = gsi_scheduler_null_start,
-    .sched_add_vm = gsi_scheduler_null_add_vm,
-    .sched_remove_vm = gsi_scheduler_null_remove_vm,
-    .sched_resync_vm = NULL,
-    .sched_print_stats = gsi_scheduler_print_stats,
+    .sched_stop_idle_vm    = gsi_scheduler_null_stop_idle_vm,
+    .sched_get_active_vm   = gsi_scheduler_null_get_active_vm,
+    .sched_stop            = gsi_scheduler_null_stop,
+    .sched_start           = gsi_scheduler_null_start,
+    .sched_add_vm          = gsi_scheduler_null_add_vm,
+    .sched_remove_vm       = gsi_scheduler_null_remove_vm,
+    .sched_resync_vm       = gsi_scheduler_null_resync_vm,
+    .sched_print_stats     = gsi_scheduler_print_stats,
+    .sched_gpu_active      = NULL,
+    .sched_destroy         = NULL,
 };
 
 int register_gsi_scheduler(struct mali_arb_gsi *gsi)
@@ -193,7 +201,7 @@ int register_gsi_scheduler(struct mali_arb_gsi *gsi)
     gsi->sched_ptr = sched_ptr_null;
     gsi->sched_ops = &gsi_scheduler_null;
 
-    printk(XENLOG_DEBUG "GSI NULL scheduler registered successfully\n");
+    printk(XENLOG_INFO "GSI%u: Using null scheduler\n", gsi->idx);
     return 0;
 }
 
