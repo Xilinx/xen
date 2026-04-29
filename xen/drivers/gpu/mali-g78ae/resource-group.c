@@ -167,7 +167,7 @@ static int res_group_respond_init(struct mali_ptm_rg *rg, uint8_t aw,
         if ( ret )
             return ret;
         sending_version = MIN_SUPPORTED_VERSION;
-        printk(XENLOG_ERR "Protocol handshake failed with AW%d\n", aw);
+        printk(XENLOG_ERR "Protocol handshake failed with AW%u\n", aw);
         ret = -EPERM;
     }
     else
@@ -204,7 +204,7 @@ static int res_group_validate_init(struct mali_ptm_rg *rg, uint8_t aw,
     if ( recv_version > CURRENT_VERSION ||
          recv_version < MIN_SUPPORTED_VERSION )
     {
-        printk(XENLOG_ERR "Protocol handshake failed with AW %d.\n", aw);
+        printk(XENLOG_ERR "Protocol handshake failed with AW%u\n", aw);
         return -EPERM;
     }
 
@@ -226,19 +226,18 @@ static int process_protocol_handshake(struct mali_ptm_rg *rg, enum ptm_rg_state 
     uint8_t message_id;
     int ret = 0;
 
-    printk(XENLOG_DEBUG "Processing protocol handshake with AW %d\n", aw);
     /* Decode the rest of the message. */
     if ( get_msg_id(message, &message_id) ||
          get_msg_protocol_version(message, &recv_version) ||
          get_msg_init_ack(message, &recv_ack) )
     {
-        printk(XENLOG_ERR "Failed to decode message from AW %u\n", aw);
+        printk(XENLOG_ERR "Failed to decode message from AW%u\n", aw);
         return -EPERM;
     }
 
     if ( message_id != VM_ARB_INIT )
     {
-        printk(XENLOG_ERR "Invalid message id %u from AW %u\n", message_id, aw);
+        printk(XENLOG_ERR "Invalid message id %u from AW%u\n", message_id, aw);
         return -EPERM;
     }
 
@@ -259,13 +258,13 @@ static int process_protocol_handshake(struct mali_ptm_rg *rg, enum ptm_rg_state 
             else
             {
                 printk(XENLOG_DEBUG
-                       "Protocol handshake with AW %u started by RG.\n", aw);
+                       "Protocol handshake with AW%u started by RG\n", aw);
                 ret = -EPERM;
             }
             break;
         case HANDSHAKE_FAILED:
             printk(XENLOG_ERR
-                   "Unexpected message from AW %u. Handshake failed.\n", aw);
+                   "Unexpected message from AW%u, handshake failed\n", aw);
             ret = -EPERM;
             break;
         default:
@@ -310,7 +309,7 @@ static void recv_msg_worker(struct msg_worker_params *params)
     arb_vm = rg->ptm_rg_vm[aw];
     if ( !arb_vm )
     {
-        printk(XENLOG_ERR "No VM data for AW %d\n", aw);
+        printk(XENLOG_ERR "No data for AW%u\n", aw);
         goto cleanup_lock;
     }
     ret = res_group_get_state(rg, aw, &rg_state);
@@ -345,7 +344,7 @@ static void recv_msg_worker(struct msg_worker_params *params)
     }
     else if ( rg_state != HANDSHAKE_DONE )
     {
-        printk(XENLOG_ERR "Handshake not completed, MSG from AW %d ignored\n",
+        printk(XENLOG_ERR "Handshake not completed, MSG from AW%u ignored\n",
                aw);
         ret = -EPERM;
         goto cleanup_lock;
@@ -356,7 +355,7 @@ static void recv_msg_worker(struct msg_worker_params *params)
     arbiter = rg->arbiter;
     if ( !arbiter )
     {
-        printk(XENLOG_ERR "No arbiter data for AW %d\n", aw);
+        printk(XENLOG_ERR "No arbiter data for AW%u\n", aw);
         return;
     }
 
@@ -534,8 +533,6 @@ int rgif_poweron_slices(struct mali_ptm_rg *rg, uint32_t slice_mask)
     if ( slice_mask == 0 )
         return 0;
 
-    printk(XENLOG_DEBUG "Powering on slices %08X\n", slice_mask);
-
     /* Read both power and clock set registers */
     spin_lock(&rg->lock);
     slice_power_set_val = readl(rg->mem + PTM_RESOURCE_SLICE_POWER_SET);
@@ -628,7 +625,6 @@ int rgif_enable_slices(struct mali_ptm_rg *rg, uint32_t slice_mask)
     unsigned int i;
     int err = 0;
 
-    printk(XENLOG_DEBUG "Enabling slices %08X\n", slice_mask);
     /* If the slice mask is zero, there is no work to do */
     if ( slice_mask == 0 )
         return 0;
@@ -645,7 +641,6 @@ int rgif_enable_slices(struct mali_ptm_rg *rg, uint32_t slice_mask)
     {
         if ( slice_mask & 0x1 )
         {
-            printk(XENLOG_DEBUG "Processing slice %d\n", i);
             reset_bit_val = SLICE_RESET_MASK_BIT;
             slice_reset_set_val &= ~(reset_bit_val << (i * RESET_REG_BITS_PER_SLICE));
 
@@ -893,8 +888,6 @@ static int __init scan_interface(struct dt_device_node *node,
             ret = -ENXIO;
             goto out_release_rg;
         }
-        printk(XENLOG_DEBUG "RG%d: base=0x%"PRIpaddr" size=0x%"PRIpaddr" IRQ=%d\n",
-               ret, rg->base, rg->size, rg->irq.line);
 
         /* Get the partitions config nodes associated with this RG */
         part_nodes = dt_property_read_variable_u32_array(child,
@@ -1007,7 +1000,7 @@ static int __init scan_interface(struct dt_device_node *node,
         ret = mali_ptm_rg_register_vms(rg);
         if ( ret )
         {
-            printk(XENLOG_ERR "Failed to register VMs for resource group %d\n",
+            printk(XENLOG_ERR "Failed to register AWs for resource group %d\n",
                    rg->id);
             goto out_arb_destroy;
         }

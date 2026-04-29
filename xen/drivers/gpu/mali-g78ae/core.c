@@ -59,11 +59,7 @@ int mali_g78ae_register_domain(struct domain *d, unsigned int aw)
     {
         err = mali_arbif_assign_domain(mali_g78ae.resource_group[i].arbiter, d);
         if ( !err )
-        {
-            printk(XENLOG_INFO "gpu: Assigned d%u AW%u to RG%d\n",
-                   d->domain_id, aw, i);
             return 0;
-        }
     }
     printk(XENLOG_ERR "gpu: Failed to assign d%u AW%u to any RG\n",
            d->domain_id, aw);
@@ -92,7 +88,7 @@ void dump_mali_info(unsigned char key)
 {
     const struct mali_ptm_rg *rg = NULL;
     const struct gsi_info *gpu_info = NULL;
-    char buses[2] = { 'A', 'B' };
+    static const char buses[] = { 'A', 'B' };
     int bus_id;
     unsigned int i, j;
 
@@ -100,7 +96,7 @@ void dump_mali_info(unsigned char key)
     printk("- System interface: 0x%lx\n", mali_g78ae.system.base);
     printk("- Assign interface: 0x%lx\n", mali_g78ae.assign.base);
     mali_assign_print_config(&mali_g78ae.assign);
-    printk("Partition manager status: \n");
+    printk("Partition manager status:\n");
     for ( i = 0; i < MALI_PTM_PARTITION_COUNT; i++ )
     {
         rg = &mali_g78ae.resource_group[i];
@@ -112,7 +108,8 @@ void dump_mali_info(unsigned char key)
         }
         bus_id = bus_from_rg_id(i, &mali_g78ae.assign);
         printk("ENABLED on bus %c | Addr: 0x%lx\n",
-                (bus_id < 0 || bus_id >= sizeof(buses)) ? '?' : buses[bus_id],
+                (bus_id < 0 || (unsigned int)bus_id >= ARRAY_SIZE(buses))
+                    ? '?' : buses[bus_id],
                 rg->base);
         printk("  - Partitions mask: 0x%x\n", rg->partition_mask);
         for ( j = 0; j < MALI_PTM_PARTITION_COUNT; j++ )
@@ -131,22 +128,27 @@ void dump_mali_info(unsigned char key)
             if ( gpu_info->enabled )
             {
                 struct mali_vm_data *vm_data = NULL;
+                struct mali_arb_gsi *gsi = gpu_info->gsi;
+                struct domain *dom;
 
-                printk("    GSI%d: Enabled (AW mask=0x%x)\n",
-                        gpu_info->gsi->idx,
-                        gpu_info->aw_mask);
+                if ( !gsi )
+                    continue;
+                printk("    GSI%u: Enabled (AW mask=0x%x)\n",
+                        gsi->idx, gpu_info->aw_mask);
                 if ( !gpu_info->aw_mask )
                     continue;
                 spin_lock(&rg->arbiter->lock);
                 list_for_each_entry(vm_data, &rg->arbiter->reg_vms_list, entry)
                 {
-                    if ( vm_data->gsi_idx != gpu_info->gsi->idx
+                    if ( vm_data->gsi_idx != (int)gsi->idx
                         || vm_data->gsi_idx < 0
-                        || vm_data->gsi_idx >= MALI_PTM_PARTITION_COUNT
-                        || !vm_data->domain )
+                        || vm_data->gsi_idx >= MALI_PTM_PARTITION_COUNT )
                         continue;
-                    printk("    - AW %d, Domain: %d\n",
-                           vm_data->aw, vm_data->domain->domain_id);
+                    dom = vm_data->domain;
+                    if ( !dom )
+                        continue;
+                    printk("    - AW%u, Domain: %u\n",
+                           vm_data->aw, dom->domain_id);
                 }
                 spin_unlock(&rg->arbiter->lock);
                 if ( gpu_info->gsi->sched_ops &&
@@ -155,7 +157,7 @@ void dump_mali_info(unsigned char key)
                         gpu_info->gsi->sched_ptr, "    ");
             }
             else
-                printk("    GSI%d: Disabled\n", j);
+                printk("    GSI%u: Disabled\n", j);
         }
     }
 }

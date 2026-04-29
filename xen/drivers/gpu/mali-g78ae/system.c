@@ -325,10 +325,6 @@ int __init mali_ptm_system_init(struct mali_ptm_system *system)
         goto out_err;
     }
 
-    printk(XENLOG_DEBUG "PTM: Found system base address: 0x%"PRIpaddr"(0x%p)\n",
-           system->base, system->mem);
-    printk(XENLOG_DEBUG "PTM: Found system size: 0x%"PRIpaddr"\n", system->size);
-
     value = 0;
     reset_status = 0;
     /* Reset the GPU before performing any operation */

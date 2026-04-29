@@ -544,9 +544,6 @@ int __init mali_ptm_assign_init(struct mali_ptm_assign *assign)
         printk(XENLOG_ERR "PTM: Failed to get assign base address\n");
         return -ENXIO;
     }
-    printk(XENLOG_DEBUG "Found assign base address: 0x%lx\n", assign->base);
-    printk(XENLOG_DEBUG "Found assign size: 0x%lx\n", assign->size);
-
     probe_hw_config(assign);
     if ( !parse_assign_config(assign, opt_ptm_assign) )
         return -EINVAL;

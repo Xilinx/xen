@@ -164,10 +164,17 @@ static inline void send_msg_worker(struct msg_worker_params *params)
         if (!error)
             ptm_msg_write(msg_handler, aw, &message);
         else
-            printk(XENLOG_ERR "PTM msg: AW%d end buffer read failed\n", aw);
+            printk(XENLOG_ERR "PTM msg: AW%u end buffer read failed\n", aw);
     }
     else
-        printk(XENLOG_DEBUG "PTM msg: AW%d end buffer busy. Leaving in queue\n", aw);
+    {
+        if ( msg_handler->send_msgs.msgs[aw].retry_count == 1 ||
+             msg_handler->send_msgs.msgs[aw].retry_count == PTM_SEND_RETRY_LIMIT )
+            printk(XENLOG_DEBUG
+                   "PTM msg: AW%u end buffer busy (retry %d/%d)\n",
+                   aw, msg_handler->send_msgs.msgs[aw].retry_count,
+                   PTM_SEND_RETRY_LIMIT);
+    }
 
 cleanup_spinlock:
     spin_unlock(&msg_handler->lock);
@@ -369,6 +376,33 @@ static inline int ptm_msg_buff_read(struct ptm_msgs *msgs, uint32_t buff_id,
 }
 
 /**
+ * ptm_msg_buff_flush() - Discard all pending messages for a buffer
+ *
+ * @msgs:       Pointer to a ptm_msgs struct
+ * @buff_id:    Index of the buffer to flush
+ *
+ * Resets the ring buffer head/tail and clears the mask bit.
+ * Used before force-sending GPU_LOST when the channel is stuck.
+ */
+static inline void ptm_msg_buff_flush(struct ptm_msgs *msgs, uint32_t buff_id)
+{
+    unsigned long flags;
+    struct msg_buff *buffer;
+
+    if ( WARN_ON(!msgs) || buff_id >= (uint32_t)msgs->n_buffers )
+        return;
+
+    buffer = &msgs->msgs[buff_id];
+
+    spin_lock_irqsave(&buffer->buff_lock, flags);
+    buffer->head = 0;
+    buffer->tail = 0;
+    buffer->retry_count = 0;
+    clear_bit(buff_id, &msgs->mask);
+    spin_unlock_irqrestore(&buffer->buff_lock, flags);
+}
+
+/**
  * ptm_msg_buff_write() - Write the message to the specified message buffer
  *
  * @msgs:       Pointer to a ptm_msgs struct containing send or receive buffers
@@ -554,13 +588,54 @@ static inline int ptm_msg_send(struct ptm_msg_handler *msg_handler,
     }
     else
     {
-        printk(XENLOG_DEBUG "Message status is not 0. Scheduling tasklet\n");
+        printk(XENLOG_DEBUG
+               "PTM msg: AW%u status busy, scheduling retry tasklet\n",
+               buff_id);
         tasklet_schedule_on_rnd(&msg_handler->ptm_send_wq);
     }
 
 cleanup_spinlock:
     spin_unlock(&msg_handler->lock);
     return error;
+}
+
+/**
+ * ptm_msg_send_force() - Force-send a message, bypassing status check
+ *
+ * @msg_handler:  Pointer to the message handler
+ * @buff_id:      AW index to target
+ * @message:      64-bit message payload to send
+ *
+ * Flush all stale messages from the software send buffer for this AW,
+ * then write the message directly to the hardware PTM registers regardless
+ * of the outgoing status.
+ *
+ * This is used for GPU_LOST delivery after a timeout: the old message
+ * (typically GPU_STOP) is stale because the guest never consumed it.
+ * Overwriting it with GPU_LOST and re-triggering the interrupt gives the
+ * guest a chance to handle the notification.
+ */
+static inline void ptm_msg_send_force(struct ptm_msg_handler *msg_handler,
+                                      uint32_t buff_id, uint64_t *message)
+{
+    if ( !msg_handler || !message )
+        return;
+
+    if ( buff_id >= (uint32_t)msg_handler->send_msgs.n_buffers )
+        return;
+
+    spin_lock(&msg_handler->lock);
+
+    /* Discard any stale messages in the software queue */
+    ptm_msg_buff_flush(&msg_handler->send_msgs, buff_id);
+
+    /* Ensure the AW is retryable for future messages after flush */
+    set_bit(buff_id, &msg_handler->send_msgs.can_retry_mask);
+
+    /* Write directly, don't check status, the old message is stale */
+    ptm_msg_write(msg_handler, buff_id, message);
+
+    spin_unlock(&msg_handler->lock);
 }
 
 /**

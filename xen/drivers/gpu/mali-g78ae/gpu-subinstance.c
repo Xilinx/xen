@@ -197,13 +197,13 @@ int mali_gsi_handle_gpu_granted(struct mali_arb_gsi *gsi,
 {
     if ( !arb_vm )
     {
-        printk(XENLOG_ERR "GSI %d: Cannot grant GPU to NULL VM\n", gsi->idx);
+        printk(XENLOG_ERR "GSI%d: Cannot grant GPU, NULL AW context\n", gsi->idx);
         return -EINVAL;
     }
 
     if ( gsi->state != STARTED )
     {
-        printk(XENLOG_ERR "GSI %d: Cannot grant GPU to VM %d, GSI not started\n",
+        printk(XENLOG_ERR "GSI%d: Cannot grant GPU to AW%d, GSI not started\n",
                gsi->idx, arb_vm->aw);
         return -EINVAL;
     }
@@ -214,7 +214,7 @@ int mali_gsi_handle_gpu_granted(struct mali_arb_gsi *gsi,
     }
     else
     {
-        printk(XENLOG_ERR "GSI %d: Cannot grant GPU to VM %d, no slice assigned\n",
+        printk(XENLOG_ERR "GSI%d: Cannot grant GPU to AW%d, no slice assigned\n",
                gsi->idx, arb_vm->aw);
         return -EINVAL;
     }

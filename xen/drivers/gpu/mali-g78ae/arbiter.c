@@ -235,9 +235,6 @@ int mali_arbiter_create(struct mali_arbiter **arbiter, struct mali_ptm_rg *rg)
         if ( err )
             goto clean_instances;
 
-        printk(XENLOG_DEBUG "P%u: AW mask=0x%x slices=0x%x\n",
-               i, arb->gsi_info[i].aw_mask, arb->gsi_info[i].slice_mask);
-
         if ( arb->gsi_info[i].slice_mask != 0 )
             mali_gsi_flag_set(arb->gsi_info[i].gsi,
                                 GSI_FLAG_SLICE_ASSIGNED);
@@ -291,7 +288,7 @@ int mali_arbif_register_vm(struct mali_arbiter *arb, struct mali_vm_data *vm_dat
     spin_lock(&arb->lock);
     if ( vm_is_in_reg_list(arb, vm_data) )
     {
-        printk(XENLOG_ERR "VM %u already registered.\n", vm_data->aw);
+        printk(XENLOG_ERR "AW%u already registered\n", vm_data->aw);
         spin_unlock(&arb->lock);
         return -EBUSY;
     }
@@ -330,19 +327,19 @@ int mali_arbif_assign_domain(struct mali_arbiter *arb, struct domain *d)
 
     if ( vm_data->domain )
     {
-        printk(XENLOG_ERR "AW %u is already assigned to Domain %pd.\n",
+        printk(XENLOG_ERR "AW%u is already assigned to Domain %pd\n",
                d->arch.mali_aw, vm_data->domain);
         spin_unlock(&arb->lock);
         return -EBUSY;
     }
 
-    printk(XENLOG_DEBUG "Assigning domain %pd to AW %u.\n", d, vm_data->aw);
+    printk(XENLOG_DEBUG "Assigning domain %pd to AW%u\n", d, vm_data->aw);
     vm_data->domain = d;
 
     gsi_idx = gsi_idx_from_aw(arb, vm_data->aw);
     if ( gsi_idx < 0 )
     {
-        printk(XENLOG_ERR "Failed to find GSI instance for AW %u.\n",
+        printk(XENLOG_ERR "Failed to find GSI instance for AW%u\n",
                vm_data->aw);
         vm_data->domain = NULL;
         vm_data->gsi_idx = -1;
@@ -355,7 +352,7 @@ int mali_arbif_assign_domain(struct mali_arbiter *arb, struct domain *d)
     err = mali_arbif_get_aw_assignment(arb, gsi_idx, &aw_mask);
     if ( err )
     {
-        printk(XENLOG_ERR "Failed to get AW assignment for AW %u.\n",
+        printk(XENLOG_ERR "Failed to get AW assignment for AW%u\n",
                vm_data->aw);
         goto rollback;
     }
@@ -364,7 +361,7 @@ int mali_arbif_assign_domain(struct mali_arbiter *arb, struct domain *d)
                                        aw_mask | (1U << d->arch.mali_aw));
     if ( err )
     {
-        printk(XENLOG_ERR "Failed to set AW assignment for AW %u.\n",
+        printk(XENLOG_ERR "Failed to set AW assignment for AW%u\n",
                vm_data->aw);
         goto rollback;
     }
@@ -383,7 +380,7 @@ void mali_arbif_unregister_vm(struct mali_vm_data *vm_data)
 {
     if ( !vm_data )
     {
-        printk(XENLOG_ERR "Cannot unregister: VM data is NULL\n");
+        printk(XENLOG_ERR "Cannot unregister: AW context is NULL\n");
         return;
     }
 
@@ -416,12 +413,12 @@ int mali_arbif_unassign_domain(struct mali_arbiter *arb, struct domain *d)
 
     if ( !vm_data->domain )
     {
-        printk(XENLOG_ERR "AW %u is not assigned to any domain.\n",
+        printk(XENLOG_ERR "AW%u is not assigned to any domain\n",
                d->arch.mali_aw);
         spin_unlock(&arb->lock);
         return -ENOENT;
     }
-    printk(XENLOG_DEBUG "Unassigning domain %u from AW %u.\n",
+    printk(XENLOG_DEBUG "Unassigning domain %u from AW%u\n",
            d->domain_id, vm_data->aw);
     vm_data->domain = NULL;
     spin_unlock(&arb->lock);
@@ -472,7 +469,7 @@ void mali_arbif_on_gpu_active(struct mali_vm_data *vm_data)
     gsi_idx = gsi_idx_from_aw_locked(arb, vm_data->aw);
     if ( gsi_idx < 0 )
     {
-        printk(XENLOG_ERR "Failed to find GSI instance for AW %u.\n",
+        printk(XENLOG_ERR "Failed to find GSI instance for AW%u\n",
                vm_data->aw);
         return;
     }
@@ -722,7 +719,6 @@ int mali_arbif_set_aw_assignment(struct mali_arbiter *arb, unsigned int gsi_idx,
     mali_gsi_start(gsi_ptr);
 exit:
     spin_unlock(&arb->gsi_info[gsi_idx].lock);
-    printk(XENLOG_DEBUG "AW mask 0x%x set for GSI%d\n", new_aw_mask, gsi_idx);
     return ret;
 }
 
@@ -773,14 +769,18 @@ int mali_arbif_gpu_lost(struct mali_vm_data *vm_data)
     if ( ret )
         return ret;
 
-    printk(XENLOG_INFO "P%u: GPU lost for VM %u.\n", vm_data->aw, vm_data->aw);
-    ret = ptm_msg_buff_write(&arb->rg->msg_handler.send_msgs, vm_data->aw, message);
-    if ( ret )
-        return ret;
-    printk(XENLOG_DEBUG "P%u: Sending GPU lost message to VM %u.\n",
-           vm_data->aw, vm_data->aw);
+    printk(XENLOG_WARNING "AW%u: GPU lost\n", vm_data->aw);
 
-    return ptm_msg_send(&arb->rg->msg_handler, vm_data->aw);
+    /*
+     * Force-send GPU_LOST: the PTM channel is likely stuck because the
+     * guest never consumed the previous message (e.g. GPU_STOP).
+     * Flush stale messages and write directly to the hardware register.
+     * This overwrites the unconsumed message and re-triggers the interrupt,
+     * giving the guest a chance to process GPU_LOST and recover.
+     */
+    ptm_msg_send_force(&arb->rg->msg_handler, vm_data->aw, &message);
+
+    return 0;
 }
 
 /*

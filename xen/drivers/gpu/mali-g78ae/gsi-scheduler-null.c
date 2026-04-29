@@ -15,14 +15,15 @@ static inline int remove_active_vm(struct gsi_scheduler_null *sched_ptr_null)
 {
     if ( sched_ptr_null->current_vm == NULL )
     {
-        printk(XENLOG_ERR "remove_active_vm: current_vm is NULL\n");
+        printk(XENLOG_ERR "GSI%u: no active AW to remove\n",
+               sched_ptr_null->gsi->idx);
         return -ENOENT;
     }
 
     if ( ctrlif_unassign_partition(sched_ptr_null->gsi->part_ctrl) )
     {
-        printk(XENLOG_ERR "remove_active_vm: "
-               "ctrlif_unassign_partition failed\n");
+        printk(XENLOG_ERR "GSI%u: ctrlif_unassign_partition failed\n",
+               sched_ptr_null->gsi->idx);
         return -EIO;
     }
 
@@ -97,7 +98,7 @@ static void gsi_scheduler_null_add_vm(void *sched_ptr, struct mali_vm_data *add_
     if ( sched_ptr_null->current_vm != NULL &&
          sched_ptr_null->current_vm != add_vm )
     {
-        printk(XENLOG_ERR "current_vm is not NULL, cannot add new VM\n");
+        printk(XENLOG_ERR "current AW is not NULL, cannot add new AW\n");
         return;
     }
 
@@ -120,12 +121,15 @@ static bool gsi_scheduler_null_remove_vm(void *sched_ptr,
 
     if ( sched_ptr_null->current_vm == NULL )
     {
-        printk(XENLOG_ERR "current_vm is NULL, cannot remove\n");
+        printk(XENLOG_ERR "GSI%u: no active AW to remove\n",
+               sched_ptr_null->gsi->idx);
         return false;
     }
     if ( sched_ptr_null->current_vm != remove_vm )
     {
-        printk(XENLOG_ERR "current_vm != remove_vm\n");
+        printk(XENLOG_ERR "GSI%u: remove mismatch, active=AW%u req=AW%u\n",
+               sched_ptr_null->gsi->idx,
+               sched_ptr_null->current_vm->aw, remove_vm->aw);
         return false;
     }
 
@@ -141,7 +145,7 @@ static bool gsi_scheduler_null_remove_vm(void *sched_ptr,
     {
         if ( remove_active_vm(sched_ptr_null) )
         {
-            printk(XENLOG_ERR "Failed to remove active VM\n");
+            printk(XENLOG_ERR "Failed to remove active AW\n");
             return false;
         }
     }
