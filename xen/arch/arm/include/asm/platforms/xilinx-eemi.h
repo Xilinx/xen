@@ -134,6 +134,78 @@ enum pm_ioctl_id {
     IOCTL_REGISTER_SGI = 25,
 };
 
+/*
+ * Module feature check API ID. Each module's feature check is issued as
+ * EEMI_FID((module_id << 8) | PM_API_FEATURES).
+ * See Linux: include/linux/firmware/xlnx-zynqmp.h
+ */
+#define PM_API_FEATURES 0
+
+/*
+ * XilSECURE API IDs (module 0x5).
+ * See Linux: include/linux/firmware/xlnx-zynqmp-crypto.h
+ */
+enum xsecure_id {
+    XSECURE_API_FEATURES = 0x500,
+    XSECURE_API_RSA_SIGN_VERIFY = 0x501,
+    XSECURE_API_RSA_PUBLIC_ENCRYPT,
+    XSECURE_API_RSA_PRIVATE_DECRYPT,
+    XSECURE_API_SHA3_UPDATE,
+    XSECURE_API_ELLIPTIC_VALIDATE_KEY = 0x507,
+    XSECURE_API_ELLIPTIC_VERIFY_SIGN,
+    XSECURE_API_AES_INIT,
+    XSECURE_API_AES_OP_INIT,
+    XSECURE_API_AES_UPDATE_AAD,
+    XSECURE_API_AES_ENCRYPT_UPDATE,
+    XSECURE_API_AES_ENCRYPT_FINAL,
+    XSECURE_API_AES_DECRYPT_UPDATE,
+    XSECURE_API_AES_DECRYPT_FINAL,
+    XSECURE_API_AES_KEY_ZERO,
+    XSECURE_API_AES_WRITE_KEY = 0x511,
+};
+
+/*
+ * XilPUF API IDs (module 0xC).
+ * See Linux: include/linux/firmware/xlnx-zynqmp-crypto.h
+ */
+enum xpuf_id {
+    XPUF_API_FEATURES = 0xc00,
+    XPUF_API_PUF_REGISTRATION = 0xc01,
+    XPUF_API_PUF_REGENERATION,
+    XPUF_API_PUF_CLEAR_PUF_ID = 0xc03,
+};
+
+/*
+ * XilNVM BBRAM and eFuse API IDs (module 0xB).
+ * See Linux: include/linux/firmware/xlnx-zynqmp-nvm.h
+ *            drivers/nvmem/xlnx_secure_config.c (eFuse write APIs)
+ */
+enum xilnvm_id {
+    XILNVM_API_FEATURES = 0xB00,
+    PM_BBRAM_WRITE_KEY = 0xB01,
+    PM_BBRAM_ZEROIZE,
+    PM_BBRAM_WRITE_USERDATA,
+    PM_BBRAM_READ_USERDATA,
+    PM_BBRAM_LOCK_USERDATA = 0xB05,
+};
+
+enum efuse_id {
+    PM_EFUSE_READ_VERSAL = 0xB17,
+    PM_EFUSE_WRITE_IV_ACCESS_VERSAL = 0xB18,
+    PM_EFUSE_WRITE_MISC1_ACCESS_VERSAL,
+    PM_EFUSE_WRITE_PUF_ACCESS_VERSAL,
+    PM_EFUSE_WRITE_OFFCHIP_ACCESS_VERSAL,
+    PM_EFUSE_WRITE_USER_ACCESS_VERSAL,
+    PM_EFUSE_WRITE_REVOCATIONID_ACCESS_VERSAL,
+    PM_EFUSE_WRITE_PPK_ACCESS_VERSAL,
+    PM_EFUSE_WRITE_ANLG_TRIM_ACCESS_VERSAL,
+    PM_EFUSE_WRITE_BOOT_ENV_CTRL_ACCESS_VERSAL,
+    PM_EFUSE_WRITE_MISC_CTRL_ACCESS_VERSAL,
+    PM_EFUSE_WRITE_SECURITY_CTRL_ACCESS_VERSAL,
+    PM_EFUSE_WRITE_SECURITY_MISC0_ACCESS_VERSAL,
+    PM_EFUSE_WRITE_AES_KEYS_ACCESS_VERSAL = 0xB24,
+};
+
 /**
  * @XST_PM_SUCCESS:		Success
  * @XST_PM_ARGS:		illegal arguments provided (deprecated)

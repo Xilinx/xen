@@ -557,6 +557,22 @@ bool xilinx_eemi(struct cpu_user_regs *regs, const uint32_t fid,
         ret = XST_PM_NO_ACCESS;
         goto done;
 
+    /*
+     * XilSECURE, XilNVM (BBRAM/eFuse) and XilPUF calls.
+     * Exclusive to the hardware domain.
+     */
+    case EEMI_FID(XSECURE_API_FEATURES)...EEMI_FID(XSECURE_API_AES_WRITE_KEY):
+    case EEMI_FID(XILNVM_API_FEATURES)...EEMI_FID(PM_BBRAM_LOCK_USERDATA):
+    case EEMI_FID(PM_EFUSE_READ_VERSAL)...EEMI_FID(PM_EFUSE_WRITE_AES_KEYS_ACCESS_VERSAL):
+    case EEMI_FID(XPUF_API_FEATURES)...EEMI_FID(XPUF_API_PUF_CLEAR_PUF_ID):
+        if ( !is_hardware_domain(current->domain) )
+        {
+            gprintk(XENLOG_WARNING, "eemi: fn=%u No access\n", pm_fn);
+            ret = XST_PM_NO_ACCESS;
+            goto done;
+        }
+        goto forward_to_fw;
+
     case IPI_MAILBOX_FID(IPI_MAILBOX_OPEN):
     case IPI_MAILBOX_FID(IPI_MAILBOX_RELEASE):
     case IPI_MAILBOX_FID(IPI_MAILBOX_STATUS_ENQUIRY):
