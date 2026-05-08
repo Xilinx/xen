@@ -113,7 +113,7 @@ static void pl011_interrupt(int irq, void *data)
 static void __init pl011_init_preirq(struct serial_port *port)
 {
     struct pl011 *uart = port->uart;
-    unsigned int cr;
+    unsigned int cr, i;
 
     /* No interrupts, please. */
     pl011_write(uart, IMSC, 0);
@@ -135,6 +135,24 @@ static void __init pl011_init_preirq(struct serial_port *port)
     /* Mask and clear the interrupts */
     pl011_write(uart, IMSC, 0);
     pl011_write(uart, ICR, ALLI);
+
+    /*
+     * RXI is asserted only when the RX FIFO transitions from below to above
+     * the trigger threshold. If the RX FIFO is already full to the threshold
+     * this can't happen and RXI will now be stuck. Drain the RX FIFO explicitly
+     * to fix this.
+     *
+     * Worst case fill: FIFO full i.e. 32B. We need to drain below the default
+     * threshold i.e. half FIFO size, so limiting to 32 iterations gives us
+     * also some slack.
+     */
+    for ( i = 0; i < 32; i++ )
+    {
+        if ( pl011_read(uart, FR) & RXFE )
+            break;
+
+        (void)pl011_read(uart, DR);
+    }
 
     if ( !uart->sbsa )
     {
