@@ -654,6 +654,7 @@ static int reconnect_domain(struct domain *d)
 	syslog(LOG_INFO, "Reconnect: new lport %d\n", rc);
 	d->port = rc;
 	domain_conn_reset(d);
+	d->shutdown = false;
 	d->interface->connection = XENSTORE_CONNECTED;
 	xenevtchn_notify(xce_handle, d->port);
 	fire_special_watches("@introduceDomain");
