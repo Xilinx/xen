@@ -2631,6 +2631,21 @@ out:
     libxl__ao_complete(egc, ao, rc);
 }
 
+int libxl_domain_full_reset(libxl_ctx *ctx, uint32_t domid)
+{
+    GC_INIT(ctx);
+    int rc;
+
+    rc = xc_domain_full_reset(ctx->xch, domid);
+    if (rc < 0) {
+        LOGED(ERROR, domid, "Performing domain full reset");
+        rc = ERROR_FAIL;
+    }
+
+    GC_FREE;
+    return rc;
+}
+
 /*
  * Local variables:
  * mode: C

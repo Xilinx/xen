@@ -682,6 +682,12 @@
 #define LIBXL_HAVE_XENSTORE_FEATURE_MASK 1
 
 /*
+ * LIBXL_HAVE_DOMAIN_FULL_RESET indicates the presence of
+ * libxl_domain_full_reset().
+ */
+#define LIBXL_HAVE_DOMAIN_FULL_RESET
+
+/*
  * libxl memory management
  *
  * From the point of view of the application (ie, libxl's caller),
@@ -2007,6 +2013,7 @@ static inline int libxl_domain_unpause_0x041200(
 #define libxl_domain_unpause libxl_domain_unpause_0x041200
 #endif
 
+int libxl_domain_full_reset(libxl_ctx *ctx, uint32_t domid);
 
 int libxl_domain_core_dump(libxl_ctx *ctx, uint32_t domid,
                            const char *filename,

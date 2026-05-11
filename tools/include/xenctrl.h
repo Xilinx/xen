@@ -2678,6 +2678,16 @@ int xc_dt_overlay_domain(xc_interface *xch, void *overlay_fdt,
 /* Compat shims */
 #include "xenctrl_compat.h"
 
+/**
+ * Performs a full reset to a domain using hypercall
+ * __HYPERVISOR_dom_full_reset.
+ *
+ * @parm xch a handle to an open hypervisor interface
+ * @parm domid the domain id to reset
+ * @return 0 on success, -1 on failure.
+ */
+int xc_domain_full_reset(xc_interface *xch, uint32_t domid);
+
 #endif /* XENCTRL_H */
 
 /*

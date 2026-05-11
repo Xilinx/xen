@@ -2249,6 +2249,12 @@ out:
 
     return ret;
 }
+
+int xc_domain_full_reset(xc_interface *xch, uint32_t domid)
+{
+    return xencall1(xch->xcall, __HYPERVISOR_dom_full_reset, domid);
+}
+
 /*
  * Local variables:
  * mode: C
