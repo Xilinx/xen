@@ -301,8 +301,6 @@ static void vcpu_check_shutdown(struct vcpu *v)
 {
     struct domain *d = v->domain;
 
-    spin_lock(&d->shutdown_lock);
-
     if ( d->is_shutting_down )
     {
         if ( !v->paused_for_shutdown )
@@ -311,8 +309,6 @@ static void vcpu_check_shutdown(struct vcpu *v)
         v->defer_shutdown = 0;
         __domain_finalise_shutdown(d);
     }
-
-    spin_unlock(&d->shutdown_lock);
 }
 
 static void vcpu_info_reset(struct vcpu *v)
@@ -483,7 +479,9 @@ struct vcpu *vcpu_create(struct domain *d, unsigned int vcpu_id)
     }
 
     /* Must be called after making new vcpu visible to for_each_vcpu(). */
+    spin_lock(&d->shutdown_lock);
     vcpu_check_shutdown(v);
+    spin_unlock(&d->shutdown_lock);
 
     return v;
 
@@ -1419,23 +1417,36 @@ void domain_resume(struct domain *d)
 
 int vcpu_start_shutdown_deferral(struct vcpu *v)
 {
-    if ( v->defer_shutdown )
-        return 1;
+    struct domain *d = v->domain;
+    bool defer_shutdown;
 
-    v->defer_shutdown = 1;
-    smp_mb(); /* set deferral status /then/ check for shutdown */
-    if ( unlikely(v->domain->is_shutting_down) )
-        vcpu_check_shutdown(v);
+    spin_lock(&d->shutdown_lock);
+    if ( !v->defer_shutdown )
+    {
+        v->defer_shutdown = 1;
+        smp_mb(); /* set deferral status /then/ check for shutdown */
+        if ( unlikely(d->is_shutting_down) )
+            vcpu_check_shutdown(v);
+    }
+    defer_shutdown = v->defer_shutdown;
+    spin_unlock(&d->shutdown_lock);
 
-    return v->defer_shutdown;
+    return defer_shutdown;
 }
 
 void vcpu_end_shutdown_deferral(struct vcpu *v)
 {
-    v->defer_shutdown = 0;
-    smp_mb(); /* clear deferral status /then/ check for shutdown */
-    if ( unlikely(v->domain->is_shutting_down) )
-        vcpu_check_shutdown(v);
+    struct domain *d = v->domain;
+
+    spin_lock(&d->shutdown_lock);
+    if ( v->defer_shutdown )
+    {
+        v->defer_shutdown = 0;
+        smp_mb(); /* clear deferral status /then/ check for shutdown */
+        if ( unlikely(d->is_shutting_down) )
+            vcpu_check_shutdown(v);
+    }
+    spin_unlock(&d->shutdown_lock);
 }
 
 /* Complete domain destroy after RCU readers are not holding old references. */
