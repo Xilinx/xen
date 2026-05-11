@@ -517,6 +517,18 @@ static domain_restart_type handle_domain_death(uint32_t *r_domid,
         restart = DOMAIN_RESTART_SOFT_RESET;
         break;
 
+    case LIBXL_ACTION_ON_SHUTDOWN_FULL_RESET:
+        LOG("Domain %d full reset", *r_domid);
+        if ( libxl_domain_full_reset(ctx, *r_domid) ) {
+            LOG("Domain %d full reset failed. Destroying domain.",
+                *r_domid);
+            libxl_domain_destroy(ctx, *r_domid, 0);
+            *r_domid = INVALID_DOMID;
+        } else {
+            restart = DOMAIN_RESTART_FULL_RESET;
+        }
+        break;
+
     case LIBXL_ACTION_ON_SHUTDOWN_COREDUMP_DESTROY:
     case LIBXL_ACTION_ON_SHUTDOWN_COREDUMP_RESTART:
         /* Already handled these above. */
@@ -1138,6 +1150,10 @@ start:
                 libxl_event_free(ctx, event);
                 ret = 0;
                 goto out;
+
+            case DOMAIN_RESTART_FULL_RESET:
+                LOG("Full reset - continue without doing anything");
+                /* fallthrough */
 
             case DOMAIN_RESTART_SUSPENDED:
                 LOG("Continue waiting for domain %u", domid);

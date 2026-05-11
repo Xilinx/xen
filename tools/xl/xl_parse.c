@@ -66,6 +66,8 @@ static const char *action_on_shutdown_names[] = {
     [LIBXL_ACTION_ON_SHUTDOWN_COREDUMP_RESTART] = "coredump-restart",
 
     [LIBXL_ACTION_ON_SHUTDOWN_SOFT_RESET] = "soft-reset",
+
+    [LIBXL_ACTION_ON_SHUTDOWN_FULL_RESET] = "full-reset",
 };
 
 const char *get_action_on_shutdown_name(libxl_action_on_shutdown a)

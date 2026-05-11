@@ -393,6 +393,10 @@ Reset all Xen specific interfaces for the Xen-aware HVM domain allowing
 it to reestablish these interfaces and continue executing the domain. PV
 and non-Xen-aware HVM guests are not supported.
 
+=item B<full-reset>
+
+Perform a domain full reset. Only dom0less guests are supported.
+
 =back
 
 The default for B<on_poweroff> is B<destroy>.

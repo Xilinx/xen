@@ -169,6 +169,8 @@ libxl_action_on_shutdown = Enumeration("action_on_shutdown", [
     (6, "COREDUMP_RESTART"),
 
     (7, "SOFT_RESET"),
+
+    (8, "FULL_RESET"),
     ], init_val = "LIBXL_ACTION_ON_SHUTDOWN_DESTROY")
 
 libxl_trigger = Enumeration("trigger", [

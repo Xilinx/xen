@@ -304,6 +304,7 @@ typedef enum {
     DOMAIN_RESTART_RENAME,       /* Domain should be renamed and restarted */
     DOMAIN_RESTART_SOFT_RESET,   /* Soft reset should be performed */
     DOMAIN_RESTART_SUSPENDED,    /* Domain suspended - keep looping */
+    DOMAIN_RESTART_FULL_RESET,   /* Keeps running without doing anything. */
 } domain_restart_type;
 
 extern void printf_info_sexp(int domid, libxl_domain_config *d_config, FILE *fh);
