@@ -64,6 +64,9 @@ boolean_param("sched_smt_power_savings", sched_smt_power_savings);
 int sched_ratelimit_us = SCHED_DEFAULT_RATELIMIT_US;
 integer_param("sched_ratelimit_us", sched_ratelimit_us);
 
+static bool __read_mostly opt_force_domain_full_reset = false;
+boolean_param("force-domain-full-reset", opt_force_domain_full_reset);
+
 /* Number of vcpus per struct sched_unit. */
 bool __read_mostly sched_disable_smt_switching;
 cpumask_t sched_res_mask;
@@ -1919,6 +1922,14 @@ ret_t do_sched_op(int cmd, XEN_GUEST_HANDLE_PARAM(void) arg)
 
         TRACE_TIME(TRC_SCHED_SHUTDOWN, current->domain->domain_id,
                    current->vcpu_id, sched_shutdown.reason);
+
+#ifdef CONFIG_DOMAIN_FULL_RESET
+        if ( opt_force_domain_full_reset &&
+             is_domain_resettable(current->domain) &&
+             (sched_shutdown.reason == SHUTDOWN_reboot) )
+            return do_dom_full_reset(current->domain->domain_id);
+#endif
+
         ret = domain_shutdown(current->domain, (u8)sched_shutdown.reason);
 
         break;

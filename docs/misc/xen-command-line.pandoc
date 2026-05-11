@@ -1338,6 +1338,16 @@ requirement can be relaxed.  This option is particularly useful for nested
 virtualization, to allow the L1 hypervisor to use EPT even if the L0 hypervisor
 does not provide `VM_ENTRY_LOAD_GUEST_PAT`.
 
+### force-domain-full-reset
+> `= <boolean>`
+
+> Default: `false`
+
+When set, a domain issuing SCHEDOP_shutdown with shutdown reason
+SHUTDOWN_reboot will perform a domain full-reset.  This bypasses normal
+toolstack handling of domain shutdown.  It only affects domains created as
+resettable.
+
 ### fred (x86)
 > `= <bool>`
 
