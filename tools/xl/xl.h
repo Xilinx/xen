@@ -138,6 +138,7 @@ int main_unpause(int argc, char **argv);
 int main_destroy(int argc, char **argv);
 int main_shutdown(int argc, char **argv);
 int main_reboot(int argc, char **argv);
+int main_domain_full_reset(int argc, char **argv);
 int main_list(int argc, char **argv);
 int main_vm_list(int argc, char **argv);
 #ifdef LIBXL_HAVE_DT_OVERLAY

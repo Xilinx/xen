@@ -318,6 +318,29 @@ int main_reboot(int argc, char **argv)
     return main_shutdown_or_reboot(1, argc, argv);
 }
 
+int main_domain_full_reset(int argc, char **argv)
+{
+    uint32_t domid;
+    int opt;
+
+    SWITCH_FOREACH_OPT(opt, "", NULL, "full-reset", 1) {
+        /* No options */
+    }
+
+    if (!argv[optind]) {
+        fprintf(stderr, "You must specify a domain id.\n\n");
+        return EXIT_FAILURE;
+    }
+
+    domid = find_domain(argv[optind]);
+    fprintf(stderr, "Domain %d full reset\n", domid);
+
+    if ( libxl_domain_full_reset(ctx, domid) )
+        return EXIT_FAILURE;
+
+    return EXIT_SUCCESS;
+}
+
 static void evdisable_disk_ejects(libxl_evgen_disk_eject **diskws,
                                  int num_disks)
 {

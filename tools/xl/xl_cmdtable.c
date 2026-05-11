@@ -88,6 +88,11 @@ const struct cmd_spec cmd_table[] = {
       "                        no PV drivers.\n"
       "-w, --wait              Wait for guest(s) to reboot.\n"
     },
+    { "full-reset",
+      &main_domain_full_reset, 0, 1,
+      "Issue a full reset to a domain",
+      "<Domain>",
+    },
     { "pci-attach",
       &main_pciattach, 0, 1,
       "Insert a new pass-through pci device",

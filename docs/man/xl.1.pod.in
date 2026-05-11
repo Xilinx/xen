@@ -285,6 +285,12 @@ I<filename> specified, without pausing the domain.  The dump file will
 be written to a distribution specific directory for dump files, for example:
 @XEN_DUMP_DIR@/dump.
 
+=item B<full-reset> I<domain-id>
+
+Full reset a domain.  B<full-reset> resets a domain while retaining the
+current resource allcations, such as memory and vcpus.  It is like a
+hard reboot for the domain.
+
 =item B<help> [I<--long>]
 
 Displays the short help message (i.e. common commands) by default.
