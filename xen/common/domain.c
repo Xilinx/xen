@@ -1874,7 +1874,8 @@ int vcpu_state_reset(struct vcpu *v)
     v->io.completion = VIO_no_completion;
     v->io.suspended = false;
 #endif
-    v->paused_for_shutdown = 0;
+
+    ASSERT(!v->paused_for_shutdown);
 
     clear_bit(_VPF_in_reset, &v->pause_flags);
 
@@ -2752,6 +2753,7 @@ static int shared_info_reset(struct domain *d)
 
 static long domain_full_reset(struct domain *d)
 {
+    struct vcpu *v;
     int rc;
     long ret = 0;
 
@@ -2761,36 +2763,29 @@ static long domain_full_reset(struct domain *d)
         return -EINVAL;
     }
 
-    domain_lock(d);
-
     /* Self reset from a secondary cpu is not supported as for now */
     if ( d == current->domain && current != d->vcpu[0] )
     {
         gprintk(XENLOG_ERR,
                 "self reset from secondary vCPU not supported\n");
-        ret = -EOPNOTSUPP;
-        goto out;
+        return -EOPNOTSUPP;
     }
 
-    /* No previous reset operation in progress */
-    if ( !ACCESS_ONCE(d->is_shutting_down) )
+    domain_lock(d);
+
+    /*
+     * Check whether there is already a full-reset in progress.
+     * Use d->teardown.vcpu to hold the vcpu owning the full reset.
+     * If d->teardown.vcpu is NULL, then there's no pending full-reset.
+     */
+    if ( d->teardown.vcpu && d->teardown.vcpu != current )
     {
-        ACCESS_ONCE(d->is_shutting_down) = true;
-        /*
-         * Pause all VCPUs except current.
-         * For self-reset, current VCPU remains running to execute the reset.
-         * For external reset (toolstack), all VCPUs are paused.
-         * domain_pause_except_self() handles both cases correctly.
-         */
-        printk(XENLOG_G_INFO "%pd: %s: pausing domain\n", d, __func__);
-        rc = domain_pause_except_self(d);
-        if ( rc )
-        {
-            ACCESS_ONCE(d->is_shutting_down) = false;
-            ret = rc;
-            goto out;
-        }
+        gprintk(XENLOG_ERR, "%s: %pd is already resetting\n", __func__, d);
+        domain_unlock(d);
+        return -EBUSY;
     }
+    if ( !d->teardown.vcpu )
+        d->teardown.vcpu = current;
 
     switch ( d->teardown.val )
     {
@@ -2809,6 +2804,60 @@ static long domain_full_reset(struct domain *d)
 
     case PROG_none:
         BUILD_BUG_ON(PROG_none != 0);
+
+        /*
+         * Pause all VCPUs except current.
+         * For self-reset, current VCPU remains running to execute the reset.
+         * For external reset (toolstack), all VCPUs are paused.
+         * domain_pause_except_self() handles both cases correctly.
+         */
+        printk(XENLOG_G_INFO "%pd: %s: pausing domain\n", d, __func__);
+        rc = domain_pause_except_self(d);
+        if ( rc )
+        {
+            ret = rc;
+            goto out;
+        }
+
+        spin_lock(&d->shutdown_lock);
+        if ( d->is_shutting_down && !d->is_shut_down )
+        {
+            gprintk(XENLOG_ERR, "%s: %pd is shutting down\n", __func__, d);
+            spin_unlock(&d->shutdown_lock);
+            domain_unpause_except_self(d);
+            d->teardown.vcpu = NULL;
+            domain_unlock(d);
+            return -EBUSY;
+        }
+        else if ( !d->is_shutting_down )
+        {
+            d->is_shutting_down = true;
+            smp_mb(); /* set shutdown status then check for per-cpu deferrals */
+            for_each_vcpu ( d, v )
+            {
+                if ( v->defer_shutdown )
+                {
+                    gprintk(XENLOG_ERR, "%s: %pd: %pv deferred shutdown\n",
+                            __func__, d, v);
+                    d->is_shutting_down = false;
+                    spin_unlock(&d->shutdown_lock);
+                    domain_unpause_except_self(d);
+                    d->teardown.vcpu = NULL;
+                    domain_unlock(d);
+                    return -EBUSY;
+                }
+            }
+        }
+        /* Clear early shutdown state so that does not trigger any xl action */
+        d->is_shut_down = false;
+        d->shutdown_code = SHUTDOWN_CODE_INVALID;
+        for_each_vcpu ( d, v )
+        {
+            if ( v->paused_for_shutdown )
+                vcpu_unpause(v);
+            v->paused_for_shutdown = 0;
+        }
+        spin_unlock(&d->shutdown_lock);
 
         ioreq_server_disable_all(d);
 
@@ -2870,28 +2919,26 @@ out:
      */
     if ( ret != -ERESTART )
     {
+        spin_lock(&d->shutdown_lock);
+        d->is_shutting_down = false;
+        spin_unlock(&d->shutdown_lock);
+
+        d->teardown.val = 0;
+        d->teardown.arch_val = 0;
+        d->teardown.vcpu = NULL;
+
         if ( !ret )
         {
             domain_changed_state(d);
             send_global_virq(VIRQ_DOM_EXC);
         }
-
-        d->teardown.val = 0;
-
-        /*
-         * Unpause domain if pause was done.
-         * is_shutting_down tracks whether domain_pause_except_self succeeded.
-         */
-        if ( ACCESS_ONCE(d->is_shutting_down) )
-            domain_unpause_except_self(d);
-
-        ACCESS_ONCE(d->is_shutting_down) = false;
-
-        if ( ret < 0 )
+        else
         {
             printk(XENLOG_ERR "%pd: %s: failed (%ld)\n", d, __func__, ret);
             domain_crash(d);
         }
+
+        domain_unpause_except_self(d);
     }
 
     domain_unlock(d);
