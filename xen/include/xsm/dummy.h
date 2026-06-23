@@ -711,6 +711,13 @@ static XSM_INLINE int cf_check xsm_mem_sharing(XSM_DEFAULT_ARG struct domain *d)
 }
 #endif
 
+static XSM_INLINE int cf_check xsm_map_hmem_foreign(
+    XSM_DEFAULT_ARG struct domain *d, struct domain *t)
+{
+    XSM_ASSERT_ACTION(XSM_DM_PRIV);
+    return xsm_default_action(action, d, t);
+}
+
 static XSM_INLINE int cf_check xsm_platform_op(XSM_DEFAULT_ARG uint32_t op)
 {
     XSM_ASSERT_ACTION(XSM_HW_PRIV);

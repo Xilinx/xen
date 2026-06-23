@@ -358,6 +358,46 @@ int xendevicemodel_unmap_pcidev_from_ioreq_server(
     return xendevicemodel_op(dmod, domid, 1, &op, sizeof(op));
 }
 
+int xendevicemodel_map_hmem_to_ioreq_server(
+    xendevicemodel_handle *dmod, domid_t domid, ioservid_t id,
+    uint64_t start, uint64_t last)
+{
+    struct xen_dm_op op;
+    struct xen_dm_op_ioreq_server_range *data;
+
+    memset(&op, 0, sizeof(op));
+
+    op.op = XEN_DMOP_map_io_range_to_ioreq_server;
+    data = &op.u.map_io_range_to_ioreq_server;
+
+    data->id = id;
+    data->type = XEN_DMOP_IO_RANGE_HMEM;
+    data->start = start;
+    data->end = last;
+
+    return xendevicemodel_op(dmod, domid, 1, &op, sizeof(op));
+}
+
+int xendevicemodel_unmap_hmem_from_ioreq_server(
+    xendevicemodel_handle *dmod, domid_t domid, ioservid_t id,
+    uint64_t start, uint64_t last)
+{
+    struct xen_dm_op op;
+    struct xen_dm_op_ioreq_server_range *data;
+
+    memset(&op, 0, sizeof(op));
+
+    op.op = XEN_DMOP_unmap_io_range_from_ioreq_server;
+    data = &op.u.unmap_io_range_from_ioreq_server;
+
+    data->id = id;
+    data->type = XEN_DMOP_IO_RANGE_HMEM;
+    data->start = start;
+    data->end = last;
+
+    return xendevicemodel_op(dmod, domid, 1, &op, sizeof(op));
+}
+
 int xendevicemodel_destroy_ioreq_server(
     xendevicemodel_handle *dmod, domid_t domid, ioservid_t id)
 {

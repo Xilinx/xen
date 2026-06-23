@@ -100,6 +100,16 @@ typedef struct privcmd_pcidev_get_gsi {
 	__u32 gsi;
 } privcmd_pcidev_get_gsi_t;
 
+typedef struct privcmd_hmem_op {
+	domid_t dom;
+	__u8 op;
+	__u8 flags;
+	__u32 num;
+	__u64 hva;
+#define XEN_INVALID_GFN ((__u64)-1)
+	__u64 gfn;
+} privcmd_hmem_op_t;
+
 /*
  * @cmd: IOCTL_PRIVCMD_HYPERCALL
  * @arg: &privcmd_hypercall_t
@@ -121,6 +131,8 @@ typedef struct privcmd_pcidev_get_gsi {
 	_IOC(_IOC_NONE, 'P', 7, sizeof(privcmd_mmap_resource_t))
 #define IOCTL_PRIVCMD_PCIDEV_GET_GSI			\
 	_IOC(_IOC_NONE, 'P', 10, sizeof(privcmd_pcidev_get_gsi_t))
+#define IOCTL_PRIVCMD_HMEM_OP					\
+	_IOC(_IOC_NONE, 'P', 11, sizeof(privcmd_hmem_op_t))
 #define IOCTL_PRIVCMD_UNIMPLEMENTED				\
 	_IOC(_IOC_NONE, 'P', 0xFF, 0)
 

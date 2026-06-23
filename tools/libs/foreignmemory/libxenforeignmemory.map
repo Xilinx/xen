@@ -22,4 +22,7 @@ VERS_1.3 {
 VERS_1.4 {
 	global:
 		xenforeignmemory_resource_size;
+		xenhmem_map;
+		xenhmem_unmap;
+		xenhmem_sync;
 } VERS_1.3;

@@ -16,6 +16,8 @@
 #include <xen/vm_event.h>
 #include <xen/event.h>
 #include <xen/grant_table.h>
+#include <xen/guest_access.h>
+#include <xen/iocap.h>
 #include <xen/ioreq.h>
 #include <xen/param.h>
 #include <public/vm_event.h>
@@ -541,7 +543,11 @@ p2m_remove_entry(struct p2m_domain *p2m, gfn_t gfn, mfn_t mfn,
         }
     }
 
-    ioreq_request_mapcache_invalidate(p2m->domain);
+   /* Qemu Error: Locked DMA mapping while invalidating mapcache!
+      00000000000000d0 -> 0x7fa2569ee4c0 is present.
+      In qemu address_space_map sets dma=1 but is foreign mapped */
+   if ( p2m_is_ram(t) )
+       ioreq_request_mapcache_invalidate(p2m->domain);
 
     rc = p2m_set_entry(p2m, gfn, INVALID_MFN, page_order, p2m_invalid,
                        p2m->default_access);
@@ -2067,6 +2073,263 @@ int xenmem_add_to_physmap_one(
 
     if ( page )
         put_page(page);
+
+    return rc;
+}
+
+static int guest_physmap_remove_range(struct domain *d, unsigned long gfn,
+                               unsigned int nr_gfns)
+{
+    p2m_type_t p2mt;
+    mfn_t mfn;
+    int i, rc = 0;
+
+    for ( i = 0; i < nr_gfns; i++ )
+    {
+        mfn = get_gfn(d, gfn, &p2mt);
+        if ( p2mt == p2m_mmio_direct )
+        {
+            int rc2;
+
+            rc = unmap_mmio_regions(d, _gfn(gfn), 1, mfn);
+            rc2 = iomem_deny_access(d, mfn_x(mfn), mfn_x(mfn));
+            rc = rc ?: rc2;
+            if ( rc )
+                gdprintk(XENLOG_ERR,
+                         "dom%u: unmap gfn=0x%lx from iomem mfn=0x%lx failed\n",
+                         d->domain_id, gfn, mfn_x(mfn));
+        }
+        else if ( p2m_is_foreign(p2mt) )
+        {
+            rc = p2m_remove_page(d, _gfn(gfn), mfn, 0);
+            if ( rc )
+                gdprintk(XENLOG_ERR,
+                         "dom%u: unmap gfn=0x%lx from mfn=0x%lx failed\n",
+                         d->domain_id, gfn, mfn_x(mfn));
+        }
+        else
+        {
+            gdprintk(XENLOG_ERR,
+                     "dom%u: hmem mapped gfn=0x%lx is not foreign/mmio!\n\n",
+                     d->domain_id, gfn);
+            rc = -EINVAL;
+        }
+        put_gfn(d, gfn);
+
+        if ( rc )
+            break;
+
+        gfn++;
+    }
+
+    return rc;
+}
+
+static int p2m_add_hmem(struct domain *tdom, unsigned long fgfn,
+                        unsigned long gfn, domid_t foreigndom)
+{
+    p2m_type_t p2mt, p2mt_prev;
+    mfn_t prev_mfn, mfn;
+    struct page_info *page;
+    int rc;
+    struct domain *fdom;
+
+    if ( !arch_acquire_resource_check(tdom) )
+        return -EPERM;
+
+    if ( gfn_eq(_gfn(fgfn), INVALID_GFN) )
+    {
+        return guest_physmap_remove_range(tdom, gfn, 1);
+    }
+
+    fdom = rcu_lock_domain_by_id(foreigndom);
+    if ( !fdom )
+        return -EINVAL;
+
+    rc = -EINVAL;
+    if ( tdom == fdom )
+        goto out;
+
+    /*
+     * Take a refcnt on the mfn. NB: following supported for foreign mapping:
+     *     ram_rw | ram_logdirty | ram_ro | paging_out.
+     */
+    page = get_page_from_gfn(fdom, fgfn, &p2mt, P2M_ALLOC);
+    if ( !page )
+    {
+        rc = -EINVAL;
+        if ( p2mt == p2m_mmio_direct )
+        {
+            struct p2m_domain *p2m = p2m_get_hostp2m(fdom);
+
+            p2m_read_lock(p2m);
+            mfn = get_gfn_query_unlocked(fdom, fgfn, &p2mt);
+
+            prev_mfn = get_gfn(tdom, gfn, &p2mt_prev);
+            if ( mfn_valid(prev_mfn) )
+            {
+                if ( mfn_eq(mfn, prev_mfn) )
+                {
+                    gdprintk(XENLOG_WARNING,
+                             "%s: already mmio mapped gpfn=0x%lx\n",
+                             __func__, gfn);
+                    rc = 0;
+                }
+                else
+                {
+                    gdprintk(XENLOG_WARNING,
+                             "%s: gpfn=%#lx prev mapped mfn=%#lx p2mt=%u\n",
+                             __func__, gfn, mfn_x(prev_mfn), p2mt_prev);
+                }
+            }
+            else
+            {
+                rc = iomem_permit_access(tdom, mfn_x(mfn), mfn_x(mfn));
+                if ( !rc )
+                    rc = map_mmio_regions(tdom, _gfn(gfn), 1, mfn, CACHEABILITY_DEVMEM);
+                if ( rc )
+                    gdprintk(XENLOG_ERR,
+                             "dom%u: map gfn=0x%lx to iomem mfn=0x%lx failed\n",
+                             tdom->domain_id, gfn, mfn_x(mfn));
+            }
+            put_gfn(tdom, gfn);
+            p2m_read_unlock(p2m);
+        }
+        goto out;
+    }
+
+    if ( !p2m_is_ram(p2mt) || p2m_is_shared(p2mt) || p2m_is_hole(p2mt) )
+    {
+        rc = -EINVAL;
+        goto put_one;
+    }
+    mfn = page_to_mfn(page);
+
+    /* Remove previously mapped page if it is present. */
+    prev_mfn = get_gfn(tdom, gfn, &p2mt_prev);
+    if ( mfn_valid(prev_mfn) )
+    {
+        if ( mfn_eq(mfn, prev_mfn) ) {
+            gdprintk(XENLOG_WARNING,
+                     "already mapped gfn=0x%lx mfn=0x%lx p2mt=%u\n",
+                     gfn, mfn_x(mfn), p2mt_prev);
+            rc = 0;
+            goto put_both;
+        }
+        if ( p2m_is_special(p2mt_prev) )
+        {
+            /* Special pages are simply unhooked from this phys slot */
+            if ( p2mt_prev == p2m_mmio_direct )
+            {
+                int rc2;
+
+                rc = unmap_mmio_regions(tdom, _gfn(gfn), 1, prev_mfn);
+                if ( rc )
+                    gdprintk(XENLOG_WARNING,
+                             "prev: unmap mmio failed (%d)\n", rc);
+                rc2 = iomem_deny_access(tdom, mfn_x(prev_mfn), mfn_x(prev_mfn));
+                if ( rc2 )
+                    gdprintk(XENLOG_WARNING,
+                             "prev_mfn: mmio deny access failed (%d)\n", rc2);
+                rc = rc ?: rc2;
+            }
+            else {
+                gdprintk(XENLOG_WARNING,
+                         "gfn=0x%lx: already mapped, remap mfn=0x%lx p2mt=%u\n",
+                         gfn, mfn_x(mfn), p2mt_prev);
+                rc = p2m_remove_page(tdom, _gfn(gfn), prev_mfn, 0);
+            }
+        }
+        else
+            /* Normal domain memory is freed, to avoid leaking memory. */
+            rc = guest_remove_page(tdom, gfn);
+        if ( rc )
+            goto put_both;
+    }
+    /*
+     * Create the new mapping. Can't use p2m_add_page() because it
+     * will update the m2p table which will result in  mfn -> gpfn of dom0
+     * and not fgfn of domU.
+     */
+    rc = set_foreign_p2m_entry(tdom, fdom, gfn, mfn);
+    if ( rc )
+        gdprintk(XENLOG_WARNING, "set_foreign_p2m_entry failed. "
+                 "gfn:%lx mfn:%lx fgfn:%lx td:%d fd:%d\n",
+                 gfn, mfn_x(mfn), fgfn, tdom->domain_id, fdom->domain_id);
+
+put_both:
+    /*
+     * This put_gfn for the above get_gfn for prev_mfn.  We must do this
+     * after set_foreign_p2m_entry so another cpu doesn't populate the gpfn
+     * before us.
+     */
+    put_gfn(tdom, gfn);
+
+put_one:
+    put_page(page);
+
+out:
+    if ( fdom )
+        rcu_unlock_domain(fdom);
+
+    return rc;
+}
+
+#define GUEST_COPY_BATCH 16
+int xenhmem_add_to_physmap(struct domain *d,
+                               struct xen_add_to_physmap_batch *xatpb,
+                               unsigned int extent,
+                               union add_to_physmap_extra extra)
+{
+    struct p2m_domain *p2m = p2m_get_hostp2m(d);
+    xen_ulong_t idxs[GUEST_COPY_BATCH];
+    xen_pfn_t gpfns[GUEST_COPY_BATCH];
+    int errs[GUEST_COPY_BATCH];
+    int rc = 0;
+
+    p2m_lock(p2m);
+
+    while ( xatpb->size > extent )
+    {
+        unsigned int i, nr;
+
+        nr = min_t(unsigned int, xatpb->size - extent, GUEST_COPY_BATCH);
+
+        if ( unlikely(__copy_from_guest_offset(idxs, xatpb->idxs,
+                                               extent, nr)) ||
+             unlikely(__copy_from_guest_offset(gpfns, xatpb->gpfns,
+                                               extent, nr)) )
+        {
+            rc = -EFAULT;
+            break;
+        }
+
+        for ( i = 0; i < nr && rc == 0; i++ )
+        {
+            if ( gfn_eq(_gfn(gpfns[i]), INVALID_GFN) )
+            {
+                rc = -EINVAL;
+                break;
+            }
+
+            errs[i] = p2m_add_hmem(d, idxs[i], gpfns[i], extra.foreign_domid);
+
+            if ( xatpb->size > ++extent && hypercall_preempt_check() )
+                rc = extent;
+        }
+
+        if ( unlikely(__copy_to_guest_offset(xatpb->errs, extent - i,
+                                             errs, i)) )
+        {
+            rc = -EFAULT;
+            break;
+        }
+
+        if ( rc )
+            break;
+    }
+
+    p2m_unlock(p2m);
 
     return rc;
 }

@@ -560,6 +560,11 @@ int xenmem_add_to_physmap_one(struct domain *d, unsigned int space,
 int xenmem_add_to_physmap(struct domain *d, struct xen_add_to_physmap *xatp,
                           unsigned int start);
 
+int xenhmem_add_to_physmap(struct domain *d,
+                           struct xen_add_to_physmap_batch *xatpb,
+                           unsigned int extent,
+                           union add_to_physmap_extra extra);
+
 /* Return 0 on success, or negative on error. */
 int __must_check guest_remove_page(struct domain *d, unsigned long gmfn);
 int __must_check steal_page(struct domain *d, struct page_info *page,

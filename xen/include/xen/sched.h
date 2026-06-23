@@ -155,6 +155,7 @@ enum vio_completion {
 #ifdef CONFIG_X86
     VIO_realmode_completion,
 #endif
+    VIO_hmem_completion,
 };
 
 struct vcpu_io {

@@ -127,6 +127,8 @@ struct xen_dm_op_ioreq_server_range {
 # define XEN_DMOP_IO_RANGE_PORT   0 /* I/O port range */
 # define XEN_DMOP_IO_RANGE_MEMORY 1 /* MMIO range */
 # define XEN_DMOP_IO_RANGE_PCI    2 /* PCI segment/bus/dev/func range */
+# define XEN_DMOP_IO_RANGE_HMEM   3
+# define XEN_DMOP_IO_RANGE_NR     4
     /* IN - inclusive start and end of range */
     uint64_aligned_t start, end;
 };

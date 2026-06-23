@@ -346,6 +346,64 @@ int osdep_xenforeignmemory_map_resource(
     return 0;
 }
 
+#define HMEM_ADD_MAPPING       1
+#define HMEM_REMOVE_MAPPING    2
+#define HMEM_UPDATE_MAPPING    3
+
+int osdep_xenhmem_map(xenforeignmemory_handle *fmem, domid_t domid,
+                      void *hva, xen_pfn_t gfn, size_t npages)
+{
+    privcmd_hmem_op_t ioctlx;
+    int rc, fd = fmem->fd;
+
+    ioctlx.dom = domid;
+    ioctlx.op = HMEM_ADD_MAPPING;
+    ioctlx.flags = 0;
+    ioctlx.num = npages;
+    ioctlx.hva = (unsigned long)hva;
+    ioctlx.gfn = gfn;
+
+    rc = ioctl(fd, IOCTL_PRIVCMD_HMEM_OP, &ioctlx);
+
+    return rc;
+}
+
+int osdep_xenhmem_unmap(xenforeignmemory_handle *fmem, domid_t domid,
+                        void *hva, size_t npages)
+{
+    privcmd_hmem_op_t ioctlx;
+    int rc, fd = fmem->fd;
+
+    ioctlx.dom = domid;
+    ioctlx.op = HMEM_REMOVE_MAPPING;
+    ioctlx.flags = 0;
+    ioctlx.num = npages;
+    ioctlx.hva = (unsigned long)hva;
+    ioctlx.gfn = XEN_INVALID_GFN;
+
+    rc = ioctl(fd, IOCTL_PRIVCMD_HMEM_OP, &ioctlx);
+
+    return rc;
+}
+
+int osdep_xenhmem_sync(xenforeignmemory_handle *fmem, domid_t domid,
+                       void *hva, size_t npages)
+{
+    privcmd_hmem_op_t ioctlx;
+    int rc, fd = fmem->fd;
+
+    ioctlx.dom = domid;
+    ioctlx.op = HMEM_UPDATE_MAPPING;
+    ioctlx.flags = 0;
+    ioctlx.num = npages;
+    ioctlx.hva = (unsigned long)hva;
+    ioctlx.gfn = 0;
+
+    rc = ioctl(fd, IOCTL_PRIVCMD_HMEM_OP, &ioctlx);
+
+    return rc;
+}
+
 /*
  * Local variables:
  * mode: C

@@ -36,7 +36,7 @@ struct ioreq_vcpu {
     bool             pending;
 };
 
-#define NR_IO_RANGE_TYPES (XEN_DMOP_IO_RANGE_PCI + 1)
+#define NR_IO_RANGE_TYPES (XEN_DMOP_IO_RANGE_NR)
 #define MAX_NR_IO_RANGES  256
 
 struct ioreq_server {

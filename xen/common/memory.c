@@ -990,6 +990,16 @@ static int xenmem_add_to_physmap_batch(struct domain *d,
     case XENMAPSPACE_gmfn_foreign:
         extra.foreign_domid = xatpb->u.foreign_domid;
         break;
+
+    case XENMAPSPACE_gmfn_host:
+        if ( !IS_ENABLED(CONFIG_HMEM) )
+            return -EOPNOTSUPP;
+
+        if ( xsm_map_hmem_foreign(XSM_DM_PRIV, current->domain, d) )
+            return -EPERM;
+
+        extra.foreign_domid = current->domain->domain_id;
+        return xenhmem_add_to_physmap(d, xatpb, extent, extra);
     }
 
     while ( xatpb->size > extent )

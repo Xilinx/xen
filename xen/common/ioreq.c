@@ -243,6 +243,10 @@ bool vcpu_ioreq_handle_completion(struct vcpu *v)
                          vio->req.dir);
         break;
 
+    case VIO_hmem_completion:
+        vio->req.state = STATE_IOREQ_NONE;
+        break;
+
     default:
         res = arch_vcpu_ioreq_completion(completion);
         break;
@@ -509,6 +513,7 @@ static int ioreq_server_alloc_rangesets(struct ioreq_server *s,
         case XEN_DMOP_IO_RANGE_PORT:   type = " port";   break;
         case XEN_DMOP_IO_RANGE_MEMORY: type = " memory"; break;
         case XEN_DMOP_IO_RANGE_PCI:    type = " pci";    break;
+        case XEN_DMOP_IO_RANGE_HMEM:   type = " hmem";   break;
         default:                       type = "";        break;
         }
 
@@ -867,6 +872,7 @@ static int ioreq_server_map_io_range(struct domain *d, ioservid_t id,
     case XEN_DMOP_IO_RANGE_PORT:
     case XEN_DMOP_IO_RANGE_MEMORY:
     case XEN_DMOP_IO_RANGE_PCI:
+    case XEN_DMOP_IO_RANGE_HMEM:
         r = s->range[type];
         break;
 
@@ -919,6 +925,7 @@ static int ioreq_server_unmap_io_range(struct domain *d, ioservid_t id,
     case XEN_DMOP_IO_RANGE_PORT:
     case XEN_DMOP_IO_RANGE_MEMORY:
     case XEN_DMOP_IO_RANGE_PCI:
+    case XEN_DMOP_IO_RANGE_HMEM:
         r = s->range[type];
         break;
 
@@ -1133,6 +1140,19 @@ struct ioreq_server *ioreq_server_select(struct domain *d,
             start = ioreq_mmio_first_byte(p);
             end = ioreq_mmio_last_byte(p);
 
+            /* Guest physical ranges that are mapped to
+             * host virtual address space are registered
+             * in memory ioreq server, so that host gets
+             * notified when the guest access faulted to
+             * remap the range */
+            r = s->range[XEN_DMOP_IO_RANGE_HMEM];
+            if ( rangeset_contains_range(r, start, end) )
+            {
+                p->type = IOREQ_TYPE_HMEM;
+                return s;
+            }
+
+            r = s->range[XEN_DMOP_IO_RANGE_MEMORY];
             if ( rangeset_contains_range(r, start, end) )
                 return s;
 

@@ -194,6 +194,49 @@ int xenforeignmemory_resource_size(
     xenforeignmemory_handle *fmem, domid_t domid, unsigned int type,
     unsigned int id, size_t *size);
 
+/**
+ * Map host virtual address range into another guest's address space.
+ *
+ * @parm fmem handle to the privcmd interface
+ * @parm domid domain id of the other guest
+ * @parm hva start of host virtual address range
+ * @parm gfn start of guest physical address range
+ * @parm npages number of host pages to be mapped
+ *
+ * Return 0 on success. Set errno and return -1 on failure.
+ */
+int xenhmem_map(xenforeignmemory_handle *fmem, domid_t domid,
+                void *hva, xen_pfn_t gfn, size_t npages);
+
+/**
+ * Unmap host virtual address range from another guest's address space.
+ *
+ * @parm fmem handle to the privcmd interface
+ * @parm domid domain id of the other guest
+ * @parm hva start of host virtual address range
+ * @parm npages number of host pages to be unmapped
+ *
+ * Return 0 on success. Set errno and return -1 on failure.
+ */
+int xenhmem_unmap(xenforeignmemory_handle *fmem, domid_t domid,
+                  void *hva, size_t npages);
+/**
+ * Sync the mappings of a mapped host virtual address range.
+ * Sync is performed when the guest attempts to access a hva
+ * that is not mapped to a host physical address.
+ *
+ * @parm fmem handle to the privcmd interface
+ * @parm domid domain id of the other guest
+ * @parm hva start of host virtual address range
+ * @parm npages number of host pages to be synced
+ *
+ * Return 0 on success. Set errno and return -1 on failure.
+ */
+int xenhmem_sync(xenforeignmemory_handle *fmem, domid_t domid,
+                 void *hva, size_t npages);
+
+#define XEN_HMEM
+
 #endif
 
 /*

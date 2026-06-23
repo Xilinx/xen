@@ -152,6 +152,36 @@ int xendevicemodel_unmap_pcidev_from_ioreq_server(
     uint16_t segment, uint8_t bus, uint8_t device, uint8_t function);
 
 /**
+ * This function registers a range of host memory for direct access
+ * by another domain.
+ *
+ * @parm dmod a handle to an open devicemodel interface.
+ * @parm domid the domain id to be serviced
+ * @parm id the IOREQ Server id.
+ * @parm start start address of range
+ * @parm last last address of range
+ * @return 0 on success, -1 on failure.
+ */
+int xendevicemodel_map_hmem_to_ioreq_server(
+    xendevicemodel_handle *dmod, domid_t domid, ioservid_t id,
+    uint64_t start, uint64_t last);
+
+/**
+ * This function deregisters a range of host memory from direct access
+ * by another guest.
+ *
+ * @parm dmod a handle to an open devicemodel interface.
+ * @parm domid the domain id to be serviced
+ * @parm id the IOREQ Server id.
+ * @parm start start address of range
+ * @parm last last address of range
+ * @return 0 on success, -1 on failure.
+ */
+int xendevicemodel_unmap_hmem_from_ioreq_server(
+    xendevicemodel_handle *dmod, domid_t domid, ioservid_t id,
+    uint64_t start, uint64_t last);
+
+/**
  * This function destroys an IOREQ Server.
  *
  * @parm dmod a handle to an open devicemodel interface.

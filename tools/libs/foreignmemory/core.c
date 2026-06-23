@@ -206,6 +206,26 @@ int xenforeignmemory_resource_size(
     return 0;
 }
 
+#if defined(__linux__)
+int xenhmem_map(xenforeignmemory_handle *fmem, domid_t domid,
+                void *hva, xen_pfn_t gfn, size_t npages)
+{
+    return osdep_xenhmem_map(fmem, domid, hva, gfn, npages);
+}
+
+int xenhmem_unmap(xenforeignmemory_handle *fmem, domid_t domid,
+                  void *hva, size_t npages)
+{
+    return osdep_xenhmem_unmap(fmem, domid, hva, npages);
+}
+
+int xenhmem_sync(xenforeignmemory_handle *fmem, domid_t domid,
+                 void *hva, size_t npages)
+{
+    return osdep_xenhmem_sync(fmem, domid, hva, npages);
+}
+#endif
+
 /*
  * Local variables:
  * mode: C

@@ -342,6 +342,9 @@ static int hvmemul_do_io(
         }
         else
         {
+            if ( IS_ENABLED(CONFIG_HMEM) && (p.type == IOREQ_TYPE_HMEM) )
+                vio->req.type = IOREQ_TYPE_HMEM;
+
             rc = ioreq_send(s, &p, 0);
             if ( rc != X86EMUL_RETRY || vio->suspended )
                 vio->req.state = STATE_IOREQ_NONE;
@@ -2699,6 +2702,9 @@ static int _hvm_emulate_one(struct hvm_emulate_ctxt *hvmemul_ctxt,
     if ( rc == X86EMUL_OKAY && hvio->mmio_retry )
         rc = X86EMUL_RETRY;
 
+    if ( IS_ENABLED(CONFIG_HMEM) && (curr->io.req.type == IOREQ_TYPE_HMEM) )
+        completion = VIO_hmem_completion;
+
     if ( !ioreq_needs_completion(&curr->io.req) )
         completion = VIO_no_completion;
     else if ( completion == VIO_no_completion )
@@ -2710,6 +2716,7 @@ static int _hvm_emulate_one(struct hvm_emulate_ctxt *hvmemul_ctxt,
     {
     case VIO_no_completion:
     case VIO_pio_completion:
+    case VIO_hmem_completion:
         hvio->mmio_cache_count = 0;
         hvio->mmio_insn_bytes = 0;
         hvio->mmio_access = (struct npfec){};

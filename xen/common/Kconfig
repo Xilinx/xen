@@ -547,4 +547,16 @@ config BUDDY_ALLOCATOR_SIZE
 
 source "common/virtio/Kconfig"
 
+config HMEM
+	bool "Map DM hostmem to guest" if EXPERT
+	depends on IOREQ_SERVER && X86
+	help
+	  Needed for direct mapping of DM virtual address ranges to a guest
+	  as it is the case of virtio gpu blob resources. Enabled permits
+	  DM to map those VA ranges to guest's address space and to register
+	  a special ioreq server to monitor faulted guest accesses to those
+	  VA ranges.
+
+	  If unsure, say N.
+
 endmenu

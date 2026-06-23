@@ -44,4 +44,6 @@ VERS_1.4 {
 		xendevicemodel_set_irq_level;
 		xendevicemodel_nr_vcpus;
 		xendevicemodel_virtio_msg_bus_xen_connect;
+		xendevicemodel_map_hmem_to_ioreq_server;
+		xendevicemodel_unmap_hmem_from_ioreq_server;
 } VERS_1.3;

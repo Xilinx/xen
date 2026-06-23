@@ -224,6 +224,11 @@ DEFINE_XEN_GUEST_HANDLE(xen_machphys_mapping_t);
                                       requires current to have mapping
                                       privileges instead of the
                                       destination domain. */
+#define XENMAPSPACE_gmfn_host    7 /* current dom's GMFN (RAM or IOMEM)
+                                      mapped into another dom's p2m,
+                                      XENMEM_add_to_physmap_batch only.
+                                      Requires current to have mapping
+                                      privileges over the destination. */
 
 /* ` } */
 

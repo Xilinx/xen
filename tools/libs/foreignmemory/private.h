@@ -76,6 +76,15 @@ int osdep_xenforeignmemory_unmap_resource(
     xenforeignmemory_handle *fmem, xenforeignmemory_resource_handle *fres);
 #endif
 
+#if defined(__linux__)
+int osdep_xenhmem_map(xenforeignmemory_handle *fmem,
+                      domid_t domid, void *hva, xen_pfn_t gfn, size_t npages);
+int osdep_xenhmem_unmap(xenforeignmemory_handle *fmem,
+                        domid_t domid, void *hva, size_t npages);
+int osdep_xenhmem_sync(xenforeignmemory_handle *fmem,
+                       domid_t domid, void *hva, size_t npages);
+#endif
+
 #define PERROR(_f...) \
     xtl_log(fmem->logger, XTL_ERROR, errno, "xenforeignmemory", _f)
 
