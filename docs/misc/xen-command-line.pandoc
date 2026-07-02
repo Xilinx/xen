@@ -1628,6 +1628,10 @@ boolean (e.g. `iommu=no`) can override this and leave the IOMMUs disabled.
     will prevent Xen from booting if IOMMUs aren't discovered and enabled
     successfully.
 
+    On ARM, `force`/`required` additionally causes an IOMMU device-tree
+    node to be probed even if its `status` property marks it unavailable
+    (e.g. `status = "disabled"`).
+
 *   The `quarantine` option can be used to control Xen's behavior when
     de-assigning devices from guests.  The default behaviour is chosen at
     compile time, and is one of `CONFIG_IOMMU_QUARANTINE_{NONE,BASIC,SCRATCH_PAGE}`.

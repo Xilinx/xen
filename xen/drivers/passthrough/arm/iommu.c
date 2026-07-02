@@ -30,6 +30,11 @@ static __initdata LIST_HEAD(deferred_probe_list);
 
 static const struct iommu_ops *iommu_ops;
 
+bool __init iommu_force_probe(enum device_class class)
+{
+    return class == DEVICE_IOMMU && force_iommu;
+}
+
 const struct iommu_ops *iommu_get_ops(void)
 {
     return iommu_ops;

@@ -8,12 +8,18 @@
 #include <xen/device_tree.h>
 #include <xen/errno.h>
 #include <xen/init.h>
+#include <xen/iommu.h>
 
 #include <asm/device.h>
 
 #ifdef CONFIG_HAS_DEVICE_TREE_DISCOVERY
 
 extern const struct device_desc _sdevice[], _edevice[];
+
+bool __weak iommu_force_probe(enum device_class class)
+{
+    return false;
+}
 
 int __init device_init(struct dt_device_node *dev, enum device_class class,
                        const void *data)
@@ -22,7 +28,8 @@ int __init device_init(struct dt_device_node *dev, enum device_class class,
 
     ASSERT(dev != NULL);
 
-    if ( !dt_device_is_available(dev) || dt_device_for_passthrough(dev) )
+    if ( (!dt_device_is_available(dev) && !iommu_force_probe(class)) ||
+         dt_device_for_passthrough(dev) )
         return  -ENODEV;
 
     for ( desc = _sdevice; desc != _edevice; desc++ )

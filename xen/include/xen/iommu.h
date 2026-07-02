@@ -307,6 +307,13 @@ static inline int iommu_add_dt_pci_sideband_ids(struct pci_dev *pdev)
 
 #endif /* HAS_PASSTHROUGH */
 
+/*
+ * Whether a device-tree node of the given class should be probed as an IOMMU
+ * even though its "status" property marks it unavailable. The __weak default
+ * returns false.
+ */
+bool iommu_force_probe(enum device_class class);
+
 #endif /* HAS_DEVICE_TREE_DISCOVERY */
 
 #ifdef CONFIG_ARM
