@@ -294,5 +294,6 @@
 #define R_IOU_SLCR_IOU_RAM_CAN1           0x51c
 #define R_IOU_SLCR_IOU_RAM_LQSPI          0x520
 #define R_IOU_SLCR_IOU_RAM_NAND           0x524
+#define R_CSU_PCAP_STATUS                 0x3010
 
 #endif /* __ASM_ARM_PLATFORMS_XILINX_ZYNQMP_MM_H */

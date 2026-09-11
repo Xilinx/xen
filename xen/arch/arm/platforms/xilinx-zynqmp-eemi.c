@@ -167,6 +167,7 @@ static const struct pm_access pm_node_access[] = {
     [ZYNQMP_PM_DEV_TCM_1_A] = { MM_TCM_1_A },
     [ZYNQMP_PM_DEV_TCM_1_B] = { MM_TCM_1_B },
     [ZYNQMP_PM_DEV_SWDT_1] = { MM_SWDT },
+    [ZYNQMP_PM_DEV_SYSMON] = { MM_CSU },
 };
 
 /*
@@ -447,6 +448,10 @@ static const struct {
     {
         .start = MM_PMU_GLOBAL + R_PMU_GLOBAL_GLOBAL_GEN_STORAGE0,
         .end = MM_PMU_GLOBAL + R_PMU_GLOBAL_PERS_GLOB_GEN_STORAGE7,
+        .readonly = true,
+    },
+    {
+        .start = MM_CSU + R_CSU_PCAP_STATUS, .node = ZYNQMP_PM_DEV_SYSMON,
         .readonly = true,
     },
 };
