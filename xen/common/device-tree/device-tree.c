@@ -1673,6 +1673,11 @@ bool dt_device_is_available(const struct dt_device_node *device)
     const char *status;
     u32 statlen;
 
+#if defined(CONFIG_HAS_DEVICE_TREE_DISCOVERY) && defined(CONFIG_HAS_PASSTHROUGH)
+    if ( (device_get_class(device) == DEVICE_IOMMU) && force_iommu )
+        return 1;
+#endif
+
     status = dt_get_property(device, "status", &statlen);
     if ( status == NULL )
         return 1;
