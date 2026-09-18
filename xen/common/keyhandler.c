@@ -24,8 +24,6 @@
 #include <xen/init.h>
 #include <asm/div64.h>
 
-#include <public/bootfdt.h>
-
 static unsigned char keypress_key;
 static bool alt_key_handling;
 
@@ -256,24 +254,6 @@ static void noreturn cf_check reboot_machine(unsigned char key, bool unused)
 {
     printk("'%c' pressed -> rebooting machine\n", key);
     machine_restart(0);
-}
-
-static int get_domain_caps(struct domain *d)
-{
-    int caps = 0;
-
-    if ( is_control_domain(d) )
-        caps |= DOMAIN_CAPS_CONTROL;
-    if ( is_hardware_domain(d) )
-        caps |= DOMAIN_CAPS_HARDWARE;
-    if ( is_xenstore_domain(d) )
-        caps |= DOMAIN_CAPS_XENSTORE;
-    if ( is_dm_domain(d) )
-        caps |= DOMAIN_CAPS_DEVICE_MODEL;
-    if ( !is_hypercall_target(d) )
-        caps |= DOMAIN_CAPS_NOT_HYPERCALL_TARGET;
-
-    return caps;
 }
 
 static void cf_check dump_domains(unsigned char key)

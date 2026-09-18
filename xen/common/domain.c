@@ -39,6 +39,7 @@
 #include <xen/xvmalloc.h>
 #include <asm/p2m.h>
 #include <asm/processor.h>
+#include <public/bootfdt.h>
 #include <public/io/console.h>
 #include <public/io/xs_wire.h>
 #include <public/sched.h>
@@ -2612,6 +2613,24 @@ void __init domain_vcpu_affinity(struct domain *d,
     } while ( ++vcpu_id < d->max_vcpus );
 }
 
+unsigned int get_domain_caps(const struct domain *d)
+{
+    unsigned int caps = 0;
+
+    if ( is_control_domain(d) )
+        caps |= DOMAIN_CAPS_CONTROL;
+    if ( is_hardware_domain(d) )
+        caps |= DOMAIN_CAPS_HARDWARE;
+    if ( is_xenstore_domain(d) )
+        caps |= DOMAIN_CAPS_XENSTORE;
+    if ( is_dm_domain(d) )
+        caps |= DOMAIN_CAPS_DEVICE_MODEL;
+    if ( !is_hypercall_target(d) )
+        caps |= DOMAIN_CAPS_NOT_HYPERCALL_TARGET;
+
+    return caps;
+}
+
 void getdomaininfo(struct domain *d, struct xen_domctl_getdomaininfo *info)
 {
     struct vcpu *v;
@@ -2670,6 +2689,8 @@ void getdomaininfo(struct domain *d, struct xen_domctl_getdomaininfo *info)
     BUG_ON(SHARED_M2P(info->shared_info_frame));
 
     info->cpupool = cpupool_get_id(d);
+
+    info->caps = get_domain_caps(d);
 
     memcpy(info->handle, d->handle, sizeof(xen_domain_handle_t));
 

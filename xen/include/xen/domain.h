@@ -33,6 +33,7 @@ void setup_system_domains(void);
 
 struct xen_domctl_getdomaininfo;
 void getdomaininfo(struct domain *d, struct xen_domctl_getdomaininfo *info);
+unsigned int get_domain_caps(const struct domain *d);
 void arch_get_domain_info(const struct domain *d,
                           struct xen_domctl_getdomaininfo *info);
 

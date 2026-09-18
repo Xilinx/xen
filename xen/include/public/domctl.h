@@ -187,7 +187,8 @@ struct xen_domctl_getdomaininfo {
     xen_domain_handle_t handle;
     uint32_t cpupool;
     uint8_t gpaddr_bits; /* Guest physical address space size. */
-    uint8_t pad2[7];
+    uint8_t caps;        /* DOMAIN_CAPS_* (public/bootfdt.h) */
+    uint8_t pad2[6];
     struct xen_arch_domainconfig arch_config;
 };
 typedef struct xen_domctl_getdomaininfo xen_domctl_getdomaininfo_t;
