@@ -28,6 +28,8 @@
 #include <libxl_utils.h>
 #include <libxlutil.h>
 #include <xen-tools/arm-arch-capabilities.h>
+#include <xen-tools/common-macros.h>
+#include <xen/bootfdt.h>
 #include <xenstore.h>
 
 #include "xl.h"
@@ -475,7 +477,7 @@ static void list_domains(bool verbose, bool context, bool claim, bool numa,
     libxl_physinfo_init(&physinfo);
 
     printf("Name                                        ID   Mem VCPUs\tState\tTime(s)");
-    if (verbose) printf("   UUID                            Reason-Code\tSecurity Label");
+    if (verbose) printf("   UUID                            Reason-Code\tSecurity Label   Capabilities");
     if (context && !verbose) printf("   Security Label");
     if (claim) printf("  Claimed");
     if (cpupool) printf("         Cpupool");
@@ -523,6 +525,28 @@ static void list_domains(bool verbose, bool context, bool claim, bool numa,
             printf(" %5lu", (unsigned long)info[i].outstanding_memkb / 1024);
         if (verbose || context)
             printf(" %16s", info[i].ssid_label ? : "-");
+        if (verbose) {
+            static const struct {
+                uint32_t bit;
+                const char *name;
+            } captab[] = {
+                { DOMAIN_CAPS_CONTROL,             "control" },
+                { DOMAIN_CAPS_HARDWARE,            "hardware" },
+                { DOMAIN_CAPS_XENSTORE,            "xenstore" },
+                { DOMAIN_CAPS_DEVICE_MODEL,        "device_model" },
+                { DOMAIN_CAPS_NOT_HYPERCALL_TARGET, "not_hypercall_target" },
+            };
+            unsigned int j;
+            bool cap = false;
+
+            for (j = 0; j < ARRAY_SIZE(captab); j++)
+                if (info[i].capabilities & captab[j].bit) {
+                    cap = true;
+                    printf(" %s", captab[j].name);
+                }
+            if (!cap)
+                printf(" %17s", "-");
+        }
         if (cpupool) {
             char *poolname = libxl_cpupoolid_to_name(ctx, info[i].cpupool);
             printf("%16s", poolname);

@@ -319,7 +319,10 @@ Also displays the security labels.
 
 =item B<-v>, B<--verbose>
 
-Also displays the domain UUIDs, the shutdown reason and security labels.
+Also displays the domain UUIDs, the shutdown reason, security labels and
+domain capabilities. The capabilities are shown as a space-separated list
+of B<control>, B<hardware>, B<xenstore>, B<device_model> and
+B<not_hypercall_target>.
 
 =item B<-c>, B<--cpupool>
 
