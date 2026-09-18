@@ -383,6 +383,7 @@ libxl_dominfo = Struct("dominfo",[
     ("shutdown",    bool),
     ("dying",       bool),
     ("never_stop",  bool),
+    ("capabilities", uint32),
 
     # Valid iff ->shutdown is true.
     #

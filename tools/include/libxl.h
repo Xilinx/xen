@@ -104,6 +104,14 @@
  */
 #define LIBXL_HAVE_DOMAIN_NEED_MEMORY_CONST_B_INFO 1
 
+/* LIBXL_HAVE_DOMINFO_CAPABILITIES
+ *
+ * If this is defined, libxl_dominfo has a 'capabilities' field holding
+ * the DOMAIN_CAPS_* bitmask (see xen/bootfdt.h) reported by the
+ * hypervisor for the domain.
+ */
+#define LIBXL_HAVE_DOMINFO_CAPABILITIES 1
+
 /* LIBXL_HAVE_VNUMA
  *
  * If this is defined the type libxl_vnode_info exists, and a

@@ -338,6 +338,7 @@ Paused bool
 Shutdown bool
 Dying bool
 NeverStop bool
+Capabilities uint32
 ShutdownReason ShutdownReason
 OutstandingMemkb uint64
 CurrentMemkb uint64

@@ -293,6 +293,7 @@ void libxl__xcinfo2xlinfo(libxl_ctx *ctx,
     xlinfo->blocked    = !!(xcinfo->flags&XEN_DOMINF_blocked);
     xlinfo->running    = !!(xcinfo->flags&XEN_DOMINF_running);
     xlinfo->never_stop = !!(xcinfo->flags&XEN_DOMINF_xs_domain);
+    xlinfo->capabilities = xcinfo->caps;
 
     if (xlinfo->shutdown)
         xlinfo->shutdown_reason = (xcinfo->flags>>XEN_DOMINF_shutdownshift) & XEN_DOMINF_shutdownmask;
