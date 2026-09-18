@@ -128,10 +128,22 @@ static void cf_check dsu_dump_clusters_info(unsigned char key)
     printk(XENLOG_INFO "=== End of DSU Dump ===\n");
 }
 
+static int __init dsu_parse_num(const char **p)
+{
+    const char *start = *p;
+    unsigned long val = simple_strtoul(start, p, 10);
+
+    if ( *p == start || *p - start > 3 )
+        return -1;
+
+    return val;
+}
+
 static int __init parse_dsu_partition_cmdline(void)
 {
     const char *p = opt_dsu_config;
     unsigned int cluster;
+    int val;
     int wg_start, wg_end, s_start, s_end;
     int wg_count, s_count;
     unsigned int i;
@@ -147,7 +159,13 @@ static int __init parse_dsu_partition_cmdline(void)
         }
         p++;
 
-        cluster = simple_strtoul(p, &p, 10);
+        val = dsu_parse_num(&p);
+        if ( val < 0 )
+        {
+            printk(XENLOG_ERR "DSU: invalid or missing cluster number\n");
+            return -EINVAL;
+        }
+        cluster = val;
         if ( cluster >= dsu.num_clusters )
         {
             printk(XENLOG_ERR
@@ -181,12 +199,22 @@ static int __init parse_dsu_partition_cmdline(void)
             }
             p++;
 
-            wg_start = simple_strtoul(p, &p, 10);
+            wg_start = dsu_parse_num(&p);
+            if ( wg_start < 0 )
+            {
+                printk(XENLOG_ERR "DSU: invalid or missing way-group number\n");
+                return -EINVAL;
+            }
             wg_end = wg_start;
             if ( *p == '-' )
             {
                 p++;
-                wg_end = simple_strtoul(p, &p, 10);
+                wg_end = dsu_parse_num(&p);
+                if ( wg_end < 0 )
+                {
+                    printk(XENLOG_ERR "DSU: invalid way-group range end\n");
+                    return -EINVAL;
+                }
             }
 
             if ( wg_start <= 0 || wg_end <= 0 )
@@ -225,12 +253,22 @@ static int __init parse_dsu_partition_cmdline(void)
             }
             p++;
 
-            s_start = simple_strtoul(p, &p, 10);
+            s_start = dsu_parse_num(&p);
+            if ( s_start < 0 )
+            {
+                printk(XENLOG_ERR "DSU: invalid or missing scheme number\n");
+                return -EINVAL;
+            }
             s_end = s_start;
             if ( *p == '-' )
             {
                 p++;
-                s_end = simple_strtoul(p, &p, 10);
+                s_end = dsu_parse_num(&p);
+                if ( s_end < 0 )
+                {
+                    printk(XENLOG_ERR "DSU: invalid scheme range end\n");
+                    return -EINVAL;
+                }
             }
 
             if ( s_start == 0 || s_end == 0 )
