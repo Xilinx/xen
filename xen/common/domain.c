@@ -2927,7 +2927,7 @@ out:
         d->teardown.arch_val = 0;
         d->teardown.vcpu = NULL;
 
-        if ( !ret )
+        if ( ret >= 0 )
         {
             domain_changed_state(d);
             send_global_virq(VIRQ_DOM_EXC);

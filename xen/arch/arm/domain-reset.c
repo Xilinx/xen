@@ -267,8 +267,10 @@ long arch_domain_full_reset(struct domain *d)
 
     /* Reload kernel, fdt and initrd */
     ret = reload_binaries(d, rinfo);
-    if ( ret )
+    if ( ret == -ERESTART )
         return ret;
+    if ( ret )
+        return -EFAULT;
 
     d->arch.virt_timer_base.offset = get_cycles();
     d->arch.virt_timer_base.nanoseconds =
