@@ -109,6 +109,13 @@ Examples::
   C1:(W1-3:S1-3)                 # WG1->S1, WG2->S2, WG3->S3
   C2:(W1-3:S2)                   # WG1,WG2,WG3->S2
 
+The default fill is per cluster and all-or-nothing: any explicit WG
+assignment on a cluster disables it for that cluster, so unassigned WGs
+stay on Xen rather than taking S1/S2. Thus ``C0:(W1:S1)`` leaves WG2 and
+WG3 on Xen, and in a multi-cluster system the clusters left unconfigured
+still receive the full default. The final way-group to scheme map of
+every cluster is logged at boot so an asymmetric layout is visible.
+
 By default, multiple domains on the same cluster cannot share a scheme.
 To allow scheme sharing between domains on the same cluster, set
 ``dsu_part_sharing=1`` on the Xen command line.

@@ -384,11 +384,24 @@ static void __init dsu_apply_default_mapping(void)
             dsu.clusters[i].wg_scheme[1] = 1;
             dsu.clusters[i].wg_scheme[2] = 2;
             dsu.clusters[i].wg_scheme[3] = DSU_SCHEME_XEN;
-
-            printk(XENLOG_INFO
-                   "DSU: cluster %u using default mapping (WG0,WG3->S0, WG1->S1, WG2->S2)\n",
-                   i);
         }
+    }
+}
+
+static void __init dsu_log_mapping(void)
+{
+    unsigned int c, w;
+
+    for ( c = 0; c < dsu.num_clusters; c++ )
+    {
+        char buf[64];
+        int pos = 0;
+
+        for ( w = 0; w < DSU_WAY_GROUPS; w++ )
+            pos += scnprintf(buf + pos, sizeof(buf) - pos, " WG%u->S%u",
+                             w, dsu.clusters[c].wg_scheme[w]);
+
+        printk(XENLOG_INFO "DSU: cluster %u partition map:%s\n", c, buf);
     }
 }
 
@@ -717,6 +730,7 @@ int __init dsu_init(void)
     }
 
     dsu_apply_default_mapping();
+    dsu_log_mapping();
 
     ret = stop_machine_run(dsu_part_program_cpu, NULL, NR_CPUS);
     if ( ret )
