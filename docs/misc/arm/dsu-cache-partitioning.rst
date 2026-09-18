@@ -59,6 +59,24 @@ corresponds to exactly one pCPU). Any scheduler that can migrate vCPUs
 between cores (e.g. credit) is incompatible with the current
 implementation.
 
+Firmware requirements
+---------------------
+
+The DSU partitioning registers (``CLUSTERPARTCR_EL1``,
+``CLUSTERTHREADSID_EL1``, ``CLUSTERACPSID_EL1`` and
+``CLUSTERSTASHSID_EL1``) are IMPLEMENTATION DEFINED and, by default,
+only writable from EL3. Firmware (e.g. TF-A) must delegate write access
+down to EL2 by setting the corresponding bits in ``ACTLR_EL3``: the bit
+that grants ``CLUSTERPARTCR_EL1``, ``CLUSTERACPSID_EL1`` and
+``CLUSTERSTASHSID_EL1``, and the separate bit that grants
+``CLUSTERTHREADSID_EL1`` (see the DSU-AE TRM for the exact bit
+positions on the target part). Without this delegation, Xen's writes to
+these registers at EL2 trap as undefined and boot fails.
+
+Xen cannot program or check ``ACTLR_EL3`` itself (it runs at EL2), so
+this delegation is a platform integration prerequisite. On the tested
+A78AE/DSU-600AE platform the firmware already enables it.
+
 Boot-time configuration
 -----------------------
 
