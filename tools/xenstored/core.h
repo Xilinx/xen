@@ -384,7 +384,7 @@ void unmap_xenbus(void *interface);
 
 static inline bool domid_is_unprivileged(unsigned int domid)
 {
-	return domid != priv_domid;
+	return domid != store_domid && domid != priv_domid;
 }
 
 static inline bool domain_is_unprivileged(const struct connection *conn)
