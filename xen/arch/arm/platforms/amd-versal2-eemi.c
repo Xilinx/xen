@@ -621,6 +621,12 @@ bool versal2_eemi(struct cpu_user_regs *regs)
     uint32_t pm_fn;
     enum pm_ret_status ret;
 
+    if ( EEMI_PM_FID(fid) > IPI_MAILBOX_DISABLE_IRQ &&
+         fid != ARM_SMCCC_CALL_COUNT_FID(SIP) &&
+         fid != ARM_SMCCC_CALL_UID_FID(SIP) &&
+         fid != ARM_SMCCC_REVISION_FID(SIP) )
+        return false;
+
     if (fid == PASS_THROUGH_SMC_ID) {
         pm_fn = (uint32_t)get_user_reg(regs, 1);
         if (MODULE_ID(pm_fn) == XPM_MODULE_ID)
