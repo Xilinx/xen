@@ -206,6 +206,17 @@ enum efuse_id {
     PM_EFUSE_WRITE_AES_KEYS_ACCESS_VERSAL = 0xB24,
 };
 
+/*
+ * XilLoader API IDs (module 0x7).
+ * See Linux: include/linux/firmware/xlnx-zynqmp-pdi.h
+ */
+enum xloader_id {
+    XLOADER_API_FEATURES = 0x700,
+    PM_LOAD_PDI = 0x701,
+    PM_GET_UID_INFO_LIST = 0x705,
+    PM_GET_META_HEADER_INFO_LIST = 0x706,
+};
+
 /**
  * @XST_PM_SUCCESS:		Success
  * @XST_PM_ARGS:		illegal arguments provided (deprecated)

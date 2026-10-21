@@ -558,13 +558,17 @@ bool xilinx_eemi(struct cpu_user_regs *regs, const uint32_t fid,
         goto done;
 
     /*
-     * XilSECURE, XilNVM (BBRAM/eFuse) and XilPUF calls.
+     * XilSECURE, XilNVM (BBRAM/eFuse), XilPUF and XilLoader calls.
      * Exclusive to the hardware domain.
      */
     case EEMI_FID(XSECURE_API_FEATURES)...EEMI_FID(XSECURE_API_AES_WRITE_KEY):
     case EEMI_FID(XILNVM_API_FEATURES)...EEMI_FID(PM_BBRAM_LOCK_USERDATA):
     case EEMI_FID(PM_EFUSE_READ_VERSAL)...EEMI_FID(PM_EFUSE_WRITE_AES_KEYS_ACCESS_VERSAL):
     case EEMI_FID(XPUF_API_FEATURES)...EEMI_FID(XPUF_API_PUF_CLEAR_PUF_ID):
+    case EEMI_FID(XLOADER_API_FEATURES):
+    case EEMI_FID(PM_LOAD_PDI):
+    case EEMI_FID(PM_GET_UID_INFO_LIST):
+    case EEMI_FID(PM_GET_META_HEADER_INFO_LIST):
         if ( !is_hardware_domain(current->domain) )
         {
             gprintk(XENLOG_WARNING, "eemi: fn=%u No access\n", pm_fn);
